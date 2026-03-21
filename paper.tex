@@ -781,6 +781,48 @@ This confirms Nelson's structural observation: there exists a meaningful
 fragment weak enough to admit self-consistency, and the gap between this
 fragment and the full system is precisely where the G\"odel barrier appears.
 
+\subsection{The Corrected Nelson Program}
+
+We package these results as a formal ``corrected Nelson theorem,''
+preserving the valid content of Nelson's program while making the
+barrier explicit.
+
+\begin{theorem}[Corrected Nelson program, \texttt{ChwistekNelson.agda}]
+\leavevmode
+\begin{enumerate}[label=(\roman*)]
+\item \emph{Open consistency.}
+  $\mathsf{OpenProof}(\fbot) \to \bot$.
+  The propositional fragment is consistent.
+
+\item \emph{Instance-by-instance reflection.}
+  For each code $p$ with $\checkPN(n{+}1, p) = \mathsf{just}(A)$,
+  there exists a code $d$ with
+  $\checkPN(n{+}3, d) = \mathsf{just}(\fceq(\ccheck(\clit(p)),
+  \clit(\enc{A})))$.
+  The system can certify what each specific code proves.
+
+\item \emph{Iterated reflection.}
+  D3 holds: the certification from~(ii) can itself be
+  certified, at $+4$ fuel per level.
+
+\item \emph{Meta-level consistency.}
+  $\Proof(\fbot) \to \bot$.
+  The full system is consistent (proved by soundness at the meta-level).
+
+\item \emph{The gap.}
+  Internal consistency ($\mathsf{Con}$ provable inside the system)
+  is not derivable from instance reflection alone.
+  $\mathsf{ax\text{-}eval}$ works on closed code expressions but cannot
+  produce facts about universally quantified code variables.
+  This is the G\"odel-II barrier.
+\end{enumerate}
+\end{theorem}
+
+Nelson correctly identified that instance verification is available
+and open consistency is provable. The gap between these and universal
+internal consistency is real, precisely located, and is the formal
+content of G\"odel's second incompleteness theorem.
+
 %% ====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
@@ -788,7 +830,7 @@ fragment and the full system is precisely where the G\"odel barrier appears.
 We have presented a fully constructive, self-contained formalization of
 G\"odel's first incompleteness theorem in Agda, using binary trees as
 the native syntax representation and avoiding G\"odel numbering entirely.
-The development comprises 18 Agda files totaling approximately 3800
+The development comprises 19 Agda files totaling approximately 3900
 lines, with no postulates, no holes, and no standard library.
 
 The key technical insight is that self-reference can be achieved through
@@ -819,7 +861,7 @@ very content of G\"odel's second incompleteness theorem.
 \bigskip
 
 \noindent\textbf{Artifact.}
-The complete Agda development is available as 18 source files. All files
+The complete Agda development is available as 19 source files. All files
 compile with Agda's \texttt{--without-K --exact-split} flags. The
 \texttt{--safe} flag is used throughout; no postulates or unsafe pragmas
 appear anywhere in the development.
