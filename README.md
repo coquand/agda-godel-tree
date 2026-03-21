@@ -68,14 +68,33 @@ Requires Agda 2.8.0. To type-check the main result:
 agda ChwistekSoundness.agda
 ```
 
-## Boundary
+## Reflection hierarchy
 
-The current proof system is strong enough for Goedel I but too weak for
-a non-vacuous Goedel II. The system lacks internal reasoning principles
-for code computation (no axioms produce `fceq` formulas), so the consistency
-formula `Con` is trivially unprovable for the wrong reason. Extending
-to Goedel II requires adding reflection rules (`ax-check`, `cinst`, `ax-eval`)
-that let the system prove facts about its own proof checker.
+Beyond Goedel I, the development explores what is needed for Goedel II
+by adding an extended proof system (`ProofExt`) with a reflection rule
+(`ax-eval`) that internalizes evaluation facts as provable `fceq` formulas.
+
+The key finding is a **strict reflection hierarchy**:
+
+- **Reflection success**: the extended system can prove that old proof codes
+  check correctly (D1, the first Hilbert-Bernays condition).
+- **Reflection failure**: the old evaluator is provably blind to extended
+  proof codes (`evalCExp-blind-to-ax-eval`). Tag 36 codes return `nothing`.
+- **Self-reflection impossible**: no equality witness exists for re-reflecting
+  ax-eval proofs (`no-self-reflect-ax-eval`).
+
+This shows that Chwistek's metasystem/object-system separation is
+structurally necessary: each layer can reason about the layer below,
+but not about its own reflective reasoning.
+
+### Extended files
+
+| File | Contents |
+|------|----------|
+| `ChwistekProofExt.agda` | `ProofExt` with `ax-eval`, soundness, D1/self-ref |
+| `ChwistekProofExtCheck.agda` | `checkProofExt`, `encodeProofExt-correct` |
+| `ChwistekDerivabilityBoundary.agda` | D1, D2, D3 analysis, `Con`, boundary |
+| `ChwistekReflectionHierarchy.agda` | Blindness lemma, hierarchy strictness |
 
 ## Inspiration
 
