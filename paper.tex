@@ -824,13 +824,71 @@ internal consistency is real, precisely located, and is the formal
 content of G\"odel's second incompleteness theorem.
 
 %% ====================================================================
+\section{Constructive G\"odel~I}
+\label{sec:constructive}
+
+The previous results show that $G$ is not provable (meta-level).
+We now strengthen this to an \emph{internal proof transformation}:
+given a proof of~$G$, \emph{construct a proof of}~$\fbot$.
+
+This requires three additional rules in the proof system:
+\begin{itemize}
+\item $\mathsf{cinstC}$: from $\mathsf{ProofC}(\fcAll(A))$ and a code~$c$,
+  derive $\mathsf{ProofC}(A[c])$ (universal elimination for code quantification).
+\item $\mathsf{fceqTr}$: from $\fceq(e_1,e_2)$ and $\fceq(e_2,e_3)$,
+  derive $\fceq(e_1,e_3)$ (transitivity).
+\item $\mathsf{fceqSy}$: from $\fceq(e_1,e_2)$, derive $\fceq(e_2,e_1)$
+  (symmetry).
+\end{itemize}
+
+\begin{theorem}[Constructive G\"odel~I, \texttt{constructive-goedel1}]
+Given $\mathsf{ProofC}(G)$ and a code~$p$ with
+$\checkPN(n{+}1,p) = \mathsf{just}(G)$, there is a
+$\mathsf{ProofC}(\fbot)$.
+\end{theorem}
+
+\begin{proof}
+Six steps:
+\begin{enumerate}
+\item $\mathsf{cinstC}$: instantiate $G = \fcAll(\mathit{body})$ at~$p$,
+  obtaining $\fimp(\fceq(\ccheck(\clit(p)), \csub(\ldots)), \fbot)$.
+\item $\mathsf{axEvalC}$: $\ccheck(\clit(p))$ evaluates to $\enc{G}$
+  (from the encoding hypothesis).
+\item $\mathsf{axEvalC}$: $\csub(\clit(\overline\varphi),
+  \clit(\overline\varphi))$ evaluates to $\enc{G}$
+  (self-reference, \texttt{selfRefGen}).
+\item $\mathsf{fceqSy}$ on step~3: swap sides.
+\item $\mathsf{fceqTr}$ on steps 2 and~4: chain the equalities.
+\item $\mathsf{mpC}$ on steps 1 and~5: $\fbot$.
+\end{enumerate}
+\end{proof}
+
+This is strictly stronger than the previous meta-level results:
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\texttt{goedel1-final} & $\Proof(G) \to \bot$ \quad (meta-level) \\
+\texttt{goedel1-fuel} & $\ProofN(G) \to \bot$ \quad (meta-level, fuel) \\
+\texttt{constructive-goedel1} &
+  $\mathsf{ProofC}(G) \to \mathsf{ProofC}(\fbot)$
+  \quad (\textbf{internal})
+\end{tabular}
+\end{center}
+
+The third produces an actual \emph{proof object of~$\fbot$} inside the
+system, not just a meta-level contradiction. For full G\"odel~II
+($\neg\,\mathsf{ProofC}(\mathsf{Con})$), one would additionally need
+the internal implication $\mathsf{Con} \to G$, which requires universal
+reasoning about all proof codes---the precise barrier identified in
+Section~\ref{sec:nelson}.
+
+%% ====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
 We have presented a fully constructive, self-contained formalization of
 G\"odel's first incompleteness theorem in Agda, using binary trees as
 the native syntax representation and avoiding G\"odel numbering entirely.
-The development comprises 19 Agda files totaling approximately 3900
+The development comprises 20 Agda files totaling approximately 4000
 lines, with no postulates, no holes, and no standard library.
 
 The key technical insight is that self-reference can be achieved through
@@ -861,7 +919,7 @@ very content of G\"odel's second incompleteness theorem.
 \bigskip
 
 \noindent\textbf{Artifact.}
-The complete Agda development is available as 19 source files. All files
+The complete Agda development is available as 20 source files. All files
 compile with Agda's \texttt{--without-K --exact-split} flags. The
 \texttt{--safe} flag is used throughout; no postulates or unsafe pragmas
 appear anywhere in the development.

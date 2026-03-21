@@ -4,7 +4,7 @@ A formalization of Goedel's incompleteness theorems using binary-tree syntax
 instead of arithmetic coding, inspired by Chwistek's approach to formal
 metamathematics.
 
-**19 Agda files, ~3900 lines. No postulates, no holes, no standard library.**
+**20 Agda files, ~4000 lines. No postulates, no holes, no standard library.**
 
 ## Key features
 
@@ -101,6 +101,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekNelsonCorollary.agda` | Instance vs universal verification gap |
 | `ChwistekOpenConsistency.agda` | Open consistency of propositional fragment |
 | `ChwistekNelson.agda` | Corrected Nelson program (packaged theorem) |
+| `ChwistekConstructiveGodel.agda` | Constructive Goedel I: ProofC G -> ProofC fbot |
 
 ## How it works
 
