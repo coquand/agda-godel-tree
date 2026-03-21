@@ -667,6 +667,67 @@ this structural necessity explicit at the level of a concrete proof
 checker.
 
 %% ====================================================================
+\section{Connection to Nelson's Program}
+\label{sec:nelson}
+
+Nelson~\cite{Nelson2015} observed that in PRA, the bounds in the
+Hilbert--Ackermann consistency theorem depend on rank and level of
+the proof, but \emph{not on the length of the proof}. For each
+specific proof, the system can verify the relevant bounds. His planned
+argument was to exploit the gap between this instance-by-instance
+verification and a universal consistency assertion, using the
+Kritchman--Raz ``surprise examination'' method~\cite{KritchmanRaz2010}
+to derive a contradiction.
+
+Our formalization makes this gap precise. Define:
+
+\begin{definition}[Instance reflection]
+For each proof code $p$ with $\checkPN(n{+}1, p) = \mathsf{just}(A)$,
+the fuel-based system can produce a code~$q$ such that
+$\checkPN(n{+}3, q) = \mathsf{just}(\fceq(\ccheck(\clit(p)),
+\clit(\enc{A})))$.
+\end{definition}
+
+This is $\mathsf{represent\text{-}fuel}$, our D1 for the fuel
+checker. It says: for each given proof code, the system can internally
+certify what that code proves. Moreover, by D3, this certification can
+itself be certified, iteratively with bounded fuel overhead.
+
+\begin{definition}[Internal consistency]
+$\mathsf{Con} = \fcAll(\fimp(\fceq(\ccheck(\mathsf{cvar}_0),
+\clit(\enc{\fbot})),\, \fbot))$, asserting that no proof code proves
+$\fbot$.
+\end{definition}
+
+The contrast:
+
+\begin{theorem}[Instance--universal gap]
+Instance reflection is available (for each specific~$p$), but internal
+consistency $\mathsf{Con}$ cannot be derived from instance reflection
+alone. The former uses \textsf{ax-eval} on closed code expressions;
+the latter requires proving a fact about a universally quantified
+code variable, which \textsf{ax-eval} cannot produce.
+\end{theorem}
+
+This is the formal content of Nelson's structural observation. The
+passage from ``each given proof code can be individually checked'' to
+``no proof code yields contradiction'' is precisely the G\"odel-II
+step. In the stratified architecture, even instance reflection has
+limits (the evaluator is blind to its own reflection codes). In the
+fuel-based architecture, instance reflection works at all levels
+including self-referentially (D3), but the universal consistency
+statement still sits above the system.
+
+The gap identified by Buss and Tao~\cite{Nelson2015} in Nelson's
+later argument---that the disproof of certain stages ``seems to
+require an assumption that $S^*$ is consistent''---corresponds in our
+framework to the need for internal soundness when lifting from
+instance verification to universal consistency. This is the barrier
+that G\"odel's second theorem makes explicit: a system's ability to
+verify each individual proof does not entail its ability to prove its
+own global consistency.
+
+%% ====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
@@ -700,7 +761,7 @@ content of G\"odel's second incompleteness theorem.
 \bigskip
 
 \noindent\textbf{Artifact.}
-The complete Agda development is available as 16 source files. All files
+The complete Agda development is available as 17 source files. All files
 compile with Agda's \texttt{--without-K --exact-split} flags. The
 \texttt{--safe} flag is used throughout; no postulates or unsafe pragmas
 appear anywhere in the development.
@@ -729,10 +790,23 @@ J.~R. Guard.
 \newblock \emph{Notre Dame Journal of Formal Logic}, 10(3):235--244,
   1969.
 
+\bibitem{KritchmanRaz2010}
+S.~Kritchman and R.~Raz.
+\newblock The surprise examination paradox and the second incompleteness
+  theorem.
+\newblock \emph{Notices of the AMS}, 57(11):1454--1458, 2010.
+
 \bibitem{Leigh2010}
 G.~E. Leigh and M.~Rathjen.
 \newblock The {Friedman--Sheard} programme in intuitionistic logic.
 \newblock \emph{Journal of Symbolic Logic}, 77(3):777--806, 2012.
+
+\bibitem{Nelson2015}
+E.~Nelson.
+\newblock Inconsistency of {Primitive Recursive Arithmetic}.
+\newblock \emph{arXiv:1509.09209}, 2015.
+\newblock With an introduction by S.~J.~Nelson and an afterword by
+  S.~Buss and T.~Tao.
 
 \bibitem{OConnor2005}
 R.~O'Connor.
