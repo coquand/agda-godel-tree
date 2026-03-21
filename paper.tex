@@ -727,6 +727,60 @@ that G\"odel's second theorem makes explicit: a system's ability to
 verify each individual proof does not entail its ability to prove its
 own global consistency.
 
+\subsection{Open Consistency}
+
+Nelson emphasized that the consistency of the \emph{open} (quantifier-free,
+induction-free) fragment of PRA is provable by a simple valuation argument,
+even though full consistency is not. Our formalization confirms this
+precisely.
+
+Define the open fragment $\mathsf{OpenProof}$ as the subsystem with only
+$\mathsf{ax\text{-}refl}$, $\mathsf{ax\text{-}k}$, $\mathsf{ax\text{-}s}$,
+and $\mathsf{mp}$---no~$\mathsf{gen}$, $\mathsf{cgen}$, or
+$\mathsf{ax\text{-}eval}$. Define a propositional valuation:
+\begin{align*}
+  \mathsf{Good}(\fbot) &= \bot \\
+  \mathsf{Good}(\mathsf{feq}(s,t)) &= \top \\
+  \mathsf{Good}(\fimp(A,B)) &= \mathsf{Good}(A) \to \mathsf{Good}(B)
+\end{align*}
+with all other constructors mapped to~$\top$.
+
+\begin{theorem}[Open soundness, \texttt{open-sound}]
+If\/ $\mathsf{OpenProof}(A)$, then $\mathsf{Good}(A)$.
+\end{theorem}
+
+\begin{proof}
+By structural induction.
+$\mathsf{ax\text{-}refl}$: $\mathsf{Good}(\mathsf{feq}(t,t)) = \top$.
+$\mathsf{ax\text{-}k}$: $\lambda x.\, \lambda \_.\, x$.
+$\mathsf{ax\text{-}s}$: $\lambda f.\, \lambda g.\, \lambda a.\, f\;a\;(g\;a)$.
+$\mathsf{mp}$: apply the induction hypotheses.
+\end{proof}
+
+\begin{corollary}[Open consistency, \texttt{open-consistent}]
+$\mathsf{OpenProof}(\fbot) \to \bot$.
+\end{corollary}
+
+\begin{proof}
+$\mathsf{open\text{-}sound}(\mathit{pf}) : \mathsf{Good}(\fbot) = \bot$.
+\end{proof}
+
+The contrast with the full system is sharp:
+\begin{itemize}
+\item The open fragment (propositional axioms + modus ponens) admits a
+  four-line consistency proof via a propositional valuation.
+\item The full system (with quantifier rules $\mathsf{gen}$, $\mathsf{cgen}$)
+  does not admit an internal consistency proof (G\"odel~II).
+\item The boundary is exactly the quantifier/induction rules: they cross
+  the threshold where the simple valuation argument breaks, because
+  quantified formulas require model-theoretic reasoning that the
+  propositional valuation cannot provide.
+\end{itemize}
+
+This confirms Nelson's structural observation: there exists a meaningful
+fragment weak enough to admit self-consistency, and the gap between this
+fragment and the full system is precisely where the G\"odel barrier appears.
+
 %% ====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
@@ -734,8 +788,8 @@ own global consistency.
 We have presented a fully constructive, self-contained formalization of
 G\"odel's first incompleteness theorem in Agda, using binary trees as
 the native syntax representation and avoiding G\"odel numbering entirely.
-The development comprises 16 files and 3578 lines of Agda, with no
-postulates, no holes, and no standard library.
+The development comprises 18 Agda files totaling approximately 3800
+lines, with no postulates, no holes, and no standard library.
 
 The key technical insight is that self-reference can be achieved through
 a finite quine construction ($\csub$) operating on tree codes, without
@@ -753,15 +807,19 @@ architecture, this hierarchy collapses, aligning with Guard's
 single-system approach, but at the cost of a fuel bound and an encoding
 correctness assumption.
 
-The remaining gap for a fully internal G\"odel~II is the same gap that
-exists in any sufficiently strong system: the system cannot prove its own
-soundness. This is not a limitation of the architecture but the very
-content of G\"odel's second incompleteness theorem.
+The open consistency result provides a precise lower bound: the
+propositional fragment \emph{does} admit a four-line consistency proof
+via a valuation argument. The remaining gap for a fully internal
+G\"odel~II is the same gap that exists in any sufficiently strong
+system: the quantifier and induction rules cross the threshold where
+the valuation argument breaks, and the system cannot prove its own
+full soundness. This is not a limitation of the architecture but the
+very content of G\"odel's second incompleteness theorem.
 
 \bigskip
 
 \noindent\textbf{Artifact.}
-The complete Agda development is available as 17 source files. All files
+The complete Agda development is available as 18 source files. All files
 compile with Agda's \texttt{--without-K --exact-split} flags. The
 \texttt{--safe} flag is used throughout; no postulates or unsafe pragmas
 appear anywhere in the development.
