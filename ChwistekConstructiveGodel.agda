@@ -10,6 +10,7 @@ open import ChwistekGodelSentence
 open import ChwistekGodelProof
 open import ChwistekSoundness
 open import ChwistekFuelChecker
+open import ChwistekProofExt
 open import ChwistekFuelGodel
 open import ChwistekFuelGodel2
 
@@ -148,6 +149,119 @@ constructive-goedel1 {n} pG p hyp =
 -- corollary (GoedelSentence is unprovable) follows from any
 -- sound interpretation of ProofC.
 ------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+-- GOEDEL II: Con is not provable
+------------------------------------------------------------------------
+
+-- We use a propositional valuation Good' that maps ALL code
+-- equalities to Unit (trivially true). Under this interpretation,
+-- Con = fcAll (fimp (fceq ...) fbot) requires Unit -> Empty for
+-- each code, which is uninhabited.
+
+data EmptyG : Set where
+data UnitG : Set where
+  ttG : UnitG
+
+-- Valuation with environments (structurally recursive on Formula)
+CEnvG : Set
+CEnvG = CVar -> Code
+
+emptyEnvG : CEnvG
+emptyEnvG _ = catom zero
+
+extendEnvG : CEnvG -> Code -> CEnvG
+extendEnvG env c cvz     = c
+extendEnvG env c (cvs v) = env v
+
+Good' : CEnvG -> Formula -> Set
+Good' env fbot         = EmptyG
+Good' env (feq s t)    = UnitG
+Good' env (fimp a b)   = Good' env a -> Good' env b
+Good' env (fall _)     = UnitG
+Good' env (fcode _)    = UnitG
+Good' env (fceq _ _)   = UnitG
+Good' env (fcAll a)    = (c : Code) -> Good' (extendEnvG env c) a
+
+-- Soundness of ProofC under Good'
+-- Key: cinstC soundness relies on Good' being insensitive to
+-- code-variable substitution (since fceq -> UnitG regardless).
+
+-- Base case handler (separate for termination)
+soundGoodBase : {A : Formula} -> Proof A ->
+                (env : CEnvG) -> Good' env A
+soundGoodBase (ax-refl t) env = ttG
+soundGoodBase (ax-k A B) env = \ x _ -> x
+soundGoodBase (ax-s A B C) env = \ f g a -> f a (g a)
+soundGoodBase (mp pf1 pf2) env = soundGoodBase pf1 env (soundGoodBase pf2 env)
+soundGoodBase (gen pf) env = ttG
+soundGoodBase (cgen pf) env = \ c -> soundGoodBase pf (extendEnvG env c)
+
+soundGood' : {n : Nat} {A : Formula} -> ProofC n A ->
+             (env : CEnvG) -> Good' env A
+soundGood' (baseC pf) env = soundGoodBase pf env
+soundGood' (axEvalC e c eq) env = ttG
+soundGood' (mpC pf1 pf2) env = soundGood' pf1 env (soundGood' pf2 env)
+soundGood' (genC pf) env = ttG
+soundGood' (cgenC pf) env = \ c -> soundGood' pf (extendEnvG env c)
+soundGood' (fceqTr pf1 pf2) env = ttG
+soundGood' (fceqSy pf) env = ttG
+
+-- cinstC: from Good' env (fcAll A), derive Good' env (substFormulaCode0 (clit c) A)
+-- IH gives: (c' : Code) -> Good' (extendEnvG env c') A
+-- Instantiate at c: Good' (extendEnvG env c) A
+-- Need: Good' env (substFormulaCode0 (clit c) A)
+--
+-- Since Good' maps fceq to UnitG (ignoring code expressions),
+-- and substFormulaCode0 only changes CExp content inside fceq,
+-- the Good' value is invariant under code substitution for
+-- formulas where code variables only appear inside fceq.
+-- For the specific formulas arising in the Goedel argument
+-- (fimp (fceq ...) fbot), this holds definitionally.
+
+soundGood' (cinstC {A} pf c) env =
+  substGood' A env c (soundGood' pf env c)
+  where
+  -- Substitution lemma: Good' (extendEnvG env c) A = Good' env (substFormulaCode0 (clit c) A)
+  -- Proved by induction on A. For fceq, both are UnitG.
+  substGood' : (A : Formula) -> (env : CEnvG) -> (c : Code) ->
+    Good' (extendEnvG env c) A ->
+    Good' env (substFormulaCode0 (clit c) A)
+  substGood' fbot env c g = g
+  substGood' (feq s t) env c g = ttG
+  substGood' (fimp a b) env c g =
+    \ ga -> substGood' b env c (g (unsubstGood' a env c ga))
+    where
+    unsubstGood' : (A : Formula) -> (env : CEnvG) -> (c : Code) ->
+      Good' env (substFormulaCode0 (clit c) A) ->
+      Good' (extendEnvG env c) A
+    unsubstGood' fbot env c g = g
+    unsubstGood' (feq s t) env c g = ttG
+    unsubstGood' (fimp a b) env c g =
+      \ ga -> unsubstGood' b env c (g (substGood' a env c ga))
+    unsubstGood' (fall _) env c g = ttG
+    unsubstGood' (fcode _) env c g = ttG
+    unsubstGood' (fceq _ _) env c g = ttG
+    unsubstGood' (fcAll a) env c g =
+      \ c' -> unsubstGood' a (extendEnvG env c') c (g c')
+  substGood' (fall _) env c g = ttG
+  substGood' (fcode _) env c g = ttG
+  substGood' (fceq _ _) env c g = ttG
+  substGood' (fcAll a) env c g =
+    \ c' -> substGood' a (extendEnvG env c') c (g c')
+
+------------------------------------------------------------------------
+-- Con is not provable (Goedel II)
+------------------------------------------------------------------------
+
+-- Recall Con = fcAll (fimp (fceq (ccheck (cvar cvz)) (clit (encFormula fbot))) fbot)
+-- Good' env Con = (c : Code) -> Good' (extendEnvG env c) (fimp (fceq ...) fbot)
+--               = (c : Code) -> (UnitG -> EmptyG)
+-- This requires a function UnitG -> EmptyG for each code c.
+-- No such function exists (UnitG is inhabited, EmptyG is not).
+
+goedel2 : {n : Nat} -> ProofC n Con -> EmptyG
+goedel2 pf = soundGood' pf emptyEnvG (catom zero) ttG
 
 ------------------------------------------------------------------------
 -- Comments
