@@ -157,6 +157,8 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekConstructiveGodel.agda` | Constructive Goedel I (ProofC G -> ProofC fbot) |
 | `ChwistekGodel2SD.agda` | Goedel II for SD-extended system |
 | `ChwistekGodel2Genuine.agda` | Goedel II relative to axSDruleG |
+| `CodeRecursion.agda` | `Code-rec`, `Code-rec-unique` (tree recursion/uniqueness) |
+| `SelfDestruct.agda` | `sdCode`, **`sd-meta-correct`** (self-destruct admissibility) |
 | `ChwistekGodel2Sound.agda` | Standard-semantics soundProofG (WIP, has holes) |
 
 ## The Goedel II gap
@@ -266,26 +268,39 @@ The system can talk *about* arbitrary proof codes but cannot
 internalize the structural reasoning needed to prove uniform facts
 about all proof codes.
 
-### Predicted next steps
+### Self-destruct admissibility (proved)
 
-1. **Stage 1 (totalized checker)**: should work. Replace `Maybe
-   Formula` with `Code` using a distinguished failure code. Define
-   `ccheckT` as a total CExp operation.
+The self-destruct map `sdCode : Code -> Code` wraps a proof code `p`
+in the 6-step constructive Goedel I derivation template. It is NOT
+recursive in `p` — it is a fixed-depth wrapper.
 
-2. **Stage 2 (code induction)**: likely blocker. Deriving structural
-   induction over `Code` from the existing formula language appears
-   impossible — there is no way to quantify over predicates on codes.
-   The minimal honest extension would be a **built-in code induction
-   rule**, not higher-order quantification. This stays closest to
-   Guard while preserving the tree-native character.
+```
+sd-meta-correct : (n : Nat) -> (p : Code) ->
+  Eq (checkG (suc n) p) (just GoedelSentence) ->
+  Eq (checkG (suc (sdFuel n)) (sdCode p)) (just fbot)
+```
 
-3. **If Stage 2 fails**: the failure is itself a structural result.
-   It would show precisely that Goedel II in the tree-native setting
-   requires not merely universal quantification over proof codes but
-   an induction principle for predicates on proof codes. That
-   distinction — quantification vs induction — is the exact
-   proof-theoretic gap between Goedel I and Goedel II in this
-   architecture.
+Whenever `checkG` accepts `p` as proving G, it accepts `sdCode(p)` as
+proving fbot. The proof is finite case analysis on the known template
+structure (no induction on `p`). Therefore `axSDruleG` is
+**metatheoretically conservative** over direct checker computation on
+closed proof codes.
+
+See `SelfDestruct.agda`.
+
+### Remaining problem
+
+To obtain genuine Goedel II in the base object theory, one must
+internalize this conditional checker argument uniformly for
+**variable** proof codes. The barrier is not code induction or
+defining `sd`, but **transporting a hypothesis about `ccheck(p)`
+through a verified template when `p` is universally quantified**.
+
+The precise target: design the weakest object-language extension
+that turns `sd-meta-correct` into a derivable object-theoretic rule.
+This is best described as **conditional representability of checker
+computation** or **internal admissibility of checker-verified
+templates**.
 
 ## How it works
 
