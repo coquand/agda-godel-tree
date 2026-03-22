@@ -174,6 +174,74 @@ The structural reduction theory is a valid and beautiful approach
 to proof dynamics. But it cannot escape Goedel II because its
 target (R3) IS Goedel II's target (Con), just expressed differently.
 
+## Does Goedel II Still Apply After Nelson's Machinery?
+
+The R3 ↔ Con theorem does NOT by itself settle Nelson's program.
+It only says R3 = Con. Whether Con is unprovable depends on whether
+the extended system satisfies the hypotheses of Goedel II.
+
+### The four hypotheses
+
+1. **Consistency**: The extended system (with ctCase, ctFold,
+   computation axioms, checker axioms) is consistent.
+   STATUS: YES — GoodBTAF soundness proves consistency (fPrf and
+   fceqF both map to UnitG2, fbot maps to EmptyG2).
+
+2. **Sufficient strength**: The system can represent primitive
+   recursive functions.
+   STATUS: YES — ctCase + ctFold give primitive recursion on
+   binary trees, which subsumes PRA on Nat (via catom embedding).
+
+3. **Derivability conditions**: The provability predicate satisfies
+   D1 (representability), D2, D3.
+   STATUS: PLAUSIBLY YES — the compositional checker axioms give D1
+   for specific rules. ctCase + ctFold could derive D1 fully
+   (Track 1). D2/D3 follow from sufficient strength.
+
+4. **Con is the right statement**: The internal consistency
+   statement Con* (about fPrf/checkG) matches the external
+   consistency (about ProofBTAF derivations).
+   STATUS: YES — the compositional axioms ensure that ProofBTAF
+   derivations correspond to checkG-accepted codes. So internal
+   provability (fPrf) and external provability (ProofBTAF) coincide,
+   making internal Con* = external Con.
+
+### Conclusion on Goedel II applicability
+
+All four hypotheses hold. Goedel II applies to the extended system.
+Con is unprovable (since the system is consistent). R3 = Con is
+equally unprovable.
+
+### Where Nelson could still differ (the genuine open question)
+
+The above analysis is CONDITIONAL on:
+
+(a) The encoding being faithful (ProofBTAF ↔ checkG-accepted codes).
+    If the extension adds rules that are NOT captured by checkG,
+    then internal Con* ≠ external Con, and Goedel II might not
+    block proving Con*.
+
+(b) The system remaining consistent. If adding ctCase + ctFold +
+    full internalization makes the system INCONSISTENT, then Con is
+    false and provable — Nelson would be right (PA-like systems
+    would be inconsistent).
+
+(c) Con* being exactly the right sentence. If the internal
+    consistency statement is a BOUNDED or MODIFIED version of Con,
+    Goedel II might not apply to it.
+
+These are the GENUINE open questions. They cannot be settled by
+abstract argument — they depend on the specific system's properties.
+
+### The honest verdict
+
+Nelson's program is not refuted by R3 = Con alone. It is refuted
+only CONDITIONALLY: IF the Goedel II hypotheses hold, THEN
+R3/Con is unprovable internally. The hypotheses DO hold for our
+specific system. But Nelson's point was about PA, not about BTA.
+Whether the analogous hypotheses hold for PA with Nelson's specific
+machinery is a different question.
+
 ## Summary
 
 | Component | Status | Why |
@@ -182,7 +250,9 @@ target (R3) IS Goedel II's target (Con), just expressed differently.
 | Cut elimination | Structural, complete | Type-preserving, terminating |
 | R3 → Con bridge | Structural, proved | 3-line proof from normalization |
 | R3 itself | = Con | Abstract theorem (this note) |
-| Con internally | Unprovable (Goedel II) | Self-reference + completeness |
+| Con internally | Unprovable IF Goedel II applies | Conditional on 4 hypotheses |
+| Goedel II hypotheses | Hold for BTA | Verified for our system |
+| Nelson for PA | Open | Different system, different analysis |
 
 ## Agda Formalization
 
