@@ -247,6 +247,46 @@ The right next step is not "give up and arithmetize" but
 internal representability — all on binary trees without Goedel
 numbering.
 
+### The key distinction: quantification vs induction
+
+The current system has `fcAll` which gives **universal quantification**
+over codes: "for all codes c, P(c)." But Goedel II needs **structural
+induction** over codes: the ability to prove P(c) for all c by showing
+P holds for atoms and is preserved by `cnode`.
+
+These are completely different proof-theoretic resources. The current
+formula language is first-order in codes:
+
+- Code variables: yes
+- Formulas about codes: yes
+- Predicates on codes as objects: no
+- Induction schema over such predicates: no
+
+The system can talk *about* arbitrary proof codes but cannot
+internalize the structural reasoning needed to prove uniform facts
+about all proof codes.
+
+### Predicted next steps
+
+1. **Stage 1 (totalized checker)**: should work. Replace `Maybe
+   Formula` with `Code` using a distinguished failure code. Define
+   `ccheckT` as a total CExp operation.
+
+2. **Stage 2 (code induction)**: likely blocker. Deriving structural
+   induction over `Code` from the existing formula language appears
+   impossible — there is no way to quantify over predicates on codes.
+   The minimal honest extension would be a **built-in code induction
+   rule**, not higher-order quantification. This stays closest to
+   Guard while preserving the tree-native character.
+
+3. **If Stage 2 fails**: the failure is itself a structural result.
+   It would show precisely that Goedel II in the tree-native setting
+   requires not merely universal quantification over proof codes but
+   an induction principle for predicates on proof codes. That
+   distinction — quantification vs induction — is the exact
+   proof-theoretic gap between Goedel I and Goedel II in this
+   architecture.
+
 ## How it works
 
 The object language has seven formula constructors:
