@@ -52,14 +52,27 @@ This is Goedel II **relative to axSD**, not for the bare system.
 `axSD` internalizes the constructive Goedel I transformation as
 an axiom. See `ChwistekGodel2SD.agda`.
 
-### Goedel II for the reflection-extended system
+### Semantic unprovability of ConG (no extra axioms)
 
 ```
-Con-implies-G   : ProofG2 n ConG -> ProofG2 n GoedelSentence
-goedel2-genuine : ProofG2 n ConG -> EmptyG2
+conG-unprovable-semantic : ProofG n ConG -> EmptyG2
 ```
 
-ConG is not provable in ProofG2 (the system extended with `axSDruleG`).
+ConG is unprovable in ProofG via the GoodG valuation.
+This is a valid unprovability theorem but does NOT use self-reference,
+the Goedel sentence, or an internal Con -> G derivation. It works
+because GoodG trivializes all code equalities, making any formula
+of the shape `fcAll (fimp (fceq ...) fbot)` false under the
+interpretation.
+
+### Goedel II via axSDruleG (self-referential, relative to axiom)
+
+```
+Con-implies-G    : ProofG2 n ConG -> ProofG2 n GoedelSentence
+goedel2-via-axSD : ProofG2 n ConG -> EmptyG2
+```
+
+ConG is unprovable in ProofG2 (the system extended with `axSDruleG`).
 
 This is Goedel II **relative to axSDruleG**, not for the bare system.
 `axSDruleG` internalizes the constructive Goedel I transformation

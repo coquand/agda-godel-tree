@@ -722,18 +722,52 @@ Con-implies-G :
 Con-implies-G con = cgenG2 (Con-implies-G-body con)
 
 ------------------------------------------------------------------------
--- THE THEOREM: Goedel II for the genuine system
+-- Semantic unprovability of ConG in ProofG (no extra axioms)
 ------------------------------------------------------------------------
 
--- goedel2-genuine: ConG is not provable in ProofG2.
+-- ConG is unprovable in ProofG via the GoodG valuation.
 --
--- Proof:
--- 1. From ProofG2 n ConG, derive ProofG2 n GoedelSentence via Con-implies-G
--- 2. GoedelSentence = fcAll GoedelBodyG = fcAll (fimp (fceq ...) fbot)
--- 3. GoodG env GoedelSentence = (c : Code) -> UnitG2 -> EmptyG2
--- 4. Instantiate at any code and apply ttG2 to get EmptyG2
+-- GoodG maps fceq to UnitG2 and fbot to EmptyG2, so
+-- GoodG env ConG = (c : Code) -> UnitG2 -> EmptyG2, which is
+-- uninhabited. Since soundGoodG shows every ProofG theorem is
+-- GoodG-valid, ConG has no proof.
+--
+-- NOTE: This is a SEMANTIC unprovability result. It does not use
+-- the Goedel sentence, self-reference, the self-destruct map, or
+-- an internal derivation of Con -> G. It works because GoodG
+-- trivializes all code equalities, making ANY formula of the shape
+-- fcAll (fimp (fceq ...) fbot) false under the interpretation.
+--
+-- For the self-referential Goedel II argument (Con -> G internally,
+-- then Goedel I), see goedel2-via-axSD below and the open
+-- internalization problem documented in the README.
 
-goedel2-genuine : {n : Nat} -> ProofG2 n ConG -> EmptyG2
-goedel2-genuine {n} con =
+conG-unprovable-semantic : {n : Nat} -> ProofG n ConG -> EmptyG2
+conG-unprovable-semantic con = soundGoodG con emptyCEnvG (catom zero) ttG2
+
+------------------------------------------------------------------------
+-- Goedel II via axSDruleG (self-referential, relative to axiom)
+------------------------------------------------------------------------
+
+-- ConG is unprovable in ProofG2 (= ProofG + axSDruleG + cinstEG).
+--
+-- This proof goes through the self-referential chain:
+-- 1. Con-implies-G: derive GoedelSentence from ConG using axSDruleG
+-- 2. soundGoodG2 on GoedelSentence gives EmptyG2
+--
+-- Unlike conG-unprovable-semantic, this uses the Goedel sentence
+-- and the self-destruct structure. However, axSDruleG is an extra
+-- axiom (internalizing constructive Goedel I).
+--
+-- sd-meta-correct (in SelfDestruct.agda) validates axSDruleG as
+-- metatheoretically conservative: it only asserts what the checker
+-- can verify by direct computation on closed proof codes.
+--
+-- The remaining open problem for GENUINE self-referential Goedel II
+-- without extra axioms: internalize the conditional checker reasoning
+-- from sd-meta-correct for variable proof codes.
+
+goedel2-via-axSD : {n : Nat} -> ProofG2 n ConG -> EmptyG2
+goedel2-via-axSD {n} con =
   let g = Con-implies-G con
   in soundGoodG2 g emptyCEnvG (catom zero) ttG2
