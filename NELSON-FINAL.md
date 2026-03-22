@@ -32,20 +32,34 @@
 - Or equivalently: a model where fbot = Empty and fPrf = Unit (GoodBTA)
 - **Status: requires semantic content; no purely structural alternative**
 
-## Why the Boundary is Sharp
+## The Crucial Asymmetry
 
-The contradiction step requires: "this proof proves fbot."
+Goedel II and Nelson's program need DIFFERENT amounts of semantics:
 
-In a system TOO WEAK to express this (like our tiny ProofN),
-contradiction is trivially true but vacuous.
+| Goal | Needs |
+|------|-------|
+| Goedel II (model-theoretic) | Trivial interpretation (fPrf = Unit, fbot = Empty) |
+| Nelson (structural contradiction) | Provability PRESERVED under reduction |
 
-In a system STRONG ENOUGH to express this (like ProofBTA with
-fPrf), the compositional checker axioms ARE the minimal bridge.
+Goedel II works with almost no semantics: GoodBTA assigns UnitG2 to
+every fPrf formula. No actual proof checking happens. The contradiction
+comes from (Unit -> Empty) being uninhabited.
 
-There is no meaningful intermediate:
-- "No semantics" → trivial contradiction (weak system)
-- "Compositional checker axioms" → meaningful contradiction (Goedel II)
-- "Full checker" → stronger but unnecessary (GoodBTA already suffices)
+Nelson's program requires MORE: provesBot(p) -> provesBot(reduceN(p)).
+This is a REDUCTION-STABLE notion of provability. And any such notion
+necessarily reconstructs a proof checker, because it must track what
+each proof rule does to the proved formula through each reduction step.
+
+The boundary is NOT between "no semantics" and "semantics." It is:
+
+```
+Level 0: No meaning             → reduction works, contradiction vacuous
+Level 1: Trivial interpretation  → Goedel II works (GoodBTA)
+Level 2: Reduction-stable provability → Nelson works, but = checker
+```
+
+Level 1 suffices for Goedel II. Level 2 is needed for Nelson.
+Level 2 collapses to a proof checker.
 
 ## The GoodBTA Insight
 
@@ -73,14 +87,17 @@ Yet it IS a valid proof of Goedel II (the theorem statement is correct).
 6. There is no useful intermediate between "no semantics" and "checker axioms"
 
 ### The precise formulation:
-Nelson's program works for proof DYNAMICS (Layers 1-2) but not for
-proof MEANING (Layer 3). The gap is not in the reduction theory
-but in the connection between syntax and provability.
+Nelson's program fails not because it lacks a reduction theory,
+but because it requires a notion of provability that is STABLE
+UNDER REDUCTION — and any such notion necessarily reconstructs
+a proof checker.
 
-The compositional checker axioms are the EXACT minimal bridge.
-They say how the checker processes each proof rule — nothing more.
-They are metatheoretically validated by sd-meta-correct.
-They do not require a full checker definition.
+In contrast, Goedel II requires only a TRIVIAL interpretation
+of proofs (fPrf = Unit), which is maximally weak and does not
+interact with reduction at all.
+
+The obstruction is not "semantics" in general, but specifically
+"reduction-stable provability."
 
 ## Relationship to Guard
 
