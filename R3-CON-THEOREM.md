@@ -1,0 +1,213 @@
+# The R3 ≡ Con Theorem
+
+## Abstract Theorem
+
+**Theorem.** In any proof system with a normalization function, the
+statement "no normal form proves ⊥" is equivalent to consistency.
+
+**Definitions.**
+
+Let `Proof` be a type of proof objects, `Formula` a type of formulas
+with a distinguished `⊥`, and `Types : Proof → Formula → Set` a
+typing (provability) relation. Let `normal : Proof → Set` be a
+predicate distinguishing normal forms.
+
+```
+Con := ∀ p. Types p ⊥ → Empty
+R3  := ∀ p. normal p → Types p ⊥ → Empty
+```
+
+**Assumptions.** There exists a normalization function
+`normalize : Proof → Proof` satisfying:
+
+1. **Totality**: `normalize` is total (terminates on all inputs)
+2. **Normality**: `∀ p. normal (normalize p)`
+3. **Preservation**: `∀ p A. Types p A → Types (normalize p) A`
+
+These are purely structural properties of the reduction theory.
+They do not mention consistency, soundness, or reflection.
+
+**Proof.**
+
+*Direction 1 (Con → R3):* Immediate. If no proof proves ⊥, then
+in particular no normal proof does.
+
+```
+con-to-r3 : Con → R3
+con-to-r3 con p _ tp = con p tp
+```
+
+*Direction 2 (R3 → Con):* Given any `p` with `Types p ⊥`:
+1. `normalize p` exists (totality)
+2. `normal (normalize p)` (normality)
+3. `Types (normalize p) ⊥` (preservation)
+4. `R3 (normalize p) (normality-witness) (preserved-typing) : Empty`
+
+```
+r3-to-con : R3 → Con
+r3-to-con r3 p tp = r3 (normalize p) (norm-witness p) (preserve p ⊥ tp)
+```
+
+**Assumptions used in R3 → Con:**
+- Totality of normalize (structural recursion)
+- Normality of normalize's output (structural proof)
+- Type preservation (structural proof)
+
+**Assumptions NOT used:**
+- Consistency (Con)
+- Soundness of the proof system
+- Reflection principles
+- Self-reference or fixed points
+- Induction on proof codes
+
+**QED.**
+
+## Instantiations
+
+### Case 1: Weak dynamic systems (ProofE from NelsonObstruction.agda)
+
+The system has atoms, implications, modus ponens, cut, and
+implication introduction (weakening). Cut elimination removes
+all cuts by replacing `pCutE p q` with `pMpE q p`.
+
+R3 is provable by structural induction: no cut-free proof proves ⊥
+because axioms only prove atoms, implication introduction only
+produces implications, and modus ponens requires an implication
+premise that itself requires a ⊥-proof (infinite regress).
+
+Con follows from R3 via the theorem. The result is **correct but
+expected**: the system is too weak for self-reference, so consistency
+is structurally visible.
+
+**Formalized in:** `NelsonEquivalence.agda` (189 lines, no postulates)
+
+### Case 2: Hilbert systems (BTA from BinaryTreeArith.agda)
+
+BTA has no cut constructor. All proofs are already normal.
+`normalize = identity`, `normal p = true` for all p.
+
+R3 = Con trivially (since every proof is normal, the universal
+and restricted statements coincide). The Nelson chain is vacuous:
+there is nothing to reduce.
+
+**Formalized in:** `NelsonChain.agda` (160 lines, no postulates)
+
+### Case 3: Self-referential systems
+
+In a system with a proof predicate `fPrf(p, c)` and self-reference
+(Goedel sentence via csub), the typing relation includes formulas
+that mention provability.
+
+R3 = Con by the abstract theorem. But Con is unprovable in the
+system (by Goedel II, proved in `BinaryTreeArith.agda`). Therefore
+R3 is equally unprovable internally.
+
+The Nelson chain gives: assume R3, then Con (by the theorem),
+then we're done. But R3 = Con, so this is: assume Con, then Con.
+Tautological.
+
+## Interpretation for Nelson
+
+### What Nelson's program gets right
+
+1. **Reduction theory is correct.** Cut-commuting reductions are
+   well-defined, terminating (via multiset ordering on redex
+   complexities, Dershowitz-Manna), and type-preserving.
+
+2. **The structural bridge works.** Cut elimination connects the
+   full proof system to its normal-form fragment. This bridge is
+   purely structural — no consistency assumption.
+
+3. **R3 is the right target.** Analyzing normal forms to exclude ⊥
+   is the correct proof-theoretic strategy for establishing
+   consistency.
+
+### What Nelson's program cannot achieve
+
+4. **R3 = Con.** By the theorem above, R3 is equivalent to
+   consistency in any system with complete normalization. The
+   structural bridge (cut elimination) does not make R3 easier
+   than Con — it makes them identical.
+
+5. **In self-referential systems, Con is unprovable** (Goedel II).
+   Therefore R3 is equally unprovable. No structural invariant
+   (rank, level, backtrackP, multiset) changes this, because
+   the obstacle is not in the reduction theory but in the
+   equivalence R3 = Con.
+
+6. **The reduction theory is below the equivalence, not above it.**
+   Nelson's multiset-controlled reductions live in the structural
+   layer BELOW the R3 = Con equivalence. They are beautiful and
+   correct, but they prove normalization, not R3. And R3 is where
+   the real obstacle (consistency = Goedel II) lives.
+
+### The deepest insight
+
+**Cut elimination collapses R3 and Con.** Without cut elimination,
+R3 would be strictly weaker than Con (some proofs might not
+normalize, so their normal-form behavior would be unknown). With
+cut elimination, every proof has a normal form, so R3 covers all
+proofs — making R3 = Con.
+
+Paradoxically, the SUCCESS of cut elimination (it normalizes
+everything) is what makes R3 as hard as Con. A WEAKER normalization
+(partial, bounded) might leave R3 strictly below Con — and
+potentially provable.
+
+This suggests that **bounded normalization** (normalizing only
+proofs below a complexity bound) might give a weaker R3 that is
+internally provable. But that bounded R3 would only establish
+consistency for bounded proofs — not full consistency.
+
+## Relationship to Goedel II
+
+The R3 ↔ Con theorem clarifies the relationship between Nelson's
+program and Goedel II:
+
+- Goedel II says: Con is unprovable (in a consistent, sufficiently
+  strong, self-referential system)
+- Nelson's program targets R3 (the normal-form version of Con)
+- R3 = Con (by the theorem)
+- Therefore Nelson's program targets something equally unprovable
+
+The structural reduction theory is a valid and beautiful approach
+to proof dynamics. But it cannot escape Goedel II because its
+target (R3) IS Goedel II's target (Con), just expressed differently.
+
+## Summary
+
+| Component | Status | Why |
+|-----------|--------|-----|
+| Reduction theory | Structural, correct | Multiset ordering works |
+| Cut elimination | Structural, complete | Type-preserving, terminating |
+| R3 → Con bridge | Structural, proved | 3-line proof from normalization |
+| R3 itself | = Con | Abstract theorem (this note) |
+| Con internally | Unprovable (Goedel II) | Self-reference + completeness |
+
+## Agda Formalization
+
+The equivalence is formalized in `NelsonEquivalence.agda` (189 lines):
+
+```agda
+r3-iff-con : PairS (R3E -> ConE) (ConE -> R3E)
+r3-iff-con = mkPairS r3-to-con con-to-r3
+```
+
+No postulates. No holes. Compiles under `--without-K --exact-split`.
+
+## Complete Experimental Record
+
+| File | Lines | Result |
+|------|-------|--------|
+| NelsonDecomp.agda | 255 | Decomposition axioms work locally |
+| BTACtCase.agda | 458 | ctCase necessary but insufficient alone |
+| NelsonCutCommute.agda | 259 | Rank CAN increase; backtrackP specific-case only |
+| NelsonReduction.agda | 261 | Dynamics vs termination split |
+| StructuredCode.agda | 236 | backtrackP increases on structured codes (2→3) |
+| NelsonMultiset.agda | 275 | Multiset control WORKS (Dershowitz-Manna) |
+| NelsonContradiction.agda | 238 | Contradiction trivial in weak system |
+| BTAComputation.agda | 568 | ctCase + ctEqTag infrastructure |
+| NelsonChain.agda | 160 | Nelson vacuous in Hilbert systems |
+| BTADynamic.agda | 295 | Nelson works in trivial dynamic system |
+| NelsonObstruction.agda | 290 | R3 = Con in self-referential case |
+| NelsonEquivalence.agda | 189 | **R3 ↔ Con (the theorem)** |
