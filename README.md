@@ -201,6 +201,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `CExpPair.agda` | `CExpP` with `cpair`, `evalGP`, compatibility lemmas |
 | `SelfDestructExp.agda` | `sdExp`, **`sdExp-clit-correct = refl`** |
 | `Godel2Internal.agda` | **`goedel2-internal`** (Goedel II via axSdExp) |
+| `BTA.agda` | Binary Tree Arithmetic: tree induction, destructors, `goedel2-BTA` |
 | `ChwistekGodel2Sound.agda` | Standard-semantics soundProofG (WIP, has holes) |
 
 ## The Goedel II analysis
@@ -299,6 +300,25 @@ avoids arithmetic entirely (syntax-native). The `axSdExp` axiom
 marks the exact point where arithmetic reasoning would be needed
 in the classical route. It is the tree-native minimal reflection
 principle for Goedel II.
+
+### Binary Tree Arithmetic (BTA.agda)
+
+`BTA.agda` extends the system toward Guard-style genuine Goedel II:
+
+- **CExpI**: code expressions with destructors (`cleftI`, `crightI`,
+  `cisNodeI`) enabling case analysis on code structure
+- **FormulaI**: formulas using the extended expressions
+- **ProofTI**: proof system with **tree induction** (`axTreeInd`) —
+  the tree-native analogue of Guard's simple induction rule
+- **`goedel2-BTA`**: Goedel II in the extended system (currently still
+  uses `axSdExpI` as axiom)
+- **GoodGI soundness**: the induction rule is sound under the GoodGI
+  valuation (proved using Agda's structural recursion on Code)
+
+The remaining step: use `axTreeInd` to DERIVE `axSdExpI` from
+representability lemmas (Guard's Theorem 12-13 for tree codes).
+This is the "Exercise 24" that Guard leaves to the reader and that
+Paulson/Shankar spend the bulk of their developments on.
 
 ## How it works
 
