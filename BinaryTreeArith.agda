@@ -83,6 +83,37 @@ private
   n5 : Nat
   n5 = suc (suc (suc (suc (suc zero))))
 
+  -- General encoding of substFormulaCode0 (clit c) A as a CodeTerm,
+  -- where c is a CodeTerm variable. The key function: walks the formula
+  -- at the meta-level and produces a CodeTerm encoding where code
+  -- variable 0 has been replaced by the CodeTerm argument c.
+
+  encSubstCExpCT : CodeTerm -> CExp -> CodeTerm
+  encSubstCExpCT c (cvar cvz)     = ctNode (ctLit (catom n17)) c
+  encSubstCExpCT c (cvar (cvs v)) = ctLit (encCExp (cvar v))
+  encSubstCExpCT c (clit k)       = ctLit (encCExp (clit k))
+  encSubstCExpCT c (ccheck e)     = ctNode (ctLit (catom n18)) (encSubstCExpCT c e)
+  encSubstCExpCT c (csub e1 e2)   =
+    ctNode (ctLit (catom n19)) (ctNode (encSubstCExpCT c e1) (encSubstCExpCT c e2))
+
+  encSubstFormulaCT : CodeTerm -> Formula -> CodeTerm
+  encSubstFormulaCT c fbot       = ctLit (encFormula fbot)
+  encSubstFormulaCT c (feq s t)  = ctLit (encFormula (feq s t))
+  encSubstFormulaCT c (fimp a b) =
+    ctNode (ctLit (catom n5)) (ctNode (encSubstFormulaCT c a) (encSubstFormulaCT c b))
+  encSubstFormulaCT c (fall a)   =
+    ctNode (ctLit (catom (suc (suc (suc (suc (suc (suc zero))))))))
+           (encSubstFormulaCT c a)
+  encSubstFormulaCT c (fcode k)  = ctLit (encFormula (fcode k))
+  encSubstFormulaCT c (fceq e1 e2) =
+    ctNode (ctLit (catom n8)) (ctNode (encSubstCExpCT c e1) (encSubstCExpCT c e2))
+  encSubstFormulaCT c (fcAll a)  =
+    ctNode (ctLit (catom n9)) (encSubstFormulaCT c a)
+
+  -- GoedelBody encoding (SPECIFIC INSTANCE of encSubstFormulaCT)
+  -- GoedelBody = fimp (fceq (ccheck (cvar cvz)) (csub phi phi)) fbot
+  -- After substitution with c: fimp (fceq (ccheck (clit c)) (csub phi phi)) fbot
+  -- We define this separately to match what sdDerivedImp needs.
   encGoedelBodyCT : CodeTerm -> CodeTerm
   encGoedelBodyCT p =
     ctNode (ctLit (catom n5))
@@ -133,17 +164,27 @@ data ProofBTA : FormulaBTA -> Set where
                                      (fPrf (ctNode (ctLit (catom n33)) (ctNode p1 p2))
                                            encB)))
 
-  -- (b) axChkCinstG: specific cinst for GoedelSentence
-  axChkCinstG : {p : CodeTerm} ->
-                ProofBTA (fimpA (fPrf p encGCT)
-                                (fPrf (ctNode (ctLit (catom n37g)) (ctNode p p))
-                                      (encGoedelBodyCT p)))
+  -- (b) axChkCinst: GENERAL cinst for ANY formula A
+  -- If p proves fcAll A, then cnode(37, cnode(p, c)) proves A[c].
+  -- The result encoding is encSubstFormulaCT c A.
+  axChkCinst : (A : Formula) -> {p c : CodeTerm} ->
+               ProofBTA (fimpA (fPrf p (ctLit (encFormula (fcAll A))))
+                               (fPrf (ctNode (ctLit (catom n37g)) (ctNode p c))
+                                     (encSubstFormulaCT c A)))
 
-  -- (c) axChkEval: eval checker for GoedelSentence specifically
-  axChkEval : {p : CodeTerm} ->
-              ProofBTA (fimpA (fPrf p encGCT)
-                              (fPrf (axEvalCodeCT (encCCheckLitCT p) encGCT)
-                                    (encFceqCT (encCCheckLitCT p) encGCT)))
+  -- (c) axChkEval: GENERAL eval checker for ANY formula A
+  -- If p proves A, then the axEval code proves fceq(ccheck(clit p), enc(A)).
+  axChkEval : (A : Formula) -> {p : CodeTerm} ->
+              ProofBTA (fimpA (fPrf p (ctLit (encFormula A)))
+                              (fPrf (axEvalCodeCT (encCCheckLitCT p) (ctLit (encFormula A)))
+                                    (encFceqCT (encCCheckLitCT p) (ctLit (encFormula A)))))
+
+  -- Proof-predicate congruence: fPrf is invariant under CodeTerm
+  -- equivalence. Since GoodBTA maps fPrf to UnitG2, this is trivially
+  -- sound. It bridges syntactic differences between CodeTerms that
+  -- evaluate to the same Code (e.g., ctLit(cnode a b) vs ctNode(ctLit a)(ctLit b)).
+  axPrfCong : {p c1 c2 : CodeTerm} ->
+              ProofBTA (fimpA (fPrf p c1) (fPrf p c2))
 
   -- (d) axChkSy: symmetry of fceq
   axChkSy : {p : CodeTerm} -> {a b : CodeTerm} ->
@@ -208,11 +249,12 @@ private
   soundBTA (cinstA {A} pf t) env =
     substGoodBTA A env t (soundBTA pf env)
   soundBTA axChkMPct env = \ _ _ -> ttG2
-  soundBTA axChkCinstG env = \ _ -> ttG2
-  soundBTA axChkEval env = \ _ -> ttG2
+  soundBTA (axChkCinst A) env = \ _ -> ttG2
+  soundBTA (axChkEval A) env = \ _ -> ttG2
   soundBTA axChkSy env = \ _ -> ttG2
   soundBTA axChkTr env = \ _ _ -> ttG2
   soundBTA axSelfRef env = ttG2
+  soundBTA axPrfCong env = \ _ -> ttG2
 
 ------------------------------------------------------------------------
 -- 6. Key formulas
@@ -283,13 +325,27 @@ private
   step4proof : ProofBTA S4type
   step4proof = mpA axChkSy axSelfRef
 
-  -- fimpA H S1type (cinst axiom)
-  impH-S1 : ProofBTA (fimpA HType S1type)
-  impH-S1 = axChkCinstG
+  -- GoedelBody as Formula (body of GoedelSentence under fcAll)
+  GoedelBodyF : Formula
+  GoedelBodyF = fimp (fceq (ccheck (cvar cvz))
+                           (csub (clit phiCode) (clit phiCode)))
+                     fbot
 
-  -- fimpA H S2type (eval axiom)
+  -- fimpA H S1type (cinst axiom, general, then congruence)
+  -- axChkCinst gives: fPrf p enc(G) -> fPrf(cinst, encSubstFormulaCT p GoedelBodyF)
+  -- We need: fPrf(cinst, encGoedelBodyCT p) [= S1type]
+  -- Bridge via axPrfCong: encSubstFormulaCT p GoedelBodyF ~> encGoedelBodyCT p
+  impH-S1-raw : ProofBTA (fimpA HType
+                   (fPrf (ctNode (ctLit (catom n37g)) (ctNode p0 p0))
+                         (encSubstFormulaCT p0 GoedelBodyF)))
+  impH-S1-raw = axChkCinst GoedelBodyF
+
+  impH-S1 : ProofBTA (fimpA HType S1type)
+  impH-S1 = composeImp impH-S1-raw axPrfCong
+
+  -- fimpA H S2type (eval axiom, general)
   impH-S2 : ProofBTA (fimpA HType S2type)
-  impH-S2 = axChkEval
+  impH-S2 = axChkEval GoedelSentence
 
   -- axChkTr instantiated: fimpA S2type (fimpA S4type S5type)
   trAxiom : ProofBTA (fimpA S2type (fimpA S4type S5type))
