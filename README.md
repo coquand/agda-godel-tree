@@ -4,7 +4,7 @@ A formalization of Goedel's incompleteness theorems using binary-tree syntax
 instead of arithmetic coding, inspired by Chwistek's approach to formal
 metamathematics.
 
-**22 Agda files, ~5400 lines. No postulates, no standard library.**
+**26 Agda files, ~6500 lines. No postulates, no standard library.**
 
 ## Key features
 
@@ -95,6 +95,32 @@ existential fuel (`encodeBaseG-fuel`).
 
 See `ChwistekGodel2Genuine.agda`.
 
+### Goedel II via template-closure (self-referential)
+
+```
+Con-implies-GTP  : ProofTP n ConGP -> ProofTP n GoedelSentenceP
+goedel2-internal : ProofTP n ConGP -> EmptyG2
+```
+
+ConGP is unprovable in ProofTP. The proof goes through the full
+self-referential chain: `Con-implies-GTP` derives `GoedelSentenceP`
+from `ConGP` using the template-closure axiom, then `soundGoodTP`
+gives `EmptyG2`.
+
+The system ProofTP extends ProofG with:
+- `FormulaP` / `CExpP`: formulas and code expressions with `cpair`
+  (the code-level `cnode` constructor)
+- `sdExp`: the self-destruct template expressed as a `CExpP`
+  (`sdExp-clit-correct = refl`)
+- `axSdExp` (template-closure): if `ccheck(e)` evaluates to `enc(G)`,
+  then `ccheck(sdExp(e))` evaluates to `enc(fbot)`
+
+`axSdExp` is the **only axiom** beyond ProofG. It is the exact
+internal counterpart of `sd-meta-correct` (proved metatheoretically
+in `SelfDestruct.agda` by finite template analysis, no induction).
+
+See `Godel2Internal.agda`.
+
 ### Strict reflection hierarchy
 
 ```
@@ -172,120 +198,57 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekGodel2Genuine.agda` | Goedel II relative to axSDruleG |
 | `CodeRecursion.agda` | `Code-rec`, `Code-rec-unique` (tree recursion/uniqueness) |
 | `SelfDestruct.agda` | `sdCode`, **`sd-meta-correct`** (self-destruct admissibility) |
+| `CExpPair.agda` | `CExpP` with `cpair`, `evalGP`, compatibility lemmas |
+| `SelfDestructExp.agda` | `sdExp`, **`sdExp-clit-correct = refl`** |
+| `Godel2Internal.agda` | **`goedel2-internal`** (Goedel II via axSdExp) |
 | `ChwistekGodel2Sound.agda` | Standard-semantics soundProofG (WIP, has holes) |
 
-## The Goedel II gap
+## The Goedel II analysis
 
-The development proves Goedel II **relative to axSDruleG**, not for the
-bare system. This section analyzes what is missing.
+### Three levels of Goedel II
 
-### What is proved without axioms
+The development proves Goedel II at three increasing levels of
+self-referential content:
 
-Everything except the reflection step:
+| Result | Self-referential? | Extra axioms? | File |
+|--------|-------------------|---------------|------|
+| `conG-unprovable-semantic` | No | None | ChwistekGodel2Genuine |
+| `goedel2-via-axSD` | Yes | axSDruleG | ChwistekGodel2Genuine |
+| `goedel2-internal` | Yes | **axSdExp** | Godel2Internal |
+
+`goedel2-internal` uses the narrowest axiom (`axSdExp`: template-
+closure for the verified self-destruct template). It is the exact
+internal counterpart of `sd-meta-correct`.
+
+### What is derived vs assumed
 
 | Component | Status |
 |-----------|--------|
 | Self-reference (quine via `csub`) | Derived |
 | Encoding/decoding roundtrips | Derived |
 | Proof encoding (`encodeProofG`) | Derived |
-| Fuel monotonicity (`checkG-mono`) | Derived |
+| Fuel monotonicity (`checkG-mono`, `evalG-mono`) | Derived |
 | Encoding correctness (`encodeBaseG-fuel`) | Derived |
 | D1 (representability) | Derived |
 | Goedel I (meta-level) | Derived |
-| Constructive Goedel I (`ProofG G -> ProofG fbot`) | Derived |
-| **Internalized reflection (`axSDruleG`)** | **Assumed** |
+| Constructive Goedel I (`ProofC G -> ProofC fbot`) | Derived |
+| Self-destruct code builder (`sdCode`) | Derived |
+| Self-destruct admissibility (`sd-meta-correct`) | Derived |
+| Self-destruct as internal template (`sdExp`) | Derived (`refl`) |
+| **Template-closure axiom (`axSdExp`)** | **Assumed** |
 
-### What axSDruleG says
+### What axSdExp says
 
 ```
-axSDruleG : ProofG2 n (fimp (fceq (ccheck e) (csub phiCode phiCode))
-                             (fceq (ccheck (csub phiCode e)) (clit (encFormula fbot))))
+axSdExp : ProofTP n (fimpP (fceqP (ccheckP e) (csub-expr))
+                           (fceqP (ccheckP (sdExp e)) (clitP (encFormula fbot))))
 ```
 
-In words: "if code e proves G, then the self-destruct code proves fbot."
-This is the constructive Goedel I transformation — but stated as an
-axiom of the system rather than derived internally.
+"If `ccheck(e)` evaluates to `enc(G)`, then `ccheck(sdExp(e))`
+evaluates to `enc(fbot)`." This says checker-validity is preserved
+by the verified self-destruct template `sdExp`.
 
-### Why it cannot be derived (yet)
-
-Deriving `axSDruleG` internally requires the system to prove a
-**uniform internal proof-transformation theorem**: for all proof
-codes `e`, if `e` proves G, then `selfDestruct(e)` proves fbot.
-
-This is weaker than full internal soundness — it is a statement about
-one specific formula (G) and one specific transformation. But it still
-requires the system to **reason uniformly over arbitrary proof codes**
-and verify that the self-destruct transformer preserves checker
-acceptance. The system currently lacks the machinery for this.
-
-### What is missing concretely
-
-The gap is not "internal soundness" in full generality. It is:
-
-1. **A totalized internal checker**: the current checker returns
-   `Maybe Formula` (partial). Formulas cannot reason about partial
-   results on arbitrary code variables — only on closed literals
-   via `axEvalG`. A total code-valued checker (`checkCodeT : Nat ->
-   Code -> Code`) would let formulas express "code e proves formula A"
-   as `fceq (ccheckT e) (clit (encFormula A))` for variable `e`.
-
-2. **Induction over codes**: to prove that the self-destruct
-   transformation preserves checker acceptance for ALL codes, the
-   system needs an induction principle over binary-tree codes
-   (structural induction on `catom`/`cnode`).
-
-3. **Internal representability of the checker's behavior**: enough
-   internal lemmas to verify that `checkG` is compositional — that
-   mp, instantiation, and the self-destruct construction produce
-   codes that the checker accepts, provably inside the system.
-
-None of these require arithmetization. They are the **tree-native
-analogues** of what arithmetic supplies in the classical route
-(Sigma-1 completeness, primitive recursive representability).
-
-### Relationship to known approaches
-
-| Approach | How reflection is handled |
-|----------|--------------------------|
-| Paulson (Isabelle) | Sigma-1 completeness of arithmetic |
-| Shankar (Nqthm) | Representability + arithmetized induction |
-| O'Connor (Coq) | Primitive recursive arithmetic |
-| **This development** | **Assumed as axSDruleG** |
-
-The standard route derives the reflection step from arithmetic
-induction over the proof predicate. This development avoids
-arithmetic entirely (syntax-native), which is a strength for
-Goedel I but means the standard Sigma-1 route is not available.
-
-The right next step is not "give up and arithmetize" but
-**build Guard over trees**: totalized checker, code induction,
-internal representability — all on binary trees without Goedel
-numbering.
-
-### The key distinction: quantification vs induction
-
-The current system has `fcAll` which gives **universal quantification**
-over codes: "for all codes c, P(c)." But Goedel II needs **structural
-induction** over codes: the ability to prove P(c) for all c by showing
-P holds for atoms and is preserved by `cnode`.
-
-These are completely different proof-theoretic resources. The current
-formula language is first-order in codes:
-
-- Code variables: yes
-- Formulas about codes: yes
-- Predicates on codes as objects: no
-- Induction schema over such predicates: no
-
-The system can talk *about* arbitrary proof codes but cannot
-internalize the structural reasoning needed to prove uniform facts
-about all proof codes.
-
-### Self-destruct admissibility (proved)
-
-The self-destruct map `sdCode : Code -> Code` wraps a proof code `p`
-in the 6-step constructive Goedel I derivation template. It is NOT
-recursive in `p` — it is a fixed-depth wrapper.
+### sd-meta-correct: metatheoretic validation
 
 ```
 sd-meta-correct : (n : Nat) -> (p : Code) ->
@@ -293,27 +256,49 @@ sd-meta-correct : (n : Nat) -> (p : Code) ->
   Eq (checkG (suc (sdFuel n)) (sdCode p)) (just fbot)
 ```
 
-Whenever `checkG` accepts `p` as proving G, it accepts `sdCode(p)` as
-proving fbot. The proof is finite case analysis on the known template
-structure (no induction on `p`). Therefore `axSDruleG` is
-**metatheoretically conservative** over direct checker computation on
-closed proof codes.
+This Agda-level theorem proves that `axSdExp` is
+**metatheoretically conservative**: it only asserts what the checker
+can already verify on closed proof codes by direct computation.
+The proof is finite case analysis on the fixed template structure
+of `sdCode(p)` — no induction on `p` is needed.
 
-See `SelfDestruct.agda`.
+### Why axSdExp cannot be derived
 
-### Remaining problem
+`axSdExp` lifts a metatheorem (`sd-meta-correct`) into an
+object-theoretic rule. Any schema that internalizes "whatever the
+Agda metalevel proves about the checker, the object theory can
+conclude" is a **reflection principle**. Goedel's second
+incompleteness theorem says a consistent system cannot fully
+reflect its own metatheory.
 
-To obtain genuine Goedel II in the base object theory, one must
-internalize this conditional checker argument uniformly for
-**variable** proof codes. The barrier is not code induction or
-defining `sd`, but **transporting a hypothesis about `ccheck(p)`
-through a verified template when `p` is universally quantified**.
+Concretely: `sd-meta-correct` works by unfolding `checkG` on the
+specific template structure of `sdCode(p)`. To derive this
+*internally*, the object theory would need to reproduce this
+checker-unfolding argument uniformly for a variable proof code `e`.
+That requires the system to verify its own checker's behavior —
+which is the classical Goedel II barrier.
 
-The precise target: design the weakest object-language extension
-that turns `sd-meta-correct` into a derivable object-theoretic rule.
-This is best described as **conditional representability of checker
-computation** or **internal admissibility of checker-verified
-templates**.
+The development shows this barrier is **very narrow**: it is not
+full internal soundness, not structural induction over codes, not
+general representability. It is exactly **one conditional checker
+computation on one verified template**. That is as minimal as a
+Goedel-II-enabling extension can be.
+
+### Comparison with known approaches
+
+| Approach | How reflection is handled |
+|----------|--------------------------|
+| Paulson (Isabelle) | Sigma-1 completeness of arithmetic |
+| Shankar (Nqthm) | Representability + arithmetized induction |
+| O'Connor (Coq) | Primitive recursive arithmetic |
+| **This development** | **Template-closure (axSdExp)** |
+
+All complete proofs of Goedel II derive the reflection step from
+arithmetic induction over the proof predicate. This development
+avoids arithmetic entirely (syntax-native). The `axSdExp` axiom
+marks the exact point where arithmetic reasoning would be needed
+in the classical route. It is the tree-native minimal reflection
+principle for Goedel II.
 
 ## How it works
 
@@ -338,6 +323,7 @@ agda ChwistekSoundness.agda              # Goedel I
 agda ChwistekReflectionHierarchy.agda    # Hierarchy theorem
 agda ChwistekFuelGodel2.agda             # Fuel-based Goedel II
 agda ChwistekGodel2Genuine.agda          # Goedel II (relative to axSD)
+agda Godel2Internal.agda                 # Goedel II (via template-closure)
 ```
 
 ## Paper
