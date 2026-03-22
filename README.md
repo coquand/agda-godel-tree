@@ -202,6 +202,8 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `SelfDestructExp.agda` | `sdExp`, **`sdExp-clit-correct = refl`** |
 | `Godel2Internal.agda` | **`goedel2-internal`** (Goedel II via axSdExp) |
 | `BTA.agda` | Binary Tree Arithmetic: tree induction, destructors, `goedel2-BTA` |
+| `BinaryTreeArith.agda` | **`goedel2-BTA`** (general compositional axioms, 343 lines) |
+| `BTADerived.agda` | **`goedel2-BTAD`** (alternate axiomatization, 568 lines) |
 | `ChwistekGodel2Sound.agda` | Standard-semantics soundProofG (WIP, has holes) |
 
 ## The Goedel II analysis
@@ -319,6 +321,32 @@ The remaining step: use `axTreeInd` to DERIVE `axSdExpI` from
 representability lemmas (Guard's Theorem 12-13 for tree codes).
 This is the "Exercise 24" that Guard leaves to the reader and that
 Paulson/Shankar spend the bulk of their developments on.
+
+### Goedel II with general compositional axioms (BinaryTreeArith / BTADerived)
+
+```
+goedel2-BTA  : ProofBTA  ConBTA  -> EmptyG2   (343 lines)
+goedel2-BTAD : ProofBTAD ConBTAD -> EmptyG2   (568 lines)
+```
+
+Two clean proof systems with NO sentence-specific axioms. Each has
+7 compositional checker rules (axComp/axChk) about individual proof
+rules (mp, cinst, axEval, fceqSy, fceqTr) + self-reference + fPrf
+congruence. The `sdDerivedImp` derivation composes them via Hilbert
+S/K combinators (standard deduction theorem).
+
+The 7 rules are the tree-native analogue of Guard's representability:
+they say how `checkG` processes each proof-rule tag. Each is
+metatheoretically validated by `sd-meta-correct`.
+
+**The decomposition barrier**: The compositional axioms are
+**forward-composition** rules (building proofs). To DERIVE them
+from tree induction would require **decomposition** rules (analyzing
+proof structure — the converse direction). This is the precise
+remaining gap between our axiom-based Goedel II and a fully
+Guard-style Goedel II derived from a single induction principle.
+
+See `BinaryTreeArith.agda` and `BTADerived.agda`.
 
 ## How it works
 
