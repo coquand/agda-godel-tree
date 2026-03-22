@@ -29,43 +29,46 @@ correct — i.e., that the internal checker (defined via ctCase +
 ctFold) agrees with the external checkTA.
 STATUS: This IS Track 1 (TRACK1-PLAN.md). Estimated 6-10 hours.
 
-## The Definitive Answer
+## The Open Question
 
-D3 is provable IFF Track 1 is completed.
+Track 1 is VERY LIKELY sufficient for D3, but this has NOT been
+proved. The gap:
 
-Track 1 = ctCase + ctFold + defined internal checker. With Track 1:
-- D3 is formulable (Layer 1 + Layer 2)
-- D3 is provable (Layer 3: internal checker = checkTA by definition)
-- Standard Goedel II applies (D1 + D2 + D3 all hold)
-- Con is unprovable (Goedel II)
-- Nelson's chain gives Con → Con (tautological, not absolute ⊥)
+1. Track 1 defines an internal checker `checkCT` using ctCase + ctFold.
+2. `checkCT` agrees with `checkTA` on closed codes (by construction).
+3. But D3 requires the system to PROVE this agreement uniformly —
+   not just for closed codes, but as an internal theorem.
 
-Without Track 1:
-- D3 is not formulable (current state)
-- Standard Goedel II route blocked
-- Con still blocked by model-theoretic route (GoodTA)
+"Definitional equality at the meta-level" (checkCT computes the
+same thing as checkTA) does NOT automatically give the internal
+theorem needed for D3. There are two separate things:
 
-## What This Means for Nelson
+(a) DEFINITION: the internal checker term exists and computes correctly.
+(b) PROOF-THEORETIC ADEQUACY: the system proves the right formulas
+    about that checker, uniformly enough for D3.
 
-Nelson's program requires D3 (self-awareness) to have a chance of
-proving Con internally. D3 requires representability of the checker.
-Representability IS Track 1.
+These are close but not identical. The gap between (a) and (b)
+might contain a surprise.
 
-If Track 1 is completed:
-- D3 holds
-- Goedel II applies
-- Nelson's chain gives Con → Con (NOT absolute ⊥)
-- Nelson's program does not bypass Goedel II
+## What Remains
 
-If Track 1 is NOT completed:
-- D3 is not formulable
-- Standard Goedel II route doesn't apply
-- But Con is STILL blocked (model-theoretic)
-- Nelson's program still doesn't give absolute ⊥
+The ONLY way to resolve this: complete Track 1 and test D3 directly.
 
-Either way: Nelson's program does not produce absolute contradiction.
-The only difference is WHETHER Goedel II applies (via D3) or whether
-consistency is blocked by a different mechanism (model-theoretic).
+Track 1 tasks:
+A. Define internal checker `checkCT` using ctCase + ctFold
+B. Prove external correctness: eval(checkCT(c)) = checkTA(c) for closed c
+C. Extend FormTA with existentials
+D. State D3 exactly for the internal provability predicate
+E. Attempt to prove D3
+F. If the proof fails, identify the exact missing lemma
+
+Estimated: 6-10 hours (TRACK1-PLAN.md).
+
+Possible outcomes:
+- Case A: Track 1 completed and D3 proved → Goedel II applies, Nelson gives Con → Con
+- Case B: Track 1 completed but D3 still fails → deeper obstruction discovered
+- Case C: Track 1 cannot be completed as intended → architectural issue
+- Case D: Track 1 completed but needs an extra representability lemma → precise gap identified
 
 ## Remaining Work
 
