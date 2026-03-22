@@ -205,27 +205,23 @@ encProofTA (axReflTA c) =
   cnode (catom n95) c
 
 ------------------------------------------------------------------------
--- Modus ponens matcher
-------------------------------------------------------------------------
-
-matchMPTA : FormTA -> FormTA -> Maybe FormTA
-matchMPTA (fimpTA a b) q = matchMPTA-guard (eqFormTA a q)
-  where
-  matchMPTA-guard : Bool -> Maybe FormTA
-  matchMPTA-guard true  = just b
-  matchMPTA-guard false = nothing
-matchMPTA fbotTA       _ = nothing
-matchMPTA (fatomTA _)  _ = nothing
-matchMPTA (fallTA _)   _ = nothing
-matchMPTA (feqTA _ _)  _ = nothing
-
-------------------------------------------------------------------------
 -- Bool guard
 ------------------------------------------------------------------------
 
 boolGuardTA : Bool -> Maybe FormTA -> Maybe FormTA
 boolGuardTA true  r = r
 boolGuardTA false _ = nothing
+
+------------------------------------------------------------------------
+-- Modus ponens matcher
+------------------------------------------------------------------------
+
+matchMPTA : FormTA -> FormTA -> Maybe FormTA
+matchMPTA (fimpTA a b) q = boolGuardTA (eqFormTA a q) (just b)
+matchMPTA fbotTA       _ = nothing
+matchMPTA (fatomTA _)  _ = nothing
+matchMPTA (fallTA _)   _ = nothing
+matchMPTA (feqTA _ _)  _ = nothing
 
 ------------------------------------------------------------------------
 -- Checker (fuel-based)
