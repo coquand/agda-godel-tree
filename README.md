@@ -191,37 +191,42 @@ In words: "if code e proves G, then the self-destruct code proves fbot."
 This is the constructive Goedel I transformation — but stated as an
 axiom of the system rather than derived internally.
 
-### Why it cannot be derived
+### Why it cannot be derived (yet)
 
-Deriving `axSDruleG` internally would require the system to prove:
+Deriving `axSDruleG` internally requires the system to prove a
+**uniform internal proof-transformation theorem**: for all proof
+codes `e`, if `e` proves G, then `selfDestruct(e)` proves fbot.
 
-1. If `checkG` accepts code `e` as proving G, then the self-destruct
-   construction (instantiate G at `e`, apply modus ponens) produces
-   a valid proof of fbot.
-2. This valid proof is *accepted by `checkG` itself*.
+This is weaker than full internal soundness — it is a statement about
+one specific formula (G) and one specific transformation. But it still
+requires the system to **reason uniformly over arbitrary proof codes**
+and verify that the self-destruct transformer preserves checker
+acceptance. The system currently lacks the machinery for this.
 
-Step 2 is the barrier: the system would need to verify that its own
-checker accepts the constructed proof code. This requires the system
-to reason about `checkG` by induction over all possible proof codes —
-i.e., to prove its own soundness internally. This is exactly what
-Goedel II says a consistent system cannot do.
+### What is missing concretely
 
-### The classical barrier
+The gap is not "internal soundness" in full generality. It is:
 
-The gap is the same one identified by the reflection hierarchy theorem
-(`ChwistekReflectionHierarchy.agda`): each proof system can reflect
-the layer below but is provably blind to its own reflective reasoning.
-`axSDruleG` bridges this gap by fiat.
+1. **A totalized internal checker**: the current checker returns
+   `Maybe Formula` (partial). Formulas cannot reason about partial
+   results on arbitrary code variables — only on closed literals
+   via `axEvalG`. A total code-valued checker (`checkCodeT : Nat ->
+   Code -> Code`) would let formulas express "code e proves formula A"
+   as `fceq (ccheckT e) (clit (encFormula A))` for variable `e`.
 
-Concretely, to derive `axSDruleG` one would need:
+2. **Induction over codes**: to prove that the self-destruct
+   transformation preserves checker acceptance for ALL codes, the
+   system needs an induction principle over binary-tree codes
+   (structural induction on `catom`/`cnode`).
 
-- **Internal induction over proof codes**: the system proves that for
-  ALL codes accepted by `checkG`, the self-destruct transformation
-  produces a code also accepted by `checkG`. This is Sigma-1 complete
-  induction over the proof predicate.
-- **Or equivalently**: internal soundness — the system proves that
-  everything it proves is true. Goedel II says this is impossible
-  for consistent systems.
+3. **Internal representability of the checker's behavior**: enough
+   internal lemmas to verify that `checkG` is compositional — that
+   mp, instantiation, and the self-destruct construction produce
+   codes that the checker accepts, provably inside the system.
+
+None of these require arithmetization. They are the **tree-native
+analogues** of what arithmetic supplies in the classical route
+(Sigma-1 completeness, primitive recursive representability).
 
 ### Relationship to known approaches
 
@@ -232,12 +237,15 @@ Concretely, to derive `axSDruleG` one would need:
 | O'Connor (Coq) | Primitive recursive arithmetic |
 | **This development** | **Assumed as axSDruleG** |
 
-All complete proofs of Goedel II ultimately derive the reflection step
-from arithmetic induction over the proof predicate. This development
-avoids arithmetic entirely (syntax-native), which is a strength for
-Goedel I but means the standard route to Goedel II (Sigma-1
-completeness) is not available. The `axSDruleG` axiom marks the
-precise point where arithmetic reasoning would be needed.
+The standard route derives the reflection step from arithmetic
+induction over the proof predicate. This development avoids
+arithmetic entirely (syntax-native), which is a strength for
+Goedel I but means the standard Sigma-1 route is not available.
+
+The right next step is not "give up and arithmetize" but
+**build Guard over trees**: totalized checker, code induction,
+internal representability — all on binary trees without Goedel
+numbering.
 
 ## How it works
 
