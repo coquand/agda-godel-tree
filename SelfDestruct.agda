@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --exact-split --allow-unsolved-metas #-}
+{-# OPTIONS --without-K --exact-split #-}
 
 -- The self-destruct code builder and its meta-correctness theorem.
 --
@@ -109,50 +109,190 @@ sd-meta-correct :
   Eq (checkG (suc n) p) (just GoedelSentence) ->
   Eq (checkG (suc (sdFuel n)) (sdCode p)) (just fbot)
 sd-meta-correct n p hyp =
-  -- checkG processes sdCode(p) = cnode (catom n33) (cnode step1 step5)
-  -- Tag 33 = mp: checkG on step1 and step5, then matchMP
-  --
-  -- We need to show:
-  -- (a) checkG step1 = just (fimp (fceq (ccheck(clit p)) (csub phi phi)) fbot)
-  -- (b) checkG step5 = just (fceq (ccheck(clit p)) (csub phi phi))
-  -- (c) matchMP (a) (b) = just fbot
-  --
-  -- For (a): step1 = cnode (catom n37g) (cnode p p), tag 37 = cinst
-  --   checkG on p gives GoedelSentence = fcAll GoedelBodyG
-  --   matchCinst (fcAll GoedelBodyG) p = just (substFormulaCode0 (clit p) GoedelBodyG)
-  --     = just (fimp (fceq (ccheck (clit p)) (csub phi phi)) fbot)
-  --
-  -- For (b): step5 = cnode (catom n38g) (cnode step2 step4), tag 38 = fceqTr
-  --   checkG on step2 gives fceq (ccheck(clit p)) (clit enc(G))
-  --   checkG on step4 gives fceq (clit enc(G)) (csub phi phi)
-  --   matchFceqTr chains them: fceq (ccheck(clit p)) (csub phi phi)
-  --
-  -- The key fact: step2 (tag 36 = axEvalG) requires
-  --   evalG (ccheck(clit p)) = just (encFormula G)
-  -- which follows from checkG(p) = just G (our hypothesis)
-  --
-  -- step3 (tag 36) requires
-  --   evalG (csub phi phi) = just (encFormula G)
-  -- which is the self-reference property
+  let
+    -- Abbreviations
+    encG : Code
+    encG = encFormula GoedelSentence
 
-  -- For now we state this and leave the detailed verification
-  -- as a structured proof. The proof is finite case analysis
-  -- on the known structure of sdCode(p), NOT induction on p.
+    phi' : CExp
+    phi' = csub (clit phiCode) (clit phiCode)
 
-  {!!}
-  -- The proof is finite case analysis on the known structure of
-  -- sdCode(p). It requires unfolding checkG through 4 dispatch
-  -- levels using:
-  --   checkG-mono to lift the hypothesis to sufficient fuel
-  --   decCExp-encCExp for the axEvalG tag decode step
-  --   evalG-ccheck-lit for the conditional evaluation fact
-  --   evalG-csub-phi (= GoedelSentence-self-ref) for self-reference
-  --   eqCExp-refl for the boolGuard comparisons in axEvalG
-  --   eqCode-refl for the eqMaybeCodeG comparisons
-  --   guardEq-self for the matchMP step
-  --
-  -- Estimated: ~100 lines of eqTrans/eqCong chains.
-  -- NOT induction on p — purely structural on the fixed template.
+    -- The instantiation of GoedelSentence at p:
+    --   substFormulaCode0 (clit p) GoedelBodyG
+    --   = fimp (fceq (ccheck (clit p)) (csub (clit phiCode) (clit phiCode))) fbot
+    GoedelBodyInst : Formula
+    GoedelBodyInst = fimp (fceq (ccheck (clit p)) phi') fbot
+
+    -- Lift hypothesis to sufficient fuel levels
+    hyp2 : Eq (checkG (suc (suc n)) p) (just GoedelSentence)
+    hyp2 = checkG-mono (suc n) p GoedelSentence hyp
+
+    hyp4 : Eq (checkG (suc (suc (suc (suc n)))) p) (just GoedelSentence)
+    hyp4 = checkG-mono-plus (suc (suc (suc zero))) (suc n) p GoedelSentence hyp
+
+    ----------------------------------------------------------------
+    -- evalG results for the two axEval steps
+    ----------------------------------------------------------------
+
+    -- evalG (suc(suc(suc n))) (ccheck (clit p)) = just encG
+    eval-ccheck : Eq (evalG (suc (suc (suc n))) (ccheck (clit p))) (just encG)
+    eval-ccheck = evalG-ccheck-lit (suc n) p GoedelSentence hyp2
+
+    -- evalG (suc(suc n)) (csub (clit phiCode) (clit phiCode)) = just encG
+    eval-csub : Eq (evalG (suc (suc n)) phi') (just encG)
+    eval-csub = evalG-csub-phi n
+
+    ----------------------------------------------------------------
+    -- boolGuard steps for axEval (eqMaybeCodeG after evalG)
+    ----------------------------------------------------------------
+
+    -- For step2: boolGuard (eqMaybeCodeG (evalG ... (ccheck (clit p))) encG) ...
+    guard-ccheck : Eq (boolGuard (eqMaybeCodeG (evalG (suc (suc (suc n)))
+                                   (ccheck (clit p))) encG)
+                                 (just (fceq (ccheck (clit p)) (clit encG))))
+                      (just (fceq (ccheck (clit p)) (clit encG)))
+    guard-ccheck =
+      eqSubst (\ r -> Eq (boolGuard (eqMaybeCodeG r encG)
+                            (just (fceq (ccheck (clit p)) (clit encG))))
+                         (just (fceq (ccheck (clit p)) (clit encG))))
+              (eqSym eval-ccheck)
+              (eqSubst (\ b -> Eq (boolGuard b
+                                    (just (fceq (ccheck (clit p)) (clit encG))))
+                                  (just (fceq (ccheck (clit p)) (clit encG))))
+                       (eqSym (eqCode-refl encG))
+                       refl)
+
+    -- For step3: boolGuard (eqMaybeCodeG (evalG ... phi') encG) ...
+    guard-csub : Eq (boolGuard (eqMaybeCodeG (evalG (suc (suc n)) phi') encG)
+                               (just (fceq phi' (clit encG))))
+                    (just (fceq phi' (clit encG)))
+    guard-csub =
+      eqSubst (\ r -> Eq (boolGuard (eqMaybeCodeG r encG)
+                            (just (fceq phi' (clit encG))))
+                         (just (fceq phi' (clit encG))))
+              (eqSym eval-csub)
+              (eqSubst (\ b -> Eq (boolGuard b (just (fceq phi' (clit encG))))
+                                  (just (fceq phi' (clit encG))))
+                       (eqSym (eqCode-refl encG))
+                       refl)
+
+    ----------------------------------------------------------------
+    -- Code abbreviations for inner steps
+    ----------------------------------------------------------------
+
+    step2Code : Code
+    step2Code = cnode (catom n36g)
+                  (cnode (encCCheckLit p) (encFormula GoedelSentence))
+
+    step3Code : Code
+    step3Code = cnode (catom n36g)
+                  (cnode encCSubPhi (encFormula GoedelSentence))
+
+    step5Code : Code
+    step5Code = cnode (catom n38g)
+                  (cnode step2Code (cnode (catom n39g) step3Code))
+
+    ----------------------------------------------------------------
+    -- Step 2: checkG for axEval(ccheck(clit p), encG)
+    -- Tag n36g dispatches to decCExp + evalG + boolGuard
+    ----------------------------------------------------------------
+
+    step2-eq : Eq (checkG (suc (suc (suc (suc n)))) step2Code)
+                  (just (fceq (ccheck (clit p)) (clit encG)))
+    step2-eq =
+      eqTrans
+        (eqCong (\ r -> maybeBind r (\ e ->
+                   boolGuard (eqMaybeCodeG (evalG (suc (suc (suc n))) e) encG)
+                             (just (fceq e (clit encG)))))
+                (decCExp-encCExp (ccheck (clit p))))
+        guard-ccheck
+
+    ----------------------------------------------------------------
+    -- Step 3: checkG for axEval(csub(phi,phi), encG)
+    ----------------------------------------------------------------
+
+    step3-eq : Eq (checkG (suc (suc (suc n))) step3Code)
+                  (just (fceq phi' (clit encG)))
+    step3-eq =
+      eqTrans
+        (eqCong (\ r -> maybeBind r (\ e ->
+                   boolGuard (eqMaybeCodeG (evalG (suc (suc n)) e) encG)
+                             (just (fceq e (clit encG)))))
+                (decCExp-encCExp (csub (clit phiCode) (clit phiCode))))
+        guard-csub
+
+    ----------------------------------------------------------------
+    -- Step 4: checkG for fceqSy(step3) -- swaps the fceq
+    -- Tag n39g dispatches to checkG + matchFceqSy
+    ----------------------------------------------------------------
+
+    step4-eq : Eq (checkG (suc (suc (suc (suc n))))
+                          (cnode (catom n39g) step3Code))
+                  (just (fceq (clit encG) phi'))
+    step4-eq = eqCong (\ r -> maybeBind r matchFceqSy) step3-eq
+
+    ----------------------------------------------------------------
+    -- matchFceqTr guard: eqCExp (clit encG) (clit encG) = true
+    ----------------------------------------------------------------
+
+    fceqTr-guard : Eq (boolGuard (eqCExp (clit encG) (clit encG))
+                                 (just (fceq (ccheck (clit p)) phi')))
+                      (just (fceq (ccheck (clit p)) phi'))
+    fceqTr-guard =
+      eqSubst (\ b -> Eq (boolGuard b (just (fceq (ccheck (clit p)) phi')))
+                         (just (fceq (ccheck (clit p)) phi')))
+              (eqSym (eqCExp-refl (clit encG)))
+              refl
+
+    ----------------------------------------------------------------
+    -- Step 5: checkG for fceqTr(step2, step4)
+    -- Tag n38g dispatches to checkG on both children + matchFceqTr
+    ----------------------------------------------------------------
+
+    step5-eq : Eq (checkG (sdFuel n) step5Code)
+                  (just (fceq (ccheck (clit p)) phi'))
+    step5-eq =
+      eqTrans
+        (eqCong (\ r -> maybeBind r (\ f1 ->
+                   maybeBind (checkG (suc (suc (suc (suc n))))
+                                     (cnode (catom n39g) step3Code))
+                             (\ f2 -> matchFceqTr f1 f2)))
+                step2-eq)
+        (eqTrans
+          (eqCong (\ r -> maybeBind r
+                     (\ f2 -> matchFceqTr
+                                (fceq (ccheck (clit p)) (clit encG)) f2))
+                  step4-eq)
+          fceqTr-guard)
+
+    ----------------------------------------------------------------
+    -- Step 1: checkG for cinst(p, p)
+    -- Tag n37g dispatches to checkG on p + matchCinst
+    -- matchCinst (fcAll body) p = just (substFormulaCode0 (clit p) body)
+    ----------------------------------------------------------------
+
+    step1-eq : Eq (checkG (sdFuel n) (cnode (catom n37g) (cnode p p)))
+                  (just GoedelBodyInst)
+    step1-eq = eqCong (\ r -> maybeBind r (\ pf -> matchCinst pf p)) hyp4
+
+    ----------------------------------------------------------------
+    -- Final: matchMP GoedelBodyInst (fceq ...) = just fbot
+    ----------------------------------------------------------------
+
+    mp-result : Eq (matchMP GoedelBodyInst (fceq (ccheck (clit p)) phi'))
+                   (just fbot)
+    mp-result = guardEq-self (fceq (ccheck (clit p)) phi') fbot
+
+  in eqTrans
+       (eqCong (\ r -> maybeBind r (\ pf ->
+                  maybeBind (checkG (sdFuel n) step5Code)
+                            (\ qf -> matchMP pf qf)))
+               step1-eq)
+       (eqTrans
+         (eqCong (\ r -> maybeBind r
+                    (\ qf -> matchMP GoedelBodyInst qf))
+                 step5-eq)
+         mp-result)
 
 ------------------------------------------------------------------------
 -- STATUS
