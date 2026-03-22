@@ -36,15 +36,17 @@ constructive-goedel1 : ProofC GoedelSentence -> Code -> enc-correct -> ProofC fb
 
 From a proof of the Goedel sentence, construct a proof of fbot INSIDE the system.
 
-### Goedel II (Con is not provable)
+### Con refuted under Good' valuation (NOT Goedel II)
 
 ```
-goedel2 : ProofC n Con -> EmptyG
-goedel2 pf = soundGood' pf emptyEnvG (catom zero) ttG
+Con-not-Good : ProofC n Con -> EmptyG
 ```
 
-The consistency formula is not provable. Proved via a propositional
-valuation where all code equalities are trivially true.
+Con is not provable under a valuation where all code equalities are
+trivially true. This is soundness + countermodel, NOT the incompleteness-
+theoretic Goedel II. A genuine Goedel II would require the internal
+derivation `ProofC Con -> ProofC GoedelSentence` using self-reference,
+which remains open.
 
 ### Strict reflection hierarchy
 
@@ -118,7 +120,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekNelsonCorollary.agda` | Instance vs universal verification gap |
 | `ChwistekOpenConsistency.agda` | Open consistency of propositional fragment |
 | `ChwistekNelson.agda` | Corrected Nelson program (packaged theorem) |
-| `ChwistekConstructiveGodel.agda` | Constructive Goedel I + Goedel II |
+| `ChwistekConstructiveGodel.agda` | Constructive Goedel I + Con-not-Good |
 
 ## How it works
 

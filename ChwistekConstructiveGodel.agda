@@ -151,13 +151,22 @@ constructive-goedel1 {n} pG p hyp =
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
--- GOEDEL II: Con is not provable
+-- Con is not valid under the Good' valuation
 ------------------------------------------------------------------------
 
--- We use a propositional valuation Good' that maps ALL code
--- equalities to Unit (trivially true). Under this interpretation,
--- Con = fcAll (fimp (fceq ...) fbot) requires Unit -> Empty for
--- each code, which is uninhabited.
+-- NOTE: This is NOT Goedel II. It is a semantic refutation of Con
+-- under a specific valuation where all code equalities are trivially
+-- true. The Good' valuation makes Con false by design (since
+-- fimp UnitG EmptyG is uninhabited), so any sound system fails to
+-- prove it. This does not use self-reference, the Goedel sentence,
+-- D1/D3, or constructive Goedel I — so it is not the incompleteness-
+-- theoretic theorem.
+--
+-- A genuine Goedel II would need:
+--   ProofC Con -> ProofC GoedelSentence (internal derivation)
+-- combined with constructive Goedel I (ProofC G -> ProofC fbot)
+-- to get contradiction. That requires the self-referential machinery
+-- and remains open.
 
 data EmptyG : Set where
 data UnitG : Set where
@@ -251,17 +260,16 @@ soundGood' (cinstC {A} pf c) env =
     \ c' -> substGood' a (extendEnvG env c') c (g c')
 
 ------------------------------------------------------------------------
--- Con is not provable (Goedel II)
+-- Con refuted under Good' (NOT Goedel II)
 ------------------------------------------------------------------------
 
--- Recall Con = fcAll (fimp (fceq (ccheck (cvar cvz)) (clit (encFormula fbot))) fbot)
--- Good' env Con = (c : Code) -> Good' (extendEnvG env c) (fimp (fceq ...) fbot)
---               = (c : Code) -> (UnitG -> EmptyG)
--- This requires a function UnitG -> EmptyG for each code c.
--- No such function exists (UnitG is inhabited, EmptyG is not).
+-- Good' env Con = (c : Code) -> (UnitG -> EmptyG) = uninhabited.
+-- This is because Good' makes all fceq trivially true, so
+-- fimp (fceq ...) fbot becomes UnitG -> EmptyG = uninhabited.
+-- Any sound system under Good' cannot prove Con.
 
-goedel2 : {n : Nat} -> ProofC n Con -> EmptyG
-goedel2 pf = soundGood' pf emptyEnvG (catom zero) ttG
+Con-not-Good : {n : Nat} -> ProofC n Con -> EmptyG
+Con-not-Good pf = soundGood' pf emptyEnvG (catom zero) ttG
 
 ------------------------------------------------------------------------
 -- Comments
