@@ -4,7 +4,7 @@ A formalization of Goedel's incompleteness theorems using binary-tree syntax
 instead of arithmetic coding, inspired by Chwistek's approach to formal
 metamathematics.
 
-**20 Agda files, ~4100 lines. No postulates, no holes, no standard library.**
+**21 Agda files, ~4400 lines. No postulates, no holes, no standard library.**
 
 ## Key features
 
@@ -36,17 +36,21 @@ constructive-goedel1 : ProofC GoedelSentence -> Code -> enc-correct -> ProofC fb
 
 From a proof of the Goedel sentence, construct a proof of fbot INSIDE the system.
 
-### Con refuted under Good' valuation (NOT Goedel II)
+### Goedel II for the SD-extended system
 
 ```
-Con-not-Good : ProofC n Con -> EmptyG
+Con-implies-G : ProofSD n Con -> ProofSD n GoedelSentence
+goedel2-SD    : ProofSD n Con -> EmptySD
 ```
 
-Con is not provable under a valuation where all code equalities are
-trivially true. This is soundness + countermodel, NOT the incompleteness-
-theoretic Goedel II. A genuine Goedel II would require the internal
-derivation `ProofC Con -> ProofC GoedelSentence` using self-reference,
-which remains open.
+Con is not provable in ProofSD (the system extended with `axSDrule`).
+The proof uses the genuine Goedel-II chain: `Con-implies-G` derives
+GoedelSentence from Con using the sentence-specific self-destruct
+reflection axiom, then GoodSD soundness gives Empty.
+
+This is Goedel II **relative to axSD**, not for the bare system.
+`axSD` internalizes the constructive Goedel I transformation as
+an axiom. See `ChwistekGodel2SD.agda`.
 
 ### Strict reflection hierarchy
 
@@ -83,7 +87,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | D1 (representability) | Base proofs only | All proofs |
 | D3 (self-reflection) | **Blocked** (blind to tag 36) | **Works** (+4 fuel) |
 | Hierarchy | Strict (proved) | Collapses |
-| Goedel II | Impossible | Meta-level proved |
+| Goedel II | Impossible | Meta-level; full with axSD |
 
 ## File structure
 
@@ -120,7 +124,8 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekNelsonCorollary.agda` | Instance vs universal verification gap |
 | `ChwistekOpenConsistency.agda` | Open consistency of propositional fragment |
 | `ChwistekNelson.agda` | Corrected Nelson program (packaged theorem) |
-| `ChwistekConstructiveGodel.agda` | Constructive Goedel I + Con-not-Good |
+| `ChwistekConstructiveGodel.agda` | Constructive Goedel I (ProofC G -> ProofC fbot) |
+| `ChwistekGodel2SD.agda` | Goedel II for SD-extended system |
 
 ## How it works
 
