@@ -111,6 +111,42 @@ Our development separates them cleanly:
 - Checker axioms (Layer 3) without full representability
 - The gap between them is the representability work (~500 lines)
 
+## Why No Weak Provability Notion Suffices
+
+The remaining open question: is there a predicate P(p) weaker than
+"checkG accepts p" but strong enough for Nelson's contradiction?
+
+P would need to be:
+1. Weaker than the checker (not replicate checkG)
+2. Preserved under reduction: P(p) -> P(reduceN(p))
+3. Excludable from normal forms: normal(p) -> not P(p)
+
+Candidates considered:
+
+(a) LOCAL CONTRADICTORY PATTERN: proof codes don't carry formula
+    information in their tags — tags encode RULES (mp, cinst, etc.),
+    not FORMULAS (fbot, fimp, etc.). No syntactic code property
+    correlates with "proves fbot" without computing what the
+    checker computes.
+
+(b) FRAGMENT PROVABILITY: even a restricted checker for some tags
+    is still a checker — it processes tag structure and sub-proof
+    results.
+
+(c) MONOTONE STRUCTURAL PREDICATE: the SHAPE of a code tree does
+    not determine what formula it proves. The formula is the
+    checker's OUTPUT, computed from the code's CONTENT. Shape and
+    content are connected only through the checker.
+
+The fundamental issue: what a proof proves is a SEMANTIC property
+(determined by the checker), not a SYNTACTIC one (determined by
+code shape). Any reduction-stable approximation of this semantic
+property must replicate (some of) the checker's computation.
+
+Therefore: there is no useful intermediate between "no semantics"
+and "checker axioms." The compositional checker axioms ARE the
+minimal bridge, and they are irreducible.
+
 ## Open Question
 
 Can the compositional checker axioms be DERIVED from tree induction
