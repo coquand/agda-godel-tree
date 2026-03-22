@@ -233,14 +233,66 @@ The above analysis is CONDITIONAL on:
 These are the GENUINE open questions. They cannot be settled by
 abstract argument — they depend on the specific system's properties.
 
+### Goedel II audit: derivability conditions
+
+D1 (representability): ⊢ A implies ⊢ Prf(⌜A⌝).
+STATUS: HOLDS. The compositional axioms encode each ProofBTAF
+derivation as a checkG-accepted code. ✓
+
+D2 (closure under mp): ⊢ Prf(⌜A→B⌝) → (Prf(⌜A⌝) → Prf(⌜B⌝)).
+STATUS: HOLDS. axChkMPct gives exactly this. ✓
+
+D3 (self-awareness): ⊢ Prf(⌜A⌝) → Prf(⌜Prf(⌜A⌝)⌝).
+STATUS: NOT ESTABLISHED. None of our axioms gives D3. The system
+can prove A is provable (D1) but cannot prove that THIS PROOF
+is itself provable (D3 requires self-representation of the
+checker). ✗
+
+### Does D3 failure open a door for Nelson?
+
+Without D3, the standard Goedel II argument (D1+D2+D3 → Con → G
+→ contradiction) does not go through internally. The Goedel fixed
+point exists (self-reference via csub), but the derivation of
+Con → G uses D3 via Loeb's theorem.
+
+However: our goedel2-BTA proves Con unprovable via a DIFFERENT
+route — the GoodBTA model (fPrf = UnitG2, fbot = EmptyG2). This
+route is independent of D3. It shows Con is false in a trivial
+model, so no sound system can prove it.
+
+Could adding ctCase + ctFold break soundness for GoodBTA? No.
+The computation axioms (ctCase beta-rules) map to UnitG2 under
+GoodBTA. Soundness is preserved. So Con remains unprovable.
+
+### The two routes to Goedel II
+
+| Route | Requires D3? | Works for BTA? |
+|-------|-------------|---------------|
+| Standard (D1+D2+D3 → fixed point) | Yes | D3 not established |
+| Model-theoretic (GoodBTA) | No | Yes ✓ |
+
+The model-theoretic route is INDEPENDENT of derivability conditions.
+It blocks Con by showing Con is false in a model, not by self-
+referential diagonalization. This means: even if D3 fails (opening
+a door in the standard Goedel II argument), Con is STILL blocked
+by the model-theoretic argument.
+
 ### The honest verdict
 
-Nelson's program is not refuted by R3 = Con alone. It is refuted
-only CONDITIONALLY: IF the Goedel II hypotheses hold, THEN
-R3/Con is unprovable internally. The hypotheses DO hold for our
-specific system. But Nelson's point was about PA, not about BTA.
-Whether the analogous hypotheses hold for PA with Nelson's specific
-machinery is a different question.
+Nelson's program is blocked in our system by TWO independent
+mechanisms:
+1. R3 = Con (structural theorem, always holds with normalization)
+2. Con is false in GoodBTA (model-theoretic, independent of D3)
+
+D3 might fail for our system. This would invalidate the STANDARD
+Goedel II route but NOT the model-theoretic route. Con remains
+unprovable regardless.
+
+For PA (Nelson's actual target): the situation is different because
+PA has genuine arithmetic, D3 holds, and the standard Goedel II
+applies directly. Nelson's claim that PA is inconsistent would
+require breaking one of the D1-D3 conditions or consistency itself
+— which is what he attempted but did not achieve.
 
 ## Summary
 
