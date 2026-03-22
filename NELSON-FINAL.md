@@ -147,6 +147,46 @@ Therefore: there is no useful intermediate between "no semantics"
 and "checker axioms." The compositional checker axioms ARE the
 minimal bridge, and they are irreducible.
 
+## Does Track 1 Yield Absolute Contradiction?
+
+If Track 1 succeeds (ctCase + ctFold, internal checker defined),
+the Nelson chain becomes:
+
+1. Assume Prf(p, fbot) — some code proves fbot
+2. Prf(reduceN(p), fbot) — preservation under reduction
+3. Prf(normalize(p), fbot) — iterate to normal form
+4. normal(p) → ¬Prf(p, fbot) — no normal form proves fbot
+5. Contradiction: ¬Prf(p, fbot) for all p
+
+Step 4 is decisive. Can we prove "no normal form proves fbot"?
+
+A normal form has no active cut-pmp redexes but can still have
+pmp/pinst/pax nodes. Whether it proves fbot depends on whether
+the AXIOMS and LOGIC allow chaining to fbot.
+
+If the axiom set is CONSISTENT: no normal form proves fbot. But
+"the axiom set is consistent" IS the consistency statement Con.
+
+So the chain gives: Con → ¬∃p.Prf(p, fbot) = Con → Con.
+This is TAUTOLOGICAL, not an absolute contradiction.
+
+To get an absolute contradiction (⊥ with no assumptions), we
+would need step 4 WITHOUT assuming consistency — which requires
+the system to be inherently consistent by construction. In our
+tiny ProofN this holds trivially (too weak). In a real system
+with self-reference, normal forms CAN prove fbot if the system
+IS inconsistent.
+
+CONCLUSION: Track 1 gives a clean framework where Nelson's chain
+CAN BE RUN, producing Con → Con (Gödel-style), not ⊥ (Nelson-style).
+The absolute contradiction only follows if the system is actually
+inconsistent — which ours is not (proved via GoodBTA soundness).
+
+This is Case A (Gödel-style conditional), not Case B (Nelson-style
+absolute). Track 1 uses Gödel-like machinery and produces
+Gödel-like results. Nelson's hope for absolute contradiction
+from syntax alone is not realized.
+
 ## Open Question
 
 Can the compositional checker axioms be DERIVED from tree induction
