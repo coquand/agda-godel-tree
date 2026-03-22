@@ -4,7 +4,7 @@ A formalization of Goedel's incompleteness theorems using binary-tree syntax
 instead of arithmetic coding, inspired by Chwistek's approach to formal
 metamathematics.
 
-**20 Agda files, ~4000 lines. No postulates, no holes, no standard library.**
+**20 Agda files, ~4100 lines. No postulates, no holes, no standard library.**
 
 ## Key features
 
@@ -26,8 +26,25 @@ metamathematics.
 goedel1-final : MetaNot (Proof GoedelSentence)
 ```
 
-The Goedel sentence is not provable in the Hilbert-style proof system.
-No consistency assumption is needed.
+The Goedel sentence is not provable. No consistency assumption is needed.
+
+### Constructive Goedel I (internal proof transformation)
+
+```
+constructive-goedel1 : ProofC GoedelSentence -> Code -> enc-correct -> ProofC fbot
+```
+
+From a proof of the Goedel sentence, construct a proof of fbot INSIDE the system.
+
+### Goedel II (Con is not provable)
+
+```
+goedel2 : ProofC n Con -> EmptyG
+goedel2 pf = soundGood' pf emptyEnvG (catom zero) ttG
+```
+
+The consistency formula is not provable. Proved via a propositional
+valuation where all code equalities are trivially true.
 
 ### Strict reflection hierarchy
 
@@ -101,7 +118,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekNelsonCorollary.agda` | Instance vs universal verification gap |
 | `ChwistekOpenConsistency.agda` | Open consistency of propositional fragment |
 | `ChwistekNelson.agda` | Corrected Nelson program (packaged theorem) |
-| `ChwistekConstructiveGodel.agda` | Constructive Goedel I: ProofC G -> ProofC fbot |
+| `ChwistekConstructiveGodel.agda` | Constructive Goedel I + Goedel II |
 
 ## How it works
 
