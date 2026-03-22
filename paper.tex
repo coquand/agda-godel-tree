@@ -59,6 +59,9 @@
 \newcommand{\TrueF}{\mathsf{TrueF}}
 \newcommand{\TrueFormula}{\mathsf{TrueFormula}}
 \newcommand{\MetaNot}{\mathsf{MetaNot}}
+\newcommand{\ProofG}{\mathsf{ProofG}}
+\newcommand{\ProofGtwo}{\mathsf{ProofG2}}
+\newcommand{\ProofSD}{\mathsf{ProofSD}}
 \newcommand{\GS}{\mathcal{G}}
 \newcommand{\phiCode}{\mathsf{phiCode}}
 \newcommand{\Set}{\mathsf{Set}}
@@ -73,19 +76,21 @@
 \maketitle
 
 \begin{abstract}
-We present a fully constructive formalization of G\"odel's first incompleteness theorem
-in Agda (3578 lines, 16 files) that uses binary trees as the native code representation,
-avoiding the traditional detour through arithmetic and G\"odel numbering entirely.
-Self-reference is achieved via a finite quine construction in the style of Chwistek's
-metasystem/object-system separation. We develop two architectures---\emph{stratified}
-and \emph{fuel-based}---and prove G\"odel~I unconditionally in the stratified setting.
-A reflection hierarchy theorem shows that the stratified architecture \emph{necessarily}
-separates meta-levels: each proof system can reflect the layer below but is provably
-blind to its own reflective reasoning. The fuel-based architecture collapses this
-hierarchy, enabling all three Hilbert--Bernays derivability conditions and a
-meta-level bounded G\"odel~II. The entire development uses no postulates, no standard
-library, no holes, and only ASCII identifiers; the formalization is self-contained and
-compiles with Agda's \texttt{--without-K --exact-split} flags.
+We present a fully constructive formalization of G\"odel's incompleteness theorems
+in Agda (approximately 5400 lines, 22 files) that uses binary trees as the native
+code representation, avoiding the traditional detour through arithmetic and G\"odel
+numbering entirely. Self-reference is achieved via a finite quine construction in
+the style of Chwistek's metasystem/object-system separation. We develop two
+architectures---\emph{stratified} and \emph{fuel-based}---and prove G\"odel~I
+unconditionally in the stratified setting. A reflection hierarchy theorem shows
+that the stratified architecture \emph{necessarily} separates meta-levels. The
+fuel-based architecture collapses this hierarchy, enabling all three
+Hilbert--Bernays derivability conditions. G\"odel~II is proved for a system with
+a self-destruct reflection axiom: the internal derivation $\mathrm{Con} \to G$
+composes the axiom with instantiated consistency, and the contradiction follows
+from a valuation argument. The entire development uses no postulates and no
+standard library; the formalization is self-contained and compiles with Agda's
+\texttt{--without-K --exact-split} flags.
 \end{abstract}
 
 %% ====================================================================
@@ -130,6 +135,10 @@ checker operating directly on tree codes. No arithmetic is needed.
   \item A sharp comparison of the two architectures, connecting them to
     Chwistek's stratified metamathematics and Guard's single-system
     approach (\S\ref{sec:comparison}).
+  \item A genuine G\"odel~II: the internal derivation
+    $\mathsf{Con} \to \GS$ and the unprovability of consistency,
+    for a system with a self-destruct reflection axiom and a unified
+    fuel-monotone checker (\S\ref{sec:genuine}).
 \end{enumerate}
 
 %% ====================================================================
@@ -882,14 +891,118 @@ reasoning about all proof codes---the precise barrier identified in
 Section~\ref{sec:nelson}.
 
 %% ====================================================================
+\section{Genuine G\"odel~II}
+\label{sec:genuine}
+
+The SD-extended result (\S\ref{sec:goedel2}) proves G\"odel~II for
+a system augmented with \texttt{axSDrule}. We now present a cleaner
+formulation using a unified mutual-recursive checker that integrates
+all proof rules into a single fuel-indexed pair $\mathsf{checkG}$
+/ $\mathsf{evalG}$ with tags 30--39.
+
+\subsection{The Unified Checker}
+
+$\mathsf{checkG}(n, p)$ and $\mathsf{evalG}(n, e)$ are mutually
+recursive with fuel~$n$. The tags cover:
+\begin{itemize}[nosep]
+\item 30--32: axioms (refl, K, S) --- no recursion
+\item 33--35: structural rules (mp, gen, cgen) --- recurse on subproofs
+\item 36: evaluation reflection ($\fceq$ from $\mathsf{evalG}$)
+\item 37: code quantifier instantiation ($\fcAll$ elimination)
+\item 38--39: $\fceq$ transitivity and symmetry
+\end{itemize}
+
+\subsection{Fuel Monotonicity}
+
+\begin{lemma}[Fuel monotonicity]
+  If\/ $\mathsf{checkG}(n, p) = \mathsf{just}(A)$ then
+  $\mathsf{checkG}(n{+}1, p) = \mathsf{just}(A)$,
+  and similarly for $\mathsf{evalG}$.
+\end{lemma}
+
+\begin{proof}
+  By mutual induction on~$n$. Each tag dispatch either makes no
+  recursive call (tags 30--32, result independent of fuel) or
+  passes fuel~$n$ to sub-calls (tags 33--39), where the induction
+  hypothesis lifts $\mathsf{checkG}(n)$ to $\mathsf{checkG}(n{+}1)$.
+  Tag~36 uses $\mathsf{evalG}$-monotonicity.
+  See \texttt{checkG-mono} and \texttt{evalG-mono}.
+\end{proof}
+
+This yields encoding correctness in existential form:
+for every base proof $\mathit{prf}$, there exists fuel~$k$ such that
+$\mathsf{checkG}(k, \mathsf{encodeProof}(\mathit{prf})) =
+\mathsf{just}(A)$.
+
+\subsection{The ProofG2 System and Con-implies-G}
+
+$\mathsf{ProofG}(n)$ extends $\Proof$ with evaluation reflection
+($\mathsf{axEvalG}$), code quantifier instantiation ($\mathsf{cinstG}$),
+and code-equality transitivity/symmetry. $\mathsf{ProofG2}(n)$ further
+adds:
+\begin{itemize}[nosep]
+\item $\mathsf{cinstEG}$: $\fcAll$ elimination at arbitrary $\CExp$
+  values (not just literal codes)
+\item $\mathsf{axSDruleG}$: the self-destruct reflection axiom
+  (internalizes constructive G\"odel~I)
+\end{itemize}
+
+\begin{theorem}[Internal Con-implies-G]
+  $\mathsf{ProofG2}(n, \mathsf{ConG}) \to
+   \mathsf{ProofG2}(n, \GS)$.
+\end{theorem}
+
+\begin{proof}
+  By $\mathsf{cgenG2}$ it suffices to prove the body of~$\GS$.
+  Compose (via Hilbert S/K combinators):
+  \begin{enumerate}[nosep]
+  \item $\mathsf{axSDruleG}$ at $e = \cvar_0$: if a code proves~$\GS$,
+    then the self-destruct code proves~$\fbot$.
+  \item $\mathsf{cinstEG}(\mathsf{ConG},\;
+    \csub(\clit(\overline\varphi), \cvar_0))$:
+    consistency instantiated at the self-destruct code.
+  \end{enumerate}
+  The composition gives $\fimp(\fceq(\ccheck(\cvar_0),
+  \csub(\ldots)),\; \fbot)$, which is the body of~$\GS$.
+\end{proof}
+
+\subsection{The Theorem}
+
+Define the $\mathsf{GoodG}$ valuation:
+$\mathsf{GoodG}(\fbot) = \varnothing$,
+$\mathsf{GoodG}(\fceq) = \mathbf{1}$,
+$\mathsf{GoodG}(\fimp\; a\; b) = \mathsf{GoodG}(a) \to \mathsf{GoodG}(b)$,
+$\mathsf{GoodG}(\fcAll\; a) = \forall c.\; \mathsf{GoodG}(a[c])$.
+
+\begin{theorem}[Genuine G\"odel~II, \texttt{goedel2-genuine}]
+  \label{thm:genuine}
+  $\mathsf{ProofG2}(n, \mathsf{ConG}) \to \varnothing$.
+\end{theorem}
+
+\begin{proof}
+  From $\mathsf{ProofG2}(n, \mathsf{ConG})$, derive
+  $\mathsf{ProofG2}(n, \GS)$ by Con-implies-G.
+  Since $\GS = \fcAll(\fimp(\fceq(\ldots), \fbot))$, its
+  $\mathsf{GoodG}$ value is $(c : \Code) \to \mathbf{1} \to \varnothing$,
+  which is uninhabited. Soundness of $\mathsf{ProofG2}$ under
+  $\mathsf{GoodG}$ (\texttt{soundGoodG2}) applied at any code gives
+  the contradiction.
+\end{proof}
+
+This completes the Chwistek-style formalization: G\"odel~II is proved
+for the system with the self-destruct reflection axiom, using a
+unified checker architecture with fuel monotonicity and a valuation
+argument.
+
+%% ====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
 We have presented a fully constructive, self-contained formalization of
-G\"odel's first incompleteness theorem in Agda, using binary trees as
+G\"odel's incompleteness theorems in Agda, using binary trees as
 the native syntax representation and avoiding G\"odel numbering entirely.
-The development comprises 20 Agda files totaling approximately 4000
-lines, with no postulates, no holes, and no standard library.
+The development comprises 22 Agda files totaling approximately 5400
+lines, with no postulates and no standard library.
 
 The key technical insight is that self-reference can be achieved through
 a finite quine construction ($\csub$) operating on tree codes, without
@@ -897,7 +1010,14 @@ any detour through arithmetic. The formalization revealed a sharp
 structural dichotomy between stratified and fuel-based architectures:
 the stratified approach gives an unconditional G\"odel~I and a strict
 reflection hierarchy, while the fuel-based approach enables all three
-derivability conditions and a bounded G\"odel~II.
+derivability conditions and G\"odel~II.
+
+The genuine G\"odel~II result (Theorem~\ref{thm:genuine}) uses a
+unified mutual-recursive checker with fuel monotonicity. The internal
+derivation $\mathsf{Con} \to \GS$ composes the self-destruct
+reflection axiom with instantiated consistency, and the contradiction
+follows from a simple valuation argument ($\fceq \mapsto \mathbf{1}$,
+$\fbot \mapsto \varnothing$).
 
 The reflection hierarchy theorem---showing that each proof system can
 reflect the layer below but is provably blind to its own reflective
@@ -919,9 +1039,8 @@ very content of G\"odel's second incompleteness theorem.
 \bigskip
 
 \noindent\textbf{Artifact.}
-The complete Agda development is available as 20 source files. All files
-compile with Agda's \texttt{--without-K --exact-split} flags. The
-\texttt{--safe} flag is used throughout; no postulates or unsafe pragmas
+The complete Agda development is available as 22 source files. All files
+compile with Agda's \texttt{--without-K --exact-split} flags. No postulates
 appear anywhere in the development.
 
 %% ====================================================================

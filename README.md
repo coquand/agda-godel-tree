@@ -4,7 +4,7 @@ A formalization of Goedel's incompleteness theorems using binary-tree syntax
 instead of arithmetic coding, inspired by Chwistek's approach to formal
 metamathematics.
 
-**21 Agda files, ~4400 lines. No postulates, no holes, no standard library.**
+**22 Agda files, ~5400 lines. No postulates, no standard library.**
 
 ## Key features
 
@@ -52,6 +52,36 @@ This is Goedel II **relative to axSD**, not for the bare system.
 `axSD` internalizes the constructive Goedel I transformation as
 an axiom. See `ChwistekGodel2SD.agda`.
 
+### Genuine Goedel II (Guard-style unified checker)
+
+```
+Con-implies-G  : ProofG2 n ConG -> ProofG2 n GoedelSentence
+goedel2-genuine : ProofG2 n ConG -> EmptyG2
+```
+
+A self-contained Goedel II using a unified mutual-recursive checker
+(`checkG`/`evalG`) with tags 30-39 covering all proof rules, code
+evaluation, transitivity, symmetry, and quantifier instantiation.
+
+The proof system `ProofG` extends the base Hilbert system with:
+- `axEvalG`: evaluation reflection (if `evalG n e = just c` then
+  `fceq e (clit c)` is provable)
+- `cinstG`, `fceqTrG`, `fceqSyG`: code quantifier elimination,
+  code-equality transitivity and symmetry
+
+`ProofG2` further extends `ProofG` with `cinstEG` (CExp quantifier
+elimination) and `axSDruleG` (self-destruct reflection). The internal
+derivation `Con-implies-G` composes `axSDruleG` with instantiated
+consistency via Hilbert S/K combinators. The contradiction follows
+from `soundGoodG2` under a valuation where `fceq -> UnitG2` and
+`fbot -> EmptyG2`.
+
+Additionally proved: fuel monotonicity for `checkG`/`evalG`
+(`checkG-mono`, `evalG-mono`) and encoding correctness with
+existential fuel (`encodeBaseG-fuel`).
+
+See `ChwistekGodel2Genuine.agda`.
+
 ### Strict reflection hierarchy
 
 ```
@@ -87,7 +117,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | D1 (representability) | Base proofs only | All proofs |
 | D3 (self-reflection) | **Blocked** (blind to tag 36) | **Works** (+4 fuel) |
 | Hierarchy | Strict (proved) | Collapses |
-| Goedel II | Impossible | Meta-level; full with axSD |
+| Goedel II | Impossible | Meta-level; genuine with axSD |
 
 ## File structure
 
@@ -126,6 +156,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekNelson.agda` | Corrected Nelson program (packaged theorem) |
 | `ChwistekConstructiveGodel.agda` | Constructive Goedel I (ProofC G -> ProofC fbot) |
 | `ChwistekGodel2SD.agda` | Goedel II for SD-extended system |
+| `ChwistekGodel2Genuine.agda` | Genuine Goedel II (Guard-style unified checker) |
 
 ## How it works
 
@@ -149,6 +180,7 @@ Requires Agda 2.8.0. To type-check all results:
 agda ChwistekSoundness.agda              # Goedel I
 agda ChwistekReflectionHierarchy.agda    # Hierarchy theorem
 agda ChwistekFuelGodel2.agda             # Fuel-based Goedel II
+agda ChwistekGodel2Genuine.agda          # Genuine Goedel II
 ```
 
 ## Paper
