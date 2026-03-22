@@ -52,29 +52,29 @@ This is Goedel II **relative to axSD**, not for the bare system.
 `axSD` internalizes the constructive Goedel I transformation as
 an axiom. See `ChwistekGodel2SD.agda`.
 
-### Genuine Goedel II (Guard-style unified checker)
+### Goedel II for the reflection-extended system
 
 ```
-Con-implies-G  : ProofG2 n ConG -> ProofG2 n GoedelSentence
+Con-implies-G   : ProofG2 n ConG -> ProofG2 n GoedelSentence
 goedel2-genuine : ProofG2 n ConG -> EmptyG2
 ```
 
-A self-contained Goedel II using a unified mutual-recursive checker
-(`checkG`/`evalG`) with tags 30-39 covering all proof rules, code
-evaluation, transitivity, symmetry, and quantifier instantiation.
+ConG is not provable in ProofG2 (the system extended with `axSDruleG`).
 
-The proof system `ProofG` extends the base Hilbert system with:
-- `axEvalG`: evaluation reflection (if `evalG n e = just c` then
-  `fceq e (clit c)` is provable)
-- `cinstG`, `fceqTrG`, `fceqSyG`: code quantifier elimination,
-  code-equality transitivity and symmetry
+This is Goedel II **relative to axSDruleG**, not for the bare system.
+`axSDruleG` internalizes the constructive Goedel I transformation
+("if code e proves G then self-destruct(e) proves fbot") as an axiom.
+The internal derivation `Con-implies-G` composes this axiom with
+instantiated consistency via Hilbert S/K combinators. The contradiction
+follows from `soundGoodG2` under a valuation where `fceq -> Unit` and
+`fbot -> Empty`.
 
-`ProofG2` further extends `ProofG` with `cinstEG` (CExp quantifier
-elimination) and `axSDruleG` (self-destruct reflection). The internal
-derivation `Con-implies-G` composes `axSDruleG` with instantiated
-consistency via Hilbert S/K combinators. The contradiction follows
-from `soundGoodG2` under a valuation where `fceq -> UnitG2` and
-`fbot -> EmptyG2`.
+The result isolates `axSDruleG` as the **precise missing ingredient**
+for Goedel II: everything else (diagonalization, self-reference,
+encoding correctness, fuel monotonicity, D1-D3) is derived. What
+cannot be derived is the reflection step that turns a proof of G into
+a proof of fbot internally. This is the classical Goedel II barrier:
+the system cannot internalize its own soundness.
 
 Additionally proved: fuel monotonicity for `checkG`/`evalG`
 (`checkG-mono`, `evalG-mono`) and encoding correctness with
@@ -117,7 +117,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | D1 (representability) | Base proofs only | All proofs |
 | D3 (self-reflection) | **Blocked** (blind to tag 36) | **Works** (+4 fuel) |
 | Hierarchy | Strict (proved) | Collapses |
-| Goedel II | Impossible | Meta-level; genuine with axSD |
+| Goedel II | Impossible | Meta-level; relative to axSD |
 
 ## File structure
 
@@ -156,7 +156,88 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `ChwistekNelson.agda` | Corrected Nelson program (packaged theorem) |
 | `ChwistekConstructiveGodel.agda` | Constructive Goedel I (ProofC G -> ProofC fbot) |
 | `ChwistekGodel2SD.agda` | Goedel II for SD-extended system |
-| `ChwistekGodel2Genuine.agda` | Genuine Goedel II (Guard-style unified checker) |
+| `ChwistekGodel2Genuine.agda` | Goedel II relative to axSDruleG |
+| `ChwistekGodel2Sound.agda` | Standard-semantics soundProofG (WIP, has holes) |
+
+## The Goedel II gap
+
+The development proves Goedel II **relative to axSDruleG**, not for the
+bare system. This section analyzes what is missing.
+
+### What is proved without axioms
+
+Everything except the reflection step:
+
+| Component | Status |
+|-----------|--------|
+| Self-reference (quine via `csub`) | Derived |
+| Encoding/decoding roundtrips | Derived |
+| Proof encoding (`encodeProofG`) | Derived |
+| Fuel monotonicity (`checkG-mono`) | Derived |
+| Encoding correctness (`encodeBaseG-fuel`) | Derived |
+| D1 (representability) | Derived |
+| Goedel I (meta-level) | Derived |
+| Constructive Goedel I (`ProofG G -> ProofG fbot`) | Derived |
+| **Internalized reflection (`axSDruleG`)** | **Assumed** |
+
+### What axSDruleG says
+
+```
+axSDruleG : ProofG2 n (fimp (fceq (ccheck e) (csub phiCode phiCode))
+                             (fceq (ccheck (csub phiCode e)) (clit (encFormula fbot))))
+```
+
+In words: "if code e proves G, then the self-destruct code proves fbot."
+This is the constructive Goedel I transformation — but stated as an
+axiom of the system rather than derived internally.
+
+### Why it cannot be derived
+
+Deriving `axSDruleG` internally would require the system to prove:
+
+1. If `checkG` accepts code `e` as proving G, then the self-destruct
+   construction (instantiate G at `e`, apply modus ponens) produces
+   a valid proof of fbot.
+2. This valid proof is *accepted by `checkG` itself*.
+
+Step 2 is the barrier: the system would need to verify that its own
+checker accepts the constructed proof code. This requires the system
+to reason about `checkG` by induction over all possible proof codes —
+i.e., to prove its own soundness internally. This is exactly what
+Goedel II says a consistent system cannot do.
+
+### The classical barrier
+
+The gap is the same one identified by the reflection hierarchy theorem
+(`ChwistekReflectionHierarchy.agda`): each proof system can reflect
+the layer below but is provably blind to its own reflective reasoning.
+`axSDruleG` bridges this gap by fiat.
+
+Concretely, to derive `axSDruleG` one would need:
+
+- **Internal induction over proof codes**: the system proves that for
+  ALL codes accepted by `checkG`, the self-destruct transformation
+  produces a code also accepted by `checkG`. This is Sigma-1 complete
+  induction over the proof predicate.
+- **Or equivalently**: internal soundness — the system proves that
+  everything it proves is true. Goedel II says this is impossible
+  for consistent systems.
+
+### Relationship to known approaches
+
+| Approach | How reflection is handled |
+|----------|--------------------------|
+| Paulson (Isabelle) | Sigma-1 completeness of arithmetic |
+| Shankar (Nqthm) | Representability + arithmetized induction |
+| O'Connor (Coq) | Primitive recursive arithmetic |
+| **This development** | **Assumed as axSDruleG** |
+
+All complete proofs of Goedel II ultimately derive the reflection step
+from arithmetic induction over the proof predicate. This development
+avoids arithmetic entirely (syntax-native), which is a strength for
+Goedel I but means the standard route to Goedel II (Sigma-1
+completeness) is not available. The `axSDruleG` axiom marks the
+precise point where arithmetic reasoning would be needed.
 
 ## How it works
 
@@ -180,7 +261,7 @@ Requires Agda 2.8.0. To type-check all results:
 agda ChwistekSoundness.agda              # Goedel I
 agda ChwistekReflectionHierarchy.agda    # Hierarchy theorem
 agda ChwistekFuelGodel2.agda             # Fuel-based Goedel II
-agda ChwistekGodel2Genuine.agda          # Genuine Goedel II
+agda ChwistekGodel2Genuine.agda          # Goedel II (relative to axSD)
 ```
 
 ## Paper
