@@ -288,11 +288,42 @@ D3 might fail for our system. This would invalidate the STANDARD
 Goedel II route but NOT the model-theoretic route. Con remains
 unprovable regardless.
 
-For PA (Nelson's actual target): the situation is different because
-PA has genuine arithmetic, D3 holds, and the standard Goedel II
-applies directly. Nelson's claim that PA is inconsistent would
-require breaking one of the D1-D3 conditions or consistency itself
-— which is what he attempted but did not achieve.
+### What this does NOT settle
+
+This analysis establishes that in the BTA-style system, Nelson's
+reduction program does not bypass Goedel II. This is due to TWO
+independent barriers:
+1. Structural: R3 = Con (cut elimination collapses them)
+2. Model-theoretic: GoodBTA blocks Con independently of D3
+
+However, this does NOT by itself settle Nelson's program for
+Peano Arithmetic (PA). The remaining question is whether Nelson's
+machinery, when formulated inside PA, could:
+(a) break one of the derivability conditions (D1-D3),
+(b) alter the provability predicate so that the internal Con*
+    differs from the standard consistency statement,
+(c) change the model-theoretic situation (PA might not have a
+    trivial model like GoodBTA), or
+(d) make the system inconsistent (Nelson's original claim).
+
+For PA specifically:
+- D1-D3 hold for the standard provability predicate (well-known)
+- PA does NOT have a trivial model like GoodBTA (the natural
+  numbers are the intended model, and Con IS true in N)
+- The model-theoretic route used here (GoodBTA) does not
+  transfer to PA because PA's consistency is TRUE, not trivially
+  false
+
+So the BTA analysis and the PA question are genuinely different:
+- In BTA: Con is blocked by a trivial model (Con is false in GoodBTA)
+- In PA: Con is true (in N) but unprovable (by Goedel II)
+
+Nelson's claim is about PA, not about BTA. Our analysis shows
+that Nelson-style reduction theory works beautifully as structural
+proof theory, but its target (R3) is Con, and proving Con in PA
+requires overcoming Goedel II. Whether Nelson's specific machinery
+could do this is a question about PA's proof theory, not about
+our tree-code system.
 
 ## Summary
 
