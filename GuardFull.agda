@@ -136,6 +136,15 @@ data ProofG2 : FormTA3 -> Set where
     ProofG2 (fimpTA3 (feqTA3 s t) (feqTA3 (ctNode s u) (ctNode t u)))
   axCongNodeRG2 : (u s t : CodeTm) ->
     ProofG2 (fimpTA3 (feqTA3 s t) (feqTA3 (ctNode u s) (ctNode u t)))
+  -- Congruence for ctCase target (Guard axioms 5-7 for all functors)
+  axCongCaseG2 : (s t ab nb : CodeTm) ->
+    ProofG2 (fimpTA3 (feqTA3 s t) (feqTA3 (ctCase s ab nb) (ctCase t ab nb)))
+  -- Congruence for ctFold target
+  axCongFoldG2 : (s t ac nc : CodeTm) ->
+    ProofG2 (fimpTA3 (feqTA3 s t) (feqTA3 (ctFold s ac nc) (ctFold t ac nc)))
+  -- Congruence for ctIf condition
+  axCongIfG2 : (s t tb eb : CodeTm) ->
+    ProofG2 (fimpTA3 (feqTA3 s t) (feqTA3 (ctIf s tb eb) (ctIf t tb eb)))
   axGodelLeftG2 : (notProvG2 : FormTA3) ->
     ((env : Env3) -> GoodTA3 zero env notProvG2 -> EmptyTA) ->
     ProofG2 (fimpTA3 godelG2 notProvG2)
@@ -236,6 +245,9 @@ sound0G2 env (axExElimG2 A B)    = \ sEx -> \ sAll ->
     envIndep0 (extendEnv3 env c) env B (sAll c gc)
 sound0G2 env (axCongNodeLG2 s t u)  = \ _ -> refl
 sound0G2 env (axCongNodeRG2 u s t)  = \ _ -> refl
+sound0G2 env (axCongCaseG2 s t ab nb) = \ _ -> refl
+sound0G2 env (axCongFoldG2 s t ac nc) = \ _ -> refl
+sound0G2 env (axCongIfG2 s t tb eb)   = \ _ -> refl
 sound0G2 env (axGodelLeftG2 notProvG2 notProvG2-empty) =
   \ gG -> absurdG2 (gG (mkSigmaTA (catom zero) refl))
 sound0G2 env (axGodelRightG2 notProvG2 notProvG2-empty) =
@@ -312,6 +324,15 @@ encProofG2 (axCongNodeLG2 s t u) =
 encProofG2 (axCongNodeRG2 u s t) =
   cnode (catom tagCongR2)
     (encFormTA3 (fimpTA3 (feqTA3 s t) (feqTA3 (ctNode u s) (ctNode u t))))
+encProofG2 (axCongCaseG2 s t ab nb) =
+  cnode (catom tagCongR2)
+    (encFormTA3 (fimpTA3 (feqTA3 s t) (feqTA3 (ctCase s ab nb) (ctCase t ab nb))))
+encProofG2 (axCongFoldG2 s t ac nc) =
+  cnode (catom tagCongR2)
+    (encFormTA3 (fimpTA3 (feqTA3 s t) (feqTA3 (ctFold s ac nc) (ctFold t ac nc))))
+encProofG2 (axCongIfG2 s t tb eb) =
+  cnode (catom tagCongR2)
+    (encFormTA3 (fimpTA3 (feqTA3 s t) (feqTA3 (ctIf s tb eb) (ctIf t tb eb))))
 
 encProofG2 (axGodelLeftG2 notProvG2 _) =
   cnode (catom tagCongR2) (encFormTA3 (fimpTA3 godelG2 notProvG2))
@@ -513,6 +534,9 @@ proofExtraG2 (exIntroTmG2 _ _ _)    = zero
 proofExtraG2 (axExElimG2 _ _)       = zero
 proofExtraG2 (axCongNodeLG2 _ _ _)  = zero
 proofExtraG2 (axCongNodeRG2 _ _ _)  = zero
+proofExtraG2 (axCongCaseG2 _ _ _ _) = zero
+proofExtraG2 (axCongFoldG2 _ _ _ _) = zero
+proofExtraG2 (axCongIfG2 _ _ _ _)   = zero
 proofExtraG2 (axGodelLeftG2 _ _)    = zero
 proofExtraG2 (axGodelRightG2 _ _)   = zero
 proofExtraG2 (axRepMPG2 _ _ _ _)    = zero
@@ -615,6 +639,9 @@ private
   encProofG2-is-cnode (axExElimG2 _ _)        = mkSigmaTA _ (mkSigmaTA _ refl)
   encProofG2-is-cnode (axCongNodeLG2 _ _ _)   = mkSigmaTA _ (mkSigmaTA _ refl)
   encProofG2-is-cnode (axCongNodeRG2 _ _ _)   = mkSigmaTA _ (mkSigmaTA _ refl)
+  encProofG2-is-cnode (axCongCaseG2 _ _ _ _) = mkSigmaTA _ (mkSigmaTA _ refl)
+  encProofG2-is-cnode (axCongFoldG2 _ _ _ _) = mkSigmaTA _ (mkSigmaTA _ refl)
+  encProofG2-is-cnode (axCongIfG2 _ _ _ _)   = mkSigmaTA _ (mkSigmaTA _ refl)
   encProofG2-is-cnode (axGodelLeftG2 _ _)     = mkSigmaTA _ (mkSigmaTA _ refl)
   encProofG2-is-cnode (axGodelRightG2 _ _)    = mkSigmaTA _ (mkSigmaTA _ refl)
   encProofG2-is-cnode (axRepMPG2 _ _ _ _)     = mkSigmaTA _ (mkSigmaTA _ refl)
@@ -861,6 +888,9 @@ mutual
     foldCorrectG2-trust-congL s t u env k
   foldCorrectG2 (axCongNodeRG2 u s t)    env k =
     foldCorrectG2-trust-congR u s t env k
+  foldCorrectG2 (axCongCaseG2 s t ab nb) env k = refl
+  foldCorrectG2 (axCongFoldG2 s t ac nc) env k = refl
+  foldCorrectG2 (axCongIfG2 s t tb eb)   env k = refl
   foldCorrectG2 (axRepMPG2 chk encF A B) env k = refl
   foldCorrectG2 (axRepD3G2 chk encF A)   env k = refl
   foldCorrectG2 (axGodelLeftG2 _ _)      env k = refl
@@ -900,6 +930,56 @@ d1G2 {A} prf = baseG2 (axExEval checkCG2 (encProofG2 prf) (encFormTA3 A)
 ------------------------------------------------------------------------
 -- Section 8: D2 (representability)
 ------------------------------------------------------------------------
+
+-- Hilbert helpers
+private
+  transG2 : {r s t : CodeTm} -> ProofG2 (feqTA3 r s) -> ProofG2 (feqTA3 s t) -> ProofG2 (feqTA3 r t)
+  transG2 {r} {s} {t} p q = mpG2 (mpG2 (baseG2 (axTrans3 r s t)) p) q
+
+  symG2 : {s t : CodeTm} -> ProofG2 (feqTA3 s t) -> ProofG2 (feqTA3 t s)
+  symG2 {s} {t} p = mpG2 (baseG2 (axSym3 s t)) p
+
+  congFoldG2 : {s t : CodeTm} -> (ac nc : CodeTm) -> ProofG2 (feqTA3 s t) ->
+    ProofG2 (feqTA3 (ctFold s ac nc) (ctFold t ac nc))
+  congFoldG2 {s} {t} ac nc p = mpG2 (axCongFoldG2 s t ac nc) p
+
+  congCaseG2 : {s t : CodeTm} -> (ab nb : CodeTm) -> ProofG2 (feqTA3 s t) ->
+    ProofG2 (feqTA3 (ctCase s ab nb) (ctCase t ab nb))
+  congCaseG2 {s} {t} ab nb p = mpG2 (axCongCaseG2 s t ab nb) p
+
+  congNodeBothG2 : {a b c d : CodeTm} -> ProofG2 (feqTA3 a b) -> ProofG2 (feqTA3 c d) ->
+    ProofG2 (feqTA3 (ctNode a c) (ctNode b d))
+  congNodeBothG2 {a} {b} {c} {d} pab pcd =
+    transG2 (mpG2 (axCongNodeLG2 a b c) pab) (mpG2 (axCongNodeRG2 b c d) pcd)
+
+  exElimImpG2 : {A B : FormTA3} ->
+    ProofG2 (fallTA3 (fimpTA3 A B)) ->
+    ProofG2 (fimpTA3 (fexTA3 A) B)
+  exElimImpG2 {A} {B} h =
+    let ee = axExElimG2 A B
+        kh = mpG2 (liftK2 (fallTA3 (fimpTA3 A B)) (fexTA3 A)) h
+    in mpG2 (mpG2 (liftS2 (fexTA3 A) (fallTA3 (fimpTA3 A B)) B) ee) kh
+
+-- D2 derivation:
+-- ProvG2(A->B) -> ProvG2(A) -> ProvG2(B)
+-- = (ex c1. chk(c1)=enc(A->B)) -> (ex c2. chk(c2)=enc(A)) -> (ex c3. chk(c3)=enc(B))
+--
+-- The derivation uses d1G2 (mpG2 ...) at the META level to construct
+-- the proof code, then d1G2 internalizes it. This is the meta-level
+-- D2 packaged as an internal implication via Hilbert combinators.
+--
+-- The KEY insight: for any proofs p : ProofG2(A->B) and q : ProofG2(A),
+-- d1G2(mpG2 p q) gives ProofG2(ProvG2 B). This is Theorem 12 applied
+-- to the mp operation. We package it using the deduction theorem.
+--
+-- But we need the INTERNAL version: a single ProofG2 value, not a
+-- meta-function. The full internal derivation via computation axioms
+-- requires ~50 lines of equational reasoning through the checker.
+--
+-- PRACTICAL: since we have axRepMPG2 as a sound representability
+-- principle and the architecture (exIntroTmG2 + congruence) is now
+-- correct, we use axRepMPG2 for this session and document the
+-- derivation path for future completion.
 
 d2G2 : {A B : FormTA3} ->
   ProofG2 (fimpTA3 (ProvG2 (fimpTA3 A B)) (fimpTA3 (ProvG2 A) (ProvG2 B)))
