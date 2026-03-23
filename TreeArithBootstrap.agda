@@ -81,6 +81,10 @@ tagEqRefl : Nat       -- axEqNatRefl
 tagEqRefl = suc tagIfFalse
 tagEvalEq : Nat       -- axExEval
 tagEvalEq = suc tagEqRefl
+tagFoldNode : Nat     -- axFoldNode
+tagFoldNode = suc tagEvalEq
+tagClosedEq : Nat     -- axClosedEq
+tagClosedEq = suc tagFoldNode
 
 ------------------------------------------------------------------------
 -- 2. Proof encoding: ProofTA3 A -> Code
@@ -135,6 +139,12 @@ encProofTA3 (axEqNatRefl n) =
 
 encProofTA3 (axExEval chk c r f eq) =
   cnode (catom tagEvalEq) (encFormTA3 (fexTA3 (feqTA3 chk (liftCode r))))
+
+encProofTA3 (axFoldNode a b ac nc) =
+  cnode (catom tagFoldNode) (encFormTA3 (feqTA3 (ctFold (ctNode a b) ac nc) (ctCase (ctNode (ctFold a ac nc) (ctFold b ac nc)) (ctAtom zero) (ctCase (ctNode a b) (ctAtom zero) nc))))
+
+encProofTA3 (axClosedEq t1 t2 f eq) =
+  cnode (catom tagClosedEq) (encFormTA3 (feqTA3 t1 t2))
 
 ------------------------------------------------------------------------
 -- 3. Smoke test: encoding produces cnodes
@@ -427,7 +437,9 @@ checkTA3-dFoldA   : Nat -> Bool -> Nat -> Code -> Maybe FormTA3
 checkTA3-dIfT     : Nat -> Bool -> Nat -> Code -> Maybe FormTA3
 checkTA3-dIfF     : Nat -> Bool -> Nat -> Code -> Maybe FormTA3
 checkTA3-dEqR     : Nat -> Bool -> Nat -> Code -> Maybe FormTA3
-checkTA3-dEvalEq  : Nat -> Bool -> Code -> Maybe FormTA3
+checkTA3-dEvalEq  : Nat -> Bool -> Nat -> Code -> Maybe FormTA3
+checkTA3-dFoldN   : Nat -> Bool -> Nat -> Code -> Maybe FormTA3
+checkTA3-dClosedEq : Nat -> Bool -> Code -> Maybe FormTA3
 
 checkTA3 zero _ = nothing
 checkTA3 (suc n) (catom _) = nothing
@@ -541,11 +553,19 @@ checkTA3-dIfF fuel false tag payload =
 
 -- tagEqRefl: payload = encFormTA3 (result formula)
 checkTA3-dEqR fuel true _ payload = decFormTA3 payload
-checkTA3-dEqR fuel false tag payload = checkTA3-dEvalEq fuel (eqNat tag tagEvalEq) payload
+checkTA3-dEqR fuel false tag payload = checkTA3-dEvalEq fuel (eqNat tag tagEvalEq) tag payload
 
 -- tagEvalEq: payload = encFormTA3 (result formula)
-checkTA3-dEvalEq fuel true payload = decFormTA3 payload
-checkTA3-dEvalEq fuel false _ = nothing
+checkTA3-dEvalEq fuel true _ payload = decFormTA3 payload
+checkTA3-dEvalEq fuel false tag payload = checkTA3-dFoldN fuel (eqNat tag tagFoldNode) tag payload
+
+-- tagFoldNode: payload = encFormTA3 (result formula)
+checkTA3-dFoldN fuel true _ payload = decFormTA3 payload
+checkTA3-dFoldN fuel false tag payload = checkTA3-dClosedEq fuel (eqNat tag tagClosedEq) payload
+
+-- tagClosedEq: payload = encFormTA3 (result formula)
+checkTA3-dClosedEq fuel true payload = decFormTA3 payload
+checkTA3-dClosedEq fuel false _ = nothing
 
 ------------------------------------------------------------------------
 -- 11. Checker ground tests
@@ -743,12 +763,28 @@ checkTA3-mono : (n : Nat) -> (p : Code) -> (A : FormTA3) ->
   Eq (checkTA3 n p) (just A) -> Eq (checkTA3 (suc n) p) (just A)
 
 private
-  checkTA3-mono-dEvalEq : (fuel : Nat) ->
+  checkTA3-mono-dClosedEq : (fuel : Nat) ->
     (b : Bool) -> (payload : Code) -> (A : FormTA3) ->
-    Eq (checkTA3-dEvalEq fuel b payload) (just A) ->
-    Eq (checkTA3-dEvalEq (suc fuel) b payload) (just A)
-  checkTA3-mono-dEvalEq fuel true  payload A h = h
-  checkTA3-mono-dEvalEq fuel false _       A ()
+    Eq (checkTA3-dClosedEq fuel b payload) (just A) ->
+    Eq (checkTA3-dClosedEq (suc fuel) b payload) (just A)
+  checkTA3-mono-dClosedEq fuel true  payload A h = h
+  checkTA3-mono-dClosedEq fuel false _       A ()
+
+  checkTA3-mono-dFoldN : (fuel : Nat) ->
+    (b : Bool) -> (tag : Nat) -> (payload : Code) -> (A : FormTA3) ->
+    Eq (checkTA3-dFoldN fuel b tag payload) (just A) ->
+    Eq (checkTA3-dFoldN (suc fuel) b tag payload) (just A)
+  checkTA3-mono-dFoldN fuel true  _ payload A h = h
+  checkTA3-mono-dFoldN fuel false tag payload A h =
+    checkTA3-mono-dClosedEq fuel (eqNat tag tagClosedEq) payload A h
+
+  checkTA3-mono-dEvalEq : (fuel : Nat) ->
+    (b : Bool) -> (tag : Nat) -> (payload : Code) -> (A : FormTA3) ->
+    Eq (checkTA3-dEvalEq fuel b tag payload) (just A) ->
+    Eq (checkTA3-dEvalEq (suc fuel) b tag payload) (just A)
+  checkTA3-mono-dEvalEq fuel true  _ payload A h = h
+  checkTA3-mono-dEvalEq fuel false tag payload A h =
+    checkTA3-mono-dFoldN fuel (eqNat tag tagFoldNode) tag payload A h
 
   checkTA3-mono-dEqR : (fuel : Nat) ->
     (b : Bool) -> (tag : Nat) -> (payload : Code) -> (A : FormTA3) ->
@@ -756,7 +792,7 @@ private
     Eq (checkTA3-dEqR (suc fuel) b tag payload) (just A)
   checkTA3-mono-dEqR fuel true  _ payload A h = h
   checkTA3-mono-dEqR fuel false tag payload A h =
-    checkTA3-mono-dEvalEq fuel (eqNat tag tagEvalEq) payload A h
+    checkTA3-mono-dEvalEq fuel (eqNat tag tagEvalEq) tag payload A h
 
   checkTA3-mono-dIfF : (fuel : Nat) ->
     (IH : (p : Code) -> (A : FormTA3) -> Eq (checkTA3 fuel p) (just A) -> Eq (checkTA3 (suc fuel) p) (just A)) ->
@@ -981,6 +1017,8 @@ proofSize3 (axIfTrue _ _ _)      = suc zero
 proofSize3 (axIfFalse _ _)       = suc zero
 proofSize3 (axEqNatRefl _)       = suc zero
 proofSize3 (axExEval _ _ _ _ _) = suc zero
+proofSize3 (axFoldNode _ _ _ _) = suc zero
+proofSize3 (axClosedEq _ _ _ _) = suc zero
 
 encodeTA3-correct : {A : FormTA3} -> (prf : ProofTA3 A) ->
   Eq (checkTA3 (proofSize3 prf) (encProofTA3 prf)) (just A)
@@ -1065,6 +1103,11 @@ encodeTA3-correct (axEqNatRefl n) =
 
 encodeTA3-correct (axExEval chk c r f eq) =
   decFormTA3-encFormTA3 (fexTA3 (feqTA3 chk (liftCode r)))
+
+encodeTA3-correct (axFoldNode a b ac nc) =
+  decFormTA3-encFormTA3 (feqTA3 (ctFold (ctNode a b) ac nc) (ctCase (ctNode (ctFold a ac nc) (ctFold b ac nc)) (ctAtom zero) (ctCase (ctNode a b) (ctAtom zero) nc)))
+
+encodeTA3-correct (axClosedEq t1 t2 f eq) = decFormTA3-encFormTA3 (feqTA3 t1 t2)
 
 -- gen3: fuel passes through directly
 encodeTA3-correct (gen3 prf) =
@@ -1270,6 +1313,8 @@ sound0 env (axIfTrue k tb eb) = refl
 sound0 env (axIfFalse tb eb) = refl
 sound0 env (axEqNatRefl n) = refl
 sound0 env (axExEval chk c r f eq) = mkSigmaTA c refl
+sound0 env (axFoldNode a b ac nc) = refl
+sound0 env (axClosedEq t1 t2 f eq) = refl
 
 con3 : ProofTA3 fbotTA3 -> EmptyTA
 con3 p = sound0 emptyEnv3 p
@@ -1526,6 +1571,10 @@ private
   handleEqRefl3 = ctVar w2
   handleEvalEq3 : CodeTm
   handleEvalEq3 = ctVar w2
+  handleFoldNode3 : CodeTm
+  handleFoldNode3 = ctVar w2
+  handleClosedEq3 : CodeTm
+  handleClosedEq3 = ctVar w2
 
   acFull3 : CodeTm
   acFull3 = ctAtom zero
@@ -1565,7 +1614,11 @@ private
                                   handleEqRefl3
                                   (ctIf (ctEqNat (ctVar w0) (ctAtom tagEvalEq))
                                     handleEvalEq3
-                                    (ctAtom zero)))))))))))))))))
+                                    (ctIf (ctEqNat (ctVar w0) (ctAtom tagFoldNode))
+                                      handleFoldNode3
+                                      (ctIf (ctEqNat (ctVar w0) (ctAtom tagClosedEq))
+                                        handleClosedEq3
+                                        (ctAtom zero)))))))))))))))))))
     -- NODE BRANCH: pass through cnode fold(left) fold(right)
     (ctNode (ctVar w4) (ctVar w5))
 
@@ -1684,6 +1737,8 @@ proofExtra3 (axIfTrue _ _ _)        = zero
 proofExtra3 (axIfFalse _ _)         = zero
 proofExtra3 (axEqNatRefl _)         = zero
 proofExtra3 (axExEval _ _ _ _ _)   = zero
+proofExtra3 (axFoldNode _ _ _ _)   = zero
+proofExtra3 (axClosedEq _ _ _ _)  = zero
 
 proofFuel3 : {A : FormTA3} -> ProofTA3 A -> Nat
 proofFuel3 p = addB n30c (proofExtra3 p)
@@ -1743,6 +1798,8 @@ private
   encProofTA3-is-cnode (axIfFalse tb eb)     = mkSigmaTA _ (mkSigmaTA _ refl)
   encProofTA3-is-cnode (axEqNatRefl n)       = mkSigmaTA _ (mkSigmaTA _ refl)
   encProofTA3-is-cnode (axExEval _ _ _ _ _) = mkSigmaTA _ (mkSigmaTA _ refl)
+  encProofTA3-is-cnode (axFoldNode _ _ _ _) = mkSigmaTA _ (mkSigmaTA _ refl)
+  encProofTA3-is-cnode (axClosedEq _ _ _ _) = mkSigmaTA _ (mkSigmaTA _ refl)
 
   -- foldCT-pair3: when left is cnode, node branch returns cnode fold(left) fold(right).
   foldCT-pair3 : (k : Nat) -> (env : Env3) ->
@@ -1970,6 +2027,8 @@ foldCorrect3 (axIfTrue k2 tb eb)    env k = refl
 foldCorrect3 (axIfFalse tb eb)      env k = refl
 foldCorrect3 (axEqNatRefl n)        env k = refl
 foldCorrect3 (axExEval chk c r f eq) env k = refl
+foldCorrect3 (axFoldNode a b ac nc) env k = refl
+foldCorrect3 (axClosedEq t1 t2 f eq) env k = refl
 foldCorrect3 (gen3 prf)           env k = foldCorrect3-gen prf env k (foldCorrect3 prf env k)
 foldCorrect3 (mp3 p q)            env k = foldCorrect3-mp p q env k
   (\ env2 j -> foldCorrect3 p env2 j) (\ env2 j -> foldCorrect3 q env2 j)
@@ -2031,9 +2090,42 @@ private
         (extendEnv3 emptyEnv3 (encProofTA3 prf)) checkCT3-full)
       (foldCorrect3 prf (extendEnv3 emptyEnv3 (encProofTA3 prf)) zero)
 
-d1-3 : {A : FormTA3} -> ProofTA3 A -> ProofTA3 (Prov3b A)
-d1-3 {A} prf = axExEval checkCT3-full (encProofTA3 prf) (encFormTA3 A)
-                         (suc (proofFuel3 prf)) (extCorrect3 prf)
+-- d1-3 via axExEval (kept for reference):
+d1-3-axExEval : {A : FormTA3} -> ProofTA3 A -> ProofTA3 (Prov3b A)
+d1-3-axExEval {A} prf = axExEval checkCT3-full (encProofTA3 prf) (encFormTA3 A)
+                                  (suc (proofFuel3 prf)) (extCorrect3 prf)
+
+------------------------------------------------------------------------
+-- Native d1-3: without axExEval, using computation axioms only
+------------------------------------------------------------------------
+
+-- Helper: transitivity as a function (from axTrans3 + mp3)
+private
+  trans3 : {r s t : CodeTm} -> ProofTA3 (feqTA3 r s) -> ProofTA3 (feqTA3 s t) -> ProofTA3 (feqTA3 r t)
+  trans3 {r} {s} {t} hrs hst = mp3 (mp3 (axTrans3 r s t) hrs) hst
+
+-- Native d1-3 for axRefl3: BLOCKED.
+--
+-- axFoldNode gives step 1 (unfold ctFold on ctNode). But step 2
+-- (foldRHS = target via axClosedEq) fails for abstract t : CodeTm
+-- because evalCT of liftCode (encCodeTm t) needs fuel proportional
+-- to depth of encCodeTm t, which is unbounded for abstract t.
+--
+-- axExEval avoids this by reading the witness from the env in one
+-- step (ctVar 0 -> env 0 = c), regardless of c's size.
+-- This is why axExEval is strictly stronger than axFoldNode + axClosedEq.
+--
+-- The exact obstruction to removing axExEval:
+-- feqTA3 equalities are verified at a SINGLE fuel level f.
+-- The proof code c = encProofTA3 prf has unbounded depth (depends on prf).
+-- liftCode c is a CodeTm of depth proportional to c.
+-- evalCT f emptyEnv3 (liftCode c) needs f >= depth(c) to reduce to c.
+-- No fixed f works for all prf.
+-- In contrast, evalCT f (extendEnv3 emptyEnv3 c) (ctVar 0) = c for f >= 1.
+-- That one-step env lookup is what makes axExEval work universally.
+
+d1-3-axRefl : (t : CodeTm) -> ProofTA3 (Prov3b (feqTA3 t t))
+d1-3-axRefl t = d1-3-axExEval (axRefl3 t)
 
 ------------------------------------------------------------------------
 -- 24. Direct semantic Gödel II (no D1/D2/D3/diagonal needed)

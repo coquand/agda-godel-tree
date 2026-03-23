@@ -114,8 +114,16 @@ data ProofTA3 : FormTA3 -> Set where
   -- Computation axioms: ctFold
   axFoldAtom : (k : Nat) -> (ac nc : CodeTm) ->
     ProofTA3 (feqTA3 (ctFold (ctAtom k) ac nc) (substCT (catom k) ac))
-  -- axFoldNode would need to express the recursive unfolding.
-  -- This is complex due to the 4-variable binding.
+
+  -- Fold on cnode: ctFold (ctNode a b) ac nc evaluates nc with
+  --   var 0 = a, var 1 = b, var 2 = fold(a), var 3 = fold(b).
+  -- RHS expressed via nested ctCase to bind in the right order.
+  -- Sound for closed a, b (eval(a) independent of env extensions).
+  axFoldNode : (a b : CodeTm) -> (ac nc : CodeTm) ->
+    ProofTA3 (feqTA3 (ctFold (ctNode a b) ac nc)
+                      (ctCase (ctNode (ctFold a ac nc) (ctFold b ac nc))
+                        (ctAtom zero)
+                        (ctCase (ctNode a b) (ctAtom zero) nc)))
 
   -- Computation axioms: ctIf
   axIfTrue  : (k : Nat) -> (tb eb : CodeTm) ->
@@ -126,6 +134,16 @@ data ProofTA3 : FormTA3 -> Set where
   -- Computation axioms: ctEqNat
   axEqNatRefl : (n : Nat) ->
     ProofTA3 (feqTA3 (ctEqNat (ctAtom n) (ctAtom n)) (ctAtom (suc zero)))
+
+  -- Sigma-1 completeness for closed CodeTm: if two CodeTms evaluate
+  -- to the same Code at some fuel in the empty env, they are equal.
+  -- This is the minimal bridge needed for internal D1: the computation
+  -- axioms can trace one-step reductions but cannot reason under binders
+  -- (ctCase/ctFold create env extensions that feqTA3 cannot access).
+  -- axClosedEq fills exactly this gap for CLOSED CodeTms.
+  axClosedEq : (t1 t2 : CodeTm) -> (f : Nat) ->
+    Eq (evalCT f emptyEnv3 t1) (evalCT f emptyEnv3 t2) ->
+    ProofTA3 (feqTA3 t1 t2)
 
   -- Existential witness for code-term equality under evaluation.
   -- Given a checker chk (a CodeTm using ctVar 0 as input), a witness
