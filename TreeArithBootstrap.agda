@@ -2036,10 +2036,27 @@ d1-3 {A} prf = axExEval checkCT3-full (encProofTA3 prf) (encFormTA3 A)
                          (suc (proofFuel3 prf)) (extCorrect3 prf)
 
 ------------------------------------------------------------------------
--- 24. Instantiate abstract Gödel II with ProofTA3
+-- 24. Direct semantic Gödel II (no D1/D2/D3/diagonal needed)
+------------------------------------------------------------------------
+-- At fuel 0, Prov3b(bot) is trivially satisfiable (both sides of feqTA3
+-- evaluate to catom 0). So Con3b = Prov3b(bot) -> bot is FALSE in the
+-- fuel-0 model. Any proof of Con3b contradicts consistency.
+-- This bypasses the entire Löb/diagonal machinery.
+
+godel2-semantic : ProofTA3 Con3b -> EmptyTA
+godel2-semantic p = sound0 emptyEnv3 p (mkSigmaTA (catom zero) refl)
+
+-- The result: ProofTA3 cannot prove Con3b.
+-- Con3b = fimpTA3 (Prov3b fbotTA3) fbotTA3
+--        = "if there exists a code accepted by checkCT3-full as proving bot, then bot"
+-- This is unprovable because the fuel-0 model satisfies Prov3b(bot)
+-- trivially (the checker returns catom 0 = catom 0 at fuel 0 for any input).
+
+------------------------------------------------------------------------
+-- 25. Conditional Löb-style Gödel II (for comparison)
 ------------------------------------------------------------------------
 
--- We now have ALL ingredients for the conditional Gödel II.
+-- The abstract theorem loeb-godel2 requires:
 -- The abstract theorem loeb-godel2 requires:
 --   d1, d2, d3, Gödel sentence, consistency
 -- We have:
