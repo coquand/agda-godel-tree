@@ -11,24 +11,60 @@ open import TreeArith
 open import TreeArithTrack1
 
 ------------------------------------------------------------------------
--- 1. CodeTm substitution (replace var 0 with a Code, shift others down)
+-- 1. CodeTm substitution (proper de Bruijn, respects binders)
 ------------------------------------------------------------------------
+-- substCTaux n c t: replace free ctVar n with liftCode c in t,
+-- shifting free vars > n down by 1. Under binders, n increases
+-- by the number of bound variables.
+--
+-- ctCase binds 1 in atom branch (ab), 2 in node branch (nb).
+-- ctFold binds 1 in atom case (ac), 4 in node case (nc).
+--
+-- Since liftCode c is closed (no ctVar), lifting under binders
+-- is the identity — we only need to adjust the target index n.
+
+private
+  -- Three-way Nat comparison
+  data Cmp : Set where
+    cLT : Cmp
+    cEQ : Cmp
+    cGT : Cmp
+
+  cmpNat : Nat -> Nat -> Cmp
+  cmpNat zero    zero    = cEQ
+  cmpNat zero    (suc _) = cLT
+  cmpNat (suc _) zero    = cGT
+  cmpNat (suc a) (suc b) = cmpNat a b
+
+  predN : Nat -> Nat
+  predN zero    = zero
+  predN (suc n) = n
+
+  substVar : Nat -> Code -> Nat -> CodeTm
+  substVar-cmp : Cmp -> Nat -> Code -> CodeTm
+
+  substVar n c m = substVar-cmp (cmpNat m n) m c
+
+  substVar-cmp cLT m c = ctVar m
+  substVar-cmp cEQ m c = liftCode c
+  substVar-cmp cGT m c = ctVar (predN m)
+
+substCTaux : Nat -> Code -> CodeTm -> CodeTm
+substCTaux n c (ctVar m)        = substVar n c m
+substCTaux n c (ctAtom k)       = ctAtom k
+substCTaux n c (ctNode a b)     = ctNode (substCTaux n c a) (substCTaux n c b)
+substCTaux n c (ctCase t ab nb) = ctCase (substCTaux n c t)
+                                         (substCTaux (suc n) c ab)
+                                         (substCTaux (suc (suc n)) c nb)
+substCTaux n c (ctFold t ac nc) = ctFold (substCTaux n c t)
+                                         (substCTaux (suc n) c ac)
+                                         (substCTaux (suc (suc (suc (suc n)))) c nc)
+substCTaux n c (ctEqNat a b)    = ctEqNat (substCTaux n c a) (substCTaux n c b)
+substCTaux n c (ctIf x t e)     = ctIf (substCTaux n c x) (substCTaux n c t) (substCTaux n c e)
+substCTaux n c (ctEqCode a b)   = ctEqCode (substCTaux n c a) (substCTaux n c b)
 
 substCT : Code -> CodeTm -> CodeTm
-substCT c (ctVar zero)    = liftCode c
-substCT c (ctVar (suc n)) = ctVar n
-substCT c (ctAtom n)      = ctAtom n
-substCT c (ctNode a b)    = ctNode (substCT c a) (substCT c b)
-substCT c (ctCase t ab nb) = ctCase (substCT c t) (substCT c ab) (substCT c nb)
-  -- Note: ctCase binds variables, so this is WRONG for proper de Bruijn.
-  -- The ab and nb branches have shifted variables. A correct substitution
-  -- would need to lift c under binders. For the purposes of stating the
-  -- internal D3, we only substitute CLOSED terms (no free vars in body),
-  -- so the naive version suffices.
-substCT c (ctFold t ac nc) = ctFold (substCT c t) (substCT c ac) (substCT c nc)
-substCT c (ctEqNat a b)   = ctEqNat (substCT c a) (substCT c b)
-substCT c (ctIf x t e)    = ctIf (substCT c x) (substCT c t) (substCT c e)
-substCT c (ctEqCode a b)  = ctEqCode (substCT c a) (substCT c b)
+substCT c t = substCTaux zero c t
 
 ------------------------------------------------------------------------
 -- 2. FormTA3 substitution (replace var 0 with a Code)
@@ -90,6 +126,20 @@ data ProofTA3 : FormTA3 -> Set where
   -- Computation axioms: ctEqNat
   axEqNatRefl : (n : Nat) ->
     ProofTA3 (feqTA3 (ctEqNat (ctAtom n) (ctAtom n)) (ctAtom (suc zero)))
+
+  -- Existential witness for code-term equality under evaluation.
+  -- Given a checker chk (a CodeTm using ctVar 0 as input), a witness
+  -- code c, an expected result r, and a meta-level proof that
+  -- evaluating chk with var 0 = c gives r, conclude that there exists
+  -- a code making chk equal r.
+  -- Sound: GoodTA3 f env (fexTA3 (feqTA3 chk (liftCode r)))
+  --      = SigmaTA Code (\ c' -> Eq (evalCT f (extendEnv3 env c') chk)
+  --                                  (evalCT f (extendEnv3 env c') (liftCode r)))
+  -- The witness c' = c satisfies this when evalCT gives r.
+  axExEval : (chk : CodeTm) -> (c : Code) -> (r : Code) ->
+    (f : Nat) ->
+    Eq (evalCT f (extendEnv3 emptyEnv3 c) chk) r ->
+    ProofTA3 (fexTA3 (feqTA3 chk (liftCode r)))
 
 ------------------------------------------------------------------------
 -- 4. Internal provability and D3
