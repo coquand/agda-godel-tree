@@ -4,7 +4,7 @@ A formalization of Goedel's incompleteness theorems using binary-tree syntax
 instead of arithmetic coding, inspired by Chwistek's approach to formal
 metamathematics.
 
-**31 Agda files, ~10000 lines. No postulates, no standard library.**
+**32+ Agda files, ~11000 lines. No postulates, no standard library.**
 
 ## Key features
 
@@ -216,6 +216,7 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `TreeArithInternal.agda` | ProofTA3 (15 constructors), computation axioms (456 lines) |
 | `TreeArithGodel2.agda` | Abstract Loeb/Goedel II, Prov3, conditional theorem (251 lines) |
 | `TreeArithBootstrap.agda` | **Extended checker, foldCorrect3, con3, conditional `godel2-TA3b`** (2076 lines) |
+| `GuardComplete.agda` | **Guard-style Goedel II via Loeb: `godel2G`** (1189 lines) |
 
 ## The Goedel II analysis
 
@@ -428,6 +429,49 @@ The conditional theorem `godel2-TA3b` is fully proved and compiles.
 Discharging the hypotheses is a large but standard representability
 bootstrap.
 
+### Guard-style Goedel II via Loeb (self-contained, binary trees)
+
+```
+godel2G : ProofG ConGfull -> EmptyTA
+```
+
+Goedel II for ProofG, a self-contained proof system over binary trees.
+The proof follows Guard's architecture (Lecture Notes on Recursive
+Arithmetic, 1963): computation axioms + representability + Loeb's theorem.
+
+**ProofG** extends ProofTA3 with:
+- `axExElimG`: existential elimination (Guard derives from induction)
+- `axCongNodeLG`, `axCongNodeRG`: congruence for tree constructors (Guard's axioms 5-7)
+- `axRepMPG`: representability of mp on proof codes (Guard Exercise 24 [1] / Theorem 12)
+- `axRepD3G`: representability of D1 encoding (Guard Theorem 12 for th)
+- `axGodelLeftG`, `axGodelRightG`: diagonal / Goedel sentence (Guard Exercise 24 [8] / Theorem 14)
+
+**Self-contained checker**: `checkCG : CodeTm` — a 21-tag `ctFold` dispatch
+that verifies proof codes and returns the encoded conclusion formula.
+`foldCorrectG` proves checker correctness for all ProofG constructors.
+
+**Derivation chain (all type-check, 0 postulates, 0 holes):**
+
+| Component | How derived |
+|-----------|-------------|
+| `sound0G` | Fuel-0 semantic model |
+| `conG` | Consistency from sound0G |
+| `foldCorrectG` | Strong-fuel induction on ProofG (mutual with ProofTA3) |
+| `extCorrectG` | Wrapper from foldCorrectG |
+| `d1G` | extCorrectG + axExEval |
+| `d2G` | Representability (axRepMPG) |
+| `d3G` | Representability (axRepD3G) |
+| `gLeftG`, `gRightG` | Diagonal (axGodelLeftG/RightG) |
+| **`godel2G`** | **loeb-godel2 instantiation** |
+
+The representability constructors correspond to Guard's Exercise 24
+(represented syntactic operations) and Theorem 12 (representability of
+p.r. functions). They are sound at fuel 0 and would be derivable in a
+system with variable-capable existential introduction (Guard's system
+has this; our `exIntroG` takes ground codes only).
+
+See `GuardComplete.agda` (1189 lines).
+
 ## How it works
 
 The object language has seven formula constructors:
@@ -453,6 +497,7 @@ agda ChwistekFuelGodel2.agda             # Fuel-based Goedel II
 agda ChwistekGodel2Genuine.agda          # Goedel II (relative to axSD)
 agda Godel2Internal.agda                 # Goedel II (via template-closure)
 agda TreeArithBootstrap.agda             # Guard-style bootstrap (conditional Goedel II)
+agda GuardComplete.agda                  # Guard-style Goedel II via Loeb (self-contained)
 ```
 
 ## Paper
