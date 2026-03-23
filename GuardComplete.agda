@@ -485,6 +485,7 @@ private
 checkCG : CodeTm
 checkCG = ctFold (ctVar v0) acG ncG
 
+
 ------------------------------------------------------------------------
 -- 2e. Provability predicate using the new checker
 ------------------------------------------------------------------------
