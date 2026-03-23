@@ -4,7 +4,7 @@ A formalization of Goedel's incompleteness theorems using binary-tree syntax
 instead of arithmetic coding, inspired by Chwistek's approach to formal
 metamathematics.
 
-**26 Agda files, ~6500 lines. No postulates, no standard library.**
+**31 Agda files, ~10000 lines. No postulates, no standard library.**
 
 ## Key features
 
@@ -206,6 +206,17 @@ goedel2-meta  : ProofN Con -> ProofN GoedelSentence -> (enc-correct) -> Empty
 | `BTADerived.agda` | **`goedel2-BTAD`** (alternate axiomatization, 568 lines) |
 | `ChwistekGodel2Sound.agda` | Standard-semantics soundProofG (WIP, has holes) |
 
+### Guard-style bootstrap (TreeArith)
+
+| File | Contents |
+|------|----------|
+| `TreeArith.agda` | FormTA, ProofTA, checkTA, soundTA, consistencyTA (522 lines) |
+| `TreeArithB.agda` | checkTA-mono, D1, checkTA-sound, ConInt/ConExt (572 lines) |
+| `TreeArithTrack1.agda` | CodeTm, FormTA3, evalCT/foldCT, checkCT-full, foldCorrect, D3 (2215 lines) |
+| `TreeArithInternal.agda` | ProofTA3 (15 constructors), computation axioms (456 lines) |
+| `TreeArithGodel2.agda` | Abstract Loeb/Goedel II, Prov3, conditional theorem (251 lines) |
+| `TreeArithBootstrap.agda` | **Extended checker, foldCorrect3, con3, conditional `godel2-TA3b`** (2076 lines) |
+
 ## The Goedel II analysis
 
 ### Three levels of Goedel II
@@ -348,6 +359,75 @@ Guard-style Goedel II derived from a single induction principle.
 
 See `BinaryTreeArith.agda` and `BTADerived.agda`.
 
+### Guard-style Goedel II bootstrap (TreeArith development)
+
+A from-scratch development following Guard's approach to Goedel II:
+build a formal system with enough computational power to verify its
+own proofs, then derive the Hilbert-Bernays-Loeb derivability
+conditions and apply the standard Loeb/Goedel argument.
+
+#### Architecture
+
+```
+TreeArith.agda          FormTA, ProofTA, checkTA, soundTA, consistencyTA
+    |
+TreeArithB.agda         checkTA-mono, D1, checkTA-sound, ConInt <-> ConExt
+    |
+TreeArithTrack1.agda    CodeTm, FormTA3, evalCT/foldCT, checkCT-full,
+                        foldCorrect (all 6 ProofTA tags), D3 (meta)
+    |
+TreeArithInternal.agda  ProofTA3 (15 constructors), computation axioms
+    |
+TreeArithGodel2.agda    Abstract Loeb/Goedel II (loeb-godel2), Prov3, Con3,
+                        conditional godel2-TA3
+    |
+TreeArithBootstrap.agda Extended checker + bootstrap (see below)
+```
+
+#### TreeArithBootstrap.agda (2076 lines, 0 postulates, 0 holes)
+
+The bootstrap for applying Goedel II to ProofTA3 (the extended system
+with computation axioms, existentials, and code-term equality).
+
+**What is proved:**
+
+| Component | Status |
+|-----------|--------|
+| `encProofTA3 : ProofTA3 A -> Code` | All 15 constructors |
+| `checkTA3 : Nat -> Code -> Maybe FormTA3` | 15-tag dispatch, fuel-based |
+| `checkTA3-mono` | Fuel monotonicity |
+| `decCodeTm`, `decFormTA3` | Decoders with roundtrip proofs |
+| `encodeTA3-correct` | D1: `checkTA3 (proofSize3 prf) (encProofTA3 prf) = just A` |
+| `checkCT3-full : CodeTm` | Internal checker as a `ctFold` (15 tags) |
+| `foldCorrect3` | Fold correctness for all 15 constructors (strong-fuel) |
+| `d1-internal-meta` | Meta-level D1 via the internal checker |
+| `con3 : ProofTA3 fbotTA3 -> EmptyTA` | Semantic consistency (fuel-0 model) |
+| `godel2-TA3b` | Conditional Goedel II (instantiates `loeb-godel2`) |
+
+The fuel-0 soundness trick: at fuel 0, `evalCT` always returns
+`catom zero`, making all `feqTA3` equalities trivially true. This
+gives an env-independent semantic model that handles `inst3` and
+`exIntro3` without a general substitution lemma.
+
+**What remains for unconditional Goedel II:**
+
+```
+d1-3  : ProofTA3 A -> ProofTA3 (Prov3b A)           -- internal D1
+d2-3  : ProofTA3 (Prov3b(A->B) -> Prov3b(A) -> Prov3b(B))  -- internal D2
+d3-3  : ProofTA3 (Prov3b(A) -> Prov3b(Prov3b(A)))   -- internal D3
+G, gL, gR : Goedel sentence via diagonal lemma
+```
+
+These are the "represented syntactic operations" that Guard handles in
+Exercise 24 and that Paulson/Shankar spend hundreds of pages on. On
+paper, each is a paragraph; in Agda, each requires tracing the
+`checkCT3-full` computation using ProofTA3's computation axioms
+(`axCaseAtom`, `axFoldAtom`, `axIfTrue`, etc.).
+
+The conditional theorem `godel2-TA3b` is fully proved and compiles.
+Discharging the hypotheses is a large but standard representability
+bootstrap.
+
 ## How it works
 
 The object language has seven formula constructors:
@@ -372,6 +452,7 @@ agda ChwistekReflectionHierarchy.agda    # Hierarchy theorem
 agda ChwistekFuelGodel2.agda             # Fuel-based Goedel II
 agda ChwistekGodel2Genuine.agda          # Goedel II (relative to axSD)
 agda Godel2Internal.agda                 # Goedel II (via template-closure)
+agda TreeArithBootstrap.agda             # Guard-style bootstrap (conditional Goedel II)
 ```
 
 ## Paper
