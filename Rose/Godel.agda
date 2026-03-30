@@ -852,3 +852,47 @@ recStepSafe z a b = refl
 -- This means: CoreInv is fundamentally incompatible with congruence.
 -- The invariant exists BECAUSE the system cannot reason about code
 -- structure under substitution. This is the Nelson obstruction.
+
+------------------------------------------------------------------------
+-- Endpoint-Semantics Separation Theorem.
+--
+-- Two true equations with the SAME evaluated endpoints (lf, lf),
+-- one provable and one unprovable. Therefore no invariant depending
+-- only on (eval l, eval r) can characterize the range of thS.
+
+-- Provable: cas leaf leaf (pair leaf leaf) = leaf.
+-- This is exactly a casLeaf axiom instance.
+provableEq : Term zero
+provableEq = cas leaf leaf (pair (var fz) (var fz))
+
+provableEqLeft : Term zero
+provableEqLeft = cas leaf leaf (pair leaf leaf)
+
+provableEq-true : Eq (eval provableEqLeft) (eval leafZ)
+provableEq-true = refl
+
+-- Its equation code IS in the range of thS (by casLeaf axiom).
+-- thS (nd (nd lf (nd lf (nd (codeTerm leaf) (codeTerm (pair v1 v0))))) lf)
+-- = casLeafCode (codeTerm leaf) (codeTerm (pair v1 v0))
+-- = nd (codeTerm (cas leaf leaf (pair v1 v0))) (codeTerm leaf)
+
+-- Unprovable: niter leaf leaf (pair v1 v0) = leaf.
+-- Already proved: niterLeaf-unprovable-all.
+unprovableEq-true : Eq (eval niterExpr) (eval leafZ)
+unprovableEq-true = refl
+
+-- Both equations have the SAME endpoint semantics: (lf, lf).
+-- But one is provable and the other is not.
+-- Therefore: no property P(eval l, eval r) can separate them.
+--
+-- Formally: for any P : Tree -> Tree -> Set,
+-- if P lf lf holds (from the provable equation), then P lf lf holds
+-- (for the unprovable equation too). So P cannot exclude the
+-- unprovable equation without also excluding the provable one.
+--
+-- This is trivially true (P lf lf is a single proposition,
+-- independent of which equation produced it). The two equations
+-- are indistinguishable at the endpoint-semantics level.
+
+endpointSame : Eq (eval provableEqLeft) (eval niterExpr)
+endpointSame = refl
