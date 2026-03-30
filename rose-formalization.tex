@@ -42,6 +42,11 @@
 \newcommand{\evalCode}{\mathsf{evalCode}}
 \newcommand{\coreTree}{\mathsf{coreTree}}
 \newcommand{\CoreInv}{\mathsf{CoreInv}}
+\newcommand{\ProvEq}{\mathsf{ProvEq}}
+\newcommand{\chiForm}{\mathsf{chiForm}}
+\newcommand{\chiFormTerm}{\mathsf{chiFormTerm}}
+\newcommand{\chiFormCode}{\mathsf{chiFormCode}}
+\newcommand{\chiImpMeta}{\mathsf{chiImpMeta}}
 
 \title{Formalizing G\"odel's Incompleteness in a Binary Tree Calculus:\\
   A Guard/Rose-Style Approach in Agda}
@@ -687,29 +692,114 @@ than the abstract ``if Con is provable then $\bot$'' form.
 
 \section{What Remains}
 
-\subsection{Stronger G\"odel II}
+\subsection{Classical G\"odel II via D1--D3: Current Status}
 
-The current G\"odel II uses $\mathsf{godelSentence}\;\lf$, whose consistency
-content is that $\thS$ at one self-referential input does not produce $\lf$.
-A stronger version would use $\mathit{target} = \mathsf{falseEqCode}$
-(the code of $\mathsf{leaf} = \mathsf{pair}\;\mathsf{leaf}\;\mathsf{leaf}$),
-making the consistency content explicit: ``$\thS$ at a self-referential input
-does not prove the false equation.'' The proof is structurally identical
-(same tag discrimination) but involves larger Agda normalizations.
+The file \texttt{Rose/GodelII.agda} (600~lines, \texttt{--safe}, 0~postulates)
+now carries out the classical L\"ob argument in the Rose setting, organized into
+thirteen parts:
 
-\subsection{Classical G\"odel II via D1--D3}
+\paragraph{The formula layer (Parts I--IV).}
+A datatype $\mathsf{FormRose}$ with constructors $\mathsf{feqR}$ (tree equations),
+$\mathsf{fimpR}$ (implication), $\mathsf{fbotR}$ (falsity), and
+$\mathsf{fprovR}$ (provability modality). A Hilbert-style proof system
+$\mathsf{ProofRose}$ with K, S, modus ponens, falsity elimination, D1--D3,
+and G\"odel fixed-point axioms $\mathsf{axGLeftR}$, $\mathsf{axGRightR}$.
 
-For the full L\"ob-style argument, one would need:
+\paragraph{Soundness and Loeb (Parts V--VIII).}
+A semantic interpretation $\mathsf{GoodRose}$ maps equations to $\Eq$, implication
+to function space, falsity to $\mathsf{Empty}$, and provability to $\mathsf{Unit}$
+(the trivial model). The embedding $\mathsf{embedRose} : \mathsf{ProofRose}\;A
+\to \mathsf{GoodRose}\;A$ validates all axioms. The concrete G\"odel sentence
+$\mathsf{godelRose} = \mathsf{feqR}\;\lf\;(\nd\;\lf\;\lf)$ has empty semantic
+value, making the fixed-point axioms vacuously sound. The 7-step L\"ob argument
+gives $\mathsf{godel2Rose} : \mathsf{ProofRose}\;\mathsf{ConRose} \to \mathsf{Empty}$.
+An abstract version $\mathsf{loebRose}$ is parameterized by any~$G$ with the
+fixed-point property.
+
+\paragraph{Equational D-conditions (Part X).}
+A concrete provability predicate $\mathsf{ProvEq}\;\mathit{eqCode} =
+\Sigma\;\Tree\;(\lambda\;y.\;\Eq\;(\thS\;y)\;\mathit{eqCode})$ (existential
+over proof trees). Proved closed under:
 \begin{itemize}
-  \item An internal provability predicate (existential quantification over
-    proof trees), requiring a formula layer beyond the equational setting.
-  \item D2 (distributing provability over implication) and D3 (provability
-    of provability), which in the equational setting correspond to internal
-    composition of proof trees via $\transCode$.
-  \item The L\"ob fixed-point argument composing these conditions.
+  \item Reflexivity ($\mathsf{provRefl}$): via the $\mathsf{vpRefl}$ branch.
+  \item Symmetry ($\mathsf{provSym}$): via $\swapCode$.
+  \item Transitivity ($\mathsf{provTrans}$): via a double-symmetry wrapping trick
+    that forces the transitivity dispatch in $\thS$, with $\eqTree$-refl for the
+    middle-match.
+  \item Computation axioms ($\mathsf{provCasLeaf}$, $\mathsf{provRecLeaf}$).
 \end{itemize}
-A separate formalization (GuardBinaryGodel2.agda, 234 lines) carries this out
-in a predicate-logic setting over the same binary tree arithmetic.
+Equational D1 ($\mathsf{eqD1}$): from $\mathsf{ProvEq}\;\mathit{eqCode}$,
+derive $\mathsf{ProvEq}\;(\nd\;(\codeReify\;\mathit{eqCode})\;(\codeReify\;\mathit{eqCode}))$
+via $\dThS$. Equational D3 ($\mathsf{eqD3}$): iterated D1.
+
+\paragraph{Chi-translation (Parts XI--XIII).}
+Nelson's $\chi$-translation adapted to binary trees.
+
+A \emph{metalevel} chi-translation $\mathsf{chiForm} : \mathsf{FormRose} \to \Tree$
+maps formulas to truth values ($\lf = \mathsf{true}$, $\mathsf{falseT} = \mathsf{false}$)
+using $\eqTree$ for equations and $\mathsf{chiImpMeta}$ for implication.
+A mutual induction gives:
+\[
+  \mathsf{chiForm}\;A = \lf \iff \mathsf{GoodRose}\;A
+\]
+
+A \emph{term-level} chi-translation $\mathsf{chiFormTerm} : \mathsf{FormRose}
+\to \Term\;0$ produces closed terms whose evaluation equals $\mathsf{chiForm}$:
+\begin{align*}
+  \mathsf{chiFormTerm}\;(\mathsf{feqR}\;L\;R) &= \mathsf{matchSub}\;R\;(\reify\;L) \\
+  \mathsf{chiFormTerm}\;(\mathsf{fimpR}\;A\;B) &= \mathsf{chiImp}\;(\mathsf{chiFormTerm}\;A)\;(\mathsf{chiFormTerm}\;B) \\
+  \mathsf{chiFormTerm}\;\mathsf{fbotR} &= \mathsf{pair}\;\mathsf{leaf}\;\mathsf{leaf} \\
+  \mathsf{chiFormTerm}\;(\mathsf{fprovR}\;A) &= \mathsf{leaf} \quad\text{(trivial model)}
+\end{align*}
+with a correctness proof $\eval\;(\mathsf{chiFormTerm}\;A) = \mathsf{chiForm}\;A$
+chaining $\mathsf{matchSub}$-correct, $\eval$-$\reify$, and $\mathsf{chiImp}$-eval.
+
+The \emph{equation code} for a formula is
+$\mathsf{chiFormCode}\;A = \nd\;(\codeTerm\;(\mathsf{chiFormTerm}\;A))\;(\codeTerm\;\mathsf{leaf})$,
+encoding ``$\chi(A) = \mathsf{true}$'' as a tree-level equation.
+
+\paragraph{The provability connection (Part XII).}
+$\mathsf{chiProvAt}\;\mathit{target}$ (from \texttt{Rose/Chi.agda}) is a
+$\Term\;1$ that checks $\thS(y) = \mathit{target}$ for a given~$y$.
+The lemma $\mathsf{chiProvAt\text{-}to\text{-}provEq}$ extracts a
+$\mathsf{ProvEq}$ witness: if the check returns $\lf$ at some~$y$,
+then $(y, \eqTree\text{-sound}\;\ldots)$ witnesses provability.
+
+\subsection{What Remains for Fully Non-Trivial G\"odel~II}\label{sec:remains}
+
+The L\"ob argument ($\mathsf{godel2Rose}$) is complete and sound, but the
+semantic model is \emph{trivial}: $\mathsf{GoodRose}\;(\mathsf{fprovR}\;A) =
+\mathsf{Unit}$. The equational D-conditions (Part~X) and the chi-translation
+(Parts~XI--XIII) provide all the machinery \emph{except} one piece: a
+\textbf{bounded existential search} over proof trees.
+
+Concretely, a non-trivial encoding of $\mathsf{fprovR}\;A$ as a $\Term\;0$
+requires a term that evaluates to~$\lf$ when there exists a proof tree~$y$
+(up to some bound) with $\thS(y) = \mathsf{chiFormCode}\;A$, and
+$\mathsf{falseT}$ otherwise. This is Nelson's $\mu_A$ construction and
+requires three components:
+
+\begin{enumerate}
+  \item \textbf{Tree enumeration.} A systematic enumeration of all binary
+    trees up to a given size, implementable as an $\niter$-based generator
+    with a size clock.
+  \item \textbf{Search loop.} An $\niter$-based iteration that, for each
+    candidate tree~$y$, evaluates $\mathsf{chiProvAt}\;(\mathsf{chiFormCode}\;A)$
+    at~$y$ and returns~$\lf$ if any check succeeds.
+  \item \textbf{Clock sufficiency.} A proof that for any valid proof tree~$y$,
+    the enumeration clock is large enough to reach~$y$. This connects the
+    bounded search to the unbounded existential in $\mathsf{ProvEq}$.
+\end{enumerate}
+
+With these in place, one would define:
+\begin{align*}
+  \mathsf{GoodRose'}\;(\mathsf{fprovR}\;(\mathsf{feqR}\;L\;R))
+    &= \mathsf{ProvEq}\;(\nd\;L\;R) \\
+  \mathsf{GoodRose'}\;(\mathsf{fprovR}\;(\mathsf{fimpR}\;A\;B))
+    &= \mathsf{ProvEq}\;(\mathsf{chiFormCode}\;(\mathsf{fimpR}\;A\;B))
+\end{align*}
+and validate D1--D3 under this interpretation using the equational D-conditions
+and the chi-encoding pipeline.
 
 \subsection{Additional Computation Axioms}
 
@@ -746,10 +836,10 @@ proofs follow the same structure.
 
 \section{Statistics}
 
-The Rose formalization comprises 13 Agda files:
+The Rose formalization comprises 15 Agda files:
 \begin{itemize}
   \item 10 core infrastructure files (Base through Internal)
-  \item 3 higher-level files (DiagCode, FixedPoint, ThInt, Godel)
+  \item 5 higher-level files (DiagCode, FixedPoint, ThInt, Godel, Chi, GodelII)
   \item 0 postulates, 0 holes, \texttt{--safe --without-K --exact-split}
   \item 36+ unit tests (all verified by \texttt{refl})
 \end{itemize}
@@ -767,7 +857,10 @@ The Rose formalization comprises 13 Agda files:
   \item G\"odel sentence evaluation and fixed-point
   \item G\"odel I: true-but-unprovable equation (Theorem~\ref{thm:godel1})
   \item Meta-level consistency (Theorem~\ref{thm:consistency})
-  \item G\"odel II: consistency sentence unprovable (Theorem~\ref{thm:godel2})
+  \item G\"odel II (structural): consistency sentence unprovable (Theorem~\ref{thm:godel2})
+  \item G\"odel II (classical): L\"ob argument via D1--D3 ($\mathsf{godel2Rose}$)
+  \item Chi-translation: term-level encoding with $\mathsf{chiFormTerm}$-correct
+  \item Equational D-conditions: $\mathsf{ProvEq}$ closed under sym/trans/axioms
 \end{enumerate}
 
 \end{document}
