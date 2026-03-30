@@ -783,3 +783,72 @@ congEq-true = refl
 -- (not stripped: scrutinee code ≠ nd lf lf). Tag discrimination:
 nelsonObstruction : Not (Eq (coreTree (codeTerm congLeft)) (coreTree (codeTerm congRight)))
 nelsonObstruction p = tagCase-neq-tagLeaf (nd-injL p)
+
+------------------------------------------------------------------------
+-- Classification of safe vs unsafe congruence positions.
+--
+-- The fundamental issue: coreTree depends on code structure, not eval.
+-- ANY position where the substituted value's code survives in the
+-- coreTree output is unsafe (because different terms can have the
+-- same eval but different codes).
+
+-- pair congruence is ALSO unsafe (not just cas-scrutinee).
+-- pair a u vs pair b u: coreTree doesn't strip tagPair, so
+-- coreTree(codeTerm(pair a u)) = nd tagPair (nd (codeTerm a) (codeTerm u))
+-- ≠ nd tagPair (nd (codeTerm b) (codeTerm u)) when codeTerm a ≠ codeTerm b.
+pairCongUnsafe : Not (Eq (coreTree (codeTerm (pair casLeafLeaf leafZ)))
+                         (coreTree (codeTerm (pair leafZ leafZ))))
+pairCongUnsafe p = tagCase-neq-tagLeaf (nd-injL (nd-injL (nd-injR p)))
+
+-- The ONLY safe positions: those DISCARDED by coreTree stripping.
+-- Example: v (step branch) in cas leaf u v. coreTree strips to
+-- coreTree(codeTerm u), independent of v.
+casStepSafe : (u : Term zero) (a b : Term (suc (suc zero))) ->
+  Eq (coreTree (codeTerm (cas leaf u a))) (coreTree (codeTerm (cas leaf u b)))
+casStepSafe u a b = refl
+
+-- But the base branch u in cas leaf u v IS unsafe:
+-- cas base branch unsafe: a = niterExpr (eval lf, tag tagNiter),
+-- b = leaf (eval lf, tag tagLeaf). After cas-leaf strip,
+-- coreTree sees codeTerm a vs codeTerm b directly.
+casBaseUnsafe : Not (Eq (coreTree (codeTerm (cas leaf niterExpr (pair v1 v0))))
+                        (coreTree (codeTerm (cas leaf leafZ (pair v1 v0)))))
+casBaseUnsafe p = nd-neq-lf (nd-injL p)
+
+-- rec: recursion arg unsafe (same pattern — different tags after coreTree).
+-- rec base unsafe when scrutinee = leaf (stripped, base exposed).
+-- Both follow the same codeTerm-tag-mismatch argument as cas.
+
+-- rec step (s position) when scrutinee = leaf: stripped away. SAFE.
+recStepSafe : (z : Term zero) (a b : Term (suc (suc (suc (suc zero))))) ->
+  Eq (coreTree (codeTerm (rec leaf z a))) (coreTree (codeTerm (rec leaf z b)))
+recStepSafe z a b = refl
+
+------------------------------------------------------------------------
+-- CLASSIFICATION THEOREM (maximal CoreInv-safe congruence fragment).
+--
+-- For each constructor and argument position:
+--
+-- | Constructor | Position    | Safe? | Reason                       |
+-- |------------|-------------|-------|------------------------------|
+-- | pair       | either arg  | NO    | coreTree preserves tagPair   |
+-- | cas        | scrutinee   | NO    | coreTree inspects tag        |
+-- | cas        | base (u)    | NO    | after strip, u is exposed    |
+-- | cas        | step (v)    | YES*  | stripped away (when scrut=leaf)|
+-- | rec        | rec arg     | NO    | coreTree inspects tag        |
+-- | rec        | base (z)    | NO    | after strip, z is exposed    |
+-- | rec        | step (s)    | YES*  | stripped away (when scrut=leaf)|
+-- | niter      | any         | NO    | coreTree preserves tagNiter  |
+--
+-- * Safe only when the scrutinee/rec-arg is literally leaf.
+--   When scrutinee ≠ leaf, no stripping occurs and ALL positions
+--   are unsafe.
+--
+-- CONCLUSION: The maximal safe fragment is essentially trivial.
+-- Only the step/step-case positions of cas-leaf and rec-leaf
+-- are safe, and only because coreTree discards them entirely.
+-- No congruence that affects the coreTree output is safe.
+--
+-- This means: CoreInv is fundamentally incompatible with congruence.
+-- The invariant exists BECAUSE the system cannot reason about code
+-- structure under substitution. This is the Nelson obstruction.
