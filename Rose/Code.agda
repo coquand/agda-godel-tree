@@ -6,7 +6,7 @@ open import Rose.Base
   using (Nat; zero; suc; Fin; fz; fs; finToNat; natToFin;
          Maybe; nothing; just; maybeMap; maybeBind)
 open import Rose.Tree using (Tree; lf; nd)
-open import Rose.Term using (Term; var; leaf; pair; cas; rec)
+open import Rose.Term using (Term; var; leaf; pair; cas; rec; niter)
 open import Rose.Equation using (Equation; equation)
 
 ------------------------------------------------------------------------
@@ -40,6 +40,9 @@ tagCase = nd lf (nd lf (nd lf lf))
 tagRec : Tree
 tagRec = nd lf (nd lf (nd lf (nd lf lf)))
 
+tagNiter : Tree
+tagNiter = nd lf (nd lf (nd lf (nd lf (nd lf lf))))
+
 ------------------------------------------------------------------------
 -- Encoding terms as trees (term codes).
 --
@@ -59,6 +62,7 @@ codeTerm leaf        = nd tagLeaf lf
 codeTerm (pair t u)  = nd tagPair (nd (codeTerm t) (codeTerm u))
 codeTerm (cas t u v) = nd tagCase (nd (codeTerm t) (nd (codeTerm u) (codeTerm v)))
 codeTerm (rec t z s) = nd tagRec (nd (codeTerm t) (nd (codeTerm z) (codeTerm s)))
+codeTerm (niter t st s) = nd tagNiter (nd (codeTerm t) (nd (codeTerm st) (codeTerm s)))
 
 ------------------------------------------------------------------------
 -- Encoding equations as trees.
@@ -113,8 +117,15 @@ mutual
     maybeBind (decodeTerm n ct) (\ t ->
     maybeBind (decodeTerm n cz) (\ z ->
     maybeMap  (rec t z) (decodeTerm (suc (suc (suc (suc n)))) cs)))
-  -- tag >= 5: invalid
-  decodeByTag n (suc (suc (suc (suc (suc k))))) payload = nothing
+  -- tag 5 = niter
+  decodeByTag n (suc (suc (suc (suc (suc zero))))) lf = nothing
+  decodeByTag n (suc (suc (suc (suc (suc zero))))) (nd ct lf) = nothing
+  decodeByTag n (suc (suc (suc (suc (suc zero))))) (nd ct (nd cst cs)) =
+    maybeBind (decodeTerm n ct) (\ t ->
+    maybeBind (decodeTerm n cst) (\ st ->
+    maybeMap  (niter t st) (decodeTerm (suc (suc n)) cs)))
+  -- tag >= 6: invalid
+  decodeByTag n (suc (suc (suc (suc (suc (suc k)))))) payload = nothing
 
 ------------------------------------------------------------------------
 -- Decoding equations from trees.

@@ -20,6 +20,7 @@ data Term : Nat -> Set where
   pair : {n : Nat} -> Term n -> Term n -> Term n
   cas  : {n : Nat} -> Term n -> Term n -> Term (suc (suc n)) -> Term n
   rec  : {n : Nat} -> Term n -> Term n -> Term (suc (suc (suc (suc n)))) -> Term n
+  niter : {n : Nat} -> Term n -> Term n -> Term (suc (suc n)) -> Term n
 
 ------------------------------------------------------------------------
 -- Computation rules (intended):
@@ -40,3 +41,15 @@ data Term : Nat -> Set where
 --   var 2 = right subtree              (b)
 --   var 3 = left subtree               (a)
 --   var (4+k) = outer variable k
+--
+-- niter t state step: iterate step along the right spine of t,
+-- threading state through.
+--
+-- Computation rules:
+--   niter lf       state step  -->  state
+--   niter (nd a k) state step  -->  niter k (step[k/0, state/1]) step
+--
+-- Binding convention for niter step:
+--   var 0 = remaining tail     (k, right subtree of current node)
+--   var 1 = current state
+--   var (2+k) = outer variable k

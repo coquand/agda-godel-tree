@@ -7,7 +7,7 @@ open import Rose.Base
          Maybe; nothing; just; maybeMap;
          Eq; refl; eqCong; eqCong2)
 open import Rose.Tree using (Tree; lf; nd)
-open import Rose.Term using (Term; var; leaf; pair; cas; rec)
+open import Rose.Term using (Term; var; leaf; pair; cas; rec; niter)
 open import Rose.Rename using (rename)
 
 ------------------------------------------------------------------------
@@ -57,6 +57,8 @@ substAt k r (cas t u v) =
   cas (substAt k r t) (substAt k r u) (substAt (fs (fs k)) r v)
 substAt k r (rec t z s) =
   rec (substAt k r t) (substAt k r z) (substAt (fs (fs (fs (fs k)))) r s)
+substAt k r (niter t st s) =
+  niter (substAt k r t) (substAt k r st) (substAt (fs (fs k)) r s)
 
 ------------------------------------------------------------------------
 -- Specialized: substitute for variable 0.

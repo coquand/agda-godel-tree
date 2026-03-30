@@ -5,7 +5,7 @@ module Rose.CodedSubst where
 open import Rose.Base
   using (Nat; zero; suc; Maybe; nothing; just; maybeMap)
 open import Rose.Tree using (Tree; lf; nd)
-open import Rose.Code using (tagLeaf; tagVar; tagPair; tagCase; tagRec)
+open import Rose.Code using (tagLeaf; tagVar; tagPair; tagCase; tagRec; tagNiter)
 
 ------------------------------------------------------------------------
 -- Thick map on nat-codes (tree-encoded natural numbers).
@@ -81,9 +81,20 @@ mutual
     nd tagRec (nd (codedSubst repl i ct)
                   (nd (codedSubst repl i cz)
                       (codedSubst repl (suc (suc (suc (suc i)))) cs)))
+  -- tag 5 = tagNiter: recurse, step index shifts by 2
+  codedSubstTagged repl i (nd lf (nd lf (nd lf (nd lf (nd lf lf))))) lf =
+    nd tagNiter lf
+  codedSubstTagged repl i (nd lf (nd lf (nd lf (nd lf (nd lf lf))))) (nd ct lf) =
+    nd tagNiter (nd (codedSubst repl i ct) lf)
+  codedSubstTagged repl i (nd lf (nd lf (nd lf (nd lf (nd lf lf))))) (nd ct (nd cst cs)) =
+    nd tagNiter (nd (codedSubst repl i ct)
+                    (nd (codedSubst repl i cst)
+                        (codedSubst repl (suc (suc i)) cs)))
   -- Unrecognized tags: return unchanged
-  codedSubstTagged repl i (nd lf (nd lf (nd lf (nd lf (nd a b))))) payload =
-    nd (nd lf (nd lf (nd lf (nd lf (nd a b))))) payload
+  codedSubstTagged repl i (nd lf (nd lf (nd lf (nd lf (nd lf (nd a b)))))) payload =
+    nd (nd lf (nd lf (nd lf (nd lf (nd lf (nd a b)))))) payload
+  codedSubstTagged repl i (nd lf (nd lf (nd lf (nd lf (nd (nd a b) c))))) payload =
+    nd (nd lf (nd lf (nd lf (nd lf (nd (nd a b) c))))) payload
   codedSubstTagged repl i (nd lf (nd lf (nd lf (nd (nd a b) c)))) payload =
     nd (nd lf (nd lf (nd lf (nd (nd a b) c)))) payload
   codedSubstTagged repl i (nd lf (nd lf (nd (nd a b) c))) payload =

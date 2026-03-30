@@ -4,7 +4,7 @@ module Rose.Eval where
 
 open import Rose.Base using (Nat; zero; suc; Fin; fz; fs; Eq; refl)
 open import Rose.Tree using (Tree; lf; nd)
-open import Rose.Term using (Term; var; leaf; pair; cas; rec)
+open import Rose.Term using (Term; var; leaf; pair; cas; rec; niter)
 open import Rose.Equation using (Equation; equation)
 
 ------------------------------------------------------------------------
@@ -63,6 +63,7 @@ mutual
   evalEnv env (pair t u)  = nd (evalEnv env t) (evalEnv env u)
   evalEnv env (cas t u v) = evalCas env (evalEnv env t) u v
   evalEnv env (rec t z s) = evalRec env (evalEnv env t) z s
+  evalEnv env (niter t st s) = evalNiter env (evalEnv env t) (evalEnv env st) s
 
   evalCas : {n : Nat} -> Env n -> Tree
           -> Term n -> Term (suc (suc n)) -> Tree
@@ -74,6 +75,12 @@ mutual
   evalRec env lf       z s = evalEnv env z
   evalRec env (nd a b) z s =
     evalEnv (extEnv4 env a b (evalRec env a z s) (evalRec env b z s)) s
+
+  evalNiter : {n : Nat} -> Env n -> Tree -> Tree
+            -> Term (suc (suc n)) -> Tree
+  evalNiter env lf       state s = state
+  evalNiter env (nd a k) state s =
+    evalNiter env k (evalEnv (extEnv2 env state k) s) s
 
 ------------------------------------------------------------------------
 -- Evaluation of closed terms.

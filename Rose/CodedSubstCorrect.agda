@@ -7,9 +7,9 @@ open import Rose.Base
          Maybe; nothing; just; maybeMap;
          Eq; refl; eqSym; eqTrans; eqCong; eqCong2; eqCong3; eqSubst)
 open import Rose.Tree using (Tree; lf; nd)
-open import Rose.Term using (Term; var; leaf; pair; cas; rec)
+open import Rose.Term using (Term; var; leaf; pair; cas; rec; niter)
 open import Rose.Code
-  using (natCode; codeTerm; tagVar; tagPair; tagCase; tagRec)
+  using (natCode; codeTerm; tagVar; tagPair; tagCase; tagRec; tagNiter)
 open import Rose.SubstAt
   using (thick; substAtVarMaybe; substAt; injectTerm)
 open import Rose.CodedSubst
@@ -115,6 +115,11 @@ abstract
       (codedSubst-correct k r t)
       (codedSubst-correct k r z)
       (codedSubst-correct (fs (fs (fs (fs k)))) r s)
+  codedSubst-correct k r (niter t st s) =
+    eqCong3 (\ x y z -> nd tagNiter (nd x (nd y z)))
+      (codedSubst-correct k r t)
+      (codedSubst-correct k r st)
+      (codedSubst-correct (fs (fs k)) r s)
 
 ------------------------------------------------------------------------
 -- Corollary: codedSubst0 on codes = codeTerm of substAt at fz.

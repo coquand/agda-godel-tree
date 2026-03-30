@@ -9,6 +9,10 @@ data Nat : Set where
   zero : Nat
   suc  : Nat -> Nat
 
+add : Nat -> Nat -> Nat
+add zero    m = m
+add (suc n) m = suc (add n m)
+
 ------------------------------------------------------------------------
 -- Empty and Unit
 
@@ -47,6 +51,17 @@ eqCong3 : {A B C D : Set} (f : A -> B -> C -> D)
          -> Eq x1 x2 -> Eq y1 y2 -> Eq z1 z2
          -> Eq (f x1 y1 z1) (f x2 y2 z2)
 eqCong3 f refl refl refl = refl
+
+------------------------------------------------------------------------
+-- Arithmetic lemmas
+
+add-zero : (n : Nat) -> Eq (add n zero) n
+add-zero zero    = refl
+add-zero (suc n) = eqCong suc (add-zero n)
+
+add-suc : (n m : Nat) -> Eq (add n (suc m)) (suc (add n m))
+add-suc zero    m = refl
+add-suc (suc n) m = eqCong suc (add-suc n m)
 
 ------------------------------------------------------------------------
 -- Maybe
@@ -109,3 +124,14 @@ compareNat (suc n) (suc m) = compareNat n m
 pred : Nat -> Nat
 pred zero    = zero
 pred (suc n) = n
+
+------------------------------------------------------------------------
+-- Bool
+
+data Bool : Set where
+  true  : Bool
+  false : Bool
+
+boolAnd : Bool -> Bool -> Bool
+boolAnd true  b = b
+boolAnd false b = false

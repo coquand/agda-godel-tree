@@ -3,7 +3,7 @@
 module Rose.Subst where
 
 open import Rose.Base using (Nat; zero; suc; Fin; fz; fs)
-open import Rose.Term using (Term; var; leaf; pair; cas; rec)
+open import Rose.Term using (Term; var; leaf; pair; cas; rec; niter)
 open import Rose.Rename using (rename)
 
 ------------------------------------------------------------------------
@@ -34,6 +34,7 @@ subst sig leaf        = leaf
 subst sig (pair t u)  = pair (subst sig t) (subst sig u)
 subst sig (cas t u v) = cas (subst sig t) (subst sig u) (subst (liftSubst2 sig) v)
 subst sig (rec t z s) = rec (subst sig t) (subst sig z) (subst (liftSubst4 sig) s)
+subst sig (niter t st s) = niter (subst sig t) (subst sig st) (subst (liftSubst2 sig) s)
 
 ------------------------------------------------------------------------
 -- Single substitution: replace variable 0, shift the rest down.
