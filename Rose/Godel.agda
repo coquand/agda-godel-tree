@@ -730,3 +730,56 @@ testCR6 = refl
 --     = coreTree t.
 --
 -- Implementation verified by 12 unit tests on all case patterns.
+
+------------------------------------------------------------------------
+-- Nelson obstruction: congruence for cas BREAKS CoreInv.
+--
+-- The CoreInv proof uses eqCong coreTree (congruence). Internalizing
+-- this requires thS to support congruence. But adding congruence
+-- breaks CoreInv itself. This is the Nelson-style obstruction.
+--
+-- Counterexample: a = cas leaf leaf (pair leaf leaf), b = leaf.
+-- Both eval to lf, so a = b is provable. Congruence gives
+-- cas a u v = cas b u v. But coreTree differs on the two sides.
+
+-- The two terms that eval to lf but have different code structure.
+casLeafLeaf : Term zero
+casLeafLeaf = cas leaf leaf (pair leaf leaf)
+
+-- Both evaluate to lf.
+casLeafLeaf-eval : Eq (eval casLeafLeaf) lf
+casLeafLeaf-eval = refl
+
+leaf-eval : Eq (eval leafZ) lf
+leaf-eval = refl
+
+-- The congruence equation: cas (cas leaf leaf (pair leaf leaf)) leaf (pair leaf leaf)
+--                        = cas leaf leaf (pair leaf leaf)
+-- Both sides eval to lf (TRUE equation).
+congLeft : Term zero
+congLeft = cas casLeafLeaf leaf (pair leaf leaf)
+
+congRight : Term zero
+congRight = cas leaf leaf (pair leaf leaf)
+
+congEq-true : Eq (eval congLeft) (eval congRight)
+congEq-true = refl
+
+-- BUT: coreTree of the two sides DIFFER.
+-- codeTerm casLeafLeaf has tag tagCase (not tagLeaf = lf).
+-- So in codeTerm congLeft = nd tagCase (nd (codeTerm casLeafLeaf) ...),
+-- the scrutinee is codeTerm casLeafLeaf ≠ nd lf lf.
+-- coreTree does NOT strip: returns full code.
+--
+-- codeTerm congRight = nd tagCase (nd (codeTerm leaf) ...).
+-- scrutinee = codeTerm leaf = nd lf lf.
+-- coreTree STRIPS: returns coreTree(codeTerm leaf) = nd lf lf.
+--
+-- So coreTree(left) has tag tagCase but coreTree(right) = nd lf lf.
+-- CoreInv violation!
+
+-- coreTree(codeTerm congRight) = coreTree(codeTerm leaf) = nd lf lf
+-- (cas-leaf stripped). coreTree(codeTerm congLeft) has tag tagCase
+-- (not stripped: scrutinee code ≠ nd lf lf). Tag discrimination:
+nelsonObstruction : Not (Eq (coreTree (codeTerm congLeft)) (coreTree (codeTerm congRight)))
+nelsonObstruction p = tagCase-neq-tagLeaf (nd-injL p)
