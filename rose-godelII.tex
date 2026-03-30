@@ -1,0 +1,357 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumerate}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{proposition}[theorem]{Proposition}
+
+\newcommand{\lf}{\mathsf{lf}}
+\newcommand{\nd}{\mathsf{nd}}
+\newcommand{\cas}{\mathsf{cas}}
+\newcommand{\rec}{\mathsf{rec}}
+\newcommand{\niter}{\mathsf{niter}}
+\newcommand{\eval}{\mathsf{eval}}
+\newcommand{\reify}{\mathsf{reify}}
+\newcommand{\codeTerm}{\mathsf{codeTerm}}
+\newcommand{\codeReify}{\mathsf{codeReify}}
+\newcommand{\diagCode}{\mathsf{diagCode}}
+\newcommand{\diag}{\mathsf{diag}}
+\newcommand{\thS}{\mathsf{thS}}
+\newcommand{\thTerm}{\mathsf{thTerm}}
+\newcommand{\eqTree}{\mathsf{eqTree}}
+\newcommand{\transCode}{\mathsf{transCode}}
+\newcommand{\swapCode}{\mathsf{swapCode}}
+\newcommand{\Tree}{\mathsf{Tree}}
+\newcommand{\Term}{\mathsf{Term}}
+\newcommand{\Eq}{\mathsf{Eq}}
+\newcommand{\dThS}{D_{\thS}}
+\newcommand{\ValidProof}{\mathsf{ValidProof}}
+\newcommand{\ThSResult}{\mathsf{ThSResult}}
+\newcommand{\ProvEq}{\mathsf{ProvEq}}
+\newcommand{\coreTree}{\mathsf{coreTree}}
+\newcommand{\CoreInv}{\mathsf{CoreInv}}
+\newcommand{\comp}{\mathsf{comp}}
+\newcommand{\matchSub}{\mathsf{matchSub}}
+
+\title{G\"odel's Second Incompleteness Theorem \`a la Rose:\\
+  Plan for the Binary Tree Calculus}
+\author{}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+
+\section{Rose's Proof Structure}
+
+Rose~\cite{rose1961} proves consistency and G\"odel~II for Ternary
+Recursive Arithmetic~$T$ entirely within the object system, without
+introducing a formula layer, provability predicate, or Hilbert--Bernays
+derivability conditions.  The argument has five components:
+
+\begin{enumerate}
+\item \textbf{Theorem enumerator} $th(y)$: the $y$-th theorem of~$T$,
+  defined by cases on $y \bmod 6$ (one case per axiom schema plus
+  transitivity).
+
+\item \textbf{Soundness} (Theorem~10): $vl(x, th(y)) = 0$ for all
+  valuations~$x$ and all~$y$.  Every enumerated equation is true.
+
+\item \textbf{Companion function} $e(y)$: given the number of an
+  equation $A = B$, returns the number of $A \mathbin{+} B$
+  (the successor-paired companion).  The companion is always false:
+  $vl(x, e(y)) = 1$ whenever $vl(x, y) = 0$ (Theorem~11).
+
+\item \textbf{Consistency} (Theorem~13): $th(y) \neq e(th(z))$ for
+  all $y, z$.  A theorem is never a companion of a theorem.  Immediate
+  from soundness + companion falsity.
+
+\item \textbf{Representability and G\"odel~II} (Theorems~14--18):
+  the substitution function $se$ and numeral function $nu$ are
+  \emph{representable} in~$T$ (Theorem~17).  Combined with the
+  diagonal construction, the consistency sentence
+  $th(y) \neq e(th(z))$ is shown to be undecidable in~$T$.
+\end{enumerate}
+
+\noindent
+No formula type, no implication, no D2/D3, no L\"ob argument.
+The entire proof lives in the equational calculus.
+
+
+\section{Our Setting: Binary Tree Calculus}
+
+We work over binary trees ($\lf$, $\nd\;a\;b$) with intrinsically
+scoped terms ($\Term\;n$), primitive recursion ($\rec$), and
+right-spine iteration ($\niter$).  The existing formalization provides:
+
+\begin{center}
+\begin{tabular}{lll}
+\textbf{Rose} & \textbf{Ours} & \textbf{Status} \\
+\hline
+$th(y)$ & $\thS : \Tree \to \Tree$ & Done (\texttt{ThInt.agda}) \\
+$vl(x, th(y)) = 0$ & $\thS$-valid $: \ValidProof\;p \to \ThSResult\;(\thS\;p)$
+  & Done \\
+$e(y)$ & companion function $\comp$ & \textbf{Not yet} \\
+$th(y) \neq e(th(z))$ & consistency via $\comp$ & \textbf{Not yet} \\
+Thm~14--16 (D1 internal) & $\dThS$ + equational D1 & Partial \\
+Thm~17 (representability) & $\mathsf{chiFormTerm}$-correct & Partial \\
+Thm~18 (G\"odel~II) & self-referential undecidability & \textbf{Not yet} \\
+\end{tabular}
+\end{center}
+
+\noindent
+The existing \texttt{GodelII.agda} follows Guard/Hilbert--Bernays
+(formula layer + L\"ob argument), not Rose.  The goal is now to
+follow Rose's object-level approach.
+
+
+\section{The Companion Function}\label{sec:companion}
+
+Rose's $e(y)$ takes an equation code and produces a provably false
+companion.  In our setting, an equation code is $\nd\;L\;R$
+where $L$ and $R$ are term codes.  We need a computable function
+$\comp : \Tree \to \Tree$ such that:
+
+\begin{enumerate}
+\item[(C1)] $\comp$ is total and computable (definable as a $\Term\;1$).
+\item[(C2)] If $\ThSResult\;(\nd\;L\;R)$ (i.e., $L = \codeTerm\;l$,
+  $R = \codeTerm\;r$, $\eval\;l = \eval\;r$), then $\comp\;(\nd\;L\;R)$
+  is a well-formed equation code $\nd\;L'\;R'$ with $\eval\;l' \neq \eval\;r'$.
+\end{enumerate}
+
+\begin{definition}[Companion function]
+The simplest candidate:
+\[
+  \comp\;(\nd\;L\;R) = \nd\;L\;(\nd\;L\;R)
+\]
+interpreting: the LHS stays the same, the RHS becomes $\nd\;L\;R$
+(the pair of the original two sides).  Since $\eval\;l$ is a single
+tree and $\nd\;(\eval\;l)\;(\eval\;r)$ is always $\nd$-headed,
+$\eval\;l \neq \nd\;(\eval\;l)\;(\eval\;r)$ whenever $\eval\;l = \lf$
+or more generally when $\eval\;l$ has a different top-level structure.
+\end{definition}
+
+\begin{remark}
+The simplest \emph{universal} companion: $\comp\;(\nd\;L\;R) =
+\nd\;(\codeTerm\;\mathsf{leaf})\;(\codeTerm\;(\mathsf{pair}\;\mathsf{leaf}\;\mathsf{leaf}))$.
+This is the equation $\lf = \nd\;\lf\;\lf$, which is always false.
+But this is constant---it doesn't depend on the input.  Rose's $e(y)$
+depends on the input because $A \mathbin{+} B$ pairs the two sides,
+making the companion \emph{structurally related} to the theorem.
+For our purposes, even a constant companion suffices for consistency
+(Theorem~13 analogue), but a dependent companion may be needed for
+the self-referential argument (Theorem~18).
+\end{remark}
+
+A more faithful analogue of Rose's $e$: define $\comp$ so that
+the companion of $\nd\;L\;R$ is an equation whose LHS \emph{is}
+the original equation code (as a tree), and whose RHS is something
+different.  For instance:
+\[
+  \comp\;(\nd\;L\;R) = \nd\;(\codeReify\;(\nd\;L\;R))\;(\codeReify\;\lf)
+\]
+This encodes ``the equation code itself equals $\lf$'', which is
+always false (since $\nd\;L\;R \neq \lf$).  Moreover, both sides
+are valid term codes ($\codeReify$ always produces $\codeTerm\;(\reify\;\cdot)$),
+so the companion is a well-formed equation code.
+
+
+\section{Consistency \`a la Rose}\label{sec:consistency}
+
+\begin{theorem}[Rose's Theorem~13 analogue]
+For all $y, z : \Tree$:
+\[
+  \thS\;y \neq \comp\;(\thS\;z)
+\]
+\end{theorem}
+
+\begin{proof}[Proof strategy]
+By $\ThSResult$, $\thS\;z = \nd\;(\codeTerm\;l)\;(\codeTerm\;r)$
+with $\eval\;l = \eval\;r$ (for valid~$z$; for all~$z$ via $\coreTree$).
+The companion $\comp\;(\thS\;z)$ is an equation code whose two sides
+evaluate to \emph{different} trees (by construction of $\comp$).
+By $\ThSResult$ applied to~$y$, $\thS\;y$ always encodes a
+\emph{true} equation.  A true equation cannot equal a false equation.
+\end{proof}
+
+\noindent
+This is exactly Rose's argument: soundness says $\thS$ only produces
+true equations; the companion produces false equations; therefore a
+theorem is never a companion of a theorem.
+
+\begin{remark}
+We already have the pieces:
+\begin{itemize}
+  \item $\thS$-valid gives $\ThSResult\;(\thS\;y)$ for valid proofs.
+  \item $\mathsf{falseEq\text{-}unprovable}$ in \texttt{Godel.agda}
+    already proves: if $\eval\;s \neq \eval\;t$, then
+    $\thS\;y \neq \nd\;(\codeTerm\;s)\;(\codeTerm\;t)$ for valid~$y$.
+  \item $\mathsf{falseEq\text{-}never}$ strengthens this to all~$y$
+    (not just valid proofs) via $\coreTree$.
+\end{itemize}
+The companion function just packages these into Rose's form.
+\end{remark}
+
+
+\section{Representability (Rose's Theorems~14--17)}\label{sec:represent}
+
+This is the hard part.  Rose proves that the substitution function
+$se(x, y, z)$ and numeral function $nu(x)$ are \emph{representable}:
+there exist terms in~$T$ that compute these functions, and the
+equations witnessing this are provable in~$T$ (i.e., appear as
+$th(y)$ outputs).
+
+In our setting, representability means: for each primitive recursive
+function $f$ used in the diagonal construction, there exists a
+$\Term\;n$ computing~$f$, and the equation
+$\codeTerm\;(\text{term for } f) = \codeTerm\;(\reify\;(f\;\vec{a}))$
+is in the range of~$\thS$.
+
+\subsection{What we already have}
+
+\begin{itemize}
+\item $\thTerm : \Term\;1$ with $\thTerm$-correct: $\eval_y\;\thTerm = \thS\;y$.
+  This \emph{internalizes} $\thS$.
+\item $\dThS$: from proof tree~$p$, produces a proof of the reflexivity
+  of $\thS\;p$.  This is Rose's Theorem~14 restricted to reflexivity.
+\item $\mathsf{chiFormTerm}$: encodes formulas as closed terms with
+  $\eval\;(\mathsf{chiFormTerm}\;A) = \mathsf{chiForm}\;A$.
+\item $\matchSub$-correct: $\matchSub$ computes $\eqTree$ internally.
+\item $\codeTerm$/$\codeReify$ with round-trip properties.
+\end{itemize}
+
+\subsection{What we need}
+
+\begin{enumerate}
+\item \textbf{Internal $\codeTerm$}: a $\Term\;1$ that computes
+  $\codeTerm\;(\reify\;x)$ from~$x$.  This is $\codeReify$ internalized.
+  We already have $\codeReify : \Tree \to \Tree$ at the metalevel
+  and $\codeReify$-correct linking it to $\codeTerm\;(\reify\;\cdot)$.
+  The internal version is a $\rec$-based term; the unit tests in
+  \texttt{ThInt.agda} (\texttt{crBase}, \texttt{crStep}) suggest
+  this is already partially built.
+
+\item \textbf{Internal $\comp$}: a $\Term\;1$ computing the companion.
+  If $\comp$ is simple (e.g., $\comp\;(\nd\;L\;R) =
+  \nd\;(\codeReify\;(\nd\;L\;R))\;(\codeReify\;\lf)$), this is
+  just $\mathsf{pair}\;(\text{codeReify-term applied to } v_0)\;
+  (\text{codeReify-term applied to } \lf)$.
+
+\item \textbf{Representability of $\comp \circ \thS$}: the equation
+  $\thS(y) \neq \comp(\thS(z))$ must be expressible as a $\thS$ output
+  for the self-referential argument.  This requires showing that
+  the \emph{equation} ``$\comp(\thS(z))$ is not a theorem'' can be
+  diagonalized.
+
+\item \textbf{The diagonal argument}: using the existing
+  $\diag$/$\diagCode$ machinery, construct a sentence~$G$ such that
+  $\eval\;G = \eqTree\;(\thS\;c_G)\;(\comp\;(\thS\;c_G))$ where
+  $c_G$ is the code of~$G$'s schema.  If $G$ is provable ($\thS\;y =
+  \text{code of } G$), then by soundness $\eval\;G = \lf$, meaning
+  $\thS\;c_G = \comp\;(\thS\;c_G)$, contradicting consistency.
+  If $\neg G$ is provable, similar contradiction.  Therefore $G$ is
+  undecidable.
+\end{enumerate}
+
+
+\section{Concrete Plan for the Next Session}\label{sec:plan}
+
+\subsection{Step 1: The companion function (small)}
+
+Define $\comp : \Tree \to \Tree$ and $\mathsf{compTerm} : \Term\;1$.
+Prove:
+\begin{itemize}
+  \item $\comp$ applied to any $\ThSResult$ output gives a false equation.
+  \item $\eval_y\;\mathsf{compTerm} = \comp\;y$.
+\end{itemize}
+This directly gives Rose's Theorem~13 analogue:
+$\thS\;y \neq \comp\;(\thS\;z)$ for all valid~$y, z$.
+
+\subsection{Step 2: Consistency via companion (small)}
+
+Combine Step~1 with $\mathsf{falseEq\text{-}unprovable}$ or
+$\mathsf{falseEq\text{-}never}$ from \texttt{Godel.agda}. This
+gives an object-level consistency theorem without any formula layer.
+
+\subsection{Step 3: Internal codeReify (medium)}
+
+Build a $\Term\;1$ that computes $\codeReify\;x$ from~$x$.
+The infrastructure (\texttt{crBase}, \texttt{crStep} in
+\texttt{ThInt.agda}) suggests this is a $\rec$-based term.
+Prove correctness.
+
+\subsection{Step 4: The G\"odel sentence via companion (medium)}
+
+Using the existing diagonal machinery ($\diag$, $\diagCode$,
+$\mathsf{godelSchema}$), construct a G\"odel sentence~$G$ whose
+evaluation checks whether $\thS$ at the self-referential input
+equals the companion of $\thS$ at the same input.  Formally:
+\[
+  \eval\;G = \eqTree\;(\thS\;c)\;(\comp\;(\thS\;c))
+\]
+where $c = \codeTerm\;(\mathsf{godelSchema}\;\ldots)$.
+
+By $\eqTree$-$\thS$-$\lf$ and the companion construction, $\eval\;G$
+will be $\mathsf{falseT}$ (since $\thS\;c$ is always $\nd$-headed
+and $\comp$ produces something different).  This gives a true
+sentence.  By the companion-consistency theorem, the equation
+$G = \reify\;\mathsf{falseT}$ is unprovable.
+
+\subsection{Step 5: Representability and undecidability (hard)}
+
+Prove that the companion-of-$\thS$ is representable: there exists
+a proof tree whose $\thS$ output encodes the equation
+$\mathsf{compTerm}\;(\thTerm\;y) = \comp\;(\thS\;y)$.
+Combined with the diagonal, this gives Rose's Theorem~18:
+the consistency sentence is undecidable.
+
+This is the hardest step and may require extending $\thS$ with
+additional computation axioms (cas-pair, rec-pair) so that
+$\thS$ can prove representability equations.
+
+
+\section{What the Existing GodelII.agda Provides}
+
+The existing \texttt{GodelII.agda} (600 lines) is not wasted work.
+It provides:
+
+\begin{itemize}
+\item The L\"ob-style G\"odel~II as a \emph{sanity check}: the
+  abstract argument works, confirming the proof system is set up
+  correctly.
+\item $\ProvEq$ with closure under sym/trans/axioms: directly
+  useful for showing equations are in the range of~$\thS$.
+\item The chi-translation ($\mathsf{chiForm}$, $\mathsf{chiFormTerm}$):
+  infrastructure for encoding truth values as terms, which the
+  companion function and representability proofs will use.
+\item $\mathsf{chiProvAt}$-to-$\ProvEq$: connects chi-checks to
+  provability witnesses.
+\end{itemize}
+
+\noindent
+The new Rose-style development will be a \emph{separate section}
+of \texttt{GodelII.agda} (or a new file \texttt{Rose/GodelIIRose.agda}),
+building on the same infrastructure but following Rose's proof
+structure.
+
+
+\begin{thebibliography}{9}
+\bibitem{rose1961}
+H.\,E.\ Rose,
+\emph{On the consistency and undecidability of recursive arithmetic},
+Zeitschrift f\"ur mathematische Logik und Grundlagen der Mathematik
+\textbf{7} (1961), 124--135.
+
+\bibitem{guard1963}
+J.\,R.\ Guard,
+\emph{Lecture notes on recursive arithmetic},
+Technical report, Princeton University, 1963.
+\end{thebibliography}
+
+\end{document}
