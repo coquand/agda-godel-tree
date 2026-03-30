@@ -555,44 +555,43 @@ stripStep =
 coreTreeTerm : Term (suc zero)
 coreTreeTerm = niter (linearizeTerm v0) v0 stripStep
 
--- Unit tests: coreTreeTerm computes coreTree.
-
 coreTreeWith : Tree -> Tree
 coreTreeWith t = evalWith t coreTreeTerm
 
-
--- Isolate: niter with 1-step clock.
--- niter step: v0 = state, v1 = clock. Step returns v0 (identity).
--- But v0 in the step (Term 3) is var fz, which in niter context = state.
--- Expected: niter (nd lf lf) (nd lf lf) (var fz) should return nd lf lf.
 open import Rose.Eval using (evalNiter; extEnv2)
 
--- Clock = lf: zero iterations. Should return state.
-testNiterLf : Eq (evalNiter emptyEnv lf (nd lf lf) (var fz)) (nd lf lf)
-testNiterLf = refl
+------------------------------------------------------------------------
+-- Unit tests: coreTreeTerm computes coreTree on concrete inputs.
 
--- Unit tests: coreTreeTerm computes coreTree.
-
--- lf (identity)
 testCT1 : Eq (coreTreeWith lf) (coreTree lf)
 testCT1 = refl
 
--- nd lf lf = codeTerm leaf (identity, tag = tagLeaf)
 testCT2 : Eq (coreTreeWith (nd lf lf)) (coreTree (nd lf lf))
 testCT2 = refl
 
--- tagCase with scrutinee codeTerm leaf: strip cas-leaf wrapper.
 testCT3 : Eq (coreTreeWith (nd tagCase (nd (nd lf lf) (nd lf lf))))
               (coreTree (nd tagCase (nd (nd lf lf) (nd lf lf))))
 testCT3 = refl
 
--- tagRec with scrutinee codeTerm leaf: strip rec-leaf wrapper.
 testCT4 : Eq (coreTreeWith (nd tagRec (nd (nd lf lf) (nd lf lf))))
               (coreTree (nd tagRec (nd (nd lf lf) (nd lf lf))))
 testCT4 = refl
 
--- tagNiter (identity, no stripping)
 testCT5 : Eq (coreTreeWith (nd (nd lf (nd lf (nd lf (nd lf (nd lf lf))))) (nd lf lf)))
               (coreTree (nd (nd lf (nd lf (nd lf (nd lf (nd lf lf))))) (nd lf lf)))
 testCT5 = refl
+
+-- Nested stripping: cas-leaf wrapping a cas-leaf
+testCT6 : Eq (coreTreeWith (nd tagCase (nd (nd lf lf)
+              (nd (nd tagCase (nd (nd lf lf) (nd lf lf))) lf))))
+              (coreTree (nd tagCase (nd (nd lf lf)
+              (nd (nd tagCase (nd (nd lf lf) (nd lf lf))) lf))))
+testCT6 = refl
+
+-- NOTE: The general correctness proof coreTreeTerm-correct requires
+-- a fixpoint lemma for niter (since the clock depends on the tree
+-- structure and Agda can't reduce linearize for variable sub-trees).
+-- The 6 unit tests above verify correctness on concrete inputs.
+-- A rec-based reformulation of coreTreeTerm would make the general
+-- proof easier, since evalRec always reduces on nd nodes.
 
