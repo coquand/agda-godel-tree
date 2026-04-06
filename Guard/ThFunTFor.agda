@@ -132,15 +132,15 @@ ndDispatch = branch (tc n0) case0 ndT1
 ------------------------------------------------------------------------
 -- lf-data dispatch
 
-private
-  dataIsLf : Fun2
-  dataIsLf = Fan (Lift Snd) (kF2 O) TreeEq
+dataIsLf : Fun2
+dataIsLf = Fan (Lift Snd) (kF2 O) TreeEq
 
+private
   tag13Check : Fun2
   tag13Check = Fan (Lift Fst) (kF2 (reify (natCode n13))) TreeEq
 
-  lfDispatch : Fun2
-  lfDispatch = branch tag13Check case13 (kF2 O)
+lfDispatch : Fun2
+lfDispatch = branch tag13Check case13 (kF2 O)
 
 ------------------------------------------------------------------------
 -- thFunStep : Fun2

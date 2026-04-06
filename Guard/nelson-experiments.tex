@@ -1,0 +1,480 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Internal Verification of Proof Checking\\
+in Guard--Rose Recursive Arithmetic:\\
+Experiments Toward Nelson's Program}
+\author{Summary of Agda development}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+We investigate, within a formalization of G\"odel's second incompleteness
+theorem for recursive arithmetic, the extent to which the system can
+\emph{internally verify its own proof-checking function}. This is
+motivated by Nelson's program~\cite{nelson}, which asks whether the
+consistency of a system such as primitive recursive arithmetic can be
+proved within the system itself---and whether the resulting self-application
+leads to a contradiction.
+
+The formalization uses an equational system of binary-tree recursive
+arithmetic that combines features of Rose~\cite{rose1961} and
+Guard~\cite{guard1963}. From Rose we take the tree-based data domain,
+the coding scheme, and the equational approach to G\"odel's theorems.
+From Guard we take the formulation with 1-ary and 2-ary functors
+(following Church's Binary Recursive Arithmetic) and the explicit
+Deriv-level proof system. The system is formalized in Agda with
+\texttt{--safe --without-K --exact-split}. No postulates are used.
+
+\section{The System}
+
+\subsection{Terms and Functors}
+
+The language has:
+\begin{itemize}
+\item \textbf{Terms}: $O$ (leaf), $\mathit{var}\;n$, $f(t)$ for $f$ a
+  1-functor, $g(t_1, t_2)$ for $g$ a 2-functor.
+\item \textbf{1-functors} (\texttt{Fun1}): $I$, $\mathit{Fst}$,
+  $\mathit{Snd}$, $\mathit{Comp}\;f\;g$, $\mathit{Comp2}\;h\;f\;g$,
+  $\mathit{Rec}\;z\;s$, $\mathit{KT}\;t$.
+\item \textbf{2-functors} (\texttt{Fun2}): $\mathit{Pair}$,
+  $\mathit{Const}$, $\mathit{Lift}\;f$, $\mathit{Post}\;f\;h$,
+  $\mathit{Fan}\;h_1\;h_2\;h$, $\mathit{IfLf}$, $\mathit{TreeEq}$.
+\item \textbf{Equations}: $t = u$ for terms $t$, $u$.
+\end{itemize}
+
+Binary trees ($\mathit{lf}$ and $\mathit{nd}\;a\;b$) serve as the data
+domain. $\mathit{reify} : \mathit{Tree} \to \mathit{Term}$ maps
+$\mathit{lf} \mapsto O$ and $\mathit{nd}\;a\;b \mapsto
+\mathit{Pair}(\mathit{reify}\;a, \mathit{reify}\;b)$.
+
+The 1-functor $\mathit{KT}\;t$ is the constant function returning~$t$.
+$\mathit{Rec}\;z\;s$ defines tree recursion with base value~$z$ and
+step function~$s$.
+
+\subsection{Derivation Rules}
+
+$\mathit{Deriv}\;\mathit{hyp}\;\mathit{eq}$ is the type of derivations
+of equation $\mathit{eq}$ from hypothesis $\mathit{hyp}$. The system has
+26~constructors, organized as follows.
+
+\medskip
+\noindent\textbf{Computation axioms} (one-step reductions):
+\begin{align}
+  \mathit{axI}&: I(t) = t \tag{tag 0}\\
+  \mathit{axFst}&: \mathit{Fst}(\mathit{Pair}(a,b)) = a \tag{tag 1}\\
+  \mathit{axSnd}&: \mathit{Snd}(\mathit{Pair}(a,b)) = b \tag{tag 2}\\
+  \mathit{axConst}&: \mathit{Const}(a,b) = a \tag{tag 3}\\
+  \mathit{axComp}&: \mathit{Comp}(f,g)(t) = f(g(t)) \tag{tag 4}\\
+  \mathit{axComp2}&: \mathit{Comp2}(h,f,g)(t) = h(f(t), g(t)) \tag{tag 5}\\
+  \mathit{axLift}&: \mathit{Lift}(f)(a,b) = f(a) \tag{tag 6}\\
+  \mathit{axPost}&: \mathit{Post}(f,h)(a,b) = f(h(a,b)) \tag{tag 7}\\
+  \mathit{axFan}&: \mathit{Fan}(h_1,h_2,h)(a,b) = h(h_1(a,b), h_2(a,b)) \tag{tag 8}\\
+  \mathit{axRecLf}&: \mathit{Rec}(z,s)(O) = z \tag{tag 9}\\
+  \mathit{axRecNd}&: \mathit{Rec}(z,s)(\mathit{Pair}(a,b)) = s(\mathit{Pair}(a,b),
+    \mathit{Pair}(\mathit{Rec}(z,s)(a), \mathit{Rec}(z,s)(b))) \tag{tag 10}
+\end{align}
+
+\noindent\textbf{Conditional and comparison axioms}:
+\begin{align}
+  \mathit{axIfLfL}&: \mathit{IfLf}(O, \mathit{Pair}(a,b)) = a \tag{tag 11}\\
+  \mathit{axIfLfN}&: \mathit{IfLf}(\mathit{Pair}(x,y), \mathit{Pair}(a,b)) = b \tag{tag 12}\\
+  \mathit{axTreeEqLL}&: \mathit{TreeEq}(O, O) = O \tag{tag 13}\\
+  \mathit{axTreeEqLN}&: \mathit{TreeEq}(O, \mathit{Pair}(a,b)) = \mathit{Pair}(O,O) \tag{tag 14}\\
+  \mathit{axTreeEqNL}&: \mathit{TreeEq}(\mathit{Pair}(a,b), O) = \mathit{Pair}(O,O) \tag{tag 15}\\
+  \mathit{axTreeEqNN}&: \mathit{TreeEq}(\mathit{Pair}(a_1,a_2), \mathit{Pair}(b_1,b_2)) \notag\\
+    &= \mathit{IfLf}(\mathit{TreeEq}(a_1,b_1),
+       \mathit{Pair}(\mathit{TreeEq}(a_2,b_2), \mathit{Pair}(O,O))) \tag{tag 16}
+\end{align}
+
+\noindent\textbf{Structural rules}:
+\begin{align}
+  \mathit{axRefl}&: t = t \tag{tag 17}\\
+  \mathit{ruleSym}&: t = u \;\Rightarrow\; u = t \tag{tag 18}\\
+  \mathit{ruleTrans}&: t = u,\; u = v \;\Rightarrow\; t = v \tag{tag 19}\\
+  \mathit{cong1}&: t = u \;\Rightarrow\; f(t) = f(u) \tag{tag 20}\\
+  \mathit{congL}&: t = u \;\Rightarrow\; g(t,x) = g(u,x) \tag{tag 21}\\
+  \mathit{congR}&: t = u \;\Rightarrow\; g(x,t) = g(x,u) \tag{tag 22}
+\end{align}
+
+\noindent\textbf{Substitution and hypothesis}:
+\begin{align}
+  \mathit{ruleInst}&: \mathit{Deriv}\;\mathit{hyp}\;\mathit{eq}
+    \;\Rightarrow\; \mathit{Deriv}\;\mathit{hyp}\;(\mathit{eq}[x := t])
+    \tag{tag 23}\\
+  \mathit{ruleHyp}&: \mathit{Deriv}\;\mathit{hyp}\;\mathit{hyp}
+    \tag{--}
+\end{align}
+
+\noindent\textbf{Schema~F} (uniqueness of tree recursion):
+\begin{align}
+  \mathit{ruleF}&: \text{if } f \text{ and } g \text{ both satisfy }
+    \mathit{Rec}\;z\;s, \text{ then } f(x) = g(x) \tag{tag 24}
+\end{align}
+Schema~F has four premises: $f(O) = z$, $f(\mathit{Pair}(x,y)) =
+s(\mathit{Pair}(x,y), \mathit{Pair}(f(x), f(y)))$, and the corresponding
+two premises for~$g$.
+
+\noindent\textbf{Constant function axiom}:
+\begin{align}
+  \mathit{axKT}&: \mathit{KT}(t)(x) = t \tag{tag 25}
+\end{align}
+
+\begin{remark}
+Tags 0--25 correspond to the 26 constructors of $\mathit{Deriv}$ and are
+used in proof-encoding trees processed by the internal proof
+checker~$\mathit{thFunTFor}$. The tag assignment follows Guard's
+approach~\cite{guard1963} of assigning G\"odel numbers to inference rules.
+\end{remark}
+
+\subsection{Relationship to Rose and Guard}
+
+Rose~\cite{rose1961} works with Ternary Recursive Arithmetic (1-ary, 2-ary,
+and 3-ary functors) over natural numbers. Guard~\cite{guard1963} works
+with Binary Recursive Arithmetic (1-ary and 2-ary functors only), following
+Church. Our system uses Guard's functor vocabulary but Rose's tree-based
+data domain. The key correspondences are:
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+\textbf{Component} & \textbf{Rose/Guard} & \textbf{Ours} \\
+\hline
+Data domain & Natural numbers & Binary trees \\
+Functors & 1-ary, 2-ary (Guard) & 1-ary, 2-ary \\
+Recursion & Primitive recursion on $\mathbb{N}$ & Tree recursion (Rec) \\
+Induction & Schema F (Rose) / simple induction (Guard) & Schema F \\
+Equality test & $a(x,y) = 0$ iff $x = y$ & $\mathit{TreeEq}(t,t) = O$ \\
+Proof evaluator & $th(y)$ (Rose) / $th(y)$ (Guard) & $\mathit{thFunTFor}$ \\
+Coded substitution & $se(x,y,z)$ / $\mathit{sub}(z,P)$ & $\mathit{substTFor}$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Guard~\cite{guard1963} proves both G\"odel incompleteness theorems for BRA.
+His proof of the second theorem (Theorem~14 in Guard) formalizes the first
+theorem's proof inside the system by showing that the proof predicate
+$th(y)$ tracks through all inference rules. Our $\mathit{thm14E}$ is the
+Agda formalization of this step.
+
+\section{Internal Proof Checker}
+
+\subsection{thFunTFor}
+
+The internal proof checker $\mathit{thFunTFor} = \mathit{Rec}\;O\;\mathit{thFunStep}$
+is a tree-recursive function defined entirely within the object language.
+It maps proof-encoding trees to coded equations: given a tree encoding a
+derivation, $\mathit{thFunTFor}$ returns $\mathit{Pair}(L, R)$ where
+$L$ and $R$ are the codes of the left and right sides of the derived equation.
+
+The step function $\mathit{thFunStep}$ is a 26-branch dispatch on the
+encoding tag. Each branch extracts the relevant components from the
+encoding and constructs the output equation code.
+
+\subsection{Proof Encodings}
+
+Each constructor of $\mathit{Deriv}$ has an encoding function
+$\mathit{enc}_k : \ldots \to \mathit{Tree}$ that produces a tree of the
+form $\mathit{nd}(\mathit{natCode}\;k)(\mathit{data})$, where $k$ is
+the tag (0--25) and $\mathit{data}$ contains the sub-proof encodings
+and auxiliary data. The encodings are strictly compositional: no
+sub-encoding is duplicated.
+
+\subsection{Derivation Size}
+
+We define $\mathit{derivSize}$ on $\mathit{Deriv}$ and prove:
+
+\begin{theorem}[DerivSize]
+The Schema~F proof $\mathit{treeEqSelfAll}$ (which proves
+$\mathit{TreeEq}(t,t) = O$ for all~$t$) uses exactly $113$ inference
+steps. The instantiation $\mathit{treeEqSelf}\;t$ uses $125$ steps,
+independent of~$t$.
+\end{theorem}
+
+Both results are verified by \texttt{refl} in Agda, confirming that the
+Schema~F proof is constant-size.
+
+\section{Nelson Experiments: Internal Verification}
+
+Motivated by Nelson's program~\cite{nelson}, we investigate whether the
+system can internally verify the correctness of its own proof checker.
+Concretely, we prove \emph{inside} $\mathit{Deriv}$ that
+$\mathit{thFunTFor}$ correctly handles specific encoding tags.
+
+\subsection{Infrastructure}
+
+\begin{definition}[Tag dispatch]
+For each tag $k \in \{0, \ldots, 25\}$, the $\mathit{ndDispatch}$ chain
+checks $\mathit{TreeEq}(\mathit{Fst}(\mathit{orig}),
+\mathit{reify}(\mathit{natCode}\;k))$ against each tag in sequence.
+A \emph{branch miss} (tag mismatch) falls through to the next branch;
+a \emph{branch hit} (tag match) selects the corresponding case function.
+\end{definition}
+
+\begin{definition}[Passthrough]
+When the left child of a tree node is $\mathit{Pair}$-tagged (i.e.,
+$\mathit{Pair}(\mathit{Pair}(a_1,a_2), b)$), all 26 tag checks fail
+because $\mathit{TreeEq}(\mathit{Pair}(\mathit{Pair}(\ldots), \ldots),
+\mathit{reify}(\mathit{natCode}\;j)) = \mathit{Pair}(O,O)$ for all~$j$.
+The dispatch falls through to $\mathit{sndArg2}$, which returns the
+recursive results: $\mathit{Pair}(\mathit{thFunTFor}(a),
+\mathit{thFunTFor}(b))$.
+\end{definition}
+
+The passthrough is proved in $\mathit{Deriv}$ by
+$\mathit{ndDispatchPairMiss}$ (from \texttt{PairPassthroughAll.agda}).
+
+\subsection{Experiment A: axRefl (tag~17)}
+
+\begin{theorem}[nelsonAxRefl]
+For all $x$:
+\[
+  \mathit{thFunTFor}(\mathit{Pair}(\mathit{tag}_{17},
+  \mathit{Pair}(x, O))) = \mathit{Pair}(x, x)
+\]
+is derivable in $\mathit{Deriv}$.
+\end{theorem}
+
+This says: the proof checker correctly handles reflexivity encodings.
+The output $\mathit{Pair}(x,x)$ is the code of $x = x$. The proof
+dispatches through 17~branch misses, hits tag~17, and reduces the
+case-17 extractor $\mathit{origA}$ to~$x$. Compile time: $0.12$s.
+
+\subsection{Experiment B: ruleTrans (tag~19)}
+
+\begin{theorem}[nelsonRuleTrans]
+For all $\mathit{sp}_1$, $\mathit{sp}_2$:
+\[
+  \mathit{thFunTFor}(\mathit{Pair}(\mathit{tag}_{19},
+  \mathit{Pair}(\mathit{sp}_1, \mathit{sp}_2)))
+  = \mathit{Pair}(\mathit{Fst}(\mathit{Fst}(\mathit{thFunTFor}(
+  \mathit{Pair}(\mathit{sp}_1, \mathit{sp}_2)))),\;
+  \mathit{Snd}(\mathit{Snd}(\mathit{thFunTFor}(
+  \mathit{Pair}(\mathit{sp}_1, \mathit{sp}_2)))))
+\]
+is derivable in $\mathit{Deriv}$.
+\end{theorem}
+
+This is the raw result: the proof checker extracts from the recursive
+evaluation of the sub-proof pair.
+
+\begin{theorem}[nelsonRuleTransFull]
+When $\mathit{sp}_1 = \mathit{Pair}(\mathit{Pair}(a_1,a_2), b_1)$ and
+$\mathit{sp}_2 = \mathit{Pair}(\mathit{Pair}(c_1,c_2), d_1)$
+(Pair-tagged, ensuring passthrough):
+\[
+  \mathit{thFunTFor}(\mathit{Pair}(\mathit{tag}_{19},
+  \mathit{Pair}(\mathit{sp}_1, \mathit{sp}_2)))
+  = \mathit{Pair}(\mathit{Fst}(\mathit{thFunTFor}(\mathit{sp}_1)),\;
+  \mathit{Snd}(\mathit{thFunTFor}(\mathit{sp}_2)))
+\]
+is derivable in $\mathit{Deriv}$.
+\end{theorem}
+
+This is the full compositional result: the proof checker on a
+$\mathit{ruleTrans}$ encoding returns the left side of the first
+sub-proof's equation paired with the right side of the second.
+The proof composes tag dispatch, the passthrough lemma, and extractor
+reduction. Compile time: $0.13$s.
+
+\subsection{Experiment C: ruleInst (tag~23)}
+
+\begin{theorem}[nelsonRuleInst]
+For Pair-tagged $\mathit{tC}$ and $\mathit{sp}$:
+\[
+  \mathit{thFunTFor}(\mathit{Pair}(\mathit{tag}_{23},
+  \mathit{Pair}(\mathit{Pair}(\mathit{tC}, \mathit{xC}), \mathit{sp})))
+  = \mathit{Pair}(\mathit{substTFor}(\mathit{Fst}(\mathit{thFunTFor}(\mathit{sp}))),\;
+  \mathit{substTFor}(\mathit{Snd}(\mathit{thFunTFor}(\mathit{sp}))))
+\]
+is derivable in $\mathit{Deriv}$.
+\end{theorem}
+
+This is the substitution case: the proof checker applies
+$\mathit{substTFor}$ (the object-level coded substitution, with free
+variables $v_{11}$, $v_{12}$) to both sides of the sub-proof's equation.
+This is the case where the self-referential coding apparatus enters
+the proof checker. Compile time: $0.14$s.
+
+\subsection{Experiment D: ruleF / Schema~F (tag~24)}
+
+\begin{theorem}[nelsonRuleF]
+For all $\mathit{fC}$, $\mathit{gC}$, $\mathit{data}$:
+\[
+  \mathit{thFunTFor}(\mathit{Pair}(\mathit{tag}_{24},
+  \mathit{Pair}(\mathit{Pair}(\mathit{fC}, \mathit{gC}), \mathit{data})))
+  = \mathit{Pair}(\mathit{Pair}(\mathit{tag}_{\mathit{ap1}},
+  \mathit{Pair}(\mathit{fC}, v_0)),\;
+  \mathit{Pair}(\mathit{tag}_{\mathit{ap1}},
+  \mathit{Pair}(\mathit{gC}, v_0)))
+\]
+is derivable in $\mathit{Deriv}$, where $v_0 = \mathit{reify}(\mathit{code}(\mathit{var}\;0))$.
+\end{theorem}
+
+The proof checker on a Schema~F encoding produces the coded equation
+$f(x) = g(x)$. This is the system verifying its own induction principle.
+Compile time: $0.12$s.
+
+\subsection{Schema~F Internal Application}
+
+\begin{theorem}[passFIsId]
+The passthrough function $\mathit{Rec}\;O\;\mathit{sndArg2}$ equals the
+identity~$I$ on all trees:
+\[
+  \mathit{Rec}(O, \mathit{sndArg2})(t) = t
+\]
+is derivable in $\mathit{Deriv}$ for all~$t$, via Schema~F.
+\end{theorem}
+
+This verifies that Schema~F can be used internally to prove properties
+of recursive functions. The proof defines both $\mathit{Rec}\;O\;\mathit{sndArg2}$
+and~$I$ as satisfying the same recursion (base $O$, step $\mathit{sndArg2}$),
+then applies $\mathit{ruleF}$.
+
+\section{Analysis}
+
+\subsection{What Succeeds}
+
+All four structurally distinct case types of the proof checker are
+internally verifiable:
+
+\begin{center}
+\begin{tabular}{llll}
+\hline
+\textbf{Experiment} & \textbf{Case} & \textbf{Structure} & \textbf{Time} \\
+\hline
+A: axRefl & tag 17 & Base (ignores recs) & 0.12s \\
+B+: ruleTrans & tag 19 & Recursive + passthrough & 0.13s \\
+C: ruleInst & tag 23 & Substitution (substTFor) & 0.14s \\
+D: ruleF & tag 24 & Induction principle & 0.12s \\
+\hline
+\end{tabular}
+\end{center}
+
+The remaining 22 cases are structural variations of these four patterns.
+The instant compile times indicate that these are native equational
+calculations for the system, not edge cases.
+
+\subsection{Assembly Obstacles}
+
+There are two levels of assembly.
+
+\textbf{Assembly~1} (first-order): combine the 26 branch lemmas into a
+single internal theorem stating that $\mathit{thFunTFor}$ obeys its
+decoding specification on all trees. This would require packaging the
+26-case step function as a single $\mathit{Fun2}$ combinator and using
+Schema~F. The obstacle is size (enormous but finite), not conceptual.
+
+\textbf{Assembly~2} (soundness): go from the decoding theorem to an
+internal consistency statement. This requires bridging the gap between
+``$\mathit{thFunTFor}$ computes this equation'' (first-order) and
+``this equation is derivable'' (involves $\mathit{Deriv}$, which is a
+meta-level type). This is the likely real failure point for Nelson's
+program in this system.
+
+\subsection{Nelson's Response}
+
+Nelson would collapse the gap by arguing that the encoding tree \emph{is}
+the derivation witness. Soundness becomes: ``$\mathit{thFunTFor}$ correctly
+decodes every tree,'' which is first-order. The experiments show this
+decoding is internally verifiable case-by-case. Whether it can be
+assembled into a global theorem via Schema~F---and whether that global
+theorem triggers the G\"odel~II contradiction---remains the decisive
+open question.
+
+\section{Supplementary: Substitution Analysis}
+
+\subsection{The 108s instForm2 Computation}
+
+The only heavy computation in the G\"odel~II formalization is
+\texttt{instForm2} in \texttt{SubstTForPrecomp.agda} (108 seconds,
+cached). This proves by \texttt{refl} that double substitution
+($v_{11}$, $v_{12}$) on an equation containing $\mathit{cstf}$ and
+$\mathit{substTFor}$ yields the expected form. The cost is
+materializing $\mathit{reify}(\mathit{crTC})$ (${\sim}400$K Term nodes).
+
+\subsection{Schematic Lemmas (Instant)}
+
+We prove schematic substitution lemmas that avoid materializing any
+large tree:
+
+\begin{itemize}
+\item $\mathit{substReify}$: $\mathit{subst}\;x\;r\;(\mathit{reify}\;t)
+  = \mathit{reify}\;t$ for all $t$ (by tree induction).
+\item $\mathit{substTForClose}$: double substitution on $\mathit{substTFor}$
+  gives $\mathit{closedSubstTFor}$ (schematic, uses $\mathit{substReify}$
+  only on the small $\mathit{tgtT}$, not on $\mathit{crTC}$).
+\item $\mathit{thFunTForSubst}$: double substitution on $\mathit{thFunTFor}$
+  replaces the embedded $\mathit{substTFor}$ (in case~23) with
+  $\mathit{closedSubstTFor}$, propagated through the 26-branch chain.
+\item $\mathit{instFormGen}$: general bridge lemma for the ruleInst step
+  of G\"odel~II, combining the above.
+\end{itemize}
+
+All compile in under $0.2$~seconds. The 108s computation has no
+counterpart in Rose's or Guard's mathematical proofs: they never
+materialize a specific numeral, but reason schematically about the
+coding functions. The schematic lemmas restore this correspondence.
+
+\subsection{Key Insight}
+
+The 108s is not caused by substitution complexity. It is caused by
+$\mathit{cstf}$ appearing in the \emph{type} of $\mathit{instForm2}$,
+which forces Agda to unfold $\mathit{cstf} =
+\mathit{closedSubstTFor}(\mathit{reify}\;\mathit{crTC}, \ldots)$ and
+thereby materialize the ${\sim}400$K-node term. Restructuring the
+G\"odel~II proof to perform $\mathit{ruleInst}$ before introducing
+$\mathit{cstf}$ (matching Rose's proof order) would eliminate this
+computation entirely.
+
+\section{File Inventory}
+
+\begin{center}
+\begin{tabular}{lrl}
+\hline
+\textbf{File} & \textbf{Lines} & \textbf{Role} \\
+\hline
+DerivSize.agda & 85 & derivSize + Schema F size = 113/125 \\
+SubstReify.agda & 120 & substReify + substClosedSTF \\
+SubstTForClose.agda & 45 & substTForClose (v12-first) \\
+ThFunTForSubst.agda & 210 & thFunTForSubst + thFunTForClosed \\
+InstForm.agda & 50 & instFormGen (general bridge) \\
+NelsonAxRefl.agda & 220 & Experiment A: axRefl \\
+NelsonRuleTrans.agda & 175 & Experiment B: ruleTrans (raw) \\
+NelsonRuleTransFull.agda & 160 & Experiment B+: ruleTrans (full) \\
+NelsonRuleInst.agda & 170 & Experiment C: ruleInst \\
+NelsonRuleF.agda & 165 & Experiment D: ruleF \\
+NelsonSchemaF.agda & 65 & Schema F: passF = I \\
+\hline
+\end{tabular}
+\end{center}
+
+Total: approximately 1465 lines of new Agda code. All files compile in
+under 0.2 seconds (excluding cached imports).
+
+\begin{thebibliography}{9}
+\bibitem{rose1961} H.\,E.\ Rose,
+\emph{On the Consistency and Undecidability of Recursive Arithmetic},
+Zeitschr.\ f.\ math.\ Logik und Grundlagen d.\ Math., Bd.~7,
+S.~124--135 (1961).
+
+\bibitem{guard1963} J.\,R.\ Guard,
+\emph{Lecture Notes on Recursive Arithmetic},
+Princeton University, Mathematics Department (1963).
+
+\bibitem{nelson} E.\ Nelson,
+\emph{Predicative Arithmetic},
+Mathematical Notes~32, Princeton University Press (1986).
+\end{thebibliography}
+
+\end{document}
