@@ -1,0 +1,336 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\title{Semantic Soundness of the Well-Chained Fragment:\\
+Nelson's Program in Guard--Rose Recursive Arithmetic}
+\author{Summary of Agda development}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+Building on the internal verification experiments of the previous
+session, we investigate the semantic soundness of the proof checker
+$\mathit{thFunTFor}$. The main results are:
+
+\begin{enumerate}
+\item A modular dispatch/extractor library for Nelson-style branch
+  verification (Assembly~1 infrastructure).
+\item A corrected semantic predicate: $\mathit{TreeEq}(L,R)=O$ is the
+  \emph{wrong} predicate; a ground-term evaluator $\mathit{evalCode}$
+  gives the right one.
+\item An inductive well-chained fragment with semantic soundness
+  proved by induction on the fragment structure.
+\item A full Nelson pipeline: from a specific $\mathit{Deriv}$ proof,
+  through encoding, through well-chainedness, to internal semantic
+  soundness.
+\end{enumerate}
+
+All results are formalized in Agda with \texttt{--safe --without-K
+--exact-split}. No postulates are used. All files compile in under
+0.2 seconds.
+
+\section{Modular Branch Verification Library}
+
+\subsection{NelsonDispatch}
+
+We factor the 26-branch dispatch chain into a reusable library.
+For each tag $k \in \{0,\ldots,25\}$, $\mathit{ndDispatchToCase}_k$
+proves:
+\[
+  \mathit{ndDispatch}(\mathit{Pair}(\mathit{reify}(\mathit{natCode}\;k),
+  \mathit{data}'), \mathit{recs})
+  = \mathit{case}_k(\ldots)
+\]
+using $\mathit{ndBranchMiss}$ and $\mathit{ndBranchHit}$ from
+$\mathit{ThFunTForCorrectDefs}$. The inequality proofs are all
+$\mathit{refl}$ (since $\mathit{natEq}\;k\;n = \mathit{false}$ for
+distinct concrete naturals).
+
+Also provides $\mathit{phase1Nd}$: the combined
+$\mathit{axRecNd} + \mathit{guardNd}$ step.
+
+\subsection{NelsonExtractors}
+
+Shared reduction lemmas:
+\begin{itemize}
+\item $\mathit{origARed}$, $\mathit{origBRed}$: extract components
+  from $\mathit{orig} = \mathit{Pair}(\mathit{tag}, \mathit{Pair}(x,y))$.
+\item $\mathit{innerPassthrough}$: the full chain
+  $\mathit{axRecNd} + \mathit{guardNd} + \mathit{ndDispatchPairMiss}
+  + \mathit{sndArg2}$ for Pair-Pair-tagged sub-encodings.
+\item $\mathit{recsBWithPassthrough}$, $\mathit{recsBLWithPassthrough}$,
+  $\mathit{recsBRWithPassthrough}$: recursive result extraction
+  via passthrough.
+\item $\mathit{mkAp1FRed}$, $\mathit{mkAp2FRed}$, $\mathit{mkEqFRed}$:
+  combinator reduction helpers.
+\end{itemize}
+
+\subsection{New Case Proofs}
+
+Using the library, three new cases are proved:
+\begin{center}
+\begin{tabular}{llll}
+\hline
+\textbf{File} & \textbf{Tag} & \textbf{Rule} & \textbf{Type} \\
+\hline
+NelsonAxI & 0 & axI & Base \\
+NelsonAxFst & 1 & axFst & Base \\
+NelsonRuleSym & 18 & ruleSym & Unary \\
+\hline
+\end{tabular}
+\end{center}
+
+Each file is 55--65 lines. The library makes adding cases mechanical.
+
+\section{Experiment E: The Wrong and Right Predicates}
+
+\subsection{The Wrong Predicate}
+
+Define:
+\[
+  \mathit{Good}(p) := \mathit{TreeEq}(\mathit{Fst}(\mathit{thFunTFor}(p)),\;
+  \mathit{Snd}(\mathit{thFunTFor}(p))) = O
+\]
+
+\begin{theorem}[NelsonExpE: Failure]
+For $p = \mathit{enc}_{\mathit{axI}}(\mathit{code}(O))$:
+\[
+  \mathit{TreeEq}(\mathit{Fst}(\mathit{thFunTFor}(p)),\;
+  \mathit{Snd}(\mathit{thFunTFor}(p))) = \mathit{Pair}(O,O)
+\]
+is derivable in $\mathit{Deriv}$. That is, $\mathit{Good}(p)$
+gives $\mathit{Pair}(O,O)$, not~$O$.
+\end{theorem}
+
+The reason: $\mathit{thFunTFor}$ returns $\mathit{Pair}(L,R)$
+where $L = \mathit{code}(I(O))$ and $R = \mathit{code}(O)$. These
+are \emph{different tree structures}: $L = \mathit{mkAp1}(\mathit{codeI},
+\mathit{code}(O))$ while $R = \mathit{code}(O)$. The equation
+$I(O) = O$ is \emph{true}, but the \emph{codes} differ structurally.
+$\mathit{TreeEq}$ compares trees, not semantic content.
+
+\subsection{The Right Predicate}
+
+Define $\mathit{evalCode} : \mathit{Fun1} = \mathit{Rec}\;O\;
+\mathit{evalStep}$, a ground-term evaluator on coded terms.
+The step function dispatches on the term tag:
+\begin{itemize}
+\item $\mathit{tagO}$: return~$O$.
+\item $\mathit{tagAp1}$: return $\mathit{evalCode}$ of the argument
+  code (strips the functor application; correct for~$I$).
+\item Default: passthrough ($\mathit{sndArg2}$).
+\end{itemize}
+
+Then define:
+\[
+  \mathit{EqTrue}(p) := \mathit{TreeEq}(\mathit{evalCode}(
+  \mathit{Fst}(\mathit{thFunTFor}(p))),\;
+  \mathit{evalCode}(\mathit{Snd}(\mathit{thFunTFor}(p)))) = O
+\]
+
+\begin{theorem}[EvalCodeCorrect: Success]
+\label{thm:eqtrue}
+For $p = \mathit{enc}_{\mathit{axI}}(\mathit{code}(O))$:
+\[
+  \mathit{EqTrue}(p)
+\]
+is derivable in $\mathit{Deriv}$. Concretely:
+$\mathit{evalCode}(\mathit{code}(I(O))) = O$ and
+$\mathit{evalCode}(\mathit{code}(O)) = O$,
+so $\mathit{TreeEq}(O, O) = O$.
+\end{theorem}
+
+\section{Semantic Soundness per Rule}
+
+\begin{definition}[SemTrue]
+$\mathit{SemTrue}(p) := \mathit{Deriv}\;\mathit{hyp}\;
+(\mathit{eqn}\;(\mathit{evalCode}(\mathit{Fst}(\mathit{thFunTFor}(p))))
+\;(\mathit{evalCode}(\mathit{Snd}(\mathit{thFunTFor}(p)))))$.
+\end{definition}
+
+\begin{theorem}[SemSoundRefl]
+$\mathit{SemTrue}(\mathit{enc}_{\mathit{axRefl}}(x))$ holds
+unconditionally.
+\end{theorem}
+
+\begin{theorem}[SemSoundAxI]
+$\mathit{SemTrue}(\mathit{enc}_{\mathit{axI}}(\mathit{code}(O)))$
+holds unconditionally (ground instance).
+\end{theorem}
+
+\begin{theorem}[SemSoundSym]
+If $\mathit{SemTrue}(\mathit{sp})$, then
+$\mathit{SemTrue}(\mathit{enc}_{\mathit{ruleSym}}(\mathit{sp}))$.
+No side condition.
+\end{theorem}
+
+\begin{theorem}[SemSoundTrans]
+If $\mathit{SemTrue}(\mathit{sp}_1)$ and
+$\mathit{SemTrue}(\mathit{sp}_2)$ and
+\[
+  \mathit{Snd}(\mathit{thFunTFor}(\mathit{sp}_1)) =
+  \mathit{Fst}(\mathit{thFunTFor}(\mathit{sp}_2))
+  \quad\text{(middle term match)}
+\]
+then $\mathit{SemTrue}(\mathit{enc}_{\mathit{ruleTrans}}(\mathit{sp}_1,
+\mathit{sp}_2))$.
+\end{theorem}
+
+The middle term match is the \emph{only} side condition.
+It holds automatically for valid proof encodings (both sides
+are $\mathit{code}(u)$ for the shared middle term~$u$), but
+fails for arbitrary trees.
+
+\section{The Well-Chained Fragment}
+
+\begin{definition}[WC]
+The inductive type $\mathit{WC}\;p\;\mathit{hyp}$ characterizes
+well-chained proof encodings:
+\begin{itemize}
+\item $\mathit{wcRefl}$: $\mathit{WC}(\mathit{enc}_{\mathit{axRefl}}(x))$.
+\item $\mathit{wcSym}$: $\mathit{WC}(\mathit{sp}) \to
+  \mathit{WC}(\mathit{enc}_{\mathit{ruleSym}}(\mathit{sp}))$.
+\item $\mathit{wcTrans}$: $\mathit{WC}(\mathit{sp}_1) \to
+  \mathit{WC}(\mathit{sp}_2) \to \mathit{match} \to
+  \mathit{WC}(\mathit{enc}_{\mathit{ruleTrans}}(\mathit{sp}_1,
+  \mathit{sp}_2))$.
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[Semantic Soundness of the Well-Chained Fragment]
+\label{thm:semsound}
+For any $p$ with $\mathit{WC}\;p\;\mathit{hyp}$:
+\[
+  \mathit{SemTrue}(p)
+\]
+Proof by induction on the $\mathit{WC}$ derivation.
+\end{theorem}
+
+\section{The Nelson Pipeline}
+
+For a specific proof $\mathit{Trans}(\mathit{Refl}(x),
+\mathit{Refl}(x))$, the full pipeline is:
+
+\begin{enumerate}
+\item \textbf{Encode}: $\mathit{encRefl} = \mathit{Pair}(\mathit{tag}_{17},
+  \mathit{Pair}(x, O))$.
+\item \textbf{Decode}: $\mathit{nelsonAxRefl}$ gives
+  $\mathit{thFunTFor}(\mathit{encRefl}) = \mathit{Pair}(x, x)$.
+\item \textbf{Match}: $\mathit{Snd}(\mathit{Pair}(x,x)) = x =
+  \mathit{Fst}(\mathit{Pair}(x,x))$ --- trivially.
+\item \textbf{WC}: $\mathit{wcTrans}(\mathit{wcRefl}, \mathit{wcRefl},
+  \mathit{match})$.
+\item \textbf{SemSound}: $\mathit{semSound}$ gives
+  $\mathit{evalCode}(L) = \mathit{evalCode}(R)$.
+\item \textbf{TreeEq}: $\mathit{TreeEq}(\mathit{evalCode}(L),
+  \mathit{evalCode}(R)) = O$.
+\end{enumerate}
+
+A deeper example, $\mathit{Sym}(\mathit{Trans}(\mathit{Refl}(x),
+\mathit{Refl}(x)))$, is also proved, demonstrating composition
+through three rules.
+
+\begin{remark}[Connection to Nelson]
+This pipeline formalizes Nelson's ``for each specific proof, the
+bounds hold'' strategy from \emph{Elements}~\cite{nelson-elements}.
+The matching conditions are \emph{derivable consequences} of
+$\mathit{thFunTFor}$ correctness for each specific proof.
+No universal claim over all trees is needed.
+\end{remark}
+
+\section{The Boundary}
+
+\subsection{Three Obstructions to Universal $\mathit{Good}(p)$}
+
+\begin{enumerate}
+\item \textbf{Base case}: $\mathit{thFunTFor}(\mathit{lf}) = O$,
+  and $\mathit{Fst}(O)$/$\mathit{Snd}(O)$ are stuck.
+\item \textbf{Middle term match}: $\mathit{ruleTrans}$ needs
+  $R_1 = L_2$, which fails for arbitrary trees (invalid proof trees exist).
+\item \textbf{TreeEq inversion}: even with the match, going from
+  $\mathit{TreeEq}(\mathit{evalCode}(L), \mathit{evalCode}(R)) = O$
+  to the equational fact $\mathit{evalCode}(L) = \mathit{evalCode}(R)$
+  requires inverting $\mathit{TreeEq}$.
+\end{enumerate}
+
+\subsection{The Precise Boundary}
+
+The obstruction is \textbf{not}:
+\begin{itemize}
+\item semantic composition (it works),
+\item recursion or induction (WC induction works),
+\item proof-checker complexity or size blow-up (all $< 0.2$s).
+\end{itemize}
+
+The obstruction \textbf{is}: the validity side conditions (e.g.,
+the middle term match for $\mathit{ruleTrans}$) are not uniformly
+provable for arbitrary proof trees. Validity is a \emph{semantic
+invariant extracted by the checker itself}, creating a dependency
+loop between validity and computation.
+
+This is the precise point where Nelson's program meets G\"odel's
+second theorem: for each specific proof, the conditions hold; but
+the universal claim requires the finitary credo, which Nelson
+considers circular.
+
+\section{File Inventory}
+
+\begin{center}
+\begin{tabular}{lrl}
+\hline
+\textbf{File} & \textbf{Lines} & \textbf{Role} \\
+\hline
+NelsonDispatch.agda & 317 & Dispatch chains for all 26 tags \\
+NelsonExtractors.agda & 339 & Shared extractors + passthrough \\
+NelsonAxI.agda & 64 & Tag 0 base case \\
+NelsonAxFst.agda & 62 & Tag 1 base case \\
+NelsonRuleSym.agda & 66 & Tag 18 unary case \\
+NelsonExpE.agda & 67 & Experiment E failure \\
+EvalCode.agda & 78 & Ground-term evaluator \\
+EvalCodeCorrect.agda & 231 & evalCode correctness \\
+EvalCodeTrans.agda & 65 & Ground composition lemma \\
+SemSoundRefl.agda & 54 & Semantic soundness: axRefl \\
+SemSoundAxI.agda & 69 & Semantic soundness: axI \\
+SemSoundSym.agda & 96 & Semantic soundness: ruleSym \\
+SemSoundTrans.agda & 119 & Semantic soundness: ruleTrans \\
+WellChained.agda & 130 & WC fragment + inductive soundness \\
+NelsonPipeline.agda & 157 & Full pipeline demonstration \\
+\hline
+\textbf{Total} & \textbf{1914} & \\
+\hline
+\end{tabular}
+\end{center}
+
+All files compile in under 0.2 seconds. No postulates.
+
+\begin{thebibliography}{9}
+\bibitem{rose1961} H.\,E.\ Rose,
+\emph{On the Consistency and Undecidability of Recursive Arithmetic},
+Zeitschr.\ f.\ math.\ Logik und Grundlagen d.\ Math., Bd.~7,
+S.~124--135 (1961).
+
+\bibitem{guard1963} J.\,R.\ Guard,
+\emph{Lecture Notes on Recursive Arithmetic},
+Princeton University, Mathematics Department (1963).
+
+\bibitem{nelson} E.\ Nelson,
+\emph{Predicative Arithmetic},
+Mathematical Notes~32, Princeton University Press (1986).
+
+\bibitem{nelson-elements} E.\ Nelson,
+\emph{Elements},
+arXiv:1510.00369 [math.LO] (2015), work in progress.
+\end{thebibliography}
+
+\end{document}
