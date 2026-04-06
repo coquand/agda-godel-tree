@@ -121,6 +121,227 @@ ndDispatchToCase3 d r =
   (ruleTrans (bm n3 n2 case2 ndT3 d r refl)
              (bh n3 case3 ndT4 d r)))
 
+-- Tag 4
+ndDispatchToCase4 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n4)) data') recs)
+                 (ap2 case4 (ap2 Pair (reify (natCode n4)) data') recs))
+ndDispatchToCase4 d r =
+  ruleTrans (bm n4 n0 case0 ndT1 d r refl)
+  (ruleTrans (bm n4 n1 case1 ndT2 d r refl)
+  (ruleTrans (bm n4 n2 case2 ndT3 d r refl)
+  (ruleTrans (bm n4 n3 case3 ndT4 d r refl)
+             (bh n4 case4 ndT5 d r))))
+
+-- Tag 5
+ndDispatchToCase5 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n5)) data') recs)
+                 (ap2 case5 (ap2 Pair (reify (natCode n5)) data') recs))
+ndDispatchToCase5 d r =
+  ruleTrans (bm n5 n0 case0 ndT1 d r refl)
+  (ruleTrans (bm n5 n1 case1 ndT2 d r refl)
+  (ruleTrans (bm n5 n2 case2 ndT3 d r refl)
+  (ruleTrans (bm n5 n3 case3 ndT4 d r refl)
+  (ruleTrans (bm n5 n4 case4 ndT5 d r refl)
+             (bh n5 case5 ndT6 d r)))))
+
+-- Tag 6
+ndDispatchToCase6 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n6)) data') recs)
+                 (ap2 case6 (ap2 Pair (reify (natCode n6)) data') recs))
+ndDispatchToCase6 d r =
+  ruleTrans (bm n6 n0 case0 ndT1 d r refl)
+  (ruleTrans (bm n6 n1 case1 ndT2 d r refl)
+  (ruleTrans (bm n6 n2 case2 ndT3 d r refl)
+  (ruleTrans (bm n6 n3 case3 ndT4 d r refl)
+  (ruleTrans (bm n6 n4 case4 ndT5 d r refl)
+  (ruleTrans (bm n6 n5 case5 ndT6 d r refl)
+             (bh n6 case6 ndT7 d r))))))
+
+-- Tag 7
+ndDispatchToCase7 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n7)) data') recs)
+                 (ap2 case7 (ap2 Pair (reify (natCode n7)) data') recs))
+ndDispatchToCase7 d r =
+  ruleTrans (bm n7 n0 case0 ndT1 d r refl)
+  (ruleTrans (bm n7 n1 case1 ndT2 d r refl)
+  (ruleTrans (bm n7 n2 case2 ndT3 d r refl)
+  (ruleTrans (bm n7 n3 case3 ndT4 d r refl)
+  (ruleTrans (bm n7 n4 case4 ndT5 d r refl)
+  (ruleTrans (bm n7 n5 case5 ndT6 d r refl)
+  (ruleTrans (bm n7 n6 case6 ndT7 d r refl)
+             (bh n7 case7 ndT8 d r)))))))
+
+-- Tag 8
+ndDispatchToCase8 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n8)) data') recs)
+                 (ap2 case8 (ap2 Pair (reify (natCode n8)) data') recs))
+ndDispatchToCase8 d r =
+  ruleTrans (bm n8 n0 case0 ndT1 d r refl)
+  (ruleTrans (bm n8 n1 case1 ndT2 d r refl)
+  (ruleTrans (bm n8 n2 case2 ndT3 d r refl)
+  (ruleTrans (bm n8 n3 case3 ndT4 d r refl)
+  (ruleTrans (bm n8 n4 case4 ndT5 d r refl)
+  (ruleTrans (bm n8 n5 case5 ndT6 d r refl)
+  (ruleTrans (bm n8 n6 case6 ndT7 d r refl)
+  (ruleTrans (bm n8 n7 case7 ndT8 d r refl)
+             (bh n8 case8 ndT9 d r))))))))
+
+-- Tag 9
+ndDispatchToCase9 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n9)) data') recs)
+                 (ap2 case9 (ap2 Pair (reify (natCode n9)) data') recs))
+ndDispatchToCase9 d r =
+  ruleTrans (bm n9 n0 case0 ndT1 d r refl)
+  (ruleTrans (bm n9 n1 case1 ndT2 d r refl)
+  (ruleTrans (bm n9 n2 case2 ndT3 d r refl)
+  (ruleTrans (bm n9 n3 case3 ndT4 d r refl)
+  (ruleTrans (bm n9 n4 case4 ndT5 d r refl)
+  (ruleTrans (bm n9 n5 case5 ndT6 d r refl)
+  (ruleTrans (bm n9 n6 case6 ndT7 d r refl)
+  (ruleTrans (bm n9 n7 case7 ndT8 d r refl)
+  (ruleTrans (bm n9 n8 case8 ndT9 d r refl)
+             (bh n9 case9 ndT10 d r)))))))))
+
+-- Tag 10
+ndDispatchToCase10 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n10)) data') recs)
+                 (ap2 case10 (ap2 Pair (reify (natCode n10)) data') recs))
+ndDispatchToCase10 d r =
+  ruleTrans (bm n10 n0 case0 ndT1  d r refl)
+  (ruleTrans (bm n10 n1 case1 ndT2  d r refl)
+  (ruleTrans (bm n10 n2 case2 ndT3  d r refl)
+  (ruleTrans (bm n10 n3 case3 ndT4  d r refl)
+  (ruleTrans (bm n10 n4 case4 ndT5  d r refl)
+  (ruleTrans (bm n10 n5 case5 ndT6  d r refl)
+  (ruleTrans (bm n10 n6 case6 ndT7  d r refl)
+  (ruleTrans (bm n10 n7 case7 ndT8  d r refl)
+  (ruleTrans (bm n10 n8 case8 ndT9  d r refl)
+  (ruleTrans (bm n10 n9 case9 ndT10 d r refl)
+             (bh n10 case10 ndT11 d r))))))))))
+
+-- Tag 11
+ndDispatchToCase11 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n11)) data') recs)
+                 (ap2 case11 (ap2 Pair (reify (natCode n11)) data') recs))
+ndDispatchToCase11 d r =
+  ruleTrans (bm n11 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n11 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n11 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n11 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n11 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n11 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n11 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n11 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n11 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n11 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n11 n10 case10 ndT11 d r refl)
+             (bh n11 case11 ndT12 d r)))))))))))
+
+-- Tag 12
+ndDispatchToCase12 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n12)) data') recs)
+                 (ap2 case12 (ap2 Pair (reify (natCode n12)) data') recs))
+ndDispatchToCase12 d r =
+  ruleTrans (bm n12 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n12 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n12 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n12 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n12 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n12 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n12 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n12 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n12 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n12 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n12 n10 case10 ndT11 d r refl)
+  (ruleTrans (bm n12 n11 case11 ndT12 d r refl)
+             (bh n12 case12 ndT13 d r))))))))))))
+
+-- Tag 13
+ndDispatchToCase13 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n13)) data') recs)
+                 (ap2 case13 (ap2 Pair (reify (natCode n13)) data') recs))
+ndDispatchToCase13 d r =
+  ruleTrans (bm n13 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n13 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n13 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n13 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n13 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n13 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n13 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n13 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n13 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n13 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n13 n10 case10 ndT11 d r refl)
+  (ruleTrans (bm n13 n11 case11 ndT12 d r refl)
+  (ruleTrans (bm n13 n12 case12 ndT13 d r refl)
+             (bh n13 case13 ndT14 d r)))))))))))))
+
+-- Tag 14
+ndDispatchToCase14 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n14)) data') recs)
+                 (ap2 case14 (ap2 Pair (reify (natCode n14)) data') recs))
+ndDispatchToCase14 d r =
+  ruleTrans (bm n14 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n14 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n14 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n14 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n14 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n14 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n14 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n14 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n14 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n14 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n14 n10 case10 ndT11 d r refl)
+  (ruleTrans (bm n14 n11 case11 ndT12 d r refl)
+  (ruleTrans (bm n14 n12 case12 ndT13 d r refl)
+  (ruleTrans (bm n14 n13 case13 ndT14 d r refl)
+             (bh n14 case14 ndT15 d r))))))))))))))
+
+-- Tag 15
+ndDispatchToCase15 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n15)) data') recs)
+                 (ap2 case15 (ap2 Pair (reify (natCode n15)) data') recs))
+ndDispatchToCase15 d r =
+  ruleTrans (bm n15 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n15 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n15 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n15 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n15 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n15 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n15 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n15 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n15 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n15 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n15 n10 case10 ndT11 d r refl)
+  (ruleTrans (bm n15 n11 case11 ndT12 d r refl)
+  (ruleTrans (bm n15 n12 case12 ndT13 d r refl)
+  (ruleTrans (bm n15 n13 case13 ndT14 d r refl)
+  (ruleTrans (bm n15 n14 case14 ndT15 d r refl)
+             (bh n15 case15 ndT16 d r)))))))))))))))
+
+-- Tag 16
+ndDispatchToCase16 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n16)) data') recs)
+                 (ap2 case16 (ap2 Pair (reify (natCode n16)) data') recs))
+ndDispatchToCase16 d r =
+  ruleTrans (bm n16 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n16 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n16 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n16 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n16 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n16 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n16 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n16 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n16 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n16 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n16 n10 case10 ndT11 d r refl)
+  (ruleTrans (bm n16 n11 case11 ndT12 d r refl)
+  (ruleTrans (bm n16 n12 case12 ndT13 d r refl)
+  (ruleTrans (bm n16 n13 case13 ndT14 d r refl)
+  (ruleTrans (bm n16 n14 case14 ndT15 d r refl)
+  (ruleTrans (bm n16 n15 case15 ndT16 d r refl)
+             (bh n16 case16 ndT17 d r))))))))))))))))
+
 -- Tag 17: axRefl
 ndDispatchToCase17 : (data' recs : Term) -> {hyp : Equation} ->
   Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n17)) data') recs)
@@ -222,6 +443,63 @@ ndDispatchToCase20 d r =
   (ruleTrans (bm n20 n18 case18 ndT19 d r refl)
   (ruleTrans (bm n20 n19 case19 ndT20 d r refl)
              (bh n20 case20 ndT21 d r))))))))))))))))))))
+
+-- Tag 21: congL
+ndDispatchToCase21 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n21)) data') recs)
+                 (ap2 case21 (ap2 Pair (reify (natCode n21)) data') recs))
+ndDispatchToCase21 d r =
+  ruleTrans (bm n21 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n21 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n21 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n21 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n21 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n21 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n21 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n21 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n21 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n21 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n21 n10 case10 ndT11 d r refl)
+  (ruleTrans (bm n21 n11 case11 ndT12 d r refl)
+  (ruleTrans (bm n21 n12 case12 ndT13 d r refl)
+  (ruleTrans (bm n21 n13 case13 ndT14 d r refl)
+  (ruleTrans (bm n21 n14 case14 ndT15 d r refl)
+  (ruleTrans (bm n21 n15 case15 ndT16 d r refl)
+  (ruleTrans (bm n21 n16 case16 ndT17 d r refl)
+  (ruleTrans (bm n21 n17 case17 ndT18 d r refl)
+  (ruleTrans (bm n21 n18 case18 ndT19 d r refl)
+  (ruleTrans (bm n21 n19 case19 ndT20 d r refl)
+  (ruleTrans (bm n21 n20 case20 ndT21 d r refl)
+             (bh n21 case21 ndT22 d r)))))))))))))))))))))
+
+-- Tag 22: congR
+ndDispatchToCase22 : (data' recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 ndDispatch (ap2 Pair (reify (natCode n22)) data') recs)
+                 (ap2 case22 (ap2 Pair (reify (natCode n22)) data') recs))
+ndDispatchToCase22 d r =
+  ruleTrans (bm n22 n0  case0  ndT1  d r refl)
+  (ruleTrans (bm n22 n1  case1  ndT2  d r refl)
+  (ruleTrans (bm n22 n2  case2  ndT3  d r refl)
+  (ruleTrans (bm n22 n3  case3  ndT4  d r refl)
+  (ruleTrans (bm n22 n4  case4  ndT5  d r refl)
+  (ruleTrans (bm n22 n5  case5  ndT6  d r refl)
+  (ruleTrans (bm n22 n6  case6  ndT7  d r refl)
+  (ruleTrans (bm n22 n7  case7  ndT8  d r refl)
+  (ruleTrans (bm n22 n8  case8  ndT9  d r refl)
+  (ruleTrans (bm n22 n9  case9  ndT10 d r refl)
+  (ruleTrans (bm n22 n10 case10 ndT11 d r refl)
+  (ruleTrans (bm n22 n11 case11 ndT12 d r refl)
+  (ruleTrans (bm n22 n12 case12 ndT13 d r refl)
+  (ruleTrans (bm n22 n13 case13 ndT14 d r refl)
+  (ruleTrans (bm n22 n14 case14 ndT15 d r refl)
+  (ruleTrans (bm n22 n15 case15 ndT16 d r refl)
+  (ruleTrans (bm n22 n16 case16 ndT17 d r refl)
+  (ruleTrans (bm n22 n17 case17 ndT18 d r refl)
+  (ruleTrans (bm n22 n18 case18 ndT19 d r refl)
+  (ruleTrans (bm n22 n19 case19 ndT20 d r refl)
+  (ruleTrans (bm n22 n20 case20 ndT21 d r refl)
+  (ruleTrans (bm n22 n21 case21 ndT22 d r refl)
+             (bh n22 case22 ndT23 d r))))))))))))))))))))))
 
 -- Tag 23: ruleInst
 ndDispatchToCase23 : (data' recs : Term) -> {hyp : Equation} ->
