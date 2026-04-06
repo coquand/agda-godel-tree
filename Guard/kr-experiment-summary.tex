@@ -1,0 +1,194 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{question}[theorem]{Question}
+
+\title{Oblivious Invariants and the Nelson--G\"odel Boundary}
+\author{Experiment report --- Guard tree system}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{The experiment}
+
+Starting from the formalized diagonal proof of G\"odel~II in the Guard tree system (\texttt{GodelII.agda}, 0 postulates), we asked: does a non-diagonal (Kritchman--Raz) proof look different through the lens of feasible verification?
+
+We built three layers of tools:
+
+\begin{enumerate}
+\item \texttt{eval} (= evalCode): the existing crude evaluator. Handles only tagO and strips tagAp1. Fails on all other computation axioms.
+
+\item \texttt{geval} (\texttt{GroundEval.agda}): a full ground evaluator dispatching on all functor codes (I, Fst, Snd, KT, Rec, Comp, Comp2, Pair, Const, Lift, Post, Fan, IfLf, TreeEq). Handles ground computation and --- crucially --- Schema~F.
+
+\item \texttt{checkProof2}: runs \texttt{thFun} on a proof encoding, then checks \texttt{geval} agreement on both sides.
+\end{enumerate}
+
+\section{What passes \texttt{checkProof2}}
+
+All results verified by Agda (type-checking as \texttt{refl}).
+
+\begin{center}
+\begin{tabular}{lp{7cm}c}
+\toprule
+\textbf{File} & \textbf{Proof} & \textbf{checkProof2} \\
+\midrule
+GroundEval & axI, axRefl, axKT, axFst, axSnd, axRecLf, axRecNd, axTreeEqLN & true \\
+GroundEval & ruleInst with ground substitution & true \\
+KRIterate & iterate I O at clock 0: full chain (axRecLf + congL + axTreeEqLN) & true \\
+KRIterate & axRecNd for iterate at clock 1 & true \\
+KRSchemaF & Schema~F comparing Comp2(TreeEq, I, I) with KT(O) & true \\
+KRShortProof & Schema~F: natCodeIter never outputs $\xi$ & true \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{The short proof}
+
+The central result (\texttt{KRShortProof.agda}):
+
+\begin{theorem}[Verified in Agda]
+There exists a constant-size proof in the Guard system that
+$$\mathrm{TreeEq}(\mathrm{natCodeIter}(t),\; \mathrm{reify}(\xi)) \;=\; \mathrm{Pair}(O, O)$$
+for all trees $t$, where $\xi = \mathtt{nd}(\mathtt{nd}\;\mathtt{lf}\;\mathtt{lf})\;\mathtt{lf}$. The proof uses Schema~F and passes \texttt{checkProof2}.
+\end{theorem}
+
+The proof has four components (base/step for $h$ and $g$) plus the Schema~F rule. Total: $O(1)$ proof steps, independent of any parameter.
+
+\subsection{Why it works: oblivious invariants}
+
+Define $h(t) = \mathrm{TreeEq}(\mathrm{natCodeIter}(t),\; \xi_T)$ and $g = \mathrm{KT}(\mathrm{Pair}(O,O))$.
+
+\textbf{Base}: $h(O) = \mathrm{TreeEq}(O,\; \mathrm{Pair}(\mathrm{Pair}(O,O), O)) = \mathrm{Pair}(O,O) = g(O)$ by axTreeEqLN.
+
+\textbf{Step}: $h(\mathrm{Pair}(a,b)) = \mathrm{TreeEq}(\mathrm{Pair}(O, \mathrm{natCodeIter}(b)),\; \mathrm{Pair}(\mathrm{Pair}(O,O), O))$
+\begin{align*}
+&= \mathrm{IfLf}(\mathrm{TreeEq}(O, \mathrm{Pair}(O,O)),\; \mathrm{Pair}(\mathrm{TreeEq}(\mathrm{natCodeIter}(b), O),\; \mathrm{Pair}(O,O))) \\
+&= \mathrm{IfLf}(\mathrm{Pair}(O,O),\; \mathrm{Pair}(\ldots,\; \mathrm{Pair}(O,O))) \\
+&= \mathrm{Pair}(O,O) = g(\mathrm{Pair}(a,b))
+\end{align*}
+
+The key: the IfLf dispatch is on $\mathrm{TreeEq}(O, \mathrm{Pair}(O,O)) = \mathrm{Pair}(O,O)$, which is \textbf{ground}. The variables $a$ and $b$ only appear inside the second component of the Pair argument to IfLf, which gets \textbf{discarded} because the first argument is nonzero. The invariant \textbf{short-circuits before examining any variable}.
+
+\begin{definition}
+An \emph{oblivious invariant} for a program $p$ against a target $\xi$ is a property $P$ such that:
+\begin{enumerate}
+\item $P$ is checkable by comparing a fixed structural feature of $p$'s output with a fixed structural feature of $\xi$.
+\item The comparison short-circuits (via TreeEq/IfLf) at a \textbf{ground} position, before reaching any variable-dependent data.
+\item $P$ is preserved by $p$'s step function (provable by Schema~F).
+\end{enumerate}
+\end{definition}
+
+For natCodeIter (= identity on natCode values): the oblivious invariant is ``$\mathrm{Fst}(\text{output}) = O$,'' since $\mathrm{prepend0}$ always puts $O$ on the left, while $\mathrm{Fst}(\xi) = \mathrm{Pair}(O,O) \ne O$.
+
+\section{What this means for Nelson}
+
+\subsection{The proof complexity question}
+
+The standard KR argument requires proving ``$K(\xi) > l$'' for a specific $\xi$, which means: for each of the $\le 2^l$ programs of size $\le l$, none outputs $\xi$ at any clock. The brute-force proof has size exponential in $l$.
+
+The oblivious invariant approach replaces this with: for each program $p$, find a structural invariant $P_p$ and prove it by Schema~F. Each such proof has constant size. If there are $N(l)$ programs of size $\le l$, the total proof has size $O(N(l))$ --- the number of programs, not the number of program-clock pairs.
+
+\subsection{The critical question}
+
+\begin{question}
+Does every program of bounded code-size admit an oblivious invariant against some fixed target $\xi$?
+\end{question}
+
+If yes: the KR pigeonhole proof has size $O(N(l))$ (one constant-size Schema~F proof per program), and each component passes \texttt{checkProof2}. The obstacle is $N(l)$, which is exponential in $l$ but \textbf{not} doubly exponential (no enumeration over clocks). The proof is short relative to the search space.
+
+If no: some programs require non-oblivious arguments (where the invariant depends on the clock value), and these may need ruleInst (BLevel $\ge 1$) or other variable-dependent reasoning.
+
+\subsection{Which programs have oblivious invariants?}
+
+\begin{itemize}
+\item \textbf{Constant programs} (KT $v$): trivially oblivious. Output is always $v$. Compare $v \ne \xi$ at the top level.
+
+\item \textbf{Right-spine builders} (prepend0, prepend1 iterations): oblivious. The left child is always a fixed value (O or Pair(O,O)), which can be compared with $\mathrm{Fst}(\xi)$.
+
+\item \textbf{Machines with a fixed point}: if $\mathrm{step}(v) = v$ and the machine reaches $v$, then the tail of the computation is constant. The oblivious invariant is $\text{output} = v$.
+
+\item \textbf{Machines with growing output}: e.g., a machine that builds a complete binary tree. The output's structure changes at every step. An oblivious invariant might not exist --- the inequality with $\xi$ may depend on examining the FULL output, not just a fixed component.
+\end{itemize}
+
+\subsection{Nelson's program, refined}
+
+The experiment suggests:
+
+\begin{quote}
+\emph{The feasibility of consistency proofs in the KR framework depends on the existence of oblivious invariants. For programs with oblivious invariants, the consistency argument is feasible (short proof, ground verification). For programs without oblivious invariants, the argument may require variable-dependent reasoning (BLevel $\ge 1$).}
+\end{quote}
+
+This is a sharper formulation than ``diagonal vs.\ non-diagonal.'' The distinction is not about the proof method (diagonal or pigeonhole) but about the \textbf{structure of the programs being analyzed}:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Program type} & \textbf{Invariant} & \textbf{Proof size / BLevel} \\
+\midrule
+Constant (KT $v$) & trivially oblivious & $O(1)$ / BLevel 0 \\
+Right-spine (prepend) & structurally oblivious & $O(1)$ / BLevel 0 \\
+Fixed-point machine & eventually oblivious & $O(T)$ / BLevel 0 \\
+Arbitrary iterate & unknown & open \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The question ``can we salvage Nelson?'' becomes: \emph{for a suitable choice of $\xi$, does every program of bounded code-size have an oblivious invariant against $\xi$?}
+
+If the answer is yes for some constructible $\xi$, then the KR argument goes through with short proofs at BLevel~0, and Nelson's feasibility claim is vindicated for this system.
+
+\section{Connection to proof complexity}
+
+The oblivious invariant approach connects to proof complexity via:
+
+\begin{itemize}
+\item \textbf{Proof size}: each invariant proof is $O(1)$. Total for $l$: $O(N(l))$ where $N(l) \le 2^l$.
+\item \textbf{Cook's PV}: the verification (\texttt{geval}) is polynomial-time. The invariant CONSTRUCTION is the search problem.
+\item \textbf{P vs NP}: finding the right invariant for each program is a search problem. If there's a uniform way to construct invariants from program structure, the construction is efficient. If not, it requires case analysis over all programs.
+\end{itemize}
+
+The obstacle is NOT the verification (always polynomial) and NOT the universal over clocks (handled by Schema~F). The obstacle is the NUMBER of programs to handle. This is a \textbf{counting obstacle}, not a \textbf{structural obstacle}. It's the same
+$2^l$ as in the pigeonhole, but now each program contributes $O(1)$ to the proof instead of $O(\text{clocks})$.
+
+\section{Files produced}
+
+\begin{center}
+\begin{tabular}{lp{8cm}}
+\toprule
+\textbf{File} & \textbf{Content} \\
+\midrule
+Machine.agda & Leivant register machines, iterate combinator, correctness proofs \\
+FindError.agda & Metalevel eval, checkProof, findError \\
+GroundEval.agda & Full ground evaluator (geval), checkProof2, all functor dispatch \\
+KRInstance.agda & Ground KR instances, discovery that eval fails on most axioms \\
+KRIterate.agda & Iterate computation verification via checkProof2 \\
+KRSchemaF.agda & Schema~F passes checkProof2 (general argument) \\
+KRShortProof.agda & Short proof: natCodeIter never outputs $\xi$ via oblivious invariant \\
+KR.agda & KR argument skeleton, Kolmogorov complexity definitions \\
+Machine.agda & Register machines, iterate combinator \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{What remains}
+
+\begin{enumerate}
+\item \textbf{Test more programs}: check whether Comp-based and Comp2-based programs (non-iterate) admit oblivious invariants.
+
+\item \textbf{Characterize oblivious invariants}: which program structures guarantee existence? Is there a syntactic criterion on Fun1 terms?
+
+\item \textbf{The $\xi$ construction}: can $\xi$ be chosen so that ALL programs of size $\le l$ have oblivious invariants? This may require $\xi$ to have a very specific ``hard to compute'' structure.
+
+\item \textbf{Internalize geval}: can geval for BLevel $k$ be defined as a Fun1 at BLevel $k+1$? This would give the stratified consistency proof Nelson may have envisioned.
+
+\item \textbf{Build the full KR proof}: assemble invariant proofs for all programs of size $\le l$ into a pigeonhole proof, and check the entire thing with \texttt{checkProof2}.
+\end{enumerate}
+
+\end{document}

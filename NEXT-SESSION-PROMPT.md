@@ -1,62 +1,72 @@
-# Next Session: Kritchman-Raz via Leivant Machines
+# Next Session: Oblivious Invariants and Nelson
 
 ## Setup
 Use `~/.cabal/bin/agda-2.9.0`. The Guard/ directory has the complete formalization.
 
-## What exists
+## What was built this session
 
-### Nelson-WC Boundary (complete)
-- `WellChained.agda` (475 lines): 16 WC constructors, semSound
-- `BoundaryQuantitative.agda` (293 lines): WC0 (zero-backtracking), semSound0 with no external conditions
-- `NelsonWCBoundary.agda` (233 lines): proofEToWC, derivToWC, obstruction theorem
-- `nelson-wc-boundary.tex` (7 pages): write-up with connections to Nelson and Aschieri
+### Leivant machines (Machine.agda)
+- iterate combinator: `Rec init (Post f (Post Snd sndArg))` gives f^n(init) on natCode n
+- Proved: iterBase, iterNd, iterSuc; copyStep halt/advance correctness
 
-### Gödel II (diagonal, complete)
-- `GodelII.agda`: standard diagonal argument via thFunTFor + Schema F
+### Feasibility tools
+- `FindError.agda`: metalevel eval + checkProof + findError (crude evalCode)
+- `GroundEval.agda`: full ground evaluator geval dispatching ALL functors including Rec/Comp/Comp2/Post/Fan/Lift. checkProof2 using geval.
+- `KRIterate.agda`: iterate computations pass checkProof2
+- `KRSchemaF.agda`: Schema F passes checkProof2 (general argument: universal truth → geval agrees)
 
-### Key finding
-The obstruction to uniform internal soundness is the evalCode side condition (EvalOK). But this is specific to the diagonal proof. A KR-based proof would have a DIFFERENT obstruction — about computation bounds rather than tag dispatch — which might connect more directly to Aschieri's complexity analysis.
+### The key result (KRShortProof.agda)
+A **constant-size** Schema F proof that natCodeIter never outputs ξ = nd(nd lf lf) lf:
+- h = Comp2 TreeEq natCodeIter (KT xiT), g = KT(Pair(O,O))
+- Base: TreeEq(O, Pair(Pair(O,O), O)) = Pair(O,O) by axTreeEqLN
+- Step: TreeEq(Pair(O, nci(v1)), Pair(Pair(O,O), O)): IfLf dispatches on TreeEq(O, Pair(O,O)) = Pair(O,O) (ground, nonzero) → returns Pair(O,O) without examining v1
+- Schema F: h(var 0) = g(var 0) = Pair(O,O). Meaning: natCodeIter(t) ≠ ξ for ALL trees.
+- checkProof2 = true (verified by Agda refl)
 
-## What to do
+This is an **oblivious invariant**: the proof short-circuits at a ground comparison before reaching any variable-dependent data.
 
-### Goal: Kritchman-Raz Gödel II in the tree system
+## The sharp question
 
-Following Nelson's Elements §17-19 and Leivant:
+**Does every program of bounded code-size admit an oblivious invariant against some fixed ξ?**
 
-1. **Register machines in the tree system**
-   - Strings as trees (binary: nd for bit, lf for empty)
-   - Registers as tuple of trees
-   - Commands: 0 (prepend zero), 1 (prepend one), P (predecessor), C (case)
-   - Key property (Leivant §3.3): one-step function uses NO recursion, just Pair/Fst/Snd/IfLf
-   - Multi-step: Rec applied to the step function
+If yes: the KR pigeonhole proof is O(N(l)) in size (one O(1) Schema F proof per program), all at BLevel 0, all passing checkProof2. Nelson's feasibility claim holds.
 
-2. **Kolmogorov complexity**
-   - K(x) = length of shortest machine producing x
-   - K is unbounded but K(specific-string) is provable for each string
-   - Formalize as a bounded predicate in the system
+If no: some programs need variable-dependent reasoning (BLevel ≥ 1).
 
-3. **The KR surprise examination argument**
-   - 2^{ℓ+1} strings but < 2^{ℓ+1} machines of length ≤ ℓ
-   - Pigeonhole: some ξ has K(ξ) > ℓ
-   - If system proves consistency → can bound Chaitin machine search → contradiction
+## What to do next
 
-4. **The new obstruction**
-   - Where does the Buss-Tao gap appear in the KR formalization?
-   - What replaces EvalOK as the side condition?
-   - Does the BLevel stratification correspond to the surprise-exam δ parameter?
+### 1. Test more program types
+- Comp-based programs: e.g., Comp Fst (Comp2 Pair I I). Does the output have a fixed structural feature?
+- Comp2-based: e.g., Comp2 Pair Fst Snd (swap). Apply to natCode values — what's the invariant?
+- Rec-based (non-iterate): general tree recursion. Can the output's structure be characterized obliviously?
 
-### The sharp question
+### 2. Characterize which programs have oblivious invariants
+A program p has an oblivious invariant against ξ if there exists a position (a path of Fst/Snd projections) where p's outputs are always a fixed value differing from ξ's value at that position.
 
-Does the Nelson-WC boundary look different when Gödel II uses pigeonhole (KR) instead of diagonalization? Specifically:
-- Is the obstruction still about evalCode/substTFor, or about computation bounds?
-- Does the BLevel hierarchy align with the KR induction on δ?
-- Can Aschieri's backtracking level be connected to the KR complexity bounds?
+For iterate f init: this requires that some projection of the output is constant across all iterations. This holds when f preserves a projection (e.g., Fst(f(x)) = Fst(x) or Fst(f(x)) = c for constant c).
 
-### References
-- Elements §17 (Leivant register machines), §18 (incompleteness without diagonalization), §19 (the inconsistency theorem)
-- Leivant, "Ramified recurrence and computational complexity I", 1994
-- Kritchman-Raz, "The Surprise Examination", Notices AMS 2010
-- Aschieri, "Game Semantics and the Geometry of Backtracking", 2016
+**Conjecture**: for any ξ with sufficiently "complex" structure (e.g., ξ has Fst = Pair(O,O) but all small programs produce outputs with Fst = O or Fst = Pair(O,O)), there's an oblivious invariant.
 
-### Technical note
-The one-step-without-recursion property is what makes Leivant machines a good fit for our system. A single step is a Fun2 term (composition of IfLf, Pair, Fst, Snd). This avoids the substTFor commutativity problem at the single-step level — the issue only arises when iterating (Rec).
+### 3. The ξ construction
+Choose ξ so that at every Fst/Snd projection, ξ's value differs from what any small program can produce at that position. This is a combinatorial construction on trees.
+
+### 4. Internalize geval
+Can geval for BLevel k be defined as a Fun1 at BLevel k+1? This would:
+- Close the feasibility loop (the system verifies itself, level by level)
+- Give the stratified consistency proof Nelson may have envisioned
+- Connect to Cook's PV hierarchy
+
+### 5. Connect to proof complexity
+The oblivious invariant approach gives proof size O(N(l)) for the pigeonhole instance. N(l) ≤ 2^l. Is there a way to batch the invariant proofs (prove them collectively rather than one per program)? This would reduce proof size further.
+
+## Key insight for Nelson
+The obstacle to feasible consistency is NOT:
+- verification (always polynomial — geval works)
+- universal over clocks (Schema F handles it at BLevel 0)
+- self-reference (KR avoids diagonalization)
+
+The obstacle IS:
+- the NUMBER of programs (2^l of them need invariant proofs)
+- whether oblivious invariants exist for all programs
+
+This is a **counting obstacle**, not a structural or logical one. It's amenable to combinatorial analysis, not blocked by Gödel's theorem per se.
