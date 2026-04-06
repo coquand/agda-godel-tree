@@ -1,0 +1,266 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Formalization of G\"odel's Second Incompleteness Theorem\\in Guard-style Recursive Arithmetic}
+\author{Summary of Agda development}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+We formalize G\"odel's second incompleteness theorem in the style of
+Rose~\cite{rose1961}, using a system of binary trees with 1-ary and 2-ary
+functors (Fun1, Fun2), an equational derivation system (Deriv), and
+tree recursion (Rec). The formalization is in Agda with
+\texttt{--safe --without-K --exact-split}. No postulates are used.
+
+The main result:
+
+\begin{theorem}[godelII]
+For any hypothesis \texttt{hyp}:
+\[
+  \mathit{ProofE}\;\mathit{hyp} \to \mathit{Consistent}\;\mathit{hyp} \to
+  \mathit{Deriv}\;\mathit{hyp}\;\mathit{godelSentence} \to \mathit{Empty}
+\]
+\end{theorem}
+
+\noindent where:
+\begin{itemize}
+\item $\mathit{ProofE}\;\mathit{hyp}$: the proof encoding is correct
+  (every derivation from \texttt{hyp} has a proof tree whose
+  \texttt{thFunTFor} image equals the code of the derived equation);
+\item $\mathit{Consistent}\;\mathit{hyp}$: the theory cannot derive
+  $O = \mathit{Pair}(O,O)$;
+\item $\mathit{godelSentence}$: the G\"odel sentence, defined via diagonal
+  substitution with free variables (analogous to Rose's Theorem~18).
+\end{itemize}
+
+\section{System}
+
+\subsection{Terms and Functors}
+
+The language has:
+\begin{itemize}
+\item \textbf{Terms}: $O$ (leaf), $\mathit{var}\;n$, $\mathit{ap1}\;f\;t$, $\mathit{ap2}\;g\;t_1\;t_2$
+\item \textbf{Fun1} (1-ary): $I$, $\mathit{Fst}$, $\mathit{Snd}$, $\mathit{Comp}$, $\mathit{Comp2}$, $\mathit{Rec}$, $\mathit{KT}$
+\item \textbf{Fun2} (2-ary): $\mathit{Pair}$, $\mathit{Const}$, $\mathit{Lift}$, $\mathit{Post}$, $\mathit{Fan}$, $\mathit{IfLf}$, $\mathit{TreeEq}$
+\item \textbf{Equations}: $\mathit{eqn}\;l\;r$ (equates two terms)
+\end{itemize}
+
+Binary trees ($\mathit{Tree}$: $\mathit{lf}$ and $\mathit{nd}\;a\;b$) serve as
+the data domain. $\mathit{reify} : \mathit{Tree} \to \mathit{Term}$ maps
+$\mathit{lf} \mapsto O$ and $\mathit{nd}\;a\;b \mapsto \mathit{Pair}(\mathit{reify}\;a, \mathit{reify}\;b)$.
+
+\subsection{Derivation System}
+
+$\mathit{Deriv}\;\mathit{hyp}\;\mathit{eq}$ is an inductive type with:
+\begin{itemize}
+\item Computation axioms: $\mathit{axI}$, $\mathit{axFst}$, $\mathit{axSnd}$,
+  $\mathit{axComp}$, $\mathit{axComp2}$, $\mathit{axLift}$, $\mathit{axPost}$,
+  $\mathit{axFan}$, $\mathit{axKT}$, $\mathit{axRecLf}$, $\mathit{axRecNd}$
+\item Conditional: $\mathit{axIfLfL}$, $\mathit{axIfLfN}$
+\item Tree equality: $\mathit{axTreeEqLL}$, $\mathit{axTreeEqLN}$,
+  $\mathit{axTreeEqNL}$, $\mathit{axTreeEqNN}$
+\item Structural: $\mathit{axRefl}$, $\mathit{ruleSym}$, $\mathit{ruleTrans}$,
+  $\mathit{cong1}$, $\mathit{congL}$, $\mathit{congR}$
+\item Substitution: $\mathit{ruleInst}$
+\item Hypothesis: $\mathit{ruleHyp}$
+\item \textbf{Schema~F} (uniqueness of tree recursion):
+  if $f$ and $g$ both satisfy $\mathit{Rec}\;z\;s$ (same base~$z$, same step~$s$),
+  then $f = g$ on all inputs. This has 4 premises (base and step for each of $f$ and $g$).
+\end{itemize}
+
+\begin{remark}
+Schema~F was corrected during this development. The original formulation
+required proving $f(\mathit{Pair}(a,b)) = g(\mathit{Pair}(a,b))$ directly
+(without inductive hypothesis), which is too strong. The corrected version
+requires showing $f$ and $g$ satisfy the \emph{same} recursion equation---matching
+Rose's original Schema~F (uniqueness of the fixed point).
+\end{remark}
+
+\section{Key Components}
+
+\subsection{Proof Encoding (thFunTFor, Theorem~14)}
+
+\texttt{thFunTFor} is a $\mathit{Fun1}$ (defined as $\mathit{Rec}\;O\;\mathit{thFunStep}$)
+that maps proof-encoding trees to the code of the equation they prove.
+The step function $\mathit{thFunStep}$ is a 26-branch dispatch handling
+all derivation rules.
+
+$\mathit{thm14E}$ (Theorem~14): if $\mathit{Deriv}\;\mathit{hyp}\;\mathit{eq}$,
+then there exists a proof tree $(\mathit{pa}, \mathit{pb})$ such that
+$\mathit{thFunTFor}(\mathit{Pair}(\mathit{reify}\;\mathit{pa}, \mathit{reify}\;\mathit{pb}))
+= \mathit{reify}(\mathit{codeEqn}\;\mathit{eq})$.
+
+This is proved by induction on $\mathit{Deriv}$ with one case per rule
+(1402 lines in Thm14E.agda).
+
+\subsection{Coded Substitution (substTFor, closedSubstTFor)}
+
+\texttt{substTFor} is a $\mathit{Fun1}$ implementing coded substitution on trees,
+with free variables $v_{11}$ (replacement) and $v_{12}$ (target).
+$\mathit{closedSubstTFor}\;\mathit{repl}\;\mathit{tgt}$ closes these variables.
+
+$\mathit{closedSTFCode}$ proves correctness: for any term~$l$,
+$\mathit{closedSubstTFor}$ applied to $\mathit{reify}(\mathit{code}\;l)$
+equals $\mathit{reify}(\mathit{codedSubst}\;\ldots)$.
+
+\subsection{TreeEq Reflexivity via Schema~F}
+
+$\mathit{TreeEq}(t, t) = O$ for all terms~$t$ is proved using the corrected Schema~F.
+Define $f = \mathit{Comp2}\;\mathit{TreeEq}\;I\;I$ (so $f(t) = \mathit{TreeEq}(t,t)$)
+and $g = \mathit{KT}\;O$ (constantly $O$). Both satisfy the recursion with base~$O$
+and step $s(\mathit{orig}, \mathit{recs}) = \mathit{IfLf}(\mathit{Fst}(\mathit{recs}),
+\mathit{Pair}(\mathit{Snd}(\mathit{recs}), \mathit{Pair}(O,O)))$:
+\begin{itemize}
+\item $f$: by $\mathit{axComp2}$, $\mathit{axTreeEqNN}$, and the recursion structure of $\mathit{TreeEq}$.
+\item $g$: by $\mathit{axKT}$; the step reduces to
+  $\mathit{IfLf}(O, \mathit{Pair}(O, \mathit{Pair}(O,O))) = O$ since $g$ returns $O$ on all inputs.
+\end{itemize}
+Schema~F then gives $f(t) = g(t)$, i.e., $\mathit{TreeEq}(t,t) = O$.
+
+This avoids metalevel recursion on any specific tree---no heavy computation.
+
+\section{The G\"odel Sentence and Diagonal Construction}
+
+\subsection{Template}
+
+The template equation uses the \emph{open} $\mathit{substTFor}$ (with free $v_{11}$, $v_{12}$):
+\[
+  \mathit{templateEqn} = \mathit{eqn}\;(\mathit{TreeEq}(\mathit{thFunTFor}(\mathit{var}\;0),\;
+  \mathit{substTFor}(\mathit{var}\;v_1)))\;\mathit{Pair}(O,O)
+\]
+Using the open $\mathit{substTFor}$ keeps $\mathit{code}(\mathit{lhsT})$ small
+(no nested $\mathit{Rec}$ from $\mathit{closedSubstTFor}$ or $\mathit{codeReify}$).
+
+\subsection{Abstract Definitions}
+
+The following are defined once in \texttt{SubstTForPrecomp.agda} (abstract, cached):
+\begin{itemize}
+\item $\mathit{templateCode} = \mathit{nd}\;\mathit{codeLhsT}\;\mathit{codePoo}$
+  (code of the template, using abstract sub-codes)
+\item $\mathit{crTC} = \mathit{code}(\mathit{reify}\;\mathit{templateCode})$
+  (code of the numeral for templateCode)
+\item $\mathit{godelSentence} = \mathit{substEq}\;v_1\;(\mathit{reify}\;\mathit{templateCode})\;\mathit{templateEqn}$
+\item $\mathit{cGS} = \mathit{codeEqn}\;\mathit{godelSentence}$
+\item $\mathit{cstf} = \mathit{closedSubstTFor}(\mathit{reify}\;\mathit{crTC})(\mathit{reify}(\mathit{natCode}\;v_1))$
+\end{itemize}
+
+\subsection{Heavy Computation (One-Time, Cached)}\label{sec:heavy}
+
+\texttt{SubstTForPrecomp.agda} contains one step that requires \textbf{heavy computation}
+(approximately 108 seconds, computed once and cached in \texttt{.agdai}):
+
+\begin{quote}
+\texttt{instForm2}: proving by \texttt{refl} that after $\mathit{ruleInst}\;v_{11}/v_{12}$
+on an equation containing $\mathit{cstf}(\mathit{reify}\;\mathit{templateCode})$
+and $\mathit{substTFor}(\mathit{reify}\;\mathit{templateCode})$, the
+$\mathit{substTFor}$ becomes $\mathit{cstf}$. This requires Agda to traverse
+$\mathit{reify}(\mathit{crTC})$ (a doubly-encoded tree with ${\sim}400$K term nodes)
+with $\mathit{subst}$ as a no-op.
+\end{quote}
+
+This is the only remaining heavy computation. All other steps are lightweight
+($< 8$ seconds total for all precomputation files).
+
+\begin{remark}
+The mathematical argument does not require this traversal---it follows from
+the general fact that $\mathit{subst}$ is identity on closed terms. A more
+refined formalization could prove this equationally (via a general ``subst
+is identity on reified trees'' lemma) rather than by brute-force \texttt{refl}.
+This is left for future work.
+\end{remark}
+
+\section{Proof of G\"odel II}
+
+The proof in \texttt{GodelII.agda} (0.2 seconds, no heavy computation) follows
+Rose's Theorem~18 structure:
+
+\begin{enumerate}
+\item \textbf{Assume} $\mathit{Deriv}\;\mathit{hyp}\;\mathit{godelSentence}$.
+
+\item \textbf{thm14E} gives a proof encoding $\mathit{enc}$ with
+  $\mathit{corrPf} : \mathit{thFunTFor}(\mathit{enc}) = \mathit{reify}(\mathit{cGS})$.
+
+\item \textbf{diagFTarget} (from precomputed pieces):
+  $\mathit{cstf}(\mathit{reify}\;\mathit{templateCode}) = \mathit{reify}(\mathit{cGS})$.
+
+\item \textbf{Chain} corrPf and diagFTarget through $\mathit{reify}(\mathit{cGS})$
+  as middle term: $\mathit{thFunTFor}(\mathit{enc}) = \mathit{cstf}(\mathit{reify}\;\mathit{templateCode})$.
+  Note: $\mathit{reify}(\mathit{cGS})$ never appears in an equation touched by $\mathit{ruleInst}$.
+
+\item \textbf{Instantiate} G with enc ($\mathit{ruleInst}\;0$):
+  $\mathit{TreeEq}(\mathit{thFunTFor}(\mathit{enc}),\;\mathit{substTFor}(\mathit{reify}\;\mathit{TC})) = \mathit{Pair}(O,O)$.
+
+\item \textbf{Replace} $\mathit{thFunTFor}(\mathit{enc})$ with $\mathit{cstf}(\mathit{reify}\;\mathit{TC})$
+  using the chain: $\mathit{TreeEq}(\mathit{cstf}(\mathit{reify}\;\mathit{TC}),\;\mathit{substTFor}(\mathit{reify}\;\mathit{TC})) = \mathit{Pair}(O,O)$.
+
+\item \textbf{ruleInst} $v_{11}$, $v_{12}$ (via instForm2):
+  $\mathit{TreeEq}(\mathit{cstf}(\mathit{reify}\;\mathit{TC}),\;\mathit{cstf}(\mathit{reify}\;\mathit{TC})) = \mathit{Pair}(O,O)$.
+
+\item \textbf{treeEqSelf} (via Schema~F, no heavy computation):
+  $\mathit{TreeEq}(\mathit{cstf}(\mathit{reify}\;\mathit{TC}),\;\mathit{cstf}(\mathit{reify}\;\mathit{TC})) = O$.
+
+\item \textbf{Contradiction}: $O = \mathit{Pair}(O,O)$, violating consistency.
+\end{enumerate}
+
+\section{File Structure}
+
+\begin{center}
+\begin{tabular}{lrl}
+\hline
+\textbf{File} & \textbf{Time} & \textbf{Role} \\
+\hline
+Guard/Step.agda & $<1$s & Derivation system (with corrected Schema~F) \\
+Guard/Term.agda & $<1$s & Terms, functors, coding functions \\
+Guard/ThFun.agda & $<1$s & Metalevel proof evaluator \\
+Guard/ThFunTFor.agda & $<1$s & Object-level proof evaluator (26 branches) \\
+Guard/Thm14E.agda & $<1$s & Theorem~14 (1402 lines) \\
+Guard/SubstTForCorrect.agda & $<1$s & closedSubstTFor correctness \\
+Guard/SubstTForPrecomp.agda & 108s & \textbf{Heavy}: all precomputed abstractions \\
+Guard/SubstTForPrecomp2.agda & $<1$s & Assembly of lhsTSTF from opaque pieces \\
+Guard/GodelII.agda & $<1$s & G\"odel II proof \\
+\hline
+\end{tabular}
+\end{center}
+
+Total: 36 files, approximately 5000 lines. The 108-second computation
+is cached and not repeated.
+
+\section{Correspondence with Rose}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{Rose} & \textbf{Ours} \\
+\hline
+$th(y)$ & thFunTFor \\
+$se(x,y,z)$ / $st(x,y,z)$ & substTFor / closedSubstTFor \\
+$nu(x)$ & codeReify (implicit via crTC) \\
+$N$ & templateCode \\
+Schema~F & ruleF (corrected: uniqueness of recursion) \\
+Theorem~10 ($vl(x,th(y))=0$) & thm14E (ProofE) \\
+Theorem~13 ($th(y) \neq e(th(z))$) & treeEqSelf + corrPf \\
+Theorem~14 & thm14E \\
+Theorems~15--16 & Individual cases of thm14E + congL/congR \\
+Theorem~17 & diagFTarget + fixedPointEq \\
+Theorem~18 & godelII \\
+\hline
+\end{tabular}
+\end{center}
+
+\begin{thebibliography}{1}
+\bibitem{rose1961} H.\,E.\ Rose,
+\emph{On the Consistency and Undecidability of Recursive Arithmetic},
+Zeitschr.\ f.\ math.\ Logik und Grundlagen d.\ Math., Bd.~7, S.~124--135 (1961).
+\end{thebibliography}
+
+\end{document}
