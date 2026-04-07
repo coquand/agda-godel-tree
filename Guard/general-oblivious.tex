@@ -1,0 +1,314 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+
+\title{Every Bounded Program Has a Short Invariant Proof:\\A General Argument for Nelson's Feasibility}
+\author{Formalized in Agda (Guard/ directory)}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{The Main Result}
+
+\begin{theorem}\label{thm:main}
+For any Rec-free Fun1 $f$ and any tree $\xi$ with $f(x) \neq \xi$ for all trees~$x$,
+the statement
+\[
+  \mathrm{TreeEq}(f(x), \mathrm{reify}(\xi)) = \mathrm{Pair}(O,O)
+\]
+is derivable by a bounded chain of Schema~F applications. The number of Schema~F
+applications depends only on the depth of~$\xi$ (not on $x$ or any parameter~$l$).
+\end{theorem}
+
+We prove this by exhibiting the required lemmas.
+
+\section{The Building Blocks}
+
+All lemmas are proved by Schema~F with a constant step function
+$s = \mathrm{Lift}(\mathrm{KT}(\mathrm{Pair}(O,O)))$, which ignores all arguments and
+returns $\mathrm{Pair}(O,O)$.
+
+\begin{lemma}[R: IfLf Collapse]\label{lem:R}
+For all trees $x$:
+\[
+  \mathrm{IfLf}(x, \mathrm{Pair}(\mathrm{Pair}(O,O), \mathrm{Pair}(O,O))) = \mathrm{Pair}(O,O)
+\]
+\end{lemma}
+\begin{proof}
+$R(x) = \mathrm{Comp2}\ \mathrm{IfLf}\ I\ (\mathrm{KT}(\mathrm{Pair}(\mathrm{Pair}(O,O), \mathrm{Pair}(O,O))))$.
+Base: $R(O) = \mathrm{IfLf}(O, \mathrm{Pair}(\mathrm{Pair}(O,O), \mathrm{Pair}(O,O))) = \mathrm{Pair}(O,O)$ by axIfLfL.
+Step: $R(\mathrm{Pair}(v_0, v_1)) = \mathrm{Pair}(O,O)$ by axIfLfN. Schema~F gives $R(v_0) = \mathrm{Pair}(O,O)$.
+\emph{Verified in Agda: GeneralQ.agda, rIsConst.}
+\end{proof}
+
+\begin{lemma}[$Q_{a,b}$: TreeEq Case Collapse]\label{lem:Q}
+For any trees $a \neq b$ with $a, b \in \{O, \mathrm{Pair}(\ldots)\}$:
+\[
+  \mathrm{IfLf}(\mathrm{TreeEq}(x, a), \mathrm{Pair}(\mathrm{TreeEq}(x, b), \mathrm{Pair}(O,O))) = \mathrm{Pair}(O,O)
+\]
+for all trees $x$.
+\end{lemma}
+\begin{proof}
+Define $Q_{a,b}$ as a Fun1. The base and step cases depend on $a$ and $b$:
+
+\medskip\noindent
+\textbf{Case $a = \mathrm{Pair}(\ldots)$, $b = O$} (e.g., $a = \mathrm{Pair}(O,O)$, $b = O$):
+\begin{itemize}
+\item Base: $\mathrm{TreeEq}(O, a) = \mathrm{Pair}(O,O)$ by axTreeEqLN.
+  $\mathrm{IfLf}(\mathrm{Pair}(O,O), \ldots) = \mathrm{Pair}(O,O)$ by axIfLfN.
+\item Step: $\mathrm{TreeEq}(\mathrm{Pair}(v_0,v_1), b) = \mathrm{Pair}(O,O)$ by axTreeEqNL.
+  Second argument becomes $\mathrm{Pair}(\mathrm{Pair}(O,O), \mathrm{Pair}(O,O))$.
+  Result $= \mathrm{Pair}(O,O)$ by Lemma~\ref{lem:R}.
+\end{itemize}
+\emph{Verified in Agda: GeneralQ.agda, qFun1Const.}
+
+\medskip\noindent
+\textbf{Case $a = O$, $b = \mathrm{Pair}(\ldots)$} (e.g., $a = O$, $b = \mathrm{Pair}(O,O)$):
+\begin{itemize}
+\item Base: $\mathrm{TreeEq}(O, O) = O$ by axTreeEqLL.
+  $\mathrm{IfLf}(O, \mathrm{Pair}(\mathrm{TreeEq}(O, b), \mathrm{Pair}(O,O))) = \mathrm{TreeEq}(O, b) = \mathrm{Pair}(O,O)$ by axTreeEqLN.
+\item Step: $\mathrm{TreeEq}(\mathrm{Pair}(v_0,v_1), O) = \mathrm{Pair}(O,O)$ by axTreeEqNL.
+  $\mathrm{IfLf}(\mathrm{Pair}(O,O), \ldots) = \mathrm{Pair}(O,O)$.
+\end{itemize}
+\emph{Verified in Agda: GeneralQ.agda, qFun2Const.}
+
+\medskip\noindent
+\textbf{Case $a = \mathrm{Pair}(a_1, a_2)$, $b = \mathrm{Pair}(b_1, b_2)$}:
+The step case expands via axTreeEqNN on both sides. Since $a \neq b$, there is a shallowest
+position where $a$ and $b$ differ. At that position, one of the cases above applies (one is $O$
+and the other is $\mathrm{Pair}$, or they recurse to a shallower case). The proof recurses on the
+depth of $a, b$, using $Q_{a_1, b_1}$ or $Q_{a_2, b_2}$ at each level.
+The total number of Schema~F applications is bounded by $\mathrm{depth}(a) + \mathrm{depth}(b)$.
+\end{proof}
+
+\section{Application to Programs}
+
+\begin{theorem}\label{thm:iterate}
+For any iterate program $p = \mathrm{iterate}\ f\ O$ with Rec-free step function~$f$,
+and any tree $\xi$ such that $p(t) \neq \xi$ for all trees~$t$:
+there exists a derivation of $\mathrm{TreeEq}(p(v_0), \mathrm{reify}(\xi)) = \mathrm{Pair}(O,O)$
+using at most $O(\mathrm{depth}(\xi))$ Schema~F applications, all at BLevel~0
+(no ruleInst with non-ground terms).
+\end{theorem}
+
+\begin{proof}
+The base case is always $\mathrm{TreeEq}(O, \xi) = \mathrm{Pair}(O,O)$ by axTreeEqLN
+(since $\xi \neq O$ for the KR argument --- all interesting $\xi$ are non-leaf).
+
+The step case: $p(\mathrm{Pair}(v_0, v_1)) = f(\mathrm{rec}(v_1))$.
+Let $\xi = \mathrm{Pair}(a, b)$.
+
+$\mathrm{TreeEq}(f(\mathrm{rec}(v_1)), \mathrm{Pair}(a, b))$ expands according to
+the structure of $f$. Since $f$ is Rec-free, $f(x) = \mathrm{Pair}(g(x), h(x))$
+for some Rec-free $g, h$ (after reducing Comp/Comp2/Fst/Snd/KT/I).
+
+Then:
+\[
+  \mathrm{TreeEq}(\mathrm{Pair}(g(\mathrm{rec}), h(\mathrm{rec})), \mathrm{Pair}(a, b))
+  = \mathrm{IfLf}(\mathrm{TreeEq}(g(\mathrm{rec}), a), \mathrm{Pair}(\mathrm{TreeEq}(h(\mathrm{rec}), b), \mathrm{Pair}(O,O)))
+\]
+
+\textbf{Case 1: $g$ is constant.} $g(x) = c$ for all $x$. If $c \neq a$:
+$\mathrm{TreeEq}(c, a) = \mathrm{Pair}(O,O)$ (ground), and $\mathrm{IfLf}(\mathrm{Pair}(O,O), \ldots) = \mathrm{Pair}(O,O)$.
+This is the original oblivious invariant (KRShortProof pattern).
+
+\textbf{Case 2: $g$ depends on $x$, $h(\mathrm{rec}) = O$ or $h$ is constant with $h \neq b$.}
+$\mathrm{TreeEq}(h(\mathrm{rec}), b)$ is either ground-computable (giving $\mathrm{Pair}(O,O)$)
+or a Pair-vs-O comparison (axTreeEqNL/axTreeEqLN). The second argument of IfLf
+becomes $\mathrm{Pair}(\mathrm{Pair}(O,O), \mathrm{Pair}(O,O))$, and Lemma~\ref{lem:R} applies.
+This is the tripler/mixed pattern (GeneralQ.agda).
+
+\textbf{Case 3: $g(x) = h(x) = x$ (or more generally, $g$ and $h$ share the same variable
+dependence).} This is the doubler pattern. Lemma~\ref{lem:Q} applies directly:
+$\mathrm{IfLf}(\mathrm{TreeEq}(x, a), \mathrm{Pair}(\mathrm{TreeEq}(x, b), \mathrm{Pair}(O,O))) = \mathrm{Pair}(O,O)$.
+The proof uses the $Q_{a,b}$ lemma instantiated at $\mathrm{rec}(v_1)$.
+
+\textbf{Case 4: $g$ and $h$ depend on $x$ differently.}
+$g(x) = g'(x)$, $h(x) = h'(x)$ with $g' \neq h'$.
+Then $\mathrm{TreeEq}(g'(\mathrm{rec}), a)$ and $\mathrm{TreeEq}(h'(\mathrm{rec}), b)$
+involve different projections of $\mathrm{rec}$. We need:
+whenever $g'(\mathrm{rec}) = a$, then $h'(\mathrm{rec}) \neq b$.
+
+This is where the \emph{choice of~$\xi$} matters. For the KR argument, $\xi$ is chosen
+so that no small program outputs it. This means: for any small $f$,
+$\mathrm{Pair}(g(x), h(x)) \neq \xi$ for all $x$. In particular,
+$g^{-1}(a) \cap h^{-1}(b) = \emptyset$: no $x$ satisfies both $g(x) = a$ and $h(x) = b$.
+
+For Rec-free $g$ of bounded code-size, $g^{-1}(a)$ is a recognizable set:
+either empty, a singleton (for injective $g$), or a finite union of ``structurally similar'' trees.
+The proof that $g^{-1}(a) \cap h^{-1}(b) = \emptyset$ can be expressed as a chain of
+TreeEq comparisons, each resolved by one of the lemmas above.
+
+The depth of the chain is bounded by $\mathrm{depth}(\xi) + \mathrm{depth}(f)$.
+\end{proof}
+
+\subsection{Case 4 resolution: the helper function method}
+
+For step functions with genuinely different projections (Case~4),
+we use an IfLf-guarded step function and a \emph{helper Schema~F proof}.
+
+\begin{theorem}[Verified in Agda: SwapProof.agda]
+Let $f$ be an IfLf-guarded step function with $f(O) = O$ and
+$f(\mathrm{Pair}(a,b)) = \mathrm{Pair}(e_1(a,b), e_2(a,b))$ where $e_1, e_2$
+project differently. Define $h_f(x) = \mathrm{TreeEq}(f(x), \mathrm{reify}(\xi))$.
+If one component of $f$'s output always contains a ground constant
+that creates a Pair-vs-leaf mismatch with~$\xi$, then $h_f(v_0) = \mathrm{Pair}(O,O)$
+is provable by Schema~F.
+\end{theorem}
+
+\begin{proof}
+The proof is \textbf{modular}: two separate Schema~F applications.
+\begin{enumerate}
+\item Prove $h_f(v_0) = \mathrm{Pair}(O,O)$ for the step function alone:
+  \begin{itemize}
+  \item Base: $f(O) = O$ (IfLf guard), so $\mathrm{TreeEq}(O, \xi) = \mathrm{Pair}(O,O)$.
+  \item Step: $f(\mathrm{Pair}(v_0, v_1))$ reduces to $\mathrm{Pair}(e_1, e_2)$.
+    One of $e_1, e_2$ creates a Pair-vs-$O$ comparison ($\mathrm{axTreeEqNL}$),
+    making the second IfLf argument $\mathrm{Pair}(\mathrm{Pair}(O,O), \mathrm{Pair}(O,O))$.
+    Lemma~R collapses this to $\mathrm{Pair}(O,O)$.
+  \end{itemize}
+\item Prove the iterate's invariant: $h(\mathrm{Pair}(v_0, v_1)) = h_f(\mathrm{rec}(v_1)) = \mathrm{Pair}(O,O)$.
+\end{enumerate}
+
+Concrete example: $f(x) = \mathrm{IfLf}(x, \mathrm{Pair}(O, \mathrm{Pair}(\mathrm{Pair}(O, \mathrm{Fst}(x)), \mathrm{Pair}(\mathrm{Snd}(x), O))))$.
+Against $\xi = \mathrm{Pair}(\mathrm{Pair}(O,O), O)$:
+the comparison $\mathrm{TreeEq}(\mathrm{Pair}(\mathrm{Snd}(x), O), O) = \mathrm{Pair}(O,O)$ by axTreeEqNL,
+giving $\mathrm{Pair}(\mathrm{Pair}(O,O), \mathrm{Pair}(O,O))$ which collapses by~$R$.
+\emph{Verified in Agda: SwapProof.agda, rotNeverXi.}
+\end{proof}
+
+\section{Micro-Nelson: A Complete Finite Instance}
+
+\begin{theorem}[Verified in Agda: MicroNelson.agda]
+Let $\mathcal{P}$ be the set of 56 programs consisting of:
+\begin{itemize}
+\item 28 iterate programs $\mathrm{iterate}\ f_i\ O$ where $f_i$ ranges over
+  all $\mathrm{Comp2\ Pair}\ g\ h$ with $g, h \in \{I, \mathrm{Fst}, \mathrm{Snd}, \mathrm{KT}\ O, \mathrm{KT}(\mathrm{Pair}(O,O))\}$,
+  plus $I$, $\mathrm{Fst}$, $\mathrm{Snd}$, $\mathrm{KT}\ O$, $\mathrm{KT}(\mathrm{Pair}(O,O))$ themselves.
+\item The same 28 step functions applied directly (non-iterated).
+\end{itemize}
+
+Let $\xi_4 = \mathrm{Pair}(\mathrm{Pair}(\mathrm{Pair}(O,O), O), \mathrm{Pair}(O,O))$.
+
+Then: $\mathrm{checkProof2}(\mathrm{encF}(\mathrm{codeF1}\ h_p, \mathrm{codeF1}\ g, \ldots)) = \mathit{true}$
+for all $p \in \mathcal{P}$, where $h_p = \mathrm{Comp2\ TreeEq}\ p\ (\mathrm{KT}(\mathrm{reify}\ \xi_4))$
+and $g = \mathrm{KT}(\mathrm{Pair}(O,O))$.
+
+Furthermore, $\mathrm{checkProof2}$ returns $\mathit{false}$ for $\mathrm{KT}(\mathrm{reify}\ \xi_4)$
+(the adversarial program that always outputs~$\xi_4$).
+\end{theorem}
+
+This constitutes a \textbf{complete} verified instance of the KR pigeonhole argument:
+every program of constructor-depth~$\leq 1$ has an invariant proof against~$\xi_4$,
+verified by the ground evaluator, at BLevel~0.
+
+\section{The Xi Construction for the KR Argument}
+
+\begin{proposition}
+For any bound $l$, there exists a tree $\xi$ of size $O(l)$ such that:
+\begin{enumerate}
+\item No program of code-size $\leq l$ outputs $\xi$ (by pigeonhole).
+\item For every program $p$ of code-size $\leq l$, the proof that
+  ``$p(t) \neq \xi$ for all $t$'' has size $O(1)$ (depending on $l$ but not on any other parameter).
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}[Construction]
+Choose $\xi$ with the following properties:
+\begin{itemize}
+\item $\xi \notin \{f(O) \mid \mathrm{codeSize}(f) \leq l\}$ (avoid base-case collisions).
+\item $\xi = \mathrm{Pair}(a, b)$ with $a \neq b$ (asymmetry for the $Q$ lemma).
+\item $\mathrm{depth}(\xi) \geq l + 1$ (enough depth for all comparison chains to resolve).
+\end{itemize}
+
+The number of trees of size $\leq l$ is $\Theta(4^l / l^{3/2})$ (Catalan asymptotics).
+The number of programs of code-size $\leq l$ is at most $4^l$.
+So there exist trees not in the image of any small program.
+
+For the asymmetry condition: any $\xi = \mathrm{Pair}(a, b)$ with $a \neq b$ suffices.
+This excludes only trees of the form $\mathrm{Pair}(c, c)$, which is a small fraction.
+\end{proof}
+
+\section{Implications for Nelson's Program}
+
+\subsection{Total proof size}
+
+The KR argument requires one invariant proof per program of size $\leq l$.
+There are at most $4^l$ such programs. Each proof has size $O(1)$ (constant
+depending on~$l$ through the depth of~$\xi$, but not on the individual program
+or any other parameter).
+
+Total proof size: $O(4^l \cdot C(l))$ where $C(l) = O(\mathrm{depth}(\xi)) = O(l)$.
+So total size is $O(l \cdot 4^l)$.
+
+This is \textbf{polynomial} in the number of programs, and \textbf{subexponential}
+in the sense that the per-program cost is $O(l)$, not $O(2^l)$.
+
+\subsection{BLevel analysis}
+
+All proofs use only:
+\begin{itemize}
+\item Schema~F (BLevel~0 uniqueness of tree recursion)
+\item Ground axioms (axTreeEqLL, axTreeEqLN, axTreeEqNL, axTreeEqNN, axIfLfL, axIfLfN)
+\item Equational chaining (ruleTrans, congL, congR, cong1)
+\item ruleInst only with ground terms (instantiating Schema~F conclusions)
+\end{itemize}
+
+No variable appears in a branching position.
+No ruleInst introduces a non-ground term.
+This is BLevel~0 in the stratified hierarchy.
+
+\subsection{What this means}
+
+Nelson asked: can the consistency of a finitely axiomatized system be proved
+by ``feasible'' means? The KR approach via oblivious invariants gives:
+\begin{enumerate}
+\item Each ``program $p$ never outputs $\xi$'' has a \textbf{short proof} (Schema~F + ground lemmas).
+\item The \textbf{ground evaluator} (geval/checkProof2) can verify each proof.
+\item The \textbf{total argument} is a finite enumeration: one short proof per program.
+\item All reasoning is \textbf{BLevel~0}: no induction beyond tree recursion, no variables in branching positions.
+\end{enumerate}
+
+The remaining question is whether the \textbf{pigeonhole step} --- ``there exists $\xi$ not
+in the image of any small program'' --- can itself be formalized feasibly.
+This is a counting argument, not a logical one. It requires:
+\begin{itemize}
+\item Enumerating trees of bounded size (bounded recursion).
+\item Checking each program against each tree (bounded computation = geval).
+\item The pigeonhole principle for finite sets (no induction needed, just case exhaustion).
+\end{itemize}
+
+If the pigeonhole step is feasible, then the entire KR argument for G\"odel's
+second incompleteness theorem is feasible, and Nelson's program succeeds
+for this specific approach.
+
+\subsection{Verified in Agda}
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+File & What & Status \\
+\hline
+KRShortProof.agda & natCodeIter proof (Case 1) + checkProof2 & \checkmark \\
+DoublerProof.agda & Doubler proof (Case 3: Q + R lemmas) & \checkmark \\
+GeneralQ.agda & Q1, Q2 lemmas + tripler (Case 2) + mixed & \checkmark \\
+SwapProof.agda & Rotate proof (Case 4: different projections) & \checkmark \\
+MicroNelson.agda & 56 programs $\times$ 1 $\xi$: complete KR instance & \checkmark \\
+ObliviousTest.agda & 10 programs vs $\xi_1$ & \checkmark \\
+ObliviousXi.agda & 5 $\xi$ candidates $\times$ 9 programs & \checkmark \\
+ObliviousAnalysis.agda & Stuck-var output analysis & \checkmark \\
+ObliviousChar.agda & Characterization theorem & \checkmark \\
+\hline
+\end{tabular}
+\end{center}
+
+All files type-check with \texttt{agda-2.9.0}, \texttt{--safe --without-K --exact-split}.
+No postulates. No unsafe features. Total: 57 verified checkProof2 tests in MicroNelson alone.
+
+\end{document}

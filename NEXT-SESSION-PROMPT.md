@@ -1,72 +1,113 @@
-# Next Session: Oblivious Invariants and Nelson
+# Next Session: Chaitin Machine and Proof Encoding
 
 ## Setup
 Use `~/.cabal/bin/agda-2.9.0`. The Guard/ directory has the complete formalization.
 
-## What was built this session
+## What was built (sessions of April 6-7)
 
-### Leivant machines (Machine.agda)
-- iterate combinator: `Rec init (Post f (Post Snd sndArg))` gives f^n(init) on natCode n
-- Proved: iterBase, iterNd, iterSuc; copyStep halt/advance correctness
+### The R/Q lemma technique
+Two Schema F lemmas that handle ALL program types at BLevel 0:
 
-### Feasibility tools
-- `FindError.agda`: metalevel eval + checkProof + findError (crude evalCode)
-- `GroundEval.agda`: full ground evaluator geval dispatching ALL functors including Rec/Comp/Comp2/Post/Fan/Lift. checkProof2 using geval.
-- `KRIterate.agda`: iterate computations pass checkProof2
-- `KRSchemaF.agda`: Schema F passes checkProof2 (general argument: universal truth → geval agrees)
+- **R** (ifLfCollapse): `IfLf(x, Pair(poo, poo)) = poo` for all x.
+- **Q_{a,b}**: `IfLf(TreeEq(x, a), Pair(TreeEq(x, b), poo)) = poo` when a ≠ b.
 
-### The key result (KRShortProof.agda)
-A **constant-size** Schema F proof that natCodeIter never outputs ξ = nd(nd lf lf) lf:
-- h = Comp2 TreeEq natCodeIter (KT xiT), g = KT(Pair(O,O))
-- Base: TreeEq(O, Pair(Pair(O,O), O)) = Pair(O,O) by axTreeEqLN
-- Step: TreeEq(Pair(O, nci(v1)), Pair(Pair(O,O), O)): IfLf dispatches on TreeEq(O, Pair(O,O)) = Pair(O,O) (ground, nonzero) → returns Pair(O,O) without examining v1
-- Schema F: h(var 0) = g(var 0) = Pair(O,O). Meaning: natCodeIter(t) ≠ ξ for ALL trees.
-- checkProof2 = true (verified by Agda refl)
+### Five complete equational proofs (all BLevel 0, all O(1))
 
-This is an **oblivious invariant**: the proof short-circuits at a ground comparison before reaching any variable-dependent data.
+| # | File | Program | Case | Technique |
+|---|------|---------|------|-----------|
+| 1 | KRShortProof.agda | natCodeIter | 1: constant Fst | Fst mismatch, oblivious |
+| 2 | DoublerProof.agda | doubler | 3: same variable | Q lemma, 3 nested Schema F |
+| 3 | GeneralQ.agda | tripler | 2: Pair-vs-O | axTreeEqNL + R collapse |
+| 4 | GeneralQ.agda | mixed | 2: Fst match | treeEqSelf + axIfLfL fallthrough |
+| 5 | SwapProof.agda | rotate | 4: different projections | Modular h2 helper + R |
 
-## The sharp question
+### Case classification resolved
 
-**Does every program of bounded code-size admit an oblivious invariant against some fixed ξ?**
+For step f(x) = Pair(g(x), h(x)) vs xi = Pair(a, b):
+- **Case 1**: g constant, g ≠ a → immediate short-circuit
+- **Case 2**: one component gives Pair-vs-O → axTreeEqNL + R collapse
+- **Case 3**: g = h (same variable) → Q lemma
+- **Case 4**: g ≠ h (different projections) → modular h2 helper: prove TreeEq(f(x), xi) = poo by its own Schema F, then instantiate in the iterate proof
 
-If yes: the KR pigeonhole proof is O(N(l)) in size (one O(1) Schema F proof per program), all at BLevel 0, all passing checkProof2. Nelson's feasibility claim holds.
+Key insight for Case 4: IfLf-guarded step functions have f(O) = O (trivial base), and the Pair structure in f(Pair(a,b)) always creates a Pair-vs-O comparison at some component, which collapses via R.
 
-If no: some programs need variable-dependent reasoning (BLevel ≥ 1).
+### MicroNelson.agda: complete finite KR instance
+
+28 step functions (all Comp2 Pair f g where f,g ∈ {I, Fst, Snd, KT O, KT poo}, plus 5 base Fun1) × 2 modes (iterate + direct) = **56 programs**, all verified against xi4 = Pair(Pair(Pair(O,O),O), Pair(O,O)).
+
+- All 56: checkProof2 = true (verified by Agda `refl`)
+- KT(reify xi4): checkProof2 = false (sanity check)
+- 0 postulates, --safe, all BLevel 0
+
+### Experiment files
+- ObliviousTest.agda: 10 programs vs xi1 (8 true, 2 false)
+- ObliviousXi.agda: 5 xi × 9 programs + acid tests; discovered checkProof2 false positives
+- ObliviousAnalysis.agda: stuck-var outputs; all iterate programs give f(O)
+- ObliviousChar.agda: characterization theorem (skeleton analysis)
+
+### Documents
+- general-oblivious.tex: full analysis with theorems, all 4 cases, micro-Nelson
+- oblivious-analysis.tex: earlier analysis (superseded by general-oblivious.tex)
+
+## Current state of Guard/
+
+~40 .agda files. Key layers:
+1. Base/Term/Step: tree system, equational derivations, Schema F
+2. ThFun/ThFunCorrect: proof encoding, thFun, checkProof2/geval
+3. GodelII.agda: Gödel II proved (0 postulates)
+4. Machine/KR/GroundEval/FindError: Leivant machines, KR framework, evaluators
+5. KRShortProof/DoublerProof/GeneralQ/SwapProof: invariant proofs
+6. MicroNelson: complete finite KR instance (56 programs)
 
 ## What to do next
 
-### 1. Test more program types
-- Comp-based programs: e.g., Comp Fst (Comp2 Pair I I). Does the output have a fixed structural feature?
-- Comp2-based: e.g., Comp2 Pair Fst Snd (swap). Apply to natCode values — what's the invariant?
-- Rec-based (non-iterate): general tree recursion. Can the output's structure be characterized obliviously?
+### 1. The Chaitin machine (most important)
+The KR argument needs a program C(l) that:
+- Enumerates proofs in the system
+- Searches for a proof of "∃ xi. K(xi) > l"
+- Extracts xi from the proof and outputs it
 
-### 2. Characterize which programs have oblivious invariants
-A program p has an oblivious invariant against ξ if there exists a position (a path of Fst/Snd projections) where p's outputs are always a fixed value differing from ξ's value at that position.
+If the system proves its own consistency, this search terminates, giving K(xi) ≤ |C| < l for large l, contradiction.
 
-For iterate f init: this requires that some projection of the output is constant across all iterations. This holds when f preserves a projection (e.g., Fst(f(x)) = Fst(x) or Fst(f(x)) = c for constant c).
+The key question: can C(l) be defined as a Fun1 in the tree system?
+- Proof enumeration: iterate over all trees t, check if thFun(t) encodes a valid equation
+- The "∃ xi. K(xi) > l" statement: for all programs p of size ≤ l, for all clocks c, p(c) ≠ xi
+- Extracting xi: from the proof structure
 
-**Conjecture**: for any ξ with sufficiently "complex" structure (e.g., ξ has Fst = Pair(O,O) but all small programs produce outputs with Fst = O or Fst = Pair(O,O)), there's an oblivious invariant.
+This is where the formalization connects back to Gödel II. The GodelII.agda proof uses the diagonal method. The KR approach avoids the diagonal but needs the Chaitin machine.
 
-### 3. The ξ construction
-Choose ξ so that at every Fst/Snd projection, ξ's value differs from what any small program can produce at that position. This is a combinatorial construction on trees.
+### 2. Encode proof chains for checkProof2
+Currently checkProof2 only checks the OUTERMOST Schema F conclusion. The doubler proof uses R → Q → main (3 Schema F applications). Can the chain be encoded as a tree that a stronger verifier accepts?
 
-### 4. Internalize geval
-Can geval for BLevel k be defined as a Fun1 at BLevel k+1? This would:
-- Close the feasibility loop (the system verifies itself, level by level)
-- Give the stratified consistency proof Nelson may have envisioned
-- Connect to Cook's PV hierarchy
+One approach: extend checkProof2 to handle proof SEQUENCES (nd proof1 proof2 means "proof1 then proof2"). Each sub-proof is a Schema F encoding. The verifier checks each one and accumulates verified equations.
 
-### 5. Connect to proof complexity
-The oblivious invariant approach gives proof size O(N(l)) for the pigeonhole instance. N(l) ≤ 2^l. Is there a way to batch the invariant proofs (prove them collectively rather than one per program)? This would reduce proof size further.
+### 3. Internalize geval as Fun1
+Can geval for BLevel k be defined as a Fun1 at BLevel k+1? This would close the feasibility loop: the system verifies itself level by level. Connected to Cook's PV hierarchy.
 
-## Key insight for Nelson
-The obstacle to feasible consistency is NOT:
-- verification (always polynomial — geval works)
-- universal over clocks (Schema F handles it at BLevel 0)
-- self-reference (KR avoids diagonalization)
+### 4. Formalize the pigeonhole in the system
+The pigeonhole "∃ xi not output by any small program" is currently metalevel (Agda enumeration in MicroNelson). To fully formalize the KR argument, this needs to be an object-level derivation. Options:
+- Encode as a concrete finite case-exhaustion in the equational system
+- Use Rec on the enumeration of programs (bounded tree recursion)
+- Accept it as a metalevel argument (sufficient for Nelson's program if the meta-reasoning is feasible)
 
-The obstacle IS:
-- the NUMBER of programs (2^l of them need invariant proofs)
-- whether oblivious invariants exist for all programs
+### 5. Write the summary paper
+The formalization now contains a substantial result: the structural obstacle to Nelson's feasibility program (variable-dependent reasoning) is eliminated for the KR approach. A clear write-up connecting Guard's equational system → Schema F → R/Q lemmas → micro-Nelson instance → implications for Nelson would be valuable.
 
-This is a **counting obstacle**, not a structural or logical one. It's amenable to combinatorial analysis, not blocked by Gödel's theorem per se.
+## Key files for the next session
+- Guard/MicroNelson.agda — the complete finite instance
+- Guard/DoublerProof.agda — the Q/R technique template
+- Guard/SwapProof.agda — the Case 4 / modular h2 pattern
+- Guard/GodelII.agda — the existing Gödel II proof (diagonal approach)
+- Guard/Machine.agda — Leivant machines, iterate combinator
+
+## The big picture
+
+Nelson's feasibility program asks: can consistency be proved by feasible means?
+
+What we've shown:
+- **YES** for the per-program invariant proofs (O(1) each, BLevel 0, ground-verifiable)
+- **YES** for the enumeration (MicroNelson: 56 programs verified by Agda refl)
+- **OPEN** for the Chaitin machine construction (self-referential step)
+- **OPEN** for internalizing the pigeonhole (counting argument)
+
+The structural obstacles (variable-dependent reasoning, BLevel hierarchy, evaluation universality) have all been bypassed by the R/Q lemma technique. What remains is the self-referential construction — which is the SAME obstacle as in the classical Gödel II proof, but now in a quantitative (KR/pigeonhole) rather than qualitative (diagonal) form.

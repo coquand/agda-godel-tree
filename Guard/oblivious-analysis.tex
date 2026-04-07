@@ -1,0 +1,211 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Oblivious Invariants for Nelson's Feasibility Program:\\Characterization and Experiments}
+\author{Formalized in Agda (Guard/ directory)}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Setup}
+
+We work in the tree-based equational system with functors
+$I, \mathrm{Fst}, \mathrm{Snd}, \mathrm{Pair}, \mathrm{Comp}, \mathrm{Comp2}, \mathrm{Rec}, \mathrm{KT},$
+$\mathrm{IfLf}, \mathrm{TreeEq}$, etc.
+A \emph{program} is a Fun1 of the form $\mathtt{iterate}\ f\ O = \mathrm{Rec}\ O\ (\mathrm{iterStep}\ f)$,
+where $f$ is the step function. The program's output on clock $c$ is
+$\mathrm{ap1}\ p\ (\mathrm{reify}(\mathrm{natCode}\ c))$.
+
+The system has Schema~F (uniqueness of tree recursion): if $h$ and $g$ satisfy
+the same base case $z$ and step case $s$, then $h(v_0) = g(v_0)$ for all trees.
+
+\section{Oblivious Invariants}
+
+\begin{definition}
+A program $p$ has an \emph{oblivious invariant} against a tree $\xi$ if
+there exists a constant-size Schema~F proof that
+$\mathrm{TreeEq}(p(v_0), \mathrm{reify}(\xi)) = \mathrm{Pair}(O,O)$ for all $v_0$.
+The proof uses a \emph{constant} step function $s = \mathrm{Lift}(\mathrm{KT}(\mathrm{Pair}(O,O)))$
+(ignoring both the original tree and the recursive results).
+\end{definition}
+
+The proof is ``oblivious'' because the step case short-circuits at a ground
+comparison, without examining any variable-dependent data.
+
+\begin{proposition}[Characterization]
+$\mathtt{iterate}\ f\ O$ has an oblivious invariant against $\xi$ if and only if:
+\begin{enumerate}
+\item[(a)] $f(O) \neq \xi$ (equivalently, $O \neq \xi$, which holds for any non-leaf $\xi$)
+\item[(b)] There exists a position $p$ (a path of $\mathrm{Fst}/\mathrm{Snd}$ projections)
+such that $f(x)|_p$ is a constant $c$ for all $x$, and $c \neq \xi|_p$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+(\emph{If}): The base case $\mathrm{TreeEq}(O, \xi)$ short-circuits because $O$ is a leaf
+and $\xi$ is not. The step case: $p(\mathrm{Pair}(v_0, v_1)) = f(\mathrm{rec}(v_1))$.
+At position $p$, $f(\mathrm{rec}(v_1))|_p = c$ regardless of $\mathrm{rec}(v_1)$.
+$\mathrm{TreeEq}$ dispatches left-to-right: when it reaches position $p$,
+it compares $c$ against $\xi|_p$, finds them unequal (both ground), and returns
+$\mathrm{Pair}(O,O)$ without examining any variable.
+
+(\emph{Only if}): If no such position exists, then for every position,
+either $f$ is not constant there, or $f$'s constant matches $\xi$.
+The $\mathrm{TreeEq}$ comparison must eventually reach a variable-dependent
+subterm, and the derivation cannot proceed equationally with a constant step function.
+\end{proof}
+
+\section{The Skeleton of a Step Function}
+
+\begin{definition}
+The \emph{constant skeleton} of a Rec-free Fun1 $f$ is the set of positions
+where $f(x)$ has a fixed value for all $x$.
+\end{definition}
+
+Examples (verified by Agda computation):
+\begin{center}
+\begin{tabular}{lll}
+\hline
+Step function $f$ & $f(x)$ & Constant positions \\
+\hline
+$\mathrm{prepend0} = \mathrm{Comp2\ Pair\ (KT\ O)\ I}$ & $\mathrm{Pair}(O, x)$ & $\mathrm{Fst} \mapsto O$ \\
+$\mathrm{prepend1} = \mathrm{Comp2\ Pair\ (KT\ Pair(O,O))\ I}$ & $\mathrm{Pair}(\mathrm{Pair}(O,O), x)$ & $\mathrm{Fst} \mapsto \mathrm{Pair}(O,O)$ \\
+$\mathrm{doubler} = \mathrm{Comp2\ Pair\ I\ I}$ & $\mathrm{Pair}(x, x)$ & (none) \\
+$\mathrm{swap} = \mathrm{Comp2\ Pair\ Snd\ Fst}$ & $\mathrm{Pair}(\mathrm{Snd}(x), \mathrm{Fst}(x))$ & (none) \\
+\hline
+\end{tabular}
+\end{center}
+
+Programs with empty skeletons (doubler, swap) have \textbf{no oblivious invariant}
+against any $\xi$. They require BLevel $\geq 1$ proofs.
+
+\section{Experiments}
+
+\subsection{ObliviousTest.agda}
+
+Tested 10 programs against $\xi_1 = \mathrm{Pair}(\mathrm{Pair}(O,O), O)$:
+
+\begin{center}
+\begin{tabular}{llcc}
+\hline
+\# & Program & checkProof2 & True oblivious? \\
+\hline
+1 & $\mathrm{iterate\ prepend0\ O}$ & true & \textbf{Yes} (proved in KRShortProof.agda) \\
+2 & $\mathrm{KT\ O}$ & true & Yes (trivial) \\
+3 & $I$ & true & Yes \\
+4 & $\mathrm{Fst}$ & true & Yes \\
+5 & $\mathrm{Comp\ Fst\ (Comp2\ Pair\ I\ I)}$ & true & Yes \\
+6 & $\mathrm{iterate\ doubler\ O}$ & true & \textbf{No} (false positive) \\
+7 & $\mathrm{iterate\ swap\ O}$ & true & \textbf{No} (false positive) \\
+8 & $\mathrm{treeFlip}$ (Rec-based) & true & Analysis needed \\
+9 & $\mathrm{iterate\ prepend1\ O}$ & false & No (outputs $\xi_1$) \\
+10 & $\mathrm{KT}(\mathrm{reify}\ \xi_1)$ & false & No (always outputs $\xi_1$) \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{ObliviousXi.agda}
+
+Tested 5 candidate $\xi$ values against 9 programs plus constant-$\xi$ acid tests:
+
+\begin{center}
+\begin{tabular}{lccccc}
+\hline
+& $\xi_1$ & $\xi_2$ & $\xi_3$ & $\xi_4$ & $\xi_5$ \\
+\hline
+$p_1$ (natCodeIter) & \checkmark & \checkmark$^*$ & \checkmark & \checkmark & \checkmark \\
+$p_2$ (prep1 iter) & $\times$ & \checkmark & \checkmark & \checkmark & \checkmark \\
+$p_3$ (doubler iter) & \checkmark & \checkmark & \checkmark$^*$ & \checkmark & \checkmark \\
+$p_4$ (swap iter) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+$p_5$ ($I$) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+$p_6$ ($\mathrm{KT}\ O$) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+$p_7$ ($\mathrm{Fst}$) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+$p_8$ ($\mathrm{Snd}$) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+$p_9$ (prep $\mathrm{Pair}(O,O)$) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+$\mathrm{KT}(\xi_i)$ & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
+\hline
+\end{tabular}
+\end{center}
+
+$\checkmark$ = checkProof2 true, $\times$ = false, $^*$ = false positive (program outputs $\xi$).
+
+\subsection{ObliviousAnalysis.agda}
+
+Key finding: all iterate programs have stuck-var output $= f(O)$ because
+$\mathrm{tagVar} = \mathrm{nd}(\mathrm{nd}(\mathrm{nd}\ \mathrm{lf}\ \mathrm{lf})\ \mathrm{lf})\ \mathrm{lf}$
+has right child $= \mathrm{lf}$, so the Rec base case gives $O$, and the final
+iterStep applies $f$ to $\mathrm{Snd}(\mathrm{Pair}(\mathrm{recL}, O)) = O$.
+
+\section{Implications for Nelson}
+
+\subsection{What works}
+For programs whose step function $f$ has a non-empty constant skeleton,
+and for $\xi$ chosen to differ at a constant position:
+\begin{itemize}
+\item The oblivious invariant proof is $O(1)$ in size.
+\item It uses only Schema~F at BLevel~0 (no ruleInst, no variables in branching position).
+\item It passes the ground evaluator checkProof2.
+\item The complete equational proof exists (demonstrated for natCodeIter in KRShortProof.agda).
+\end{itemize}
+
+\subsection{What doesn't work}
+Programs with empty skeletons (doubler, swap, general Pair-constructing functions)
+require proofs that reason about the \emph{relationship} between recursive values.
+These are BLevel $\geq 1$: the step case needs the inductive hypothesis
+$h(v_1) = \mathrm{Pair}(O,O)$ to conclude $h(\mathrm{Pair}(v_0, v_1)) = \mathrm{Pair}(O,O)$.
+
+\subsection{The sharp question, refined}
+\begin{quote}
+\emph{What fraction of programs of code-size $\leq l$ have step functions
+with non-empty constant skeletons?}
+\end{quote}
+
+If the answer is ``all of them'' (or close), the KR pigeonhole proof
+is $O(2^l)$ in size with all proofs at BLevel~0.
+
+If the answer is ``a positive fraction don't'' (e.g., doubler-like programs),
+then those programs need BLevel $\geq 1$ proofs, and the total proof size
+may grow. The question becomes: can BLevel~1 proofs be kept $O(1)$ in size
+per program?
+
+\subsection{The counting obstacle, quantified}
+The true obstacle is not structural but combinatorial:
+\begin{itemize}
+\item $2^l$ programs of size $\leq l$ need invariant proofs.
+\item Programs with constant skeletons: $O(1)$ proof each.
+\item Programs without: $O(?)$ proof each (depends on BLevel~1 machinery).
+\item Total proof size $= O(2^l) \cdot (\text{max per-program proof size})$.
+\end{itemize}
+
+Nelson's feasibility holds if the per-program proof size is bounded
+by a polynomial in $l$ (or better, a constant).
+
+\section{Next Steps}
+
+\begin{enumerate}
+\item \textbf{Skeleton analysis}: For each Fun1 built from the basic combinators,
+compute the constant skeleton algorithmically. Determine the fraction with
+non-empty skeletons.
+
+\item \textbf{BLevel 1 proofs}: For programs with empty skeletons (doubler, swap),
+construct the non-oblivious invariant using ruleInst + Schema~F.
+The step case uses $h(v_1) = \mathrm{Pair}(O,O)$ (applied via ruleInst).
+
+\item \textbf{Internalize geval}: Define geval as a Fun1 at BLevel~$k+1$
+for BLevel~$k$ computations. This would close the feasibility loop.
+
+\item \textbf{Batching}: Instead of one proof per program, prove invariants
+collectively: ``for ALL programs of the form $\mathrm{iterate}\ f\ O$ where $f$
+has constant skeleton $\{p \mapsto c\}$, if $c \neq \xi|_p$, then
+$p(t) \neq \xi$ for all $t$.'' This is a single Schema~F proof that covers
+an entire class of programs.
+\end{enumerate}
+
+\end{document}
