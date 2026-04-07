@@ -8,3 +8,11 @@
 /*
 !/Guard/
 !/.gitignore
+
+# Hide tex/pdf in Guard, except guard-godelII-summary and nelson-boundary
+Guard/*.tex
+Guard/*.pdf
+!Guard/guard-godelII-summary.tex
+!Guard/guard-godelII-summary.pdf
+!Guard/nelson-boundary.tex
+!Guard/nelson-boundary.pdf

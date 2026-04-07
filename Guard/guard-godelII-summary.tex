@@ -29,7 +29,7 @@
 We formalize G\"odel's first incompleteness theorem in a system
 combining two ideas:
 \begin{itemize}
-\item \emph{Guard}'s syntax~\cite{chwistek1939}: binary trees with
+\item \emph{Guard}'s syntax: binary trees with
   typed unary and binary functors, serving as both the data domain
   and the term language;
 \item \emph{Rose}'s purely equational proof style~\cite{rose1961}:
@@ -452,7 +452,13 @@ inside the object system:
 the proof encoding correctness ($\mathrm{ProofE}$) and the diagonal
 construction would need to be carried out as equational derivations,
 not just as Agda metalevel proofs.
-This is not done in the present formalization.
+Cook~\cite{cook1975} points out a possible error in Rose's
+Theorem~16 (p.~134 of~\cite{rose1961}): the function $f(s(x))$
+is neither identically zero nor identically non-zero, which
+invalidates the argument at that step.
+The present formalization bypasses this difficulty by finding
+an alternative route to G\"odel~II that avoids the problematic
+lemma.
 
 %% ---------------------------------------------------------------
 \section{File structure}
@@ -493,12 +499,28 @@ $N$ (template code) & $\mathrm{templateCode}$ \\
 Schema~F & $\mathrm{ruleF}$ (uniqueness of recursion) \\
 Theorem~10 & $\mathrm{thm14E}$ ($\mathrm{ProofE}$) \\
 Theorem~14 & $\mathrm{thm14E}$ \\
-Theorems~15--16 & Cases of $\mathrm{thm14E}$ + $\mathrm{cong}_L$/$\mathrm{cong}_R$ \\
+Theorems~15--16 & Cases of $\mathrm{thm14E}$ + $\mathrm{cong}_L$/$\mathrm{cong}_R$; see~\cite{cook1975} on Thm~16 \\
 Theorem~17 & $\mathrm{diagFTarget}$ \\
 Theorem~18 & $\mathrm{godelII}$ (= G\"odel I in our terminology) \\
 \hline
 \end{tabular}
 \end{center}
+
+%% ---------------------------------------------------------------
+\section{Connection with Cook's PV}
+
+Cook~\cite{cook1975} suggests (Section~8) that a natural
+formalization of feasibly constructive proofs should take a
+\emph{programming approach}, where ``proving $f(x) = g(x)$
+amounts to proving the equivalence of two programs.''
+The Guard/Rose system realizes this vision literally:
+proving $f(x_0) = g(x_0)$ via \SchemaF{} \emph{is} proving
+that two recursive programs (the functors $f$ and~$g$) compute
+the same function.
+Every derivation in the system is a chain of equational
+rewrites on functor expressions --- no quantifiers, no
+propositional connectives, only computation axioms and
+the uniqueness-of-recursion principle.
 
 \bibliographystyle{plain}
 \bibliography{references}
