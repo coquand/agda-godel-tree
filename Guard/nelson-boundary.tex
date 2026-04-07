@@ -2,6 +2,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
@@ -42,11 +43,11 @@
 We formalize in Agda a tree-based equational system with Schema~F
 (tree induction) and analyze the feasibility of consistency proofs
 in the sense of Nelson's program.  The formalization contains:
-(1)~a complete diagonal G\"odel~II proof (168 lines, 0 postulates);
-(2)~a micro-Nelson instance verifying 56 programs against a fixed target;
+(1)~a complete diagonal G\"odel~II proof~\cite{godel1931} (168 lines, 0 postulates);
+(2)~a micro-Nelson instance~\cite{nelson1986} verifying 56 programs against a fixed target;
 (3)~a uniform proof-construction mechanism (the R/Q technique) that produces
 constant-size, BLevel-0 invariant proofs for all oblivious step functions;
-(4)~the Kritchman--Raz contradiction theorem (\texttt{krClean}), fully proved.
+(4)~the Kritchman--Raz contradiction theorem~\cite{kritchmanraz2010} (\texttt{krClean}), fully proved.
 The main conclusion: the \emph{per-program} content of a consistency proof
 is feasible (O(1), ground-verifiable), but combining these proofs
 into a system-level consistency statement requires self-reference,
@@ -86,6 +87,9 @@ and \SchemaF{} ($\mathrm{ruleF}$).
 satisfy the same step equation with respect to a step functor~$s$,
 then $f(x) = g(x)$ for all~$x$.
 Consistency means no derivation of $O = \poo$.
+The system is related to Rose's equational calculus~\cite{rose1953}
+and to Leivant's intrinsic characterizations of complexity
+classes~\cite{leivant1995}.
 
 %% ---------------------------------------------------------------
 \section{Proof encoding and ground evaluation}
@@ -226,12 +230,12 @@ and $\xi_4$ is not in any program's output.
 %% ---------------------------------------------------------------
 \section{The Kritchman--Raz framework}
 
-The Chaitin machine $C_l$ searches for proofs that individual
+The Chaitin machine~\cite{chaitin1974} $C_l$ searches for proofs that individual
 programs don't output some string~$\xi$.  If the system proves
 its own consistency, the search terminates and $C_l$ outputs~$\xi$.
 But $|C_l|$ is bounded (the step function is fixed; $l$ enters
 only as data via binary encoding, contributing $O(\log l)$ to
-the code size).  For large~$l$, $|C_l| < l$, so $C_l$ itself
+the code size~\cite{kolmogorov1965}).  For large~$l$, $|C_l| < l$, so $C_l$ itself
 witnesses $K(\xi) \le |C_l| < l$, contradicting $K(\xi) > l$.
 
 \begin{theorem}[\texttt{krClean}, fully proved in Agda]
@@ -315,6 +319,9 @@ the system cannot fully reason about its own proof structure.
   structure alone (the output format mismatches~$\xi$).
   Non-oblivious proofs require knowing the actual computed value ---
   a miniature version of the self-reference problem.
+  The BLevel hierarchy is related to Aschieri and Berardi's
+  backtracking levels in learning-based
+  realizability~\cite{aschieri2011}.
 
 \item \textbf{Bounded consistency is feasible.}
   For a fixed depth bound~$d$, the micro-Nelson instance gives
@@ -322,7 +329,9 @@ the system cannot fully reason about its own proof structure.
   every program of depth~$\le d$ is checked against~$\xi$,
   and all pass.  This is a concrete, finite, feasible consistency
   result.  It does not extend to unbounded~$d$ without
-  self-reference.
+  self-reference.  This connects to the proof-length
+  phenomena studied by Pudl\'ak~\cite{pudlak1998} and
+  the feasible arithmetic of Cook~\cite{cook1975}.
 \end{enumerate}
 
 %% ---------------------------------------------------------------
@@ -348,5 +357,8 @@ SwapProof.agda & 492 & Case~4 template (h2 helper) \\
 Guard/ total & $\sim$40 files & Full system including infrastructure \\
 \end{tabular}
 \end{center}
+
+\bibliographystyle{plain}
+\bibliography{references}
 
 \end{document}
