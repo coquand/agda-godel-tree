@@ -1,0 +1,352 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\Pair}{\mathrm{Pair}}
+\newcommand{\TreeEq}{\mathrm{TreeEq}}
+\newcommand{\IfLf}{\mathrm{IfLf}}
+\newcommand{\Fst}{\mathrm{Fst}}
+\newcommand{\Snd}{\mathrm{Snd}}
+\newcommand{\KT}{\mathrm{KT}}
+\newcommand{\Comp}{\mathrm{Comp2}}
+\newcommand{\Rec}{\mathrm{Rec}}
+\newcommand{\SchemaF}{\textbf{Schema~F}}
+\newcommand{\Deriv}{\mathrm{Deriv}}
+\newcommand{\poo}{\Pair(O,O)}
+\newcommand{\Fun}{\mathrm{Fun1}}
+\newcommand{\geval}{\mathrm{geval}}
+\newcommand{\thFun}{\mathrm{thFun}}
+\newcommand{\reify}{\mathrm{reify}}
+\newcommand{\code}{\mathrm{code}}
+\newcommand{\iterf}{\mathrm{iterate}}
+
+\title{The Boundary of Nelson's Feasibility Program:\\
+  Per-Program Proofs Are Feasible,\\
+  Self-Reference Is Not}
+
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We formalize in Agda a tree-based equational system with Schema~F
+(tree induction) and analyze the feasibility of consistency proofs
+in the sense of Nelson's program.  The formalization contains:
+(1)~a complete diagonal G\"odel~II proof (168 lines, 0 postulates);
+(2)~a micro-Nelson instance verifying 56 programs against a fixed target;
+(3)~a uniform proof-construction mechanism (the R/Q technique) that produces
+constant-size, BLevel-0 invariant proofs for all oblivious step functions;
+(4)~the Kritchman--Raz contradiction theorem (\texttt{krClean}), fully proved.
+The main conclusion: the \emph{per-program} content of a consistency proof
+is feasible (O(1), ground-verifiable), but combining these proofs
+into a system-level consistency statement requires self-reference,
+which is irreducibly infeasible.  The boundary is precisely located:
+it is the transition from ``for each program~$p$'' to ``for all
+programs of size~$\le l$.''
+\end{abstract}
+
+%% ---------------------------------------------------------------
+\section{The equational system}
+
+The system operates on binary trees:
+\[
+  t \;::=\; \mathrm{lf} \mid \mathrm{nd}(t_1, t_2)
+\]
+with $O = \mathrm{lf}$ and $\Pair(a,b) = \mathrm{nd}(a,b)$.
+Terms are built from variables, constants~$O$, and applications of
+one-argument functors~$\Fun$ and two-argument functors~$\mathrm{Fun2}$:
+\[
+  \Fun: \quad I,\; \Fst,\; \Snd,\; \Comp\; h\; f\; g,\;
+    \Rec\; z\; s,\; \KT\; c
+\]
+\[
+  \mathrm{Fun2}: \quad \Pair,\; \IfLf,\; \TreeEq,\;
+    \mathrm{Lift}\; f,\; \mathrm{Post}\; f\; h,\; \mathrm{Fan}\; h_1\; h_2\; h
+\]
+Equations are pairs of terms.  Derivations $\Deriv\; \mathit{hyp}\; (l = r)$
+are built from computation axioms ($\mathrm{axI}$, $\mathrm{axFst}$,
+$\mathrm{axSnd}$, $\mathrm{axComp2}$, $\mathrm{axRecLf}$,
+$\mathrm{axRecNd}$, $\mathrm{axIfLfL}$, $\mathrm{axIfLfN}$,
+$\mathrm{axTreeEqLL}$, \ldots), structural rules
+($\mathrm{ruleTrans}$, $\mathrm{ruleSym}$, $\mathrm{congL}$,
+$\mathrm{congR}$, $\mathrm{cong1}$), substitution ($\mathrm{ruleInst}$),
+and \SchemaF{} ($\mathrm{ruleF}$).
+
+\SchemaF{} is tree induction: if $f$ and $g$ agree on $O$ and
+satisfy the same step equation with respect to a step functor~$s$,
+then $f(x) = g(x)$ for all~$x$.
+Consistency means no derivation of $O = \poo$.
+
+%% ---------------------------------------------------------------
+\section{Proof encoding and ground evaluation}
+
+The function $\thFun : \mathrm{Tree} \to \mathrm{Tree}$ interprets
+a tree as a proof encoding: given a tree~$t$, it produces
+$\mathrm{nd}(\mathit{lhs}, \mathit{rhs})$ representing the equation
+that~$t$ encodes.  There are 26 proof-encoding tags
+(axioms~0--16, structural rules~17--25).
+
+The ground evaluator $\geval$ dispatches on functor-code tags
+(offset~26--32) and computes the semantic value of coded ground terms.
+The proof checker $\mathrm{checkProof2}(t)$ runs $\thFun$ to extract
+the equation, then checks whether $\geval$ agrees on both sides.
+
+Key property: for \emph{ground} coded terms (no variables),
+$\geval$ correctly computes the semantic value.  When variables
+appear, $\geval$ returns a stuck term.  The distinction between
+ground and stuck is exactly the distinction between oblivious and
+non-oblivious proofs.
+
+%% ---------------------------------------------------------------
+\section{Programs and iteration}
+
+A \emph{program} is a $\Fun$ of the form $\iterf\; f\; O$,
+where $f$ is a step function and $O$ is the initial value.
+The combinator $\iterf\; f\; O = \Rec\; O\; (\mathrm{iterStep}\; f)$
+satisfies:
+\begin{align*}
+  \iterf\; f\; O\; (O) &= O \\
+  \iterf\; f\; O\; (\Pair(a,b)) &= f(\iterf\; f\; O\; (b))
+\end{align*}
+Applied to $\mathrm{natCode}(n) = \mathrm{nd}(\mathrm{lf},
+\mathrm{natCode}(n{-}1))$, this gives $f^n(O)$.
+
+The \emph{code size} of a program is
+$\mathrm{treeSize}(\mathrm{codeF1}(p))$, counting nodes
+in the tree representation of the functor code.
+
+%% ---------------------------------------------------------------
+\section{The R/Q technique}
+
+Two lemmas, both proved by \SchemaF{} at BLevel~0:
+
+\begin{lemma}[R --- ifLfCollapse]
+  For all terms $x$:
+  \[
+    \IfLf(x, \Pair(\poo, \poo)) = \poo
+  \]
+\end{lemma}
+\begin{proof}
+  Define $R(x) = \IfLf(x, \Pair(\poo, \poo))$.
+  Base: $R(O) = \poo$ by $\mathrm{axIfLfL}$.
+  Step: $R(\Pair(v_0, v_1)) = \poo$ by $\mathrm{axIfLfN}$.
+  Both match $\KT(\poo)$.  \SchemaF{} gives $R(x) = \poo$ for all~$x$.
+\end{proof}
+
+\begin{lemma}[Q --- for $a \ne b$ with one component $O$]
+  Let $a = \poo$, $b = O$.  For all terms~$x$:
+  \[
+    \IfLf(\TreeEq(x, a), \Pair(\TreeEq(x, b), \poo)) = \poo
+  \]
+\end{lemma}
+\begin{proof}
+  Define $Q(x) = \IfLf(\TreeEq(x, \poo), \Pair(\TreeEq(x, O), \poo))$.
+  Base: $Q(O)$.  $\TreeEq(O, \poo) = \poo$ by $\mathrm{axTreeEqLN}$.
+  $\IfLf(\poo, \ldots) = \poo$ by $\mathrm{axIfLfN}$.
+  Step: $Q(\Pair(v_0, v_1))$.  $\TreeEq(\Pair(v_0,v_1), O) = \poo$
+  by $\mathrm{axTreeEqNL}$.  So the $\Pair$ argument becomes
+  $\Pair(\poo, \poo)$.  Apply~R.  \SchemaF{} closes.
+\end{proof}
+
+The key: Q captures the case analysis that would normally require
+knowing the value of~$x$.  When $x = a$, the first comparison gives~$O$
+and falls through to the second, which detects $x \ne b$ (since $a \ne b$).
+When $x \ne a$, the first comparison gives $\poo$ and short-circuits.
+\SchemaF{} handles this without case-splitting because both branches
+produce~$\poo$.
+
+%% ---------------------------------------------------------------
+\section{Three proof families}
+
+For step functions $f = \Comp\;\Pair\; g\; h$ where
+$g, h \in \{I, \Fst, \Snd, \KT\; O, \KT\; \poo\}$, and target
+$\xi_1 = \Pair(\poo, O)$, three parametric proof constructors
+handle all oblivious cases.
+
+\subsection*{Family A: Constant $g$, Fst mismatch}
+If $g = \KT\; c$ with $\TreeEq(c, \Fst(\xi_1)) = \poo$
+(i.e., $c \ne \poo$), then in the step case:
+\[
+  \TreeEq(\Pair(c, h(\mathrm{rec}_1)), \xi_1)
+  = \IfLf(\underbrace{\TreeEq(c, \poo)}_{= \poo}, \ldots)
+  = \poo
+\]
+The Fst comparison short-circuits.  The h~side is never examined.
+\textbf{5 programs} (all with $g = \KT\; O$).
+
+\subsection*{Family B: Non-constant $g$, constant $h = \KT\;\poo$}
+The Snd comparison gives $\TreeEq(\poo, O) = \poo$ by
+$\mathrm{axTreeEqNL}$.  The IfLf argument becomes
+$\Pair(\poo, \poo)$.  R~collapses it.
+\textbf{3 programs} ($g \in \{I, \Fst, \Snd\}$).
+
+\subsection*{Family C: $g = h$ (same function), Q lemma}
+$f(x) = \Pair(g(x), g(x))$.  The comparison with
+$\xi_1 = \Pair(\poo, O)$ gives:
+\[
+  \IfLf(\TreeEq(g(\mathrm{rec}_1), \poo),\;
+        \Pair(\TreeEq(g(\mathrm{rec}_1), O), \poo))
+  = Q(g(\mathrm{rec}_1)) = \poo
+\]
+\textbf{3 programs} ($g = h \in \{I, \Fst, \Snd\}$).
+
+\medskip
+\noindent\textbf{Total:} 11 programs with full equational ($\Deriv$) proofs.
+All 23 Comp2 Pair combinations pass $\mathrm{checkProof2}$ (geval verification).
+
+%% ---------------------------------------------------------------
+\section{The micro-Nelson instance}
+
+\texttt{MicroNelson.agda} enumerates 28 step functions
+(all $\Comp\;\Pair\; g\; h$ with $g, h \in \{I, \Fst, \Snd,
+\KT\;O, \KT\;\poo\}$, plus 5~base $\Fun$) in two modes
+(iterate + direct), giving 56 programs.  The target is
+$\xi_4 = \Pair(\Pair(\Pair(O,O),O), \Pair(O,O))$, chosen deeper
+than any $f(O)$ for depth-1 step functions.
+
+All 56 satisfy $\mathrm{checkProof2}(\mathrm{mkTest}(p, \xi_4)) = \mathrm{true}$,
+verified by Agda \texttt{refl}.  The adversarial program
+$\KT(\reify\;\xi_4)$ (which always outputs~$\xi_4$) correctly
+returns \texttt{false}.
+
+This is a complete pigeonhole instance at depth~$\le 1$:
+every program of bounded constructor-depth is accounted for,
+and $\xi_4$ is not in any program's output.
+
+%% ---------------------------------------------------------------
+\section{The Kritchman--Raz framework}
+
+The Chaitin machine $C_l$ searches for proofs that individual
+programs don't output some string~$\xi$.  If the system proves
+its own consistency, the search terminates and $C_l$ outputs~$\xi$.
+But $|C_l|$ is bounded (the step function is fixed; $l$ enters
+only as data via binary encoding, contributing $O(\log l)$ to
+the code size).  For large~$l$, $|C_l| < l$, so $C_l$ itself
+witnesses $K(\xi) \le |C_l| < l$, contradicting $K(\xi) > l$.
+
+\begin{theorem}[\texttt{krClean}, fully proved in Agda]
+  Given:
+  \begin{enumerate}[nosep]
+    \item A Chaitin machine family $\mathit{cm} : \mathbb{N} \to \Fun$,
+    \item A threshold $T$ with $|\mathit{cm}(l)| \le l$ for $l \ge T$,
+    \item For each $l \ge T$: a tree $\xi$, a clock $c$,
+      a proof that $\mathit{cm}(l)$ outputs $\xi$ at clock~$c$,
+      and a proof that no $\Fun$ of size $\le l$ outputs~$\xi$,
+  \end{enumerate}
+  then $\bot$.
+\end{theorem}
+
+The proof is direct: $\mathit{cm}(T)$ outputs $\xi$ at clock~$c$
+and has $|\mathit{cm}(T)| \le T$, contradicting the incompressibility
+of~$\xi$.
+
+%% ---------------------------------------------------------------
+\section{The boundary}
+
+The formalization reveals a sharp decomposition of the consistency proof:
+
+\begin{center}
+\begin{tabular}{lll}
+\textbf{Component} & \textbf{Status} & \textbf{Obstacle} \\
+\hline
+Per-program invariant & Feasible & None (O(1), BLevel 0) \\
+Ground verification & Feasible & None (checkProof2, refl) \\
+Pigeonhole (finite $l$) & Feasible & None (enumeration) \\
+\hline
+$\forall p.\; |p| \le l \Rightarrow \ldots$ & Infeasible & Self-reference \\
+Chaitin machine as $\Fun$ & Infeasible & Self-reference \\
+$|C_l| < l$ for large $l$ & Infeasible & Self-reference \\
+\end{tabular}
+\end{center}
+
+The transition from feasible to infeasible is precisely the
+transition from ``for each specific program~$p$'' to
+``for all programs of size~$\le l$.''
+
+\begin{itemize}[nosep]
+\item ``For each~$p$'': the R/Q technique produces a constant-size
+  proof.  The proof is oblivious --- it doesn't examine what $p$
+  computes, only the structural mismatch between $p$'s output
+  format and~$\xi$.
+
+\item ``For all~$p$'': requires the system to enumerate its own
+  programs, count them (pigeonhole), and recognize that the Chaitin
+  search procedure is itself a program (self-reference).  This is
+  the same obstacle as in the diagonal proof, repackaged.
+\end{itemize}
+
+The diagonal proof (GodelII.agda) concentrates self-reference in
+the substitution machinery ($\mathrm{substTFor}$, $\mathrm{codedSubst}$,
+variable capture).  The KR approach distributes it across counting
+and search.  Both are blocked by the same fundamental constraint:
+the system cannot fully reason about its own proof structure.
+
+%% ---------------------------------------------------------------
+\section{Implications for Nelson's program}
+
+\begin{enumerate}
+\item \textbf{The per-program feasibility claim holds.}
+  Each invariant proof is O(1), BLevel~0, and ground-verifiable.
+  The R/Q technique provides this uniformly for all oblivious
+  programs.  The $\geval$ evaluator extends coverage to
+  non-oblivious programs at the metalevel.  This is the positive
+  content of Nelson's program.
+
+\item \textbf{The organizational infeasibility persists.}
+  Combining per-program proofs into a system-level consistency
+  statement requires self-reference --- whether via diagonalization
+  or via counting.  The KR approach, which avoids the diagonal
+  lemma entirely, hits the same wall.  The obstacle is not an
+  artifact of the proof method.
+
+\item \textbf{The boundary is intrinsic.}
+  The oblivious/non-oblivious distinction from AutoProof is a local
+  version of the each/all boundary.  Oblivious proofs work by
+  structure alone (the output format mismatches~$\xi$).
+  Non-oblivious proofs require knowing the actual computed value ---
+  a miniature version of the self-reference problem.
+
+\item \textbf{Bounded consistency is feasible.}
+  For a fixed depth bound~$d$, the micro-Nelson instance gives
+  a complete, computationally verified consistency proof:
+  every program of depth~$\le d$ is checked against~$\xi$,
+  and all pass.  This is a concrete, finite, feasible consistency
+  result.  It does not extend to unbounded~$d$ without
+  self-reference.
+\end{enumerate}
+
+%% ---------------------------------------------------------------
+\section{Formalization summary}
+
+All results are formalized in Agda 2.9.0 with
+\texttt{-{}-safe -{}-without-K -{}-exact-split}.  Zero postulates throughout.
+
+\medskip
+\begin{center}
+\begin{tabular}{lrl}
+\textbf{File} & \textbf{Lines} & \textbf{Content} \\
+\hline
+GodelII.agda & 168 & Diagonal G\"odel~II \\
+MicroNelson.agda & 258 & 56 programs, checkProof2 = true \\
+AutoProof.agda & 754 & R/Q library, 3 proof families, 11 Deriv proofs \\
+Chaitin.agda & 395 & Binary encoding, tree enumeration, krClean \\
+KRShortProof.agda & 310 & Case~1 template (Fst mismatch) \\
+DoublerProof.agda & 430 & Case~3 template (Q lemma) \\
+GeneralQ.agda & 443 & Cases~2,4; tripler, mixed \\
+SwapProof.agda & 492 & Case~4 template (h2 helper) \\
+\hline
+Guard/ total & $\sim$40 files & Full system including infrastructure \\
+\end{tabular}
+\end{center}
+
+\end{document}
