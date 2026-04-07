@@ -102,11 +102,43 @@ mkProofEAny A B =
       (recsBRRed orig (ap1 thFunTFor tagR) (ap2 Pair aC aC) bC bC)))))
 
 ------------------------------------------------------------------------
--- Strengthened Gödel I: no ProofE hyp needed.
+-- Strengthened Gödel I.
 
-open import Guard.GodelII using (godelII)
-open import Guard.SubstTForPrecomp using (godelSentence)
+open import Guard.GodelII using (treeEqSelf ; diagFTarget)
+open import Guard.SubstTForPrecomp
+  using (godelSentence ; cGS ; cGSdef ; cstf ;
+         templateCode ; crTC ;
+         substGodelSentence ; instForm2)
+open import Guard.SubstTFor using (substTFor)
 
+private
+  poo : Term ; poo = ap2 Pair O O
+  v1' : Nat ; v1' = suc zero
+  v11' : Nat ; v11' = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))
+  v12' : Nat ; v12' = suc v11'
+  tgtT' : Term ; tgtT' = reify (natCode v1')
+
+-- Constructive form: if T proves G, then T proves 0 = 1.
+godelIToBot : {hyp : Equation} ->
+  Deriv hyp godelSentence -> Deriv hyp (eqn O poo)
+godelIToBot {eqn l r} dG =
+  let hyp = eqn l r
+      ph = mkProofEAny l r
+      pe = thm14E dG ph
+      enc = ap2 Pair (reify (fst pe)) (reify (fst (snd pe)))
+      corrPf : Deriv hyp (eqn (ap1 thFunTFor enc) (reify cGS))
+      corrPf = eqSubst (\t -> Deriv hyp (eqn (ap1 thFunTFor enc) (reify t)))
+                        (eqSym cGSdef)
+                        (fst (snd (snd (snd pe))) {hyp})
+      chain = ruleTrans corrPf (ruleSym (diagFTarget {hyp}))
+      instD = eqSubst (\eq -> Deriv hyp eq) (substGodelSentence enc) (ruleInst zero enc dG)
+      step1 = ruleTrans (ruleSym (congL TreeEq (ap1 substTFor (reify templateCode)) chain)) instD
+      step2 = eqSubst (\eq -> Deriv hyp eq) instForm2
+                       (ruleInst v12' tgtT' (ruleInst v11' (reify crTC) step1))
+      selfEq = treeEqSelf (ap1 cstf (reify templateCode))
+  in ruleTrans (ruleSym selfEq) step2
+
+-- Standard form: G is not derivable from a consistent hypothesis.
 godelI : {hyp : Equation} -> Consistent hyp ->
          Deriv hyp godelSentence -> Empty
-godelI {eqn l r} con dG = godelII (mkProofEAny l r) con dG
+godelI con dG = con (godelIToBot dG)

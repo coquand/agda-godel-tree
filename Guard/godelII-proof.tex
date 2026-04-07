@@ -113,21 +113,32 @@ rule.  This is crucial for G\"odel~II.
 
 \section{G\"odel I (strengthened)}
 
-\begin{theorem}[G\"odel~I --- \texttt{godelI} in \texttt{ProofEAny.agda}]
-\label{thm:godel1}
+\begin{theorem}[G\"odel~I, constructive form --- \texttt{godelIToBot} in \texttt{ProofEAny.agda}]
+\label{thm:godel1c}
 For any hypothesis equation~$H$:
 \[
-  \mathit{Consistent}(H) \;\to\; H \vdash G \;\to\; \bot
+  H \vdash G \;\to\; H \vdash \trueT = \falseT
 \]
 where $G$ is the G\"odel sentence (``no proof tree encodes
 a derivation of this sentence'').
 \end{theorem}
 
+\begin{corollary}[G\"odel~I, standard form --- \texttt{godelI} in \texttt{ProofEAny.agda}]
+\label{thm:godel1}
+For any hypothesis equation~$H$:
+\[
+  \mathit{Consistent}(H) \;\to\; H \vdash G \;\to\; \bot.
+\]
+\end{corollary}
+
 \noindent
-This strengthens the original formulation by removing the
-$\mathrm{ProofE}(H)$ assumption.  The key enabler is
+Both forms remove the $\mathrm{ProofE}(H)$ assumption
+from the original proof.  The key enabler is
 $\mathrm{mkProofEAny}$, which constructs a proof encoding
 for any equation using the trans-from-two-refls technique.
+The constructive form directly produces a derivation of
+$\trueT = \falseT$ from a derivation of~$G$, without
+assuming consistency.
 
 \section{G\"odel II}
 
