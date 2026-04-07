@@ -153,13 +153,15 @@ the code of the contradiction $\trueT = \falseT$ is
 \]
 
 \begin{definition}
-The \emph{internal consistency statement} $\mathrm{Con}$ is the equation
+The \emph{internal consistency statement} is the equation
 \[
-  \mathrm{Con} \;:\quad
+  \mathrm{Con} \;\equiv\quad
   \TreeEq\bigl(\thFunTFor(x),\;\reify{\code{\bot}}\bigr) \;=\; \falseT
 \]
-where $x$ is a free variable.  Since $\TreeEq(a, b) = \falseT$
-means $a \neq b$, the formula $\mathrm{Con}$ says:
+where $x$ is a free variable, implicitly universally quantified
+(the derivation rules allow instantiation of~$x$ by any term).
+Since $\TreeEq(a, b) = \falseT$ means $a \neq b$,
+$\mathrm{Con}$ says:
 \emph{for every proof tree~$x$, the equation encoded by~$x$
 is not $\trueT = \falseT$} --- i.e., the system does not
 prove $\trueT = \falseT$.
