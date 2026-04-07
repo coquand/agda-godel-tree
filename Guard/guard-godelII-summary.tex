@@ -240,14 +240,22 @@ This is proved by induction on the derivation (1402 lines in
 \subsection{Coded substitution ($\mathrm{substTFor}$)}
 
 $\mathrm{substTFor}$ is a unary functor implementing coded
-substitution on trees, with free variables $v_{11}$ (replacement)
-and $v_{12}$ (target variable index).
-$\mathrm{closedSubstTFor}(r, n)$ closes these variables with
-replacement~$r$ and target~$n$.
+substitution: given a coded term~$\code{t}$, it replaces every
+occurrence of variable~$x_n$ by a replacement term~$r$.
+These two parameters ($r$ and~$n$) are themselves represented
+by free variables in $\mathrm{substTFor}$:
+variable~$x_{11}$ carries the replacement~$r$, and
+variable~$x_{12}$ carries the target index~$\nat{n}$.
+
+Closing these variables gives the fully applied version:
+\[
+  \mathrm{closedSubstTFor}(r, \nat{n}) \;=\;
+  \mathrm{substTFor}[r/x_{11},\; \nat{n}/x_{12}].
+\]
 
 Correctness: for any term~$t$,
-$\mathrm{closedSubstTFor}$ applied to $\widehat{\code{t}}$ equals
-$\widehat{\mathrm{codedSubst}(\ldots)}$.
+$\mathrm{closedSubstTFor}(r, \nat{n})$ applied to $\widehat{\code{t}}$
+equals $\widehat{\code{t[r/x_n]}}$.
 
 \subsection{$\mathrm{Eq}(t, t) = O$ via \SchemaF}
 
@@ -271,26 +279,31 @@ This avoids any heavy metalevel computation.
 \subsection*{Template}
 
 The template equation uses the \emph{open} $\mathrm{substTFor}$
-(with free $v_{11}$, $v_{12}$):
+(with $x_{11}$, $x_{12}$ still free):
 \[
   \mathrm{templateEqn} \;=\;
-  \bigl(\mathrm{Eq}(\mathrm{thFunTFor}(x),\;
-    \mathrm{substTFor}(v_1)) = \pmark\bigr)
+  \bigl(\mathrm{Eq}(\mathrm{thFunTFor}(x_0),\;
+    \mathrm{substTFor}(x_1)) = \pmark\bigr)
 \]
-Using the open $\mathrm{substTFor}$ keeps the code of the
-left-hand side small (no nested $\mathrm{R}$ from the closed version).
+Here $x_0$ will be instantiated with a proof encoding and $x_1$
+with a coded term. The key design choice: leaving $x_{11}$, $x_{12}$
+free keeps the code of the template small (no nested $\mathrm{R}$
+from the closed version). They are instantiated later in step~7 of
+the proof.
 
 \subsection*{Abstract definitions}
 
 The following are defined once in \texttt{SubstTForPrecomp.agda}
 (abstract, cached):
 \begin{itemize}
-\item $N = \mathrm{templateCode}$: the tree code of the template
-\item $\hat{N}$: the numeral for $N$ (code of $\widehat{N}$)
-\item $G = \mathrm{templateEqn}[\hat{N}/v_1]$: the G\"odel sentence
+\item $N = \mathrm{templateCode}$: the tree encoding of the template equation
+\item $\hat{N}$: the numeral for $N$, i.e., $\widehat{N}$ as a term
+\item $G = \mathrm{templateEqn}[\hat{N}/x_1]$: the G\"odel sentence
+  (the template applied to its own code)
 \item $\code{G}$: the tree encoding of~$G$
-\item $\mathrm{cstf} = \mathrm{closedSubstTFor}(\widehat{\hat{N}},
-  \widehat{\nat{1}})$: the closed substitution functor
+\item $\mathrm{cstf} = \mathrm{closedSubstTFor}(\widehat{\hat{N}},\;
+  \nat{1})$: the substitution functor with replacement =
+  code of the template and target = variable~$x_1$
 \end{itemize}
 
 \subsection*{Heavy computation (one-time, cached)}
