@@ -7,7 +7,7 @@
 --
 -- Corollary: godelI — strengthened Gödel I without ProofE hyp assumption.
 
-module Guard.Nelson.ProofEAny where
+module Guard.ProofEAny where
 
 open import Guard.Base
 open import Guard.Term
