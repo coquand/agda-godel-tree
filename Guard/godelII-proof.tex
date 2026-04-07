@@ -54,9 +54,26 @@ with $\trueT = O$ (``true'') and $\falseT = \pair{O}{O}$ (``false'').
 Terms are built from trees, variables, and functor applications.
 An \emph{equation} is a pair $t = u$ of terms.
 
+\subsection*{Tree equality}
+$\TreeEq$ is a binary functor (part of the system) that compares
+two trees:
+\[
+  \TreeEq(a, b) = \begin{cases}
+    \trueT & \text{if } a = b, \\
+    \falseT & \text{if } a \neq b.
+  \end{cases}
+\]
+Precisely: $\TreeEq(O, O) = \trueT$;
+$\TreeEq(O, \pair{a}{b}) = \falseT$;
+$\TreeEq(\pair{a}{b}, O) = \falseT$;
+$\TreeEq(\pair{a_1}{a_2}, \pair{b_1}{b_2})
+  = \IfLf(\TreeEq(a_1, b_1),\; \pair{\TreeEq(a_2, b_2)}{\falseT})$.
+In particular $\TreeEq(t, t) = \trueT$ for all~$t$,
+proved by \SchemaF{} (\texttt{treeEqSelf}).
+
 \subsection*{Derivation rules}
 Derivations are built from computation axioms (identity, projections,
-composition, recursion, conditionals, tree equality), structural
+composition, recursion, conditionals, $\TreeEq$), structural
 rules (reflexivity, symmetry, transitivity, congruence),
 variable substitution, a hypothesis rule, and \SchemaF{}
 (uniqueness of tree recursion).
@@ -116,14 +133,25 @@ for any equation using the trans-from-two-refls technique.
 
 \subsection*{The internal consistency statement}
 
-\begin{definition}
-Let $\code{\bot} = \code{\trueT = \falseT}$ be the code of the
-contradiction equation.  The \emph{internal consistency statement} is:
+The \emph{code} of an equation $t = u$ is the tree
+$\code{t = u} = \pair{\code{t}}{\code{u}}$.  In particular,
+the code of the contradiction $\trueT = \falseT$ is
 \[
-  \mathit{conSentence} \;:\; \TreeEq(\thFunTFor(x),\;\reify{\code{\bot}}) = \falseT
+  \code{\bot} \;=\; \code{\trueT = \falseT}
+  \;=\; \pair{\code{O}}{\code{\pair{O}{O}}}.
 \]
-This equation (with~$x$ free) says: for all proof trees~$x$,
-$\thFunTFor(x)$ does not produce the code of $\trueT = \falseT$.
+
+\begin{definition}
+The \emph{internal consistency statement} $\mathrm{Con}$ is the equation
+\[
+  \mathrm{Con} \;:\quad
+  \TreeEq\bigl(\thFunTFor(x),\;\reify{\code{\bot}}\bigr) \;=\; \falseT
+\]
+where $x$ is a free variable.  Since $\TreeEq(a, b) = \falseT$
+means $a \neq b$, the formula $\mathrm{Con}$ says:
+\emph{for every proof tree~$x$, the equation encoded by~$x$
+is not $\trueT = \falseT$} --- i.e., the system does not
+prove $\trueT = \falseT$.
 \end{definition}
 
 \noindent
@@ -138,13 +166,13 @@ is valid but unprovable in BRA''~\cite{guard1963}.
 \label{thm:godel2c}
 For any hypothesis equation~$H$:
 \[
-  H \vdash \mathit{conSentence} \;\to\;
-  H \vdash \trueT = \falseT
+  H \vdash \mathrm{Con} \;\to\;
+  H \vdash \trueT = \falseT.
 \]
 \end{theorem}
 
 \noindent
-That is: if the system derives the internal consistency statement,
+That is: if the system derives $\mathrm{Con}$,
 then it derives $\trueT = \falseT$.  This is the direct constructive
 content --- no consistency assumption, no Markov's principle.
 
@@ -153,7 +181,7 @@ content --- no consistency assumption, no Markov's principle.
 For any hypothesis equation~$H$:
 \[
   \mathit{Consistent}(H) \;\to\;
-  H \vdash \mathit{conSentence} \;\to\; \bot
+  H \vdash \mathrm{Con} \;\to\; \bot.
 \]
 \end{corollary}
 
@@ -166,17 +194,16 @@ Theorem~\ref{thm:godel2c}.
 The constructive form (Theorem~\ref{thm:godel2c}) is stronger
 than the standard form (Corollary~\ref{thm:godel2}).
 Classically they are equivalent by contraposition.
-Constructively, the standard form gives only
-$H \vdash \mathit{conSentence} \to \lnot\lnot(H \vdash
+Constructively, the standard form alone gives only
+$H \vdash \mathrm{Con} \to \lnot\lnot(H \vdash
 \trueT = \falseT)$, and extracting the double negation
 would require Markov's principle or
 the Friedman--Dragalin $A$-translation.
 However, our proof directly produces the derivation
-$H \vdash \trueT = \falseT$ from $H \vdash \mathit{conSentence}$
+$H \vdash \trueT = \falseT$ from $H \vdash \mathrm{Con}$
 without any classical reasoning, since the construction of
-$\mathit{botBot}$ in the proof does not use the consistency
-assumption --- it is applied only at the final step to obtain
-$\bot$.
+the derivation of~$\trueT = \falseT$ does not use the consistency
+assumption --- it is applied only at the final step to obtain~$\bot$.
 \end{remark}
 
 \subsection*{Proof}
@@ -215,7 +242,7 @@ and all 26~Nelson case verifications through \texttt{thm14E}.
 \textbf{Step 2: Instantiate the consistency hypothesis.}
 
 \noindent
-Given $H \vdash \mathit{conSentence}$, apply variable
+Given $H \vdash \mathrm{Con}$, apply variable
 substitution (\texttt{ruleInst}) with $x := \mathit{enc}_\bot$:
 \[
   H \vdash \TreeEq(\thFunTFor(\mathit{enc}_\bot),\;\reify{\code{\bot}}) = \falseT.
@@ -274,7 +301,7 @@ that $\thFunTFor$ correctly tracks each derivation rule.
 The G\"odel~II proof applies Theorem~14 to the specific
 derivation~$d_\bot$ (the G\"odel~I argument with hypothesis~$G$),
 obtaining an encoding whose $\thFunTFor$ image is the
-contradiction code.  The instantiation of $\mathit{conSentence}$
+contradiction code.  The instantiation of $\mathrm{Con}$
 at this encoding then produces the contradiction.
 
 \subsection*{Formalization status}
