@@ -16,7 +16,7 @@
 \newcommand{\SchemaF}{\textbf{Schema~F}}
 \newcommand{\nat}[1]{\overline{#1}}
 
-\title{Formalization of G\"odel's First Incompleteness Theorem\\
+\title{Formalization of G\"odel's Incompleteness Theorem\\
   in a Guard/Rose Equational System}
 \author{}
 \date{}
@@ -68,15 +68,13 @@ Here:
 \begin{remark}
 This is G\"odel's \emph{first} incompleteness theorem:
 $G$ is not provable (if the system is consistent).
-The \emph{second} incompleteness theorem ($\mathrm{Con}$ is not
-provable) would additionally require formalizing the proof of
-Theorem~\ref{thm:godel1} \emph{inside} the system, to derive
-$\vdash \mathrm{Con} \to G$.  Then if $\vdash \mathrm{Con}$, we
-get $\vdash G$, contradicting Theorem~\ref{thm:godel1}.
-This internalization step is not carried out here.
-In Rose's paper~\cite{rose1961}, Theorem~18 corresponds to our
-result; the passage to G\"odel~II would require Rose's
-Theorems~15--17 to be formalized inside the object system.
+In Rose's paper~\cite{rose1961}, this corresponds to Theorem~18.
+G\"odel's \emph{second} incompleteness theorem ($\mathrm{Con}$ is
+not provable) would additionally require formalizing the proof of
+Theorem~\ref{thm:godel1} \emph{inside} the object system,
+corresponding to Rose's Theorems~15--17.
+This internalization is not carried out here;
+the formalization proves G\"odel~I only.
 \end{remark}
 
 %% ---------------------------------------------------------------
@@ -445,17 +443,16 @@ contradicting consistency.
   $H \vdash\; \true = \false$, violating consistency.
 \end{enumerate}
 
-\subsection*{From G\"odel I to G\"odel II}
+\subsection*{What would be needed for G\"odel II}
 
-Theorem~\ref{thm:godel1} shows $G$ is not provable (assuming
-consistency and $\mathrm{ProofE}$).  For G\"odel's \emph{second}
-incompleteness theorem ($\mathrm{Con}$ is not provable), one would
-need to show that the system can derive
-$\mathrm{Con} \to G$
-internally.  This requires formalizing steps~1--9 above as an
-object-level derivation, which amounts to proving $\mathrm{ProofE}$
-and the diagonal construction inside the system.
-This internalization is not carried out in the present formalization.
+For the second incompleteness theorem, one would need the system
+to derive $\mathrm{Con} \to G$ internally.
+This amounts to formalizing Rose's Theorems~15--17~\cite{rose1961}
+inside the object system:
+the proof encoding correctness ($\mathrm{ProofE}$) and the diagonal
+construction would need to be carried out as equational derivations,
+not just as Agda metalevel proofs.
+This is not done in the present formalization.
 
 %% ---------------------------------------------------------------
 \section{File structure}

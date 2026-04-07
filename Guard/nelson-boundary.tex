@@ -40,8 +40,8 @@ Guard's syntax (binary trees with functors) and Rose's
 purely equational proof style~\cite{rose1953} (no propositional
 connectives --- only equations and tree induction).
 The formalization contains:
-(1)~a complete diagonal G\"odel~II proof~\cite{godel1931}
-(168 lines, 0 postulates);
+(1)~a diagonal G\"odel~I proof~\cite{godel1931}
+(the G\"odel sentence is not provable; 168 lines, 0 postulates);
 (2)~a micro-Nelson instance~\cite{nelson1986} verifying 56
 programs against a fixed target;
 (3)~a uniform proof-construction mechanism (the R/Q technique)
@@ -504,7 +504,7 @@ Zero postulates throughout.
 \begin{tabular}{lrl}
 \textbf{File} & \textbf{Lines} & \textbf{Content} \\
 \hline
-GodelII.agda & 168 & Diagonal G\"odel~II \\
+GodelII.agda & 168 & Diagonal G\"odel~I \\
 MicroNelson.agda & 258 & 56 programs, $\mathrm{checkProof}_2$ = true \\
 AutoProof.agda & 754 & R/Q library, 3 proof families, 11 derivations \\
 Chaitin.agda & 395 & Binary encoding, tree enum., \texttt{krClean} \\
