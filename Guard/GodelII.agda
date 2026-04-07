@@ -96,29 +96,22 @@ treeEqSelf t = ruleTrans (ruleSym (teIRed t))
 private
   tgtN : Tree ; tgtN = natCode v1
 
-  diagFTarget : {hyp : Equation} ->
-    Deriv hyp (eqn (ap1 cstf (reify templateCode)) (reify cGS))
-  diagFTarget {hyp} =
-    let cstf' = closedSubstTFor (reify crTC) (reify tgtN)
-        combined = closedSTFNd crTC tgtN codeLhsT codePoo
-                     codeLhsTNeqTagVar codeLhsTNotVar
-                     (lhsTSTF crTC) (pooSTF crTC)
-        -- combined type has Pair(reify codeLhsT, reify codePoo), need reify templateCode
-        step1 = eqSubst (\tc -> Deriv hyp (eqn (ap1 cstf' (reify tc)) (reify (codedSubst crTC tgtN tc))))
-                         (eqSym templateCodeForm) combined
-        -- Bridge cstf' to cstf
-        step2 = eqSubst (\f -> Deriv hyp (eqn (ap1 f (reify templateCode)) (reify (codedSubst crTC tgtN templateCode))))
-                         (eqSym cstfDef) step1
-        -- Bridge codedSubst crTC tgtN templateCode to cGS
-        fp = eqTrans (codedSubstNd crTC tgtN codeLhsT codePoo codeLhsTNotVar) (eqSym cGSisCS)
-        -- But codedSubst crTC tgtN templateCode is stuck (templateCode abstract).
-        -- Use templateCodeForm to bridge: codedSubst crTC tgtN templateCode
-        --   = codedSubst crTC tgtN (nd codeLhsT codePoo) [by templateCodeForm]
-        --   = nd(codedSubst...)(codedSubst...) [by codedSubstNd]
-        --   = cGS [by cGSisCS]
-        fp2 = eqTrans (eqSubst (\tc -> Eq (codedSubst crTC tgtN tc) (codedSubst crTC tgtN (nd codeLhsT codePoo))) (eqSym templateCodeForm) refl) fp
-    in eqSubst (\v -> Deriv hyp (eqn (ap1 cstf (reify templateCode)) (reify v)))
-               fp2 step2
+diagFTarget : {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 cstf (reify templateCode)) (reify cGS))
+diagFTarget {hyp} =
+  let tgtN = natCode v1
+      cstf' = closedSubstTFor (reify crTC) (reify tgtN)
+      combined = closedSTFNd crTC tgtN codeLhsT codePoo
+                   codeLhsTNeqTagVar codeLhsTNotVar
+                   (lhsTSTF crTC) (pooSTF crTC)
+      step1 = eqSubst (\tc -> Deriv hyp (eqn (ap1 cstf' (reify tc)) (reify (codedSubst crTC tgtN tc))))
+                       (eqSym templateCodeForm) combined
+      step2 = eqSubst (\f -> Deriv hyp (eqn (ap1 f (reify templateCode)) (reify (codedSubst crTC tgtN templateCode))))
+                       (eqSym cstfDef) step1
+      fp = eqTrans (codedSubstNd crTC tgtN codeLhsT codePoo codeLhsTNotVar) (eqSym cGSisCS)
+      fp2 = eqTrans (eqSubst (\tc -> Eq (codedSubst crTC tgtN tc) (codedSubst crTC tgtN (nd codeLhsT codePoo))) (eqSym templateCodeForm) refl) fp
+  in eqSubst (\v -> Deriv hyp (eqn (ap1 cstf (reify templateCode)) (reify v)))
+             fp2 step2
 
 ------------------------------------------------------------------------
 -- Godel II
