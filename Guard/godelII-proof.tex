@@ -134,18 +134,50 @@ is valid but unprovable in BRA''~\cite{guard1963}.
 
 \subsection*{Statement}
 
-\begin{theorem}[G\"odel~II --- \texttt{godelII} in \texttt{GodelIIFull.agda}]
+\begin{theorem}[G\"odel~II, constructive form --- \texttt{conToBot} in \texttt{GodelIIFull.agda}]
+\label{thm:godel2c}
+For any hypothesis equation~$H$:
+\[
+  H \vdash \mathit{conSentence} \;\to\;
+  H \vdash \trueT = \falseT
+\]
+\end{theorem}
+
+\noindent
+That is: if the system derives the internal consistency statement,
+then it derives $\trueT = \falseT$.  This is the direct constructive
+content --- no consistency assumption, no Markov's principle.
+
+\begin{corollary}[G\"odel~II, standard form --- \texttt{godelII} in \texttt{GodelIIFull.agda}]
 \label{thm:godel2}
 For any hypothesis equation~$H$:
 \[
   \mathit{Consistent}(H) \;\to\;
   H \vdash \mathit{conSentence} \;\to\; \bot
 \]
-\end{theorem}
+\end{corollary}
 
 \noindent
-That is: the internal consistency statement is not derivable
-from any consistent hypothesis.
+The corollary follows by applying $\mathit{Consistent}(H)$
+to the derivation of $\trueT = \falseT$ from
+Theorem~\ref{thm:godel2c}.
+
+\begin{remark}
+The constructive form (Theorem~\ref{thm:godel2c}) is stronger
+than the standard form (Corollary~\ref{thm:godel2}).
+Classically they are equivalent by contraposition.
+Constructively, the standard form gives only
+$H \vdash \mathit{conSentence} \to \lnot\lnot(H \vdash
+\trueT = \falseT)$, and extracting the double negation
+would require Markov's principle or
+the Friedman--Dragalin $A$-translation.
+However, our proof directly produces the derivation
+$H \vdash \trueT = \falseT$ from $H \vdash \mathit{conSentence}$
+without any classical reasoning, since the construction of
+$\mathit{botBot}$ in the proof does not use the consistency
+assumption --- it is applied only at the final step to obtain
+$\bot$.
+\end{remark}
 
 \subsection*{Proof}
 

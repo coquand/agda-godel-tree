@@ -101,26 +101,30 @@ private
   corrBot = fst (snd (snd (snd peBot)))
 
 ------------------------------------------------------------------------
--- Gödel II: conSentence is not derivable from a consistent hypothesis.
+-- Gödel II (constructive form): if T proves Con, then T proves 0 = 1.
+--
+-- This is the direct constructive content: from a derivation of
+-- conSentence, produce a derivation of trueT = falseT.
+-- No consistency assumption needed. No Markov's principle.
+
+conToBot : {hyp : Equation} ->
+  Deriv hyp conSentence ->
+  Deriv hyp (eqn trueT falseT)
+conToBot {hyp} dCon =
+  let -- Instantiate conSentence at enc_bot
+      conInst = ruleInst zero enc_bot dCon
+      -- Replace thFunTFor(enc_bot) with codeBotT using corrBot
+      step = ruleTrans (ruleSym (congL TreeEq codeBotT (corrBot {hyp}))) conInst
+      -- treeEqSelf gives trueT
+      selfEq = treeEqSelf codeBotT
+  in ruleTrans (ruleSym selfEq) step
+
+------------------------------------------------------------------------
+-- Gödel II (standard form): conSentence is not derivable from
+-- a consistent hypothesis.
 
 godelII : {hyp : Equation} ->
   Consistent hyp ->
   Deriv hyp conSentence ->
   Empty
-godelII {hyp} con dCon = con botBot
-  where
-  -- Instantiate conSentence at enc_bot
-  conInst : Deriv hyp (eqn (ap2 TreeEq (ap1 thFunTFor enc_bot) codeBotT) falseT)
-  conInst = ruleInst zero enc_bot dCon
-
-  -- Replace thFunTFor(enc_bot) with codeBotT using corrBot
-  step : Deriv hyp (eqn (ap2 TreeEq codeBotT codeBotT) falseT)
-  step = ruleTrans (ruleSym (congL TreeEq codeBotT (corrBot {hyp}))) conInst
-
-  -- treeEqSelf gives trueT
-  selfEq : Deriv hyp (eqn (ap2 TreeEq codeBotT codeBotT) trueT)
-  selfEq = treeEqSelf codeBotT
-
-  -- Contradiction
-  botBot : Deriv hyp (eqn trueT falseT)
-  botBot = ruleTrans (ruleSym selfEq) step
+godelII con dCon = con (conToBot dCon)
