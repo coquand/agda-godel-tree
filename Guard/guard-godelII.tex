@@ -1,0 +1,737 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{mathtools}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+
+%% -- Notation --
+\newcommand{\pair}[2]{\langle #1, #2 \rangle}
+\newcommand{\trueT}{\mathbf{t}}
+\newcommand{\falseT}{\mathbf{f}}
+\newcommand{\SchemaF}{\textbf{Schema~F}}
+\newcommand{\nat}[1]{\overline{#1}}
+\newcommand{\code}[1]{\ulcorner #1 \urcorner}
+\newcommand{\reify}[1]{\widehat{#1}}
+\newcommand{\thFun}{\mathrm{thFun}}
+\newcommand{\thFunTFor}{\mathrm{thFunTFor}}
+\newcommand{\cstf}{\mathrm{cstf}}
+\newcommand{\TreeEq}{\mathrm{TreeEq}}
+\newcommand{\IfLf}{\mathrm{IfLf}}
+
+\title{G\"odel's Second Incompleteness Theorem\\
+  in a Guard/Rose Equational System:\\
+  Formalization in Agda}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+%% ===============================================================
+\section{Overview}
+
+We formalize G\"odel's first and second incompleteness theorems
+in a purely equational system combining two ideas:
+\begin{itemize}
+\item \emph{Guard}'s syntax~\cite{guard1963}: binary trees with
+  typed unary and binary functors, serving as both the data domain
+  and the term language;
+\item \emph{Rose}'s purely equational proof style~\cite{rose1961}:
+  the only judgement is an equation $t = u$ between terms, with no
+  propositional connectives, no sequents, and no logical rules ---
+  only computation axioms, congruence, substitution, and a
+  tree-induction principle (\SchemaF).
+\end{itemize}
+The formalization is in Agda with
+\texttt{-{}-safe -{}-without-K -{}-exact-split}.  No postulates.
+
+\begin{theorem}[G\"odel~I, constructive form --- \texttt{godelIToBot} in \texttt{ProofEAny.agda}]
+\label{thm:godel1c}
+For any hypothesis equation~$H$:
+\[
+  H \vdash G \;\to\; H \vdash \trueT = \falseT
+\]
+where $G$ is the G\"odel sentence.
+\end{theorem}
+
+\begin{theorem}[G\"odel~II, constructive form --- \texttt{conToBot} in \texttt{GodelIIFull.agda}]
+\label{thm:godel2c}
+For any hypothesis equation~$H$:
+\[
+  H \vdash \mathrm{Con} \;\to\;
+  H \vdash \trueT = \falseT.
+\]
+\end{theorem}
+
+\noindent
+Both results have standard corollaries:
+if~$H$ is consistent, then neither~$G$ nor $\mathrm{Con}$
+is derivable from~$H$.
+
+%% ===============================================================
+\section{The formal system}
+
+\subsection*{Trees}
+
+The ground data are finite binary trees:
+\[
+  a, b \;::=\; O \;\mid\; \pair{a}{b}
+\]
+where $O$ is the leaf and $\pair{a}{b}$ is the node.
+We define:
+\[
+  \trueT \;=\; O, \qquad \falseT \;=\; \pair{O}{O}.
+\]
+Here $\trueT$ represents equality (or ``yes'') and $\falseT$
+represents inequality (or ``no'').
+We write $\nat{n}$ for the unary encoding of $n \in \mathbb{N}$:
+$\nat{0} = O$, $\nat{n+1} = \pair{O}{\nat{n}}$.
+
+\subsection*{Terms and functors}
+
+Terms are built from trees, variables, and functor applications.
+We use $t, u, v$ for terms, $a, b$ for trees.
+The system has countably many variables $x_0, x_1, x_2, \ldots$\,.
+There are unary functors ($f, g : \mathrm{Fun}_1$) and binary
+functors ($h : \mathrm{Fun}_2$).
+
+\[
+\begin{array}{rcl@{\qquad}l}
+  f, g &::=& \mathrm{I} & \text{identity} \\
+       &\mid& \pi_1 & \text{first projection} \\
+       &\mid& \pi_2 & \text{second projection} \\
+       &\mid& f \circ g & \text{composition} \\
+       &\mid& h[f, g] & \text{binary composition: } t \mapsto h(f(t), g(t)) \\
+       &\mid& \mathrm{R}(z, s) & \text{tree recursion with base } z \text{ and step } s \\
+       &\mid& \mathrm{K}_c & \text{constant } c \\[6pt]
+  h &::=& \mathrm{P} & \text{pairing: } (t, u) \mapsto \pair{t}{u} \\
+    &\mid& \mathrm{C} & \text{left projection: } (t, u) \mapsto t \\
+    &\mid& \mathrm{Lf}(f) & \text{lift: } (t, u) \mapsto f(t) \\
+    &\mid& \mathrm{Ps}(f, h) & \text{post-compose: } (t, u) \mapsto f(h(t, u)) \\
+    &\mid& \mathrm{Fn}(h_1, h_2, h) & \text{fan: } (t, u) \mapsto h(h_1(t,u),\, h_2(t,u)) \\
+    &\mid& \mathrm{If} & \text{conditional} \\
+    &\mid& \TreeEq & \text{tree equality test}
+\end{array}
+\]
+
+Terms:
+\[
+  t, u \;::=\; O \;\mid\; x_i \;\mid\; f(t) \;\mid\; h(t, u)
+\]
+
+An \emph{equation} is a pair $t = u$ of terms.
+
+\subsection*{Embedding trees into terms}
+
+Every tree $a$ determines a closed term $\hat{a}$:
+\[
+  \hat{O} = O, \qquad \widehat{\pair{a}{b}} = \pair{\hat a}{\hat b}.
+\]
+(In Agda: \texttt{reify}.)
+Conversely, every closed term reduces to $\hat{a}$ for a unique~$a$.
+
+\subsection*{Derivation rules}
+
+A derivation is built from the rules below.
+Every rule may use a hypothesis~$H$;
+we write $H \vdash t = u$.
+
+\medskip\noindent
+\textbf{Computation axioms.}
+\begin{alignat*}{2}
+  &\text{Identity:}          &\quad \mathrm{I}(t) &= t \\
+  &\text{First projection:}  &\quad \pi_1(\pair{t}{u}) &= t \\
+  &\text{Second projection:} &\quad \pi_2(\pair{t}{u}) &= u \\
+  &\text{Constant:}          &\quad \mathrm{C}(t, u) &= t \\
+  &\text{Composition:}       &\quad (f \circ g)(t) &= f(g(t)) \\
+  &\text{Binary composition:}&\quad h[f,g](t) &= h(f(t),\, g(t)) \\
+  &\text{Lift:}              &\quad \mathrm{Lf}(f)(t, u) &= f(t) \\
+  &\text{Post-compose:}      &\quad \mathrm{Ps}(f, h)(t, u) &= f(h(t,u)) \\
+  &\text{Fan:}               &\quad \mathrm{Fn}(h_1,h_2,h)(t,u)
+                                      &= h(h_1(t,u),\, h_2(t,u)) \\
+  &\text{Constant functor:}  &\quad \mathrm{K}_c(t) &= c
+\end{alignat*}
+
+\noindent
+\textbf{Tree recursion.}
+\begin{alignat*}{2}
+  &\text{Base:} &\quad \mathrm{R}(z, s)(O) &= z \\
+  &\text{Step:} &\quad \mathrm{R}(z, s)(\pair{t}{u})
+    &= s\bigl(\pair{t}{u},\;
+         \pair{\mathrm{R}(z,s)(t)}{\mathrm{R}(z,s)(u)}\bigr)
+\end{alignat*}
+
+\noindent
+\textbf{Conditional.}
+\begin{alignat*}{2}
+  &\text{True branch:}     &\quad \mathrm{If}(\trueT,\, \pair{t}{u}) &= t \\
+  &\text{False branch:}     &\quad \mathrm{If}(\pair{t_1}{t_2},\, \pair{u_1}{u_2}) &= u_2
+\end{alignat*}
+More generally, $\mathrm{If}$ branches on whether its first
+argument is~$O$ (leaf) or a pair (node).
+
+\medskip\noindent
+\textbf{Tree equality.}
+\begin{alignat*}{2}
+  &\TreeEq(O, O) &\;=\; \trueT \\
+  &\TreeEq(O, \pair{t}{u}) &\;=\; \falseT \\
+  &\TreeEq(\pair{t}{u}, O) &\;=\; \falseT \\
+  &\TreeEq(\pair{t_1}{t_2}, \pair{u_1}{u_2})
+    &\;=\; \mathrm{If}\bigl(\TreeEq(t_1, u_1),\;
+         \pair{\TreeEq(t_2, u_2)}{\falseT}\bigr)
+\end{alignat*}
+$\TreeEq$ returns $\trueT$ for equal trees and $\falseT$ for
+unequal.  The last clause says: if the left children differ, return
+$\falseT$ immediately; otherwise, recurse on the right children.
+
+In particular $\TreeEq(t, t) = \trueT$ for all~$t$,
+proved by \SchemaF{} (\texttt{treeEqSelf} in \texttt{GodelII.agda}).
+
+\medskip\noindent
+\textbf{Structural rules.}
+\begin{gather*}
+  \frac{\phantom{t=t}}{t = t}\;\text{(refl)}
+  \qquad\qquad
+  \frac{t = u}{u = t}\;\text{(sym)}
+  \qquad\qquad
+  \frac{t = u \qquad u = v}{t = v}\;\text{(trans)}
+  \\[8pt]
+  \frac{t = u}{f(t) = f(u)}\;\text{(cong$_1$)}
+  \qquad\qquad
+  \frac{t = u}{h(t, v) = h(u, v)}\;\text{(cong$_L$)}
+  \qquad\qquad
+  \frac{t = u}{h(v, t) = h(v, u)}\;\text{(cong$_R$)}
+\end{gather*}
+
+\noindent
+\textbf{Substitution.}
+\[
+  \frac{H \vdash t = u}
+       {H \vdash t[c/x_i] = u[c/x_i]}
+  \;\text{(inst)}
+\]
+
+\noindent
+\textbf{Hypothesis.}
+\[
+  \frac{\phantom{H}}{H \vdash H}
+  \;\text{(hyp)}
+\]
+
+\noindent
+\textbf{\SchemaF} (tree induction).
+If $f$ and $g$ are unary functors, $z$ a term, $s$ a binary functor,
+and we have derivations of:
+\begin{align*}
+  f(O) &= z,  &  f(\pair{x_0}{x_1}) &= s(\pair{x_0}{x_1},\; \pair{f(x_0)}{f(x_1)}), \\
+  g(O) &= z,  &  g(\pair{x_0}{x_1}) &= s(\pair{x_0}{x_1},\; \pair{g(x_0)}{g(x_1)}),
+\end{align*}
+then $f(x_0) = g(x_0)$.
+
+\medskip
+\SchemaF{} expresses the uniqueness of tree recursion:
+if $f$ and $g$ satisfy the same recurrence (same base~$z$, same step~$s$),
+they agree on all inputs.  Restricted to unary trees $\nat{n}$,
+this gives ordinary mathematical induction.
+
+\subsection*{Consistency}
+
+The system is \emph{consistent} (relative to hypothesis~$H$)
+if there is no derivation of $\trueT = \falseT$ from~$H$.
+
+%% ===============================================================
+\section{Key components}
+
+\subsection{Proof encoding ($\thFunTFor$, Theorem~14)}
+
+$\thFunTFor$ is a unary functor
+(defined as $\mathrm{R}(O, \mathrm{thFunStep})$)
+that maps proof-encoding trees to the code of the equation they prove.
+The step function $\mathrm{thFunStep}$ is a 26-branch dispatch
+handling all derivation rules.
+
+Every term~$t$ is encoded as a tree $\code{t}$, and every
+equation $t = u$ as $\code{t = u} = \pair{\code{t}}{\code{u}}$.
+Every functor is similarly encoded.
+
+\emph{Theorem~14} ($\mathrm{thm14E}$): if $H \vdash t = u$,
+then there exist trees $p_a, p_b$ such that:
+\begin{enumerate}
+\item $\thFun(\pair{p_a}{p_b}) = \code{t = u}$ \quad (meta-level correctness),
+\item $\vdash \thFunTFor(\pair{\reify{p_a}}{\reify{p_b}}) = \reify{\code{t = u}}$
+  \quad (object-level correctness, polymorphic in hypothesis).
+\end{enumerate}
+The proof is by induction on the derivation, with 26~cases
+(1402 lines in \texttt{Thm14E.agda}).
+
+Component~(2) is \emph{polymorphic}: the derivation uses only
+computation axioms and structural rules, never the hypothesis
+rule.  This is crucial for G\"odel~II.
+
+\subsection{Coded substitution ($\mathrm{substTFor}$)}
+
+$\mathrm{substTFor}$ is a unary functor implementing coded
+substitution: given a coded term~$\code{t}$,
+it replaces every occurrence of variable~$x_n$ by a
+replacement term~$r$.
+
+These two parameters ($r$ and~$n$) are represented by free variables
+in $\mathrm{substTFor}$.  To avoid collision with the variables
+$x_0, x_1$ used in \SchemaF{} and in the template equation,
+the formalization places them at high indices:
+\begin{itemize}
+\item $x_{11}$ carries the replacement~$r$,
+\item $x_{12}$ carries the target index~$\nat{n}$.
+\end{itemize}
+
+Closing these variables gives the fully applied version:
+\[
+  \mathrm{closedSubstTFor}(r, \nat{n}) \;=\;
+  \mathrm{substTFor}[r/x_{11},\; \nat{n}/x_{12}].
+\]
+
+Correctness: for any term~$t$,
+$\mathrm{closedSubstTFor}(r, \nat{n})$ applied to
+$\reify{\code{t}}$
+equals $\reify{\code{t[r/x_n]}}$.
+
+\subsection{$\TreeEq(t, t) = \trueT$ via \SchemaF}
+
+$\TreeEq(t, t) = \trueT$ for all~$t$ is proved using \SchemaF.
+Define $f = \TreeEq[\mathrm{I}, \mathrm{I}]$
+(so $f(t) = \TreeEq(t,t)$) and $g = \mathrm{K}_\trueT$.
+Both satisfy the same recursion:
+\begin{itemize}
+\item $f$: by the computation axioms for $\TreeEq$ and the
+  recursive structure of $\TreeEq$ on $\pair{t_1}{t_2}$;
+\item $g$: by $\mathrm{K}_\trueT$; the step reduces to
+  $\mathrm{If}(\trueT, \pair{\trueT}{\falseT}) = \trueT$ since $g$
+  returns $\trueT$ on all inputs.
+\end{itemize}
+\SchemaF{} gives $f(t) = g(t)$, i.e., $\TreeEq(t,t) = \trueT$.
+
+%% ===============================================================
+\section{The G\"odel sentence and diagonal construction}
+
+\subsection*{Template}
+
+The G\"odel sentence is built from a \emph{template equation}
+with several free variables:
+\begin{itemize}
+\item $x_0$: will receive a proof encoding (the ``proof slot'');
+\item $x_1$: will receive a coded term (the ``diagonal slot'');
+\item $x_{11}, x_{12}$: the replacement and target parameters of
+  $\mathrm{substTFor}$ (closed later).
+\end{itemize}
+
+The template is:
+\[
+  \mathrm{templateEqn} \;=\;
+  \bigl(\TreeEq(\thFunTFor(x_0),\;
+    \mathrm{substTFor}(x_1)) = \falseT\bigr).
+\]
+It says: ``the equation encoded by the proof in~$x_0$ is not equal
+to the result of substituting via~$x_1$.''
+Leaving $x_{11}, x_{12}$ free at this stage keeps the tree code
+of the template small.
+
+\subsection*{Diagonalization}
+
+Let $N = \code{\mathrm{templateEqn}}$ be the tree
+encoding of the template.  The G\"odel sentence is obtained by
+substituting $\hat{N}$ (the numeral for~$N$) into the diagonal slot:
+\[
+  G \;=\; \mathrm{templateEqn}[\hat{N}/x_1].
+\]
+After this substitution, $G$ says (informally):
+``for any proof tree in~$x_0$, the equation it encodes is not the
+result of substituting~$N$ into the template'' ---
+i.e., ``no proof tree proves~$G$.''
+
+\subsection*{Abstract definitions (cached)}
+
+The following are computed once in \texttt{SubstTForPrecomp.agda}
+and cached:
+\begin{itemize}
+\item $N$: tree code of the template
+\item $\hat N$: the numeral $\reify{N}$
+\item $G = \mathrm{templateEqn}[\hat{N}/x_1]$
+\item $\code{G}$: tree encoding of~$G$
+\item $\cstf = \mathrm{closedSubstTFor}(\reify{\hat N},\;\nat{1})$:
+  the substitution functor closed with replacement = code of the
+  template numeral and target = variable~$x_1$
+\end{itemize}
+
+\subsection*{Heavy computation (one-time)}
+
+\texttt{SubstTForPrecomp.agda} contains one step requiring
+${\sim}108$ seconds (computed once, cached in \texttt{.agdai}):
+proving that after instantiating $x_{11}$ and~$x_{12}$, the open
+$\mathrm{substTFor}$ becomes~$\cstf$.
+This requires Agda to traverse $\reify{\hat{N}}$
+(${\sim}400$K term nodes) with substitution acting as identity
+on the closed subterm.
+
+\begin{remark}
+The mathematical argument does not require this traversal.
+A general ``substitution is identity on closed terms'' lemma would
+eliminate it.
+\end{remark}
+
+%% ===============================================================
+\section{Proof of G\"odel I}
+
+\begin{theorem}[G\"odel~I, constructive form]
+\label{thm:godel1cf}
+For any hypothesis equation~$H$:
+$H \vdash G \;\to\; H \vdash \trueT = \falseT$.
+\end{theorem}
+
+\begin{corollary}[G\"odel~I, standard form --- \texttt{godelI} in \texttt{ProofEAny.agda}]
+\label{thm:godel1s}
+$\mathit{Consistent}(H) \;\to\; H \vdash G \;\to\; \bot$.
+\end{corollary}
+
+\noindent
+Both forms remove the $\mathrm{ProofE}(H)$ assumption
+from the original proof.  The key enabler is
+$\mathrm{mkProofEAny}$, which constructs a proof encoding
+for any equation using the trans-from-two-refls technique.
+
+\medskip\noindent
+The proof in \texttt{GodelII.agda} (0.2 seconds, 168 lines)
+follows Rose's Theorem~18~\cite{rose1961}.
+We assume $H \vdash G$ and derive $H \vdash \trueT = \falseT$:
+
+\begin{enumerate}
+\item \textbf{Assume} $H \vdash G$.
+
+\item \textbf{Theorem~14} gives a proof encoding $e$ with
+  \[
+    H \vdash\; \thFunTFor(e) = \reify{\code{G}}.
+  \]
+
+\item \textbf{diagFTarget} (precomputed):
+  $H \vdash\; \cstf(\hat{N}) = \reify{\code{G}}$.
+
+\item \textbf{Chain} steps 2 and 3 through
+  $\reify{\code{G}}$ as middle term (trans + sym):
+  \[
+    H \vdash\; \thFunTFor(e) = \cstf(\hat{N}).
+  \]
+  The term $\reify{\code{G}}$ appears only as the
+  middle of a transitivity chain --- it is never touched by inst.
+
+\item \textbf{Instantiate} $G$ with $e$ (inst on~$x_0$):
+  \[
+    H \vdash\;
+    \TreeEq(\thFunTFor(e),\;
+    \mathrm{substTFor}(\hat{N})) = \falseT.
+  \]
+
+\item \textbf{Replace} $\thFunTFor(e)$ with
+  $\cstf(\hat{N})$ using $\mathrm{cong}_L$ and the chain
+  from step~4:
+  \[
+    H \vdash\;
+    \TreeEq(\cstf(\hat{N}),\;
+    \mathrm{substTFor}(\hat{N})) = \falseT.
+  \]
+
+\item \textbf{Instantiate} $x_{11}$ and $x_{12}$ (inst, using
+  the cached computation from Section~4):
+  the open $\mathrm{substTFor}(\hat{N})$ becomes
+  $\cstf(\hat{N})$:
+  \[
+    H \vdash\;
+    \TreeEq(\cstf(\hat{N}),\;
+    \cstf(\hat{N})) = \falseT.
+  \]
+
+\item \textbf{Reflexivity} ($\TreeEq(t,t) = \trueT$ via \SchemaF):
+  \[
+    H \vdash\;
+    \TreeEq(\cstf(\hat{N}),\;
+    \cstf(\hat{N})) = \trueT.
+  \]
+
+\item \textbf{Contradiction}: by trans,
+  $H \vdash\; \trueT = \falseT$, violating consistency.
+\end{enumerate}
+
+%% ===============================================================
+\section{Proof of G\"odel II}
+
+\subsection*{The internal consistency statement}
+
+The code of the contradiction $\trueT = \falseT$ is
+\[
+  \code{\bot} \;=\; \code{\trueT = \falseT}
+  \;=\; \pair{\code{O}}{\code{\pair{O}{O}}}.
+\]
+
+\begin{definition}
+The \emph{internal consistency statement} is the equation
+\[
+  \mathrm{Con} \;\equiv\quad
+  \TreeEq\bigl(\thFunTFor(x),\;\reify{\code{\bot}}\bigr) \;=\; \falseT
+\]
+where $x$ is a free variable, implicitly universally quantified.
+Since $\TreeEq(a, b) = \falseT$ means $a \neq b$,
+$\mathrm{Con}$ says:
+\emph{for every proof tree~$x$, the equation encoded by~$x$
+is not $\trueT = \falseT$} --- i.e., the system does not
+prove $\trueT = \falseT$.
+\end{definition}
+
+\noindent
+When the hypothesis is a trivially true equation such as
+$\trueT = \trueT$, this corresponds exactly to Guard's
+Theorem~14: ``$\mathrm{th}(y) \neq \text{``}0 = 1\text{''}$
+is valid but unprovable in BRA''~\cite{guard1963}.
+
+\subsection*{Statement}
+
+\begin{theorem}[G\"odel~II, constructive form --- \texttt{conToBot} in \texttt{GodelIIFull.agda}]
+\label{thm:godel2cf}
+For any hypothesis equation~$H$:
+\[
+  H \vdash \mathrm{Con} \;\to\;
+  H \vdash \trueT = \falseT.
+\]
+\end{theorem}
+
+\noindent
+That is: if the system derives $\mathrm{Con}$,
+then it derives $\trueT = \falseT$.  This is the direct constructive
+content --- no consistency assumption, no Markov's principle.
+
+\begin{corollary}[G\"odel~II, standard form --- \texttt{godelII} in \texttt{GodelIIFull.agda}]
+\label{thm:godel2s}
+For any hypothesis equation~$H$:
+\[
+  \mathit{Consistent}(H) \;\to\;
+  H \vdash \mathrm{Con} \;\to\; \bot.
+\]
+\end{corollary}
+
+\begin{remark}
+The constructive form (Theorem~\ref{thm:godel2cf}) is stronger
+than the standard form (Corollary~\ref{thm:godel2s}).
+Classically they are equivalent by contraposition.
+Constructively, our proof directly produces the derivation
+$H \vdash \trueT = \falseT$ from $H \vdash \mathrm{Con}$
+without any classical reasoning: the consistency
+assumption is applied only at the final step to obtain~$\bot$.
+\end{remark}
+
+\subsection*{Proof}
+
+The proof has three components.
+
+\medskip\noindent
+\textbf{Step 1: Pre-compute the encoding of the G\"odel~I argument.}
+
+\noindent
+Specialize the G\"odel~I proof to the hypothesis
+$H_0 = G$ (the G\"odel sentence itself).
+With this hypothesis, $\mathrm{ruleHyp}$ gives
+$G \vdash G$, and the G\"odel~I argument
+(Theorem~\ref{thm:godel1cf}) produces a derivation:
+\[
+  d_\bot : G \vdash \trueT = \falseT.
+\]
+Apply Theorem~14 (\texttt{thm14E}) to~$d_\bot$ to obtain
+the proof encoding $\mathit{enc}_\bot$ and the correctness proof:
+\[
+  \mathit{corrBot} : \thFunTFor(\mathit{enc}_\bot) = \reify{\code{\bot}}.
+\]
+Crucially, $\mathit{corrBot}$ is \emph{polymorphic in the hypothesis}:
+it is a derivation using only computation axioms and structural
+rules, not the hypothesis rule.  Therefore it holds in any
+hypothesis context, not just under~$G$.
+
+The term $\mathit{enc}_\bot$ is a specific closed term computed
+at the Agda meta-level.  It encodes the entire G\"odel~I
+proof: the diagonal (\texttt{diagFTarget}), tree equality
+self-comparison (\texttt{treeEqSelf}), variable instantiation,
+and all 26~case verifications through \texttt{thm14E}.
+
+\medskip\noindent
+\textbf{Step 2: Instantiate the consistency hypothesis.}
+
+\noindent
+Given $H \vdash \mathrm{Con}$, apply variable
+substitution (\texttt{ruleInst}) with $x := \mathit{enc}_\bot$:
+\[
+  H \vdash \TreeEq(\thFunTFor(\mathit{enc}_\bot),\;\reify{\code{\bot}}) = \falseT.
+\]
+
+\medskip\noindent
+\textbf{Step 3: Derive the contradiction.}
+
+\noindent
+From $\mathit{corrBot}$ (polymorphic, instantiated at~$H$):
+\[
+  H \vdash \thFunTFor(\mathit{enc}_\bot) = \reify{\code{\bot}}.
+\]
+Replace $\thFunTFor(\mathit{enc}_\bot)$ with $\reify{\code{\bot}}$
+by congruence:
+\[
+  H \vdash \TreeEq(\reify{\code{\bot}},\;\reify{\code{\bot}}) = \falseT.
+\]
+But $\TreeEq(t, t) = \trueT$ for all~$t$ (by \SchemaF{}):
+\[
+  H \vdash \TreeEq(\reify{\code{\bot}},\;\reify{\code{\bot}}) = \trueT.
+\]
+By transitivity: $H \vdash \trueT = \falseT$,
+contradicting $\mathit{Consistent}(H)$.
+\qed
+
+%% ===============================================================
+\section{Discussion}
+
+\subsection*{Comparison with Guard and Rose}
+
+Guard~\cite{guard1963} proves G\"odel~II (his Theorem~14) by
+explicitly constructing a functor~$h(x)$ within BRA such that
+$\mathrm{th}(h(x)) = \text{``}0 = 1\text{''}$ whenever
+$\mathrm{th}(x) = j$ (the G\"odel sentence code).  This uses
+his Theorem~13 (internalization: $f(x) = y \supset
+\mathrm{th}(D_f(x)) = \text{``}fx = y\text{''}$).
+
+Rose~\cite{rose1961} proves G\"odel~II (his Theorem~18) by
+applying his Theorem~16 (internalized Schema~F) to the function
+$a(\mathrm{se}(\mathrm{nu}(N), N), \mathrm{th}(y))$, using the
+consistency hypothesis $\mathrm{th}(x) \neq e(\mathrm{th}(z))$.
+Cook~\cite{cook1975} points out a possible error in Rose's
+Theorem~16 (p.~134 of~\cite{rose1961}): the function $f(s(x))$
+is neither identically zero nor identically non-zero, which
+invalidates the argument at that step.
+
+Our proof takes a different route: rather than constructing~$h$
+as an object-level functor or applying internalized Schema~F,
+we \emph{pre-compute} the encoding $\mathit{enc}_\bot$ at the
+Agda meta-level from the concrete G\"odel~I derivation.
+The polymorphicity of Theorem~14's correctness proof
+($\mathit{corrBot}$ holds in any hypothesis context) is the
+key property that makes this work, bypassing Rose's
+problematic Theorem~16 entirely.
+
+\subsection*{The role of Theorem~14}
+
+The entire non-trivial content of the proof resides in
+Theorem~14 (\texttt{thm14E}).  The 26~case files verify
+that $\thFunTFor$ correctly tracks each derivation rule.
+The G\"odel~II proof applies Theorem~14 to the specific
+derivation~$d_\bot$ (the G\"odel~I argument with hypothesis~$G$),
+obtaining an encoding whose $\thFunTFor$ image is the
+contradiction code.  The instantiation of $\mathrm{Con}$
+at this encoding then produces the contradiction.
+
+\subsection*{Connection with Cook's PV}
+
+Cook~\cite{cook1975} suggests (Section~8) that a natural
+formalization of feasibly constructive proofs should take a
+\emph{programming approach}, where ``proving $f(x) = g(x)$
+amounts to proving the equivalence of two programs.''
+The Guard/Rose system realizes this vision literally:
+proving $f(x_0) = g(x_0)$ via \SchemaF{} \emph{is} proving
+that two recursive programs (the functors $f$ and~$g$) compute
+the same function.
+Every derivation in the system is a chain of equational
+rewrites on functor expressions --- no quantifiers, no
+propositional connectives, only computation axioms and
+the uniqueness-of-recursion principle.
+
+%% ===============================================================
+\section{Correspondence with Rose}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{Rose~\cite{rose1961}} & \textbf{This formalization} \\
+\hline
+$th(y)$ & $\thFunTFor$ \\
+$se(x,y,z)$ / $st(x,y,z)$ & $\mathrm{substTFor}$ / $\mathrm{closedSubstTFor}$ \\
+$nu(x)$ & implicit via $\hat{N}$ \\
+$N$ (template code) & $\mathrm{templateCode}$ \\
+Schema~F & $\mathrm{ruleF}$ (uniqueness of recursion) \\
+Theorem~10 & $\mathrm{thm14E}$ ($\mathrm{ProofE}$) \\
+Theorem~14 & $\mathrm{thm14E}$ \\
+Theorems~15--16 & Bypassed (see Discussion); cf.~\cite{cook1975} on Thm~16 \\
+Theorem~17 & $\mathrm{diagFTarget}$ \\
+Theorem~18 & \texttt{godelII} in \texttt{GodelII.agda} (= G\"odel I) \\
+--- & \texttt{godelII} in \texttt{GodelIIFull.agda} (= G\"odel II) \\
+\hline
+\end{tabular}
+\end{center}
+
+%% ===============================================================
+\section{File structure}
+
+\begin{center}
+\begin{tabular}{lrl}
+\hline
+\textbf{File} & \textbf{Time} & \textbf{Role} \\
+\hline
+Base.agda & $<1$s & Natural numbers, equality, sigma types \\
+Term.agda & $<1$s & Terms, functors, coding functions \\
+Step.agda & $<1$s & Derivation system (26 rules + \SchemaF) \\
+StepReduce.agda & $<1$s & Derived reduction lemmas \\
+ThFun.agda & $<1$s & Metalevel proof evaluator \\
+ThFunCorrect.agda & $<1$s & Metalevel correctness \\
+ThFunTFor.agda & $<1$s & Object-level proof evaluator (26 branches) \\
+ThFunTForDefs.agda & $<1$s & Definitions for thFunTFor cases \\
+ThFunTForCases0--3.agda & $<1$s & Per-tag case proofs \\
+ThFunTForCorrectDefs.agda & $<1$s & Correctness infrastructure \\
+Thm14E.agda & $<1$s & Theorem~14 (1402 lines, all 26 cases) \\
+SubstTFor.agda & $<1$s & Coded substitution functor \\
+SubstCorrect.agda & $<1$s & Substitution correctness \\
+SubstTForCorrect.agda & $<1$s & $\mathrm{closedSubstTFor}$ correctness \\
+SubstTForPrecomp.agda & 108s & \textbf{Heavy}: precomputed abstractions \\
+SubstTForPrecomp2.agda & $<1$s & Assembly from opaque pieces \\
+NdDispatchProofs.agda & $<1$s & Node-dispatch case proofs \\
+PairPassthrough.agda & $<1$s & Pair passthrough lemmas \\
+PairPassthroughAll.agda & $<1$s & Extended passthrough \\
+IntermediatePassthrough.agda & $<1$s & Intermediate passthrough \\
+ExtractorRed.agda & $<1$s & Extractor reduction lemmas \\
+GodelII.agda & $<1$s & G\"odel I (168 lines) + treeEqSelf \\
+ProofEAny.agda & $<1$s & mkProofEAny + strengthened G\"odel I \\
+GodelIIFull.agda & $<1$s & \textbf{G\"odel II} ($\sim$90 lines) \\
+CookPV.agda & $<1$s & Boolean ops, De Morgan, excluded middle \\
+NoPChecker.agda & $<1$s & No proof-checker (corollary of G\"odel II) \\
+\hline
+\end{tabular}
+\end{center}
+
+All results compile with Agda~2.9.0 using
+\texttt{-{}-safe -{}-without-K -{}-exact-split}.
+No postulates.  The 108-second computation is cached and not repeated.
+
+\begin{thebibliography}{9}
+\bibitem{guard1963}
+  J.~R.~Guard,
+  \emph{Lecture Notes on Recursive Arithmetic},
+  Princeton University, 1963.
+
+\bibitem{rose1961}
+  H.~E.~Rose,
+  ``On the consistency and undecidability of recursive arithmetic,''
+  \emph{Zeitschr.\ f.\ math.\ Logik und Grundlagen d.\ Math.},
+  vol.~7, pp.~124--135, 1961.
+
+\bibitem{cook1975}
+  S.~A.~Cook,
+  ``Feasibly constructive proofs and the propositional calculus,''
+  \emph{Proceedings of the Seventh Annual ACM Symposium on Theory of Computing},
+  pp.~83--97, 1975.
+\end{thebibliography}
+
+\end{document}
