@@ -383,21 +383,95 @@ and cached:
   template numeral and target = variable~$x_1$
 \end{itemize}
 
-\subsection*{Heavy computation (one-time)}
+\subsection*{Heavy computation (one-time) and its elimination}
 
-\texttt{SubstTForPrecomp.agda} contains one step requiring
-${\sim}108$ seconds (computed once, cached in \texttt{.agdai}):
-proving that after instantiating $x_{11}$ and~$x_{12}$, the open
-$\mathrm{substTFor}$ becomes~$\cstf$.
+In the original chain, \texttt{SubstTForPrecomp.agda} contains one
+step requiring ${\sim}108$ seconds (computed once, cached in
+\texttt{.agdai}): proving by \texttt{refl} that after instantiating
+$x_{11}$ and~$x_{12}$, the open $\mathrm{substTFor}$ becomes~$\cstf$.
 This requires Agda to traverse $\reify{\hat{N}}$
-(${\sim}400$K term nodes) with substitution acting as identity
-on the closed subterm.
+(${\sim}400$K term nodes) with substitution acting as identity on
+the closed subterm.
 
-\begin{remark}
 The mathematical argument does not require this traversal.
-A general ``substitution is identity on closed terms'' lemma would
-eliminate it.
-\end{remark}
+A general ``substitution is identity on a $\mathrm{reify}$-image''
+lemma, together with a schematic version of the
+$\mathrm{substTFor}{\to}\cstf$ closing equation, eliminates it.
+We provide both: see the \emph{Fast chain} below.
+
+\subsection*{Fast chain (no 108-second computation)}
+
+A parallel chain of files, all suffixed \texttt{Fast}, replaces
+the \texttt{instForm2 = refl} call with a schematic proof built
+from four lemmas (in \texttt{Guard/Nelson/}):
+\begin{itemize}
+\item $\mathrm{substReify} : \mathrm{subst}\,x\,r\,(\reify{t}) = \reify{t}$,
+  by induction on the tree~$t$;
+\item $\mathrm{substTForClose} : \mathrm{substF}_1\,x_{11}\,(\reify{r})\,
+  (\mathrm{substF}_1\,x_{12}\,(\reify{n})\,\mathrm{substTFor}) =
+  \mathrm{closedSubstTFor}(\reify{r}, \reify{n})$, schematic in
+  $r,n$;
+\item $\mathrm{thFunTForSubstEq}$: the same closing equation
+  propagated through the 26-branch dispatch chain of
+  $\thFunTFor$, so that the embedded $\mathrm{substTFor}$ in
+  case~23 becomes $\mathrm{closedSubstTFor}$;
+\item $\mathrm{instFormGen}$: a schematic bridge that, after
+  $\mathrm{ruleInst}$ on $x_{12}$ then $x_{11}$, converts the
+  open template equation into the closed one.
+\end{itemize}
+The crucial point is that all four lemmas are universally
+quantified over the replacement and target trees: \emph{no
+specific tree (in particular, not~$\reify{\hat{N}}$) ever appears
+in their types or proofs}.  Agda type-checks them in constant
+time independently of the size of~$\reify{\hat{N}}$.
+
+The fast chain reorders the deployment of $\mathrm{ruleInst}$
+in the G\"odel~I derivation: instead of substituting
+$x_{11}, x_{12}$ on the equation that already contains
+$\cstf$ (which forces unfolding $\reify{\hat{N}}$), it
+substitutes on the \emph{open} equation that contains
+$\thFunTFor$ and $\mathrm{substTFor}$ schematically, and only
+afterwards bridges to the closed form via the lemmas above.
+This corresponds exactly to Rose's order of operations:
+substitute the parameters into the open template first, then
+specialize.
+
+\paragraph{Files.}
+The fast chain consists of, in dependency order:
+\texttt{SubstTForPrecompFast.agda},
+\texttt{SubstTForPrecomp2Fast.agda},
+\texttt{GodelIIFast.agda},
+\texttt{ProofEAnyFast.agda}, and
+\texttt{GodelIIFullFast.agda}.
+Each file is a copy of the corresponding original with the
+substitution-bridge restructured to use the schematic lemmas;
+the original files are preserved unchanged.
+
+\paragraph{Timings (clean rebuild).}
+Both numbers below measure type-checking from \texttt{.agda}
+source after deleting the \texttt{.agdai} files for the diverging
+tail of the dependency tree.  The shared upstream files
+(\texttt{Term}, \texttt{Step}, \texttt{Thm14E}, etc.) are
+already cached.
+
+\begin{center}
+\begin{tabular}{lr}
+\hline
+\textbf{Chain} & \textbf{Clean rebuild time} \\
+\hline
+Original (via \texttt{SubstTForPrecomp} + \texttt{instForm2 = refl}) & ${\sim}103$~s \\
+Fast (via \texttt{SubstTForPrecompFast} + Nelson schematic helpers) & ${\sim}7$~s \\
+\hline
+\end{tabular}
+\end{center}
+
+\noindent
+A ${\sim}15{\times}$ speedup, with no postulates and the same
+final theorems (\texttt{conToBot}, \texttt{godelII}).  The
+original chain remains in the repository for reference, since
+\texttt{instForm2 = refl} is a striking demonstration of the
+cost of letting Agda reduce a closed
+$\reify{\hat{N}}$ unnecessarily.
 
 %% ===============================================================
 \section{Proof of G\"odel I}
@@ -888,12 +962,27 @@ GodelIIFull.agda & $<1$s & \textbf{G\"odel II} ($\sim$90 lines) \\
 CookPV.agda & $<1$s & Boolean ops, De Morgan, excluded middle \\
 NoPChecker.agda & $<1$s & No proof-checker (corollary of G\"odel II) \\
 \hline
+\multicolumn{3}{l}{\emph{Fast chain (parallel, no 108-second computation):}} \\
+\hline
+Nelson/SubstReify.agda & $<1$s & $\mathrm{substReify}$, $\mathrm{substClosedSTF}$ \\
+Nelson/SubstTForClose.agda & $<1$s & $\mathrm{substTForClose}$ (v12-first) \\
+Nelson/ThFunTForSubst.agda & $<1$s & $\mathrm{thFunTForSubstEq}$ + $\mathrm{thFunTForClosed}$ \\
+Nelson/InstForm.agda & $<1$s & $\mathrm{instFormGen}$ (schematic bridge) \\
+SubstTForPrecompFast.agda & $<1$s & As \texttt{SubstTForPrecomp}, no \texttt{instForm2} \\
+SubstTForPrecomp2Fast.agda & $<1$s & As \texttt{SubstTForPrecomp2} \\
+GodelIIFast.agda & $<1$s & G\"odel I via schematic bridge \\
+ProofEAnyFast.agda & $<1$s & \texttt{mkProofEAny} + fast strengthened G\"odel I \\
+GodelIIFullFast.agda & $<1$s & \textbf{G\"odel II}, fast variant \\
+\hline
 \end{tabular}
 \end{center}
 
 All results compile with Agda~2.9.0 using
 \texttt{-{}-safe -{}-without-K -{}-exact-split}.
-No postulates.  The 108-second computation is cached and not repeated.
+No postulates.  The original chain takes ${\sim}103$~s on a clean
+rebuild (dominated by \texttt{instForm2 = refl}); the parallel
+fast chain takes ${\sim}7$~s on a clean rebuild and proves the
+same theorems.
 
 \begin{thebibliography}{9}
 \bibitem{guard1963}
