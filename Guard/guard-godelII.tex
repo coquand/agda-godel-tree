@@ -436,6 +436,56 @@ This corresponds exactly to Rose's order of operations:
 substitute the parameters into the open template first, then
 specialize.
 
+\paragraph{Connection with Simmons (1988).}
+The four schematic Nelson helpers are an instance of the general
+principle described by Simmons~\cite{simmons1988}: an
+\emph{indicial reduction}.  In Simmons' setting, for each functional
+$A$ on a base $\Xi$ there is a primitive recursive
+\emph{indicial function} $\alpha_A$ such that
+$A(\underline{l};\underline{u}(x);\{\underline{d}\})
+ = \{\alpha_A(\underline{l};\underline{u};\underline{d})\}(x)$:
+the pointwise evaluation of~$A$ at~$x$ is replaced by an
+arithmetic computation $\alpha_A$ on codes followed by a single
+catalogue lookup at the end.  Simmons' Proposition~5.1 states
+that $\alpha_A$ exists for every $\Xi$-functional and is
+``constructed by mimicking the construction of the parent
+functional.''  His Theorem~6.1 then shows that any recursion
+defined by such functionals is itself in the catalogue, by
+running an arithmetic recursion on the codes via the indicial
+functions and applying the lookup only at the end.
+
+The Fast chain follows the same pattern in the Guard/Rose
+equational setting:
+\begin{itemize}
+\item $\mathrm{substReify}$ is the indicial reduction of
+  $\mathrm{subst}\,x\,r\,(\reify{t})$, proved by induction on
+  the tree~$t$.
+\item $\mathrm{substTForClose}$ is the indicial reduction of
+  double substitution into $\mathrm{substTFor}$, proved by
+  mimicking the construction of $\mathrm{substTFor}$.
+\item $\mathrm{thFunTForSubstEq}$ is the indicial reduction of
+  double substitution into $\thFunTFor$, proved by mimicking
+  the 23-branch dispatch chain of $\thFunTFor$ (Simmons'
+  Proposition~5.1 in action).
+\item $\mathrm{instFormGen}$ packages the indicial reductions of
+  the open template equation into a single bridge step
+  (Simmons' Theorem~6.1 in action).
+\end{itemize}
+The 108-second \texttt{instForm2 = refl} is precisely the
+``fundamental obstruction'' Simmons' Section~1 warns about: it
+asks Agda to evaluate a recursion on functor expressions
+pointwise, which forces materialization of $\reify{\hat{N}}$
+(a value with ${\sim}400\mathrm{K}$ tree nodes).  The Fast
+chain replaces this pointwise evaluation by Simmons-style
+indicial reduction, in which no specific tree (in particular,
+not~$\reify{\hat{N}}$) ever appears in the type or proof of
+any of the helpers, and the catalogue lookup is performed
+only once at the very end.  Simmons' principle is from 1988
+and was originally aimed at clarifying classical primitive
+recursion; it transports cleanly to the setting of an Agda
+formalization where ``pointwise evaluation'' is replaced by
+``Agda's definitional unfolding.''
+
 \paragraph{Files.}
 The fast chain consists of, in dependency order:
 \texttt{SubstTForPrecompFast.agda},
@@ -1008,6 +1058,11 @@ same theorems.
   recursive arithmetic,''
   \emph{Zeitschr.\ f.\ math.\ Logik und Grundlagen d.\ Math.},
   vol.~24, pp.~457--459, 1978.
+
+\bibitem{simmons1988}
+  H.~Simmons,
+  ``The realm of primitive recursion,''
+  \emph{Archive for Mathematical Logic}, vol.~27, pp.~177--188, 1988.
 \end{thebibliography}
 
 \end{document}
