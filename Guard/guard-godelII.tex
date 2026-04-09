@@ -48,6 +48,15 @@ in a purely equational system combining two ideas:
   only computation axioms, congruence, substitution, and a
   tree-induction principle (\SchemaF).
 \end{itemize}
+This combination is a deliberate hybrid that neither Guard nor
+Rose actually used: Guard's own system~BRA includes propositional
+connectives $\sim, \supset$, modus ponens, and a Hilbert-style
+induction rule (\cite[p.~10]{guard1963}; see Discussion), while
+Rose works with unary numerals rather than binary trees.  The
+hybrid we formalize is strictly weaker than either author's
+setting --- in particular it has no implication and no modus
+ponens --- and the classical Hilbert--Bernays route to
+G\"odel~II is unavailable in it.
 The formalization is in Agda with
 \texttt{-{}-safe -{}-without-K -{}-exact-split}.  No postulates.
 
@@ -260,7 +269,13 @@ Every term~$t$ is encoded as a tree $\code{t}$, and every
 equation $t = u$ as $\code{t = u} = \pair{\code{t}}{\code{u}}$.
 Every functor is similarly encoded.
 
-\emph{Theorem~14} ($\mathrm{thm14E}$): if $H \vdash t = u$,
+\emph{Theorem~14} ($\mathrm{thm14E}$)\footnote{The name
+\texttt{thm14E} refers to Rose's Theorem~14 in~\cite{rose1961},
+which is the D1-style reflection lemma.  In Guard's lecture
+notes~\cite{guard1963}, ``Theorem~14'' is G\"odel~II itself
+(p.~16); the corresponding D1 lemma is Guard's Theorem~13
+(p.~16, $f(x) = y \supset \mathrm{th}(D_f(x)) = \text{``}fx{=}y\text{''}$).
+We follow Rose's numbering.}: if $H \vdash t = u$,
 then there exist trees $p_a, p_b$ such that:
 \begin{enumerate}
 \item $\thFun(\pair{p_a}{p_b}) = \code{t = u}$ \quad (meta-level correctness),
@@ -597,61 +612,199 @@ contradicting $\mathit{Consistent}(H)$.
 %% ===============================================================
 \section{Discussion}
 
-\subsection*{Comparison with Guard and Rose}
+\subsection*{Comparison with predecessors}
 
-Guard~\cite{guard1963} proves G\"odel~II (his Theorem~14) by
-explicitly constructing a functor~$h(x)$ within BRA such that
-$\mathrm{th}(h(x)) = \text{``}0 = 1\text{''}$ whenever
-$\mathrm{th}(x) = j$ (the G\"odel sentence code).  This uses
-his Theorem~13 (internalization: $f(x) = y \supset
-\mathrm{th}(D_f(x)) = \text{``}fx = y\text{''}$).
+The reflection-and-diagonal architecture for G\"odel's
+incompleteness theorems in recursive arithmetic is due to Rose
+and Guard in the early 1960s, and several attempts at
+G\"odel~II for Rose-style or Guard-style systems exist in the
+literature.  We summarize how each one handles the load-bearing
+internalization step.
 
-Rose~\cite{rose1961} proves G\"odel~II (his Theorem~18) by
-applying his Theorem~16 (internalized Schema~F) to the function
-$a(\mathrm{se}(\mathrm{nu}(N), N), \mathrm{th}(y))$, using the
-consistency hypothesis $\mathrm{th}(x) \neq e(\mathrm{th}(z))$.
-Cook~\cite{cook1975} points out a possible error in Rose's
-Theorem~16 (p.~134 of~\cite{rose1961}): the function $f(s(x))$
-is neither identically zero nor identically non-zero, which
-invalidates the argument at that step.
+\paragraph{Guard 1963 (BRA, Theorem 14).}
+Guard~\cite{guard1963} proves G\"odel~II (his Theorem~14,
+p.~16) inside his system BRA.  It is important to note that
+BRA is \emph{not} a purely equational system: its primitive
+symbols include propositional connectives $\sim$ and~$\supset$,
+axioms~11--13 are standard Hilbert-style propositional axioms,
+and the rules of inference include modus ponens and a
+Hilbert-style induction rule ``from $P(0)$ and $P(x) \supset
+P(sx)$ infer $P(x)$''~(\cite[p.~10]{guard1963}).  Guard's proof
+of G\"odel~II is a classical Hilbert--Bernays internalization:
+his Theorem~13 ($f(x) = y \supset \mathrm{th}(D_f(x)) =
+\text{``}fx{=}y\text{''}$, p.~16) is the D1 reflection lemma,
+and he then constructs explicit functors $f, g, h$ (p.~17)
+encoding a modus-ponens chain that takes an alleged proof of
+the G\"odel sentence to a proof of $\text{``}0{=}1\text{''}$.
+This argument is sound \emph{because} BRA has implication and
+modus ponens at the object level; it cannot be ported to a
+purely equational system.
 
-Our proof takes a different route: rather than constructing~$h$
-as an object-level functor or applying internalized Schema~F,
-we \emph{pre-compute} the encoding $\mathit{enc}_\bot$ at the
-Agda meta-level from the concrete G\"odel~I derivation.
-The polymorphicity of Theorem~14's correctness proof
-($\mathit{corrBot}$ holds in any hypothesis context) is the
-key property that makes this work, bypassing Rose's
-problematic Theorem~16 entirely.
+\paragraph{Rose 1961 (Theorem 18).}
+Rose~\cite{rose1961} works in a purely equational system
+(closer to ours).  He proves G\"odel~II (his Theorem~18)
+by applying his Theorem~16 --- an \emph{internalization of
+Schema~F} --- to a function built from the diagonal
+construction.  Cook~\cite{cook1975} (p.~89, footnote)
+points out a possible error in Theorem~16
+(p.~134 of~\cite{rose1961}): the function $f(s(x))$
+is neither identically zero nor identically non-zero,
+which invalidates the dichotomy on which the internal
+Schema~F argument depends.  This is, to our knowledge,
+the only attempt in the literature to do G\"odel~II
+purely equationally, and the gap is exactly at the
+point where the proof would have to leave the equational
+discipline to perform internal case analysis.
+
+\paragraph{Ryan 1978.}
+Ryan~\cite{ryan1978} reformulates Rose's program for general
+recursive equational arithmetic and states the corresponding
+versions of his Lemma~1 (the D1 reflection lemma), Lemma~3
+(G\"odel~I), and the Main Theorem (G\"odel~II).  He
+explicitly remarks that ``the proofs of the lemmas and Main
+Theorem of this section parallel the proofs of the
+corresponding results in Rose''~\cite{ryan1978}, and supplies
+no replacement argument for the step that Cook flagged.
+Ryan's note is therefore evidence of \emph{transmission} of
+Rose's program to a new system, not evidence of an
+independent repair of the gap.
+
+\paragraph{Cook 1975 (PV, Theorem 4.4).}
+Cook~\cite{cook1975} also defines a Rose-style equational
+system PV, and proves G\"odel~II for PV as his Theorem~4.4.
+However, Cook explicitly says (p.~90) that he ``will
+actually work in the system PV1, since this is easier.''
+PV1 is PV extended with propositional connectives
+$\sim, \supset, \&, \vee, \equiv$, axioms~E1--E7, the
+truth-functional inference rule IMP, and an
+induction-on-notation rule (\cite[Section~3]{cook1975}).
+Cook's Lemma~4.5 ($\vdash_{\mathrm{PV1}} f(x_1,\dots,x_k) = y
+\supset \mathrm{PROOF}(\mathrm{FORM}_f(\bar x, y),
+\mathrm{GEN}_f(\bar x, y)) = 1$) is then a Hilbert--Bernays
+D1 statement, and his Lemma~4.7 is an explicit D3-style
+internal modus ponens combining a coded proof witness with
+an actual proof witness via a CONTRA-construction.  The result
+is transferred back to PV via Cook's Theorem~3.10 (an equation
+is provable in PV iff it is provable in PV1).  Cook's
+strategy is therefore: \emph{when the equational system does
+not suffice, escape to a propositional extension in which
+Hilbert--Bernays goes through, and then transfer the final
+equational consequence back}.  Cook's argument is presented
+as an outline; the load-bearing Lemma~4.5 is asserted via
+his Theorem~2.12 rather than constructed.
+
+\paragraph{Summary.}
+The four prior treatments fall into two camps.
+Guard~1963 and Cook~1975 add propositional logic to the
+system in order to run a Hilbert--Bernays-style internalization
+(D1 + internal modus ponens).  Rose~1961 and Ryan~1978 stay
+equational but rely on internalized Schema~F (Rose Theorem~16),
+which Cook flagged as gappy.  We are not aware of any prior
+treatment that completes a G\"odel~II proof for a purely
+equational system without either escaping to propositional
+logic or invoking Rose's Theorem~16.
+
+\subsection*{Our approach}
+
+The system formalized here is purely equational with
+\SchemaF{} as its only induction principle: no propositional
+connectives, no modus ponens, no Hilbert-style induction.
+This is strictly weaker than BRA, PV1, or any of the
+classical settings.  In particular the standard
+Hilbert--Bernays strategy is unavailable in principle:
+there is no $\supset$ to internalize and no MP to chain.
+Our proof of G\"odel~II (\texttt{conToBot} in
+\texttt{GodelIIFull.agda}) avoids both the Cook escape route
+and Rose's Theorem~16 by a different deployment of the same
+D1-style reflection lemma (\texttt{thm14E}) that Rose, Ryan,
+Cook, and Guard all use:
+
+\begin{enumerate}
+\item we run the G\"odel~I proof under the hypothesis $G$
+  itself (using $\mathrm{ruleHyp}$), obtaining a concrete
+  derivation $d_\bot : G \vdash \trueT = \falseT$;
+\item we apply \texttt{thm14E} to~$d_\bot$, obtaining a
+  closed proof code $\mathit{enc}_\bot$ together with a
+  derivation $\mathit{corrBot} : \thFunTFor(\mathit{enc}_\bot)
+  = \reify{\code{\bot}}$;
+\item we observe that $\mathit{corrBot}$ is
+  \emph{hypothesis-polymorphic} --- it uses only computation
+  axioms and structural rules, never the hypothesis rule ---
+  so it holds in any hypothesis context, in particular
+  under the assumption $H \vdash \mathrm{Con}$;
+\item we instantiate $\mathrm{Con}$ at $\mathit{enc}_\bot$,
+  rewrite $\thFunTFor(\mathit{enc}_\bot)$ to
+  $\reify{\code{\bot}}$ via $\mathit{corrBot}$, and contradict
+  the result via $\TreeEq(t,t) = \trueT$.
+\end{enumerate}
+
+The technical move that makes this work is the
+\textbf{hypothesis-polymorphism of \texttt{thm14E}'s
+correctness derivation}.  In Hilbert--Bernays language,
+we use only D1; the iterated reflection D2 and the internal
+modus ponens D3 are not needed, because we transport a
+single concrete proof code at the meta-level rather than
+constructing a universal-over-proofs argument inside the
+system.
 
 \subsection*{The role of Theorem~14}
 
 The entire non-trivial content of the proof resides in
-Theorem~14 (\texttt{thm14E}).  The 26~case files verify
-that $\thFunTFor$ correctly tracks each derivation rule.
-The G\"odel~II proof applies Theorem~14 to the specific
-derivation~$d_\bot$ (the G\"odel~I argument with hypothesis~$G$),
-obtaining an encoding whose $\thFunTFor$ image is the
-contradiction code.  The instantiation of $\mathrm{Con}$
-at this encoding then produces the contradiction.
+\texttt{thm14E}.  The 26~case files verify that $\thFunTFor$
+correctly tracks each derivation rule.  The G\"odel~II proof
+applies \texttt{thm14E} to the specific derivation~$d_\bot$
+(the G\"odel~I argument with hypothesis~$G$), obtaining an
+encoding whose $\thFunTFor$ image is the contradiction code.
+The instantiation of $\mathrm{Con}$ at this encoding then
+produces the contradiction.
 
-\subsection*{Connection with Cook's PV}
+\subsection*{Positioning}
 
-Cook~\cite{cook1975} suggests (Section~8) that a natural
+To our knowledge:
+\begin{itemize}
+\item This is the first complete proof of G\"odel~II for a
+  purely equational system that neither escapes to a
+  propositional extension (as Cook does) nor relies on
+  Rose's Theorem~16.
+\item This is the first machine-checked proof of G\"odel~II
+  in a Rose/Guard-style equational setting.  Prior
+  mechanizations of G\"odel~II that we are aware of work in
+  systems with quantifiers and propositional connectives
+  (hereditarily finite set theory, abstract derivability
+  conditions, PA).
+\item The deployment of D1's hypothesis-polymorphism as the
+  load-bearing technical ingredient is, as far as we have
+  been able to determine, not isolated as a named property
+  in earlier proofs of G\"odel~II.
+\end{itemize}
+The mathematical core (reflection lemma + diagonal) is
+Rose's; the deployment of that core via single-witness
+hypothesis-polymorphic transport, and the formalization in
+a system too weak to express the classical proof, are new.
+
+\subsection*{Cook's ``programming approach''}
+
+Cook~\cite[Section~8]{cook1975} suggests that a natural
 formalization of feasibly constructive proofs should take a
 \emph{programming approach}, where ``proving $f(x) = g(x)$
 amounts to proving the equivalence of two programs.''
-The Guard/Rose system realizes this vision literally:
+The system formalized here realizes this vision literally:
 proving $f(x_0) = g(x_0)$ via \SchemaF{} \emph{is} proving
-that two recursive programs (the functors $f$ and~$g$) compute
-the same function.
-Every derivation in the system is a chain of equational
-rewrites on functor expressions --- no quantifiers, no
-propositional connectives, only computation axioms and
-the uniqueness-of-recursion principle.
+that two recursive programs (the functors $f$ and~$g$)
+compute the same function.  Every derivation in the system
+is a chain of equational rewrites on functor expressions ---
+no quantifiers, no propositional connectives, only
+computation axioms and the uniqueness-of-recursion principle.
+Cook himself did not formalize G\"odel~II in this discipline;
+his Section~4 proof relies on the propositional extension
+PV1.  In this sense the present work supplies the
+``programming-approach'' G\"odel~II that Cook's framing
+suggests but did not realize.
 
 %% ===============================================================
-\section{Correspondence with Rose}
+\section{Correspondence with predecessors}
+
+\subsection*{Rose 1961}
 
 \begin{center}
 \begin{tabular}{ll}
@@ -664,14 +817,41 @@ $nu(x)$ & implicit via $\hat{N}$ \\
 $N$ (template code) & $\mathrm{templateCode}$ \\
 Schema~F & $\mathrm{ruleF}$ (uniqueness of recursion) \\
 Theorem~10 & $\mathrm{thm14E}$ ($\mathrm{ProofE}$) \\
-Theorem~14 & $\mathrm{thm14E}$ \\
+Theorem~14 (D1 reflection) & $\mathrm{thm14E}$ \\
 Theorems~15--16 & Bypassed (see Discussion); cf.~\cite{cook1975} on Thm~16 \\
 Theorem~17 & $\mathrm{diagFTarget}$ \\
-Theorem~18 & \texttt{godelII} in \texttt{GodelII.agda} (= G\"odel I) \\
---- & \texttt{godelII} in \texttt{GodelIIFull.agda} (= G\"odel II) \\
+Theorem~18 (G\"odel~II) & \texttt{godelII} in \texttt{GodelII.agda} (= G\"odel~I form) \\
+--- & \texttt{godelII} in \texttt{GodelIIFull.agda} (= G\"odel~II) \\
 \hline
 \end{tabular}
 \end{center}
+
+\subsection*{Guard 1963 and Cook 1975}
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+\textbf{Concept} & \textbf{Guard 1963} / \textbf{Cook 1975} & \textbf{This formalization} \\
+\hline
+Numerals               & unary $0, s(0), \ldots$ / dyadic strings & binary trees $O, \pair{a}{b}$ \\
+Propositional logic    & present ($\sim, \supset$, MP)            & \emph{absent} \\
+Induction principle    & $P(0), P(x){\supset}P(sx)/P(x)$           & Schema~F (equational) \\
+Proof enumerator       & $\mathrm{th}(y)$ / $\mathrm{PROOF}(m,n)$  & $\thFunTFor$ \\
+D1 reflection          & Guard Th~13 / Cook Lemma~4.5              & $\mathrm{thm14E}$ \\
+Internal MP (D3)       & Guard's $f,g,h$ functors / Cook's $\mathrm{CONTRA}$ & \emph{not used} \\
+Internal consistency   & $\mathrm{th}(y) \neq \text{``}0{=}1\text{''}$ / $\mathrm{PROOF}([0{=}1],y)=0$ & $\mathrm{Con}$ \\
+G\"odel~II             & Guard Th~14 / Cook Th~4.4 (in PV1)        & \texttt{conToBot} \\
+Strategy               & internalize G\"odel~I via D1+D3           & meta-construct $\mathit{enc}_\bot$, transport via polymorphism \\
+\hline
+\end{tabular}
+\end{center}
+
+\noindent
+The naming clash on ``Theorem~14'' is worth flagging:
+in Guard~1963, Theorem~14 is G\"odel~II itself; in
+Rose~1961, Theorem~14 is the D1 reflection lemma.
+The Agda file \texttt{Thm14E.agda} is named after Rose's
+numbering (D1), not Guard's.
 
 %% ===============================================================
 \section{File structure}
@@ -732,6 +912,13 @@ No postulates.  The 108-second computation is cached and not repeated.
   ``Feasibly constructive proofs and the propositional calculus,''
   \emph{Proceedings of the Seventh Annual ACM Symposium on Theory of Computing},
   pp.~83--97, 1975.
+
+\bibitem{ryan1978}
+  W.~Ryan,
+  ``G\"odel's second incompleteness theorem for general
+  recursive arithmetic,''
+  \emph{Zeitschr.\ f.\ math.\ Logik und Grundlagen d.\ Math.},
+  vol.~24, pp.~457--459, 1978.
 \end{thebibliography}
 
 \end{document}
