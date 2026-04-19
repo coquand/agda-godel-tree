@@ -78,6 +78,7 @@ codeF2NeqTagVar (Post f h) = f1f2NeqTagVar _ _
 codeF2NeqTagVar (Fan h1 h2 h) = f1f2NeqTagVar _ _
 codeF2NeqTagVar IfLf = f1f2NeqTagVar _ O
 codeF2NeqTagVar TreeEq = f1f2NeqTagVar _ O
+codeF2NeqTagVar (RecP s) = f1f2NeqTagVar _ _
 
 codeNeqTagVarGen : (t : Term) -> {hyp : Equation} -> Deriv hyp (eqn (ap2 TreeEq (reify (code t)) tagVarT) poo)
 codeNeqTagVarGen O =
@@ -305,6 +306,7 @@ private
   n26 : Nat ; n26 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))
   n27 : Nat ; n27 = suc n26 ; n28 : Nat ; n28 = suc n27 ; n29 : Nat ; n29 = suc n28
   n30 : Nat ; n30 = suc n29 ; n31 : Nat ; n31 = suc n30 ; n32 : Nat ; n32 = suc n31
+  n33 : Nat ; n33 = suc n32
 
 closedSTFF1 replT tgtT I = closedSTFNd replT tgtT (natCode n26) lf (natCodeNeqTagVar n26) refl (closedSTFNatCode replT tgtT n26) (axRecLf O _)
 closedSTFF1 replT tgtT Fst = closedSTFNd replT tgtT (natCode n27) lf (natCodeNeqTagVar n27) refl (closedSTFNatCode replT tgtT n27) (axRecLf O _)
@@ -322,3 +324,4 @@ closedSTFF2 replT tgtT (Post f h) = closedSTFNd replT tgtT (natCode n29) _ (natC
 closedSTFF2 replT tgtT (Fan h1 h2 h) = closedSTFNd replT tgtT (natCode n30) _ (natCodeNeqTagVar n30) refl (closedSTFNatCode replT tgtT n30) (closedSTFNdF2 replT tgtT h1 _ (closedSTFF2 replT tgtT h1) (closedSTFNdF2 replT tgtT h2 _ (closedSTFF2 replT tgtT h2) (closedSTFF2 replT tgtT h)))
 closedSTFF2 replT tgtT IfLf = closedSTFNd replT tgtT (natCode n31) lf (natCodeNeqTagVar n31) refl (closedSTFNatCode replT tgtT n31) (axRecLf O _)
 closedSTFF2 replT tgtT TreeEq = closedSTFNd replT tgtT (natCode n32) lf (natCodeNeqTagVar n32) refl (closedSTFNatCode replT tgtT n32) (axRecLf O _)
+closedSTFF2 replT tgtT (RecP s) = closedSTFNd replT tgtT (natCode n33) _ (natCodeNeqTagVar n33) refl (closedSTFNatCode replT tgtT n33) (closedSTFF2 replT tgtT s)

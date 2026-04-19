@@ -24,7 +24,7 @@ open import Guard.StepReduce
 open import Guard.ThFunTForDefs
 open import Guard.ExtractorRed
 open import Guard.ThFunTForV3
-open import Guard.GodelII using (treeEqSelf)
+open import Guard.TreeEqSelf using (treeEqSelf)
 
 ------------------------------------------------------------------------
 -- Shorthand.

@@ -63,6 +63,7 @@ codeF2NotVar (Post f h)    = refl
 codeF2NotVar (Fan h1 h2 h) = refl
 codeF2NotVar IfLf          = refl
 codeF2NotVar TreeEq        = refl
+codeF2NotVar (RecP s)      = refl
 
 ------------------------------------------------------------------------
 -- codeNotVar: term codes never equal tagVar (including var!)
@@ -161,6 +162,12 @@ csF2Correct r x Pair   = refl
 csF2Correct r x Const  = refl
 csF2Correct r x IfLf   = refl
 csF2Correct r x TreeEq = refl
+
+-- Fun2 RecP s: tag at offset 33, one Fun2 child.
+csF2Correct r x (RecP s) =
+  let tag = f2t (RecP Pair) in
+  eqTrans (codedSubstNd (code r) (natCode x) tag (codeF2 s) refl)
+  (eqCong (nd tag) (csF2Correct r x s))
 
 -- Fun2 Lift
 csF2Correct r x (Lift f) =

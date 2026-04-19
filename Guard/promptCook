@@ -1,0 +1,27 @@
+Prompt for future sessions
+                            
+  ▎ Task: Implement Cook's Theorem 7.1 for Guard, following Guard/COOK-7.1-PLAN.md.
+                                                                                                                                     
+  ▎ Context: Guard/ is an Agda formalization of Gödel's second incompleteness theorem using tree recursion with Schema F. CookPV.agda
+   has boolean operations (andF, orF, notF, implF) with De Morgan laws and excluded middle, all proved via Schema F. GodelIIFull.agda
+   has godelII and conToBot. NoPChecker.agda has placeholder corollaries.                                                            
+                                                            
+  ▎ Session 1 tasks:
+  ▎ 1. Add nonContradiction to CookPV.agda: define nonContra = Comp2 andF I notF, prove nonContra(t) = falseT for all t via Schema F 
+  (same pattern as excludedMiddle).                                                                                                  
+  ▎ 2. Add the abstract cook71 theorem to NoPChecker.agda: given functors PV_SYS, TR_CHK and terms phi0, tau0, x0 with (a) 
+  TR_CHK(PV_SYS(x), y) = trueT for all x,y, (b) TR_CHK(phi0, tau0) = falseT, and (c) PV_SYS(x0) = phi0, derive trueT = falseT. Proof:
+   ruleInst + congL + ruleTrans.                            
+  ▎ 3. Type-check everything: agda Guard/CookPV.agda && agda Guard/NoPChecker.agda && agda Guard/GodelIIFull.agda.                   
+                                                                                                                                     
+  ▎ Session 2 tasks (after Session 1):                                                                                               
+  ▎ 1. Define propFormula : Fun1 in NoPChecker.agda using Comp2 IfLf (Comp2 TreeEq I (KT codeBotT)) (KT (ap2 Pair phi0 phiTrue)) —   
+  maps codeBotT to phi0, everything else to phiTrue.                                                                                 
+  ▎ 2. Define PV_SYS = Comp propFormula thFunTFor.          
+  ▎ 3. Prove: if thFunTFor(x) = codeBotT then PV_SYS(x) = phi0 (reduction lemma).                                                    
+  ▎ 4. Instantiate cook71 to get: p-verifiability hypothesis → conSentence → contradiction with godelII.                             
+  ▎ 5. State the final theorem: cook71Full : ... -> Consistent hyp -> Empty.                                                         
+                                                                                                                                     
+  ▎ Conventions: Follow CLAUDE.md strictly. No with abstraction. ASCII only. Use eqSubst/eqCong/ruleTrans. Check                     
+  Guard/COOK-7.1-PLAN.md for detailed proof sketches and potential problems.                                                         
+                                                                                  

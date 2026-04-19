@@ -1,0 +1,120 @@
+about the message on testing Nelson, do you see possible programs we can write in Agda?
+
+    3. The substitution-is-schematic theorem (what we're building now)
+
+    The substTForClose + instFormGen approach IS a formalization of a Nelson-relevant fact: the proof
+    transformations don't depend on the size of the coded objects. The lemma works for any replT, tgtT —
+    including abstract ones. This is the formal content of "substitution is feasible" — it's not about
+    traversing a specific term, it's about the algebraic relationship between substTFor and closedSubstTFor.
+
+    4. Evaluation-size bound for thFunTFor
+
+    The most interesting program for Nelson: show that thFunTFor applied to a proof encoding of size n
+    produces an output of size O(n). Since thFun is a tree recursion with bounded-size case dispatch, this
+    should be provable by induction on the Tree argument. The formal statement:
+
+    thFunSizeBound : (t : Tree) → leq (treeSize (thFun t)) (natMul C (treeSize t))
+
+    for some explicit constant C. This directly formalizes "proof verification is linear-time."
+
+    5. The certificate question (hardest, most interesting)
+
+    Can you write a program that, given a purported proof of O = Pair(O,O), finds the error in polynomial
+    time? Formally:
+
+    findError : (d : Deriv hyp (eqn O poo)) → ErrorWitness d
+
+    where ErrorWitness certifies which step fails under the standard valuation. This would be a constructive
+     version of the soundness argument — and the key question is whether ErrorWitness has polynomial size
+    and findError runs in polynomial time.
+
+    This is essentially formalizing the semantic argument (Theorem 8/10 in Guard/Rose) as a feasible
+    computation rather than a meta-induction.
+
+    ---
+    Programs 1-4 are straightforward extensions of what exists. Program 5 is the real Nelson question — and
+    the current formalization is well-positioned for it because the Deriv type is already structural and the
+     encoding functions are already shown to be compositional.
+
+
+
+
+    If you have a specific purported proof d : Deriv hyp (eqn O poo), then d is a finite object. It only
+    uses finitely many functors, finitely many axiom instances, and finitely many recursion depths. You
+    don't need a universal evaluator — you need an evaluator that handles exactly the functors and recursion
+     depths appearing in d.
+
+    So the bounded version would be something like:
+
+    - Given d of size n, extract the set of functors used
+    - Build an evaluator that handles only those functors, with recursion bounded by the depth of terms
+    appearing in d
+    - Run this bounded evaluator to find the step where the semantic value breaks
+
+    This bounded evaluator is primitive recursive (in fact, it's bounded recursion on the structure of d).
+    The recursion depth of vl is bounded by the nesting depth of Rec applications in the functors of d,
+    which is a fixed finite number determined by d.
+
+    The connection to Nelson: Nelson's program asks whether the consistency of a system can be proved by
+    "feasible" means — roughly, in a weak fragment like PV or bounded arithmetic. The obstacle is always the
+     universal evaluator. But if you relativize to a bounded fragment (only the functors actually used in
+    the purported contradiction), the evaluator becomes feasible.
+
+    The formal question is then: can findError be defined so that it runs in time polynomial in |d|, using
+    only bounded recursion? The semantic argument (every step preserves truth under valuation) is
+    structurally an induction on d — which is linear in |d|. The cost per step is evaluating the relevant
+    terms, which requires recursion bounded by the functor definitions in the system. If the system's
+    functors are fixed (as they are in any specific instance of PRA), this per-step cost is bounded.
+
+    So the answer should be: yes, for any fixed finite set of functors, findError is primitive recursive and
+     runs in polynomial time. What fails to be primitive recursive is the uniform version that works for all
+     possible extensions of the system simultaneously — which is Rose's vf(x, y).
+
+    This is precisely where Nelson's program lives: the gap between "consistency for a fixed system is
+    feasibly provable" and "consistency uniformly across all extensions is not." Your formalization, with
+    its explicit functor vocabulary and concrete thFunTFor, is already working in the fixed-system setting —
+     which is the favorable one for Nelson.
+
+
+That is more informative for Nelson than another pass over the global Gödel argument.
+       ?
+
+    property of these specific functors, not of the system in general. A pathological functor could produce
+    exponential blow-up.
+
+    The bounded consistency schema is the right formulation. Your proposed:
+
+    ▎ For each finite functor fragment F and each bound b, there is a primitive-recursive procedure that
+    checks any purported derivation of contradiction using only F and semantic depth at most b, and finds
+    the failing step.
+
+    This captures exactly what the formalization can speak to. The thm14E function already does something
+    close: given d : Deriv hyp eq, it produces a proof-encoding tree whose thFunTFor image equals the code
+    of eq. If eq = eqn O poo, this encoding tree is a certificate that can be checked. The "findError"
+    direction would be: given any tree t, either verify that thFunTFor(t) codes a valid equation, or locate
+    where the evaluation fails to match any derivation rule.
+
+    The connection to the 108s discussion is illuminating. The heavy computation we've been fighting is
+    precisely the cost of the universal approach — materializing crTC (the code of the full template,
+    including the universal thFunTFor definition) as a concrete object. A bounded/specialized approach would
+     never need to materialize this — it would only inspect the fragment of thFunTFor actually used by the
+    specific derivation under examination.
+
+    One refinement to the caution. The size of intermediate values matters, but there's a second subtlety:
+    the depth of semantic evaluation needed to detect the error. For a derivation d that uses ruleF (Schema
+    F), the semantic check requires verifying that two recursion equations have the same fixed point — which
+     in principle requires evaluating both on all inputs. In practice (for the specific Schema F uses in the
+     Gödel II proof), the evaluation terminates quickly. But bounding this generically requires restricting
+    which Schema F instances are allowed, which is essentially restricting the induction depth — exactly
+    Nelson's "rank and level bounds."
+
+    The sharp question you end with is the right one. Extracting findError_d from the Agda formalization
+    would be concrete and informative. The formalization already has all the ingredients: thFun (the
+    metalevel evaluator), thFunTFor (the object-level evaluator), and thm14E (the proof that they agree).
+    The missing piece is: given a tree t such that thFun t ≠ codeEqn (eqn O poo), produce an explicit
+    witness of where the mismatch occurs — as a primitive-recursive function of t and the derivation
+    structure.
+
+
+James R. Guard, Lecture notes in recursive arithmetic Princeton N.J.,1963
+

@@ -1,0 +1,20 @@
+\begin{thebibliography}{1}
+
+\bibitem{cook1975}
+Stephen~A. Cook.
+\newblock Feasibly constructive proofs and the propositional calculus.
+\newblock {\em Proceedings of the 7th Annual ACM Symposium on Theory of
+  Computing}, pages 83--97, 1975.
+
+\bibitem{guard1963}
+James~R. Guard.
+\newblock Lecture notes in recursive arithmetic.
+\newblock Princeton University, 1963.
+
+\bibitem{rose1961}
+H.~E. Rose.
+\newblock On the consistency and undecidability of recursive arithmetic.
+\newblock {\em Zeitschrift f{\"u}r mathematische Logik und Grundlagen der
+  Mathematik}, 7:124--135, 1961.
+
+\end{thebibliography}

@@ -55,6 +55,17 @@ data Deriv (hyp : Equation) : Equation -> Set where
                                   (ap2 Pair (ap1 (Rec z s) a)
                                             (ap1 (Rec z s) b))))
 
+  -- Parameterised tree recursion (V3 addition).
+
+  axRecPLf : (s : Fun2) (p : Term) ->
+             Deriv hyp (eqn (ap2 (RecP s) p O) O)
+
+  axRecPNd : (s : Fun2) (p a b : Term) ->
+             Deriv hyp (eqn (ap2 (RecP s) p (ap2 Pair a b))
+                            (ap2 s (ap2 Pair p (ap2 Pair a b))
+                                   (ap2 Pair (ap2 (RecP s) p a)
+                                             (ap2 (RecP s) p b))))
+
   -- Conditional (IfLf)
 
   axIfLfL : (a b : Term) ->

@@ -1,0 +1,42 @@
+\begin{thebibliography}{1}
+
+\bibitem{aschieri2011}
+Federico Aschieri and Stefano Berardi.
+\newblock Interactive learning-based realizability for {H}eyting arithmetic
+  with {EM1}.
+\newblock {\em Logical Methods in Computer Science}, 7(2), 2011.
+
+\bibitem{chaitin1974}
+Gregory~J. Chaitin.
+\newblock Information-theoretic limitations of formal systems.
+\newblock {\em Journal of the ACM}, 21(3):403--424, 1974.
+
+\bibitem{godel1931}
+Kurt G{\"o}del.
+\newblock {\"U}ber formal unentscheidbare {S}{\"a}tze der {P}rincipia
+  {M}athematica und verwandter {S}ysteme {I}.
+\newblock {\em Monatshefte f{\"u}r Mathematik und Physik}, 38:173--198, 1931.
+
+\bibitem{kolmogorov1965}
+Andrei~N. Kolmogorov.
+\newblock Three approaches to the quantitative definition of information.
+\newblock {\em Problems of Information Transmission}, 1(1):1--7, 1965.
+
+\bibitem{kritchmanraz2010}
+Shira Kritchman and Ran Raz.
+\newblock The surprise examination paradox and the second incompleteness
+  theorem.
+\newblock {\em Notices of the AMS}, 57(11):1454--1458, 2010.
+
+\bibitem{nelson1986}
+Edward Nelson.
+\newblock Predicative arithmetic.
+\newblock {\em Mathematical Notes}, 1986.
+
+\bibitem{rose1953}
+Gene~F. Rose.
+\newblock Propositional calculus and realizability.
+\newblock In {\em Transactions of the American Mathematical Society},
+  volume~75, pages 1--19, 1953.
+
+\end{thebibliography}

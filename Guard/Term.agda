@@ -28,6 +28,13 @@ data Fun2 where
   Fan    : Fun2 -> Fun2 -> Fun2 -> Fun2
   IfLf   : Fun2
   TreeEq : Fun2
+  RecP   : Fun2 -> Fun2
+  -- RecP s: parameterised tree recursion.
+  --   ap2 (RecP s) p O           = O
+  --   ap2 (RecP s) p (Pair a b) = ap2 s (Pair p (Pair a b))
+  --                                    (Pair (ap2 (RecP s) p a) (ap2 (RecP s) p b))
+  -- Used by V3 case23 to construct closedSubstTFor dynamically from encoded
+  -- substitution parameters — see Guard/Thm14EV3.agda (ruleInst case).
 
 data Term where
   O   : Term
@@ -96,6 +103,7 @@ codeF2 (Post f h)    = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc 
 codeF2 (Fan h1 h2 h) = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))) (nd (codeF2 h1) (nd (codeF2 h2) (codeF2 h)))
 codeF2 IfLf          = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))))) lf
 codeF2 TreeEq        = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))))) lf
+codeF2 (RecP s)      = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))))))) (codeF2 s)
 
 code O             = nd tagO lf
 code (var n)       = nd tagVar (natCode n)
@@ -138,6 +146,7 @@ substF2 x r (Post f h)    = Post (substF1 x r f) (substF2 x r h)
 substF2 x r (Fan h1 h2 h) = Fan (substF2 x r h1) (substF2 x r h2) (substF2 x r h)
 substF2 x r IfLf          = IfLf
 substF2 x r TreeEq        = TreeEq
+substF2 x r (RecP s)      = RecP (substF2 x r s)
 
 substEq : Nat -> Term -> Equation -> Equation
 substEq x r (eqn l r') = eqn (subst x r l) (subst x r r')

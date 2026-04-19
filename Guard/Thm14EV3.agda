@@ -684,6 +684,9 @@ private
   f2xDispMissV3 hCode TreeEq       x x' rc' =
     ndDispatchV3PairMiss hCode (reify (natCode (suc (suc (suc (suc (suc (suc (suc n25)))))))))
       O (reify (code x)) x' rc'
+  f2xDispMissV3 hCode (RecP s)     x x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc n25))))))))))
+      (reify (codeF2 s)) (reify (code x)) x' rc'
 
 ------------------------------------------------------------------------
 -- Navigate to case21 and case22 (for congL and congR).
