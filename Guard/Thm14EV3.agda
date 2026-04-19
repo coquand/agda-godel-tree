@@ -609,7 +609,7 @@ private
     (ruleTrans (ndBranchMiss n26 n20 case20 (ndT21V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n21 case21 (ndT22V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n22 case22 (ndT23V3 hCode) d r refl)
-    (ruleTrans (ndBranchMiss n26 n23 case23 (ndT24V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n23 case23V3 (ndT24V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n24 case24 (ndT25V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n25 case25 (ndT26V3 hCode) d r refl)
                (ndBranchHit n26 (case26 hCode) ndT27V3 d r))))))))))))))))))))))))))
@@ -1197,7 +1197,7 @@ thm14EV3AxKT H t x = mkProofE3 (natCode n25) (nd (code t) (code x)) correct
     (ruleTrans (ndBranchMiss n25 n20 case20 (ndT21V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n21 case21 (ndT22V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n22 case22 (ndT23V3 hCode) body recs refl)
-    (ruleTrans (ndBranchMiss n25 n23 case23 (ndT24V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n25 n23 case23V3 (ndT24V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n24 case24 (ndT25V3 hCode) body recs refl)
     (ruleTrans (ndBranchHit n25 case25 (ndT26V3 hCode) body recs)
     (mkEqFRed (mkAp1F (Fan (kF2 codeKTTag) origA Pair) origB) origA enc recs
@@ -1709,7 +1709,7 @@ private
     (ruleTrans (ndBranchMiss n24 n20 case20 (ndT21V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n24 n21 case21 (ndT22V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n24 n22 case22 (ndT23V3 hCode) d r refl)
-    (ruleTrans (ndBranchMiss n24 n23 case23 (ndT24V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n24 n23 case23V3 (ndT24V3 hCode) d r refl)
                (ndBranchHit n24 case24 (ndT25V3 hCode) d r))))))))))))))))))))))))
 
 ------------------------------------------------------------------------

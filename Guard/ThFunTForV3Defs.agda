@@ -25,6 +25,7 @@ open import Guard.ThFunTForDefs
 open import Guard.ExtractorRed
 open import Guard.ThFunTForV3
 open import Guard.TreeEqSelf using (treeEqSelf)
+open import Guard.SubstOp using (substOp)
 
 ------------------------------------------------------------------------
 -- Shorthand.
@@ -194,6 +195,7 @@ case19V3Match tag dat recTag tC uC vC =
       matchF  = Fan recsAL recsBR Pair
       branchF = Fan matchF (kF2 O) Pair
   in ruleTrans (fanRed checkF branchF IfLf orig recs)
+
      -- check-result reduces to TreeEq(uC, uC) = O
      (ruleTrans
        (congL IfLf (ap2 branchF orig recs)
@@ -220,3 +222,46 @@ case19V3Match tag dat recTag tC uC vC =
            (congR Pair (ap2 Pair tC vC)
              (constF2Red O orig recs)))))
        (axIfLfL (ap2 Pair tC vC) O)))
+
+------------------------------------------------------------------------
+-- case23V3Match: the ruleInst reduction.
+--
+-- Input shape:
+--   orig = Pair tag (Pair origAval other)
+--         -- tag is the outer n23-tag (ignored by case23V3),
+--         -- origAval is the substitution-parameter pair,
+--         -- other is the sub-proof encoding (irrelevant to the Fun2).
+--   recs = Pair recTag (Pair recA (Pair L R))
+--         -- recTag = thmT tag (ignored), recA = thmT origAval (ignored),
+--         -- (L, R) = the thmT-result of the sub-proof = codeEqn (subEq).
+--
+-- Result:  Pair (substOp origAval L) (substOp origAval R)
+-- i.e. the substitution applied to each side of the sub-equation.
+
+case23V3Match :
+  (tag origAval other recTag recA L R : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 case23V3
+                   (ap2 Pair tag (ap2 Pair origAval other))
+                   (ap2 Pair recTag (ap2 Pair recA (ap2 Pair L R))))
+                 (ap2 Pair (ap2 substOp origAval L)
+                           (ap2 substOp origAval R)))
+case23V3Match tag origAval other recTag recA L R =
+  let orig = ap2 Pair tag (ap2 Pair origAval other)
+      recs = ap2 Pair recTag (ap2 Pair recA (ap2 Pair L R))
+      leftF  = Fan origA recsBL substOp
+      rightF = Fan origA recsBR substOp
+      -- leftF reduces to  substOp origAval L
+      leftEval = ruleTrans (fanRed origA recsBL substOp orig recs)
+                 (ruleTrans (congL substOp (ap2 recsBL orig recs)
+                              (origARed tag origAval other recs))
+                            (congR substOp origAval
+                              (recsBLRed orig recTag recA L R)))
+      -- rightF reduces to  substOp origAval R
+      rightEval = ruleTrans (fanRed origA recsBR substOp orig recs)
+                  (ruleTrans (congL substOp (ap2 recsBR orig recs)
+                               (origARed tag origAval other recs))
+                             (congR substOp origAval
+                               (recsBRRed orig recTag recA L R)))
+  in ruleTrans (fanRed leftF rightF Pair orig recs)
+     (ruleTrans (congL Pair (ap2 rightF orig recs) leftEval)
+                (congR Pair (ap2 substOp origAval L) rightEval))

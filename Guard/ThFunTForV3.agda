@@ -28,6 +28,7 @@ open import Guard.ThFunTForCases0
 open import Guard.ThFunTForCases1
 open import Guard.ThFunTForCases2
 open import Guard.ThFunTForCases3
+open import Guard.SubstOp using (substOp)
 
 ------------------------------------------------------------------------
 -- Nat abbreviations (private)
@@ -105,6 +106,24 @@ case19V3 = Fan
   IfLf
 
 ------------------------------------------------------------------------
+-- case23V3: validating ruleInst case.
+--
+-- Unlike V2's case23 = Post substTFor recsBL / recsBR (which leaves
+-- var11 and var12 free to be bound by ruleInst at the Deriv level),
+-- case23V3 applies  substOp  dynamically at the Fun2 level, using
+--   origA = Pair tC xC              (the encoded subst parameters)
+--   recsBL, recsBR = L, R           (sides of the sub-equation)
+-- to produce  Pair (substOp (Pair tC xC) L) (substOp (Pair tC xC) R) ,
+-- i.e. the reified codes of  subst x t l, subst x t r  when L = reify
+-- (code l), R = reify (code r).  No free variables remain — the
+-- var-capture loophole of V2's case23 is gone.
+
+case23V3 : Fun2
+case23V3 = Fan (Fan origA recsBL substOp)
+               (Fan origA recsBR substOp)
+               Pair
+
+------------------------------------------------------------------------
 -- Dispatch chain, threaded with the ambient hypothesis code.
 --
 -- In the V2 chain (Guard.ThFunTFor) the bottom is  ndT26 = sndArg2 .
@@ -124,7 +143,7 @@ ndT24V3 : Term -> Fun2
 ndT24V3 hCode = branch (tc n24) case24 (ndT25V3 hCode)
 
 ndT23V3 : Term -> Fun2
-ndT23V3 hCode = branch (tc n23) case23 (ndT24V3 hCode)
+ndT23V3 hCode = branch (tc n23) case23V3 (ndT24V3 hCode)
 
 ndT22V3 : Term -> Fun2
 ndT22V3 hCode = branch (tc n22) case22 (ndT23V3 hCode)
