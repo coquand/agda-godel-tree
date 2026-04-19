@@ -630,30 +630,50 @@ Theorem~14.
 
 \begin{lemma}[DC1-poly]
 \label{lem:dc1poly}
-If $H \vdash t = u$, then there exists a closed term~$p$ such that
-for every hypothesis~$H'$,
+There is a primitive-recursive encoding $\mathrm{enc}$ that maps
+every derivation $d : H \vdash t = u$ to a closed term
+$\mathrm{enc}(d)$ for which
 \[
-  H' \vdash \thFunTFor(p) = \code{t = u}.
+  \vdash \thFunTFor(\mathrm{enc}(d)) = \code{t = u}.
 \]
 \end{lemma}
 
-\begin{proof}
-Theorem~14 produces, from a derivation $H \vdash t = u$, a proof
-code~$p$ together with a correctness derivation of
-$\thFunTFor(p) = \code{t = u}$, constructed by recursion on the
-given derivation.
+\noindent
+The absence of any ambient hypothesis on the right-hand side is
+the content of the lemma: the derivation is \emph{absolute},
+using no hypothesis rule.  The hypothesis~$H$ of the input
+derivation is absorbed into the \emph{structure} of
+$\mathrm{enc}(d)$, not into the ambient context of the output
+equation.
 
-Inspecting the definition of \texttt{thm14E}, each of its 26 cases
-emits a correctness derivation using only computation axioms and
-structural rules; the only recursive uses of hypothesis-dependent
-data come from the recursive calls on the input $\mathit{ProofE}(H)$.
-Consequently the resulting correctness derivation contains no
-uses of the hypothesis rule and is independent of the ambient
-hypothesis.  It therefore transports to any~$H'$, yielding
-\[
-  H' \vdash \thFunTFor(p) = \code{t = u}. \qedhere
-\]
+\begin{proof}
+Theorem~14 is the operation $\mathrm{enc}$: by recursion on $d$
+it produces a closed tree $\mathrm{enc}(d)$ together with a
+derivation of $\thFunTFor(\mathrm{enc}(d)) = \code{t = u}$.
+Inspecting \texttt{thm14E}, each of its 26 cases emits its part
+of the correctness derivation using only computation axioms and
+structural rules; none of them use the hypothesis rule.  The
+resulting derivation is therefore absolute.
+
+Uses of the hypothesis rule in $d$ (i.e.\ \texttt{ruleHyp}
+nodes, where $d$ concludes $H \vdash H$) are encoded by splicing
+in the reflexivity-based witness of $H$ provided by
+\texttt{mkProofEAny}, a closed tree $T_H$ for which
+$\vdash \thFunTFor(T_H) = \code{H}$ is derivable by computation
+axioms alone.  This absorbs the hypothesis into
+$\mathrm{enc}(d)$'s \emph{shape}, so that the correctness
+equation itself remains hypothesis-free.
 \end{proof}
+
+\begin{remark}
+Because $\mathrm{enc}(d)$ is closed and $\thFunTFor$ is a fixed
+term, the equation $\vdash \thFunTFor(\mathrm{enc}(d)) = \code{t = u}$
+is a \emph{ground computational identity}: one derivation of it
+serves in every subsequent proof context.  Note also that
+$\thFunTFor$ is a conclusion-extractor, not a judgment-encoder:
+the equation records only the conclusion of~$d$, not the
+antecedent $H$.
+\end{remark}
 
 \subsection{Diagonal collapse}
 
@@ -701,18 +721,18 @@ This derivation is produced constructively using \texttt{ruleHyp}
 (to obtain $G \vdash G$) followed by the G\"odel~I argument;
 it involves no consistency assumption.
 
-\paragraph{Step 2: Reflect the derivation uniformly.}
-To apply Lemma~\ref{lem:dc1poly} we need a proof encoding of the
-hypothesis~$G$.  This is supplied by \texttt{mkProofEAny}, which
-produces a term witnessing $\mathit{ProofE}(G)$ for any equational
-hypothesis.
-
+\paragraph{Step 2: Reflect the derivation absolutely.}
 Applying Lemma~\ref{lem:dc1poly} to~$d_\bot$ yields a closed
-term~$\mathit{enc}_\bot$ such that for every hypothesis~$H$,
+term $\mathit{enc}_\bot = \mathrm{enc}(d_\bot)$ with
 \[
-  H \vdash \thFunTFor(\mathit{enc}_\bot) = \code{\trueT = \falseT}.
+  \vdash \thFunTFor(\mathit{enc}_\bot) = \code{\trueT = \falseT}.
 \]
-In particular, this holds in the ambient hypothesis~$H$.
+This is an absolute derivation; in particular it holds under the
+ambient hypothesis $H$ under which $\mathrm{Con}(x)$ is given.
+(The construction of $\mathrm{enc}$ on a \texttt{ruleHyp} node
+uses the reflexivity-based witness of $G$ produced by
+\texttt{mkProofEAny}, which is how $G$ is absorbed into
+$\mathit{enc}_\bot$ at every hypothesis use-site in~$d_\bot$.)
 
 \paragraph{Step 3: Instantiate consistency and collapse.}
 Assume $H \vdash \mathrm{Con}(x)$.  By substitution
