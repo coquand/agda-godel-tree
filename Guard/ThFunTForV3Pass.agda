@@ -54,6 +54,8 @@ private
   n24 : Nat ; n24 = suc n23
   n25 : Nat ; n25 = suc n24
   n26 : Nat ; n26 = suc n25
+  n27 : Nat ; n27 = suc n26
+  n28 : Nat ; n28 = suc n27
 
 ------------------------------------------------------------------------
 -- 27-branch miss chain for tags of shape Pair(Pair(a1,a2), b).
@@ -95,7 +97,9 @@ ndDispatchV3PairMiss hCode a1 a2 b x recs =
   (ruleTrans (p n23 case23V3 (ndT24V3 hCode) recs)
   (ruleTrans (p n24 case24 (ndT25V3 hCode) recs)
   (ruleTrans (p n25 case25 (ndT26V3 hCode) recs)
-             (p n26 (case26 hCode) ndT27V3 recs))))))))))))))))))))))))))
+  (ruleTrans (p n26 (case26 hCode) ndT27V3 recs)
+  (ruleTrans (p n27 case27 ndT28V3 recs)
+             (p n28 case28 ndT29V3 recs))))))))))))))))))))))))))))
 
 ------------------------------------------------------------------------
 -- 27-branch miss chain for tags of shape Pair(O, Pair(Pair(c1,c2), d))
@@ -133,7 +137,9 @@ ndDispatchV3OPairMiss hCode c1 c2 d x recs =
   (ruleTrans (o n23 case23V3 (ndT24V3 hCode) recs)
   (ruleTrans (o n24 case24 (ndT25V3 hCode) recs)
   (ruleTrans (o n25 case25 (ndT26V3 hCode) recs)
-             (o n26 (case26 hCode) ndT27V3 recs))))))))))))))))))))))))))
+  (ruleTrans (o n26 (case26 hCode) ndT27V3 recs)
+  (ruleTrans (o n27 case27 ndT28V3 recs)
+             (o n28 case28 ndT29V3 recs))))))))))))))))))))))))))))
 
 ------------------------------------------------------------------------
 -- passthroughSucV3: convenience wrapper around ndDispatchV3PairMiss

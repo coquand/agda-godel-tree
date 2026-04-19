@@ -61,9 +61,30 @@ private
   n24 : Nat ; n24 = suc n23
   n25 : Nat ; n25 = suc n24
   n26 : Nat ; n26 = suc n25
+  n27 : Nat ; n27 = suc n26
+  n28 : Nat ; n28 = suc n27
+  -- n33 = functor tag for RecP (see Term.agda codeF2 (RecP s)).
+  n29 : Nat ; n29 = suc n28
+  n30 : Nat ; n30 = suc n29
+  n31 : Nat ; n31 = suc n30
+  n32 : Nat ; n32 = suc n31
+  n33 : Nat ; n33 = suc n32
 
   tc : Nat -> Fun2
   tc = tagCheck
+
+  -- Useful precomputed Terms
+  tagAp2T : Term
+  tagAp2T = reify tagAp2
+
+  n26T : Term
+  n26T = reify (natCode n26)
+
+  n33T : Term
+  n33T = reify (natCode n33)
+
+  poo : Term
+  poo = ap2 Pair O O
 
 ------------------------------------------------------------------------
 -- case26: hypothesis-use case.
@@ -124,14 +145,62 @@ case23V3 = Fan (Fan origA recsBL substOp)
                Pair
 
 ------------------------------------------------------------------------
+-- case27 and case28: encoding cases for the new V3 axioms
+-- axRecPLf s p  and  axRecPNd s p a b.
+--
+-- These Deriv constructors aren't used by natural derivations (they
+-- are artifacts of the RecP primitive), but thm14EV3 must handle them
+-- for totality.  We give each its own tag + fixed-shape body encoding.
+--
+-- encAxRecPLf:  nd (natCode n27) (nd (codeF2 s) (code p))
+--   body layout: Pair sCr pCr
+--   case27 builds the codeEqn of  eqn (ap2 (RecP s) p O) O .
+--
+-- encAxRecPNd:  nd (natCode n28) (nd (codeF2 s) (nd (code p) (nd (code a) (code b))))
+--   body layout: Pair sCr (Pair pCr (Pair aCr bCr))
+--   case28 builds the codeEqn of
+--     eqn (ap2 (RecP s) p (Pair a b))
+--         (ap2 s (Pair p (Pair a b)) (Pair (ap2 (RecP s) p a) (ap2 (RecP s) p b))) .
+
+case27 : Fun2
+case27 =
+  let recPCodeF = Fan (kF2 n33T) origA Pair          -- reify(codeF2 (RecP s))
+      -- LHS code = reify(code (ap2 (RecP s) p O))
+      -- Note: code(O:Term) = nd lf lf, so reify = poo.
+      --   = Pair tagAp2T (Pair (Pair n33T sCr) (Pair pCr poo))
+      lhsInnerF = Fan recPCodeF (Fan origB (kF2 poo) Pair) Pair
+      lhsF = Fan (kF2 tagAp2T) lhsInnerF Pair
+  in Fan lhsF (kF2 poo) Pair
+
+case28 : Fun2
+case28 =
+  let recPCodeF = Fan (kF2 n33T) origA Pair           -- reify(codeF2 (RecP s))
+      pairF2F   = Fan (kF2 n26T) (kF2 O) Pair         -- reify(codeF2 Pair)
+      -- LHS = ap2 (RecP s) p (Pair a b)
+      lhsF = mkAp2F recPCodeF origB1 (mkAp2F pairF2F origB2a origB2b)
+      -- RHS = ap2 s (Pair p (Pair a b))
+      --             (Pair (ap2 (RecP s) p a) (ap2 (RecP s) p b))
+      rhsF = mkAp2F origA
+               (mkAp2F pairF2F origB1 (mkAp2F pairF2F origB2a origB2b))
+               (mkAp2F pairF2F (mkAp2F recPCodeF origB1 origB2a)
+                               (mkAp2F recPCodeF origB1 origB2b))
+  in Fan lhsF rhsF Pair
+
+------------------------------------------------------------------------
 -- Dispatch chain, threaded with the ambient hypothesis code.
 --
 -- In the V2 chain (Guard.ThFunTFor) the bottom is  ndT26 = sndArg2 .
 -- Here we insert a real tag-26 check in front of the fallthrough,
 -- renaming the old fallthrough to  ndT27V3 .
 
+ndT29V3 : Fun2
+ndT29V3 = sndArg2
+
+ndT28V3 : Fun2
+ndT28V3 = branch (tc n28) case28 ndT29V3
+
 ndT27V3 : Fun2
-ndT27V3 = sndArg2
+ndT27V3 = branch (tc n27) case27 ndT28V3
 
 ndT26V3 : Term -> Fun2
 ndT26V3 hCode = branch (tc n26) (case26 hCode) ndT27V3

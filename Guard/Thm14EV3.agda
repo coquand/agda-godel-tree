@@ -2084,3 +2084,365 @@ thm14EV3Inst {H} {l} {r'} x t pe =
     (ruleTrans (case23V3Match tagR aR spR
                   (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) aR) lC r'C)
                substBoth))))
+
+------------------------------------------------------------------------
+-- ndDisp27V3 and ndDisp28V3: navigation to case27, case28.
+
+private
+  n27 : Nat ; n27 = suc n26
+  n28 : Nat ; n28 = suc n27
+  n33 : Nat ; n33 = suc (suc (suc (suc (suc n28))))
+
+  tagAp2T : Term ; tagAp2T = reify tagAp2
+  n26T    : Term ; n26T    = reify (natCode n26)
+  n33T    : Term ; n33T    = reify (natCode n33)
+  poo     : Term ; poo     = ap2 Pair O O
+
+  ndDisp27V3 : (hCode d r : Term) -> {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair (reify (natCode n27)) d) r)
+                   (ap2 case27 (ap2 Pair (reify (natCode n27)) d) r))
+  ndDisp27V3 hCode d r =
+    ruleTrans (ndBranchMiss n27 n0  case0  (ndT1V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n1  case1  (ndT2V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n2  case2  (ndT3V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n3  case3  (ndT4V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n4  case4  (ndT5V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n5  case5  (ndT6V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n6  case6  (ndT7V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n7  case7  (ndT8V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n8  case8  (ndT9V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n9  case9  (ndT10V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n10 case10 (ndT11V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n11 case11 (ndT12V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n12 case12 (ndT13V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n13 case13 (ndT14V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n14 case14 (ndT15V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n15 case15 (ndT16V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n16 case16 (ndT17V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n17 case17 (ndT18V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n18 case18 (ndT19V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n19 case19V3 (ndT20V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n20 case20 (ndT21V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n21 case21 (ndT22V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n22 case22 (ndT23V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n23 case23V3 (ndT24V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n24 case24 (ndT25V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n25 case25 (ndT26V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n27 n26 (case26 hCode) ndT27V3 d r refl)
+               (ndBranchHit n27 case27 ndT28V3 d r)))))))))))))))))))))))))))
+
+  ndDisp28V3 : (hCode d r : Term) -> {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair (reify (natCode n28)) d) r)
+                   (ap2 case28 (ap2 Pair (reify (natCode n28)) d) r))
+  ndDisp28V3 hCode d r =
+    ruleTrans (ndBranchMiss n28 n0  case0  (ndT1V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n1  case1  (ndT2V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n2  case2  (ndT3V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n3  case3  (ndT4V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n4  case4  (ndT5V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n5  case5  (ndT6V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n6  case6  (ndT7V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n7  case7  (ndT8V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n8  case8  (ndT9V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n9  case9  (ndT10V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n10 case10 (ndT11V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n11 case11 (ndT12V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n12 case12 (ndT13V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n13 case13 (ndT14V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n14 case14 (ndT15V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n15 case15 (ndT16V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n16 case16 (ndT17V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n17 case17 (ndT18V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n18 case18 (ndT19V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n19 case19V3 (ndT20V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n20 case20 (ndT21V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n21 case21 (ndT22V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n22 case22 (ndT23V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n23 case23V3 (ndT24V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n24 case24 (ndT25V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n25 case25 (ndT26V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n28 n26 (case26 hCode) ndT27V3 d r refl)
+    (ruleTrans (ndBranchMiss n28 n27 case27 ndT28V3 d r refl)
+               (ndBranchHit n28 case28 ndT29V3 d r))))))))))))))))))))))))))))
+
+------------------------------------------------------------------------
+-- Case 27: axRecPLf s p.  No sub-proofs; direct computation axiom.
+--
+-- Encoding:  nd (natCode n27) (nd (codeF2 s) (code p))
+-- Conclusion: eqn (ap2 (RecP s) p O) O
+-- codeEqn reify:
+--   Pair (Pair tagAp2T (Pair (Pair n33T sCr) (Pair pCr poo))) poo
+
+thm14EV3AxRecPLf : (H : Equation) (s : Fun2) (p : Term) ->
+                   ProofE3 H (eqn (ap2 (RecP s) p O) O)
+thm14EV3AxRecPLf H s p =
+  mkProofE3 (natCode n27) (nd (codeF2 s) (code p)) correct passF
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  sCr   : Term ; sCr   = reify (codeF2 s)
+  pCr   : Term ; pCr   = reify (code p)
+  tagR  : Term ; tagR  = reify (natCode n27)
+  body  : Term ; body  = ap2 Pair sCr pCr
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+  passF : (x rcs : Term) -> {hyp : Equation} ->
+          Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair enc x) rcs)
+                         (ap2 sndArg2 (ap2 Pair enc x) rcs))
+  passF x rcs = passthroughSucV3 hCode n26 (nd (codeF2 s) (code p)) x rcs
+
+  recPCodeF : Fun2
+  recPCodeF = Fan (kF2 n33T) origA Pair
+
+  recPCodeRed : {hyp : Equation} ->
+                Deriv hyp (eqn (ap2 recPCodeF enc recs) (ap2 Pair n33T sCr))
+  recPCodeRed =
+    ruleTrans (fanRed (kF2 n33T) origA Pair enc recs)
+    (ruleTrans (congL Pair (ap2 origA enc recs) (kF2Red n33T enc recs))
+               (congR Pair n33T (origARed tagR sCr pCr recs)))
+
+  lhsReify : Term
+  lhsReify = ap2 Pair tagAp2T
+               (ap2 Pair (ap2 Pair n33T sCr) (ap2 Pair pCr poo))
+
+  case27Red : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 case27 enc recs) (ap2 Pair lhsReify poo))
+  case27Red =
+    mkEqFRed (mkAp2F recPCodeF origB (kF2 poo)) (kF2 poo) enc recs
+      lhsReify poo
+      (mkAp2FRed recPCodeF origB (kF2 poo) enc recs
+        (ap2 Pair n33T sCr) pCr poo
+        recPCodeRed
+        (origBRed tagR sCr pCr recs)
+        (kF2Red poo enc recs))
+      (kF2Red poo enc recs)
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn (eqn (ap2 (RecP s) p O) O))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR sCr pCr recs)
+    (ruleTrans (ndDisp27V3 hCode body recs)
+               case27Red))
+
+------------------------------------------------------------------------
+-- Case 28: axRecPNd s p a b.  No sub-proofs; direct computation axiom.
+--
+-- Encoding:  nd (natCode n28) (nd (codeF2 s) (nd (code p) (nd (code a) (code b))))
+-- Conclusion:
+--   eqn (ap2 (RecP s) p (Pair a b))
+--       (ap2 s (Pair p (Pair a b))
+--              (Pair (ap2 (RecP s) p a) (ap2 (RecP s) p b)))
+
+thm14EV3AxRecPNd : (H : Equation) (s : Fun2) (p a b : Term) ->
+                   ProofE3 H (eqn (ap2 (RecP s) p (ap2 Pair a b))
+                                  (ap2 s (ap2 Pair p (ap2 Pair a b))
+                                         (ap2 Pair (ap2 (RecP s) p a)
+                                                   (ap2 (RecP s) p b))))
+thm14EV3AxRecPNd H s p a b =
+  mkProofE3 (natCode n28)
+            (nd (codeF2 s) (nd (code p) (nd (code a) (code b)))) correct passF
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  sCr   : Term ; sCr   = reify (codeF2 s)
+  pCr   : Term ; pCr   = reify (code p)
+  aCr   : Term ; aCr   = reify (code a)
+  bCr   : Term ; bCr   = reify (code b)
+  tagR  : Term ; tagR  = reify (natCode n28)
+  bInner  : Term ; bInner  = ap2 Pair pCr (ap2 Pair aCr bCr)
+  body    : Term ; body    = ap2 Pair sCr bInner
+  enc     : Term ; enc     = ap2 Pair tagR body
+  recs    : Term
+  recs    = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+  passF : (x rcs : Term) -> {hyp : Equation} ->
+          Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair enc x) rcs)
+                         (ap2 sndArg2 (ap2 Pair enc x) rcs))
+  passF x rcs = passthroughSucV3 hCode n27
+                  (nd (codeF2 s) (nd (code p) (nd (code a) (code b)))) x rcs
+
+  -- Building blocks
+  recPCodeF : Fun2
+  recPCodeF = Fan (kF2 n33T) origA Pair
+  pairF2F   : Fun2
+  pairF2F   = Fan (kF2 n26T) (kF2 O) Pair
+
+  -- Extractor reductions at enc
+  origARedE : {hyp : Equation} ->
+              Deriv hyp (eqn (ap2 origA enc recs) sCr)
+  origARedE = origARed tagR sCr bInner recs
+
+  origB1RedE : {hyp : Equation} ->
+               Deriv hyp (eqn (ap2 origB1 enc recs) pCr)
+  origB1RedE = origB1Red tagR sCr pCr (ap2 Pair aCr bCr) recs
+
+  origB2aRedE : {hyp : Equation} ->
+                Deriv hyp (eqn (ap2 origB2a enc recs) aCr)
+  origB2aRedE = origB2aRed tagR sCr pCr aCr bCr recs
+
+  origB2bRedE : {hyp : Equation} ->
+                Deriv hyp (eqn (ap2 origB2b enc recs) bCr)
+  origB2bRedE = origB2bRed tagR sCr pCr aCr bCr recs
+
+  recPCodeRed : {hyp : Equation} ->
+                Deriv hyp (eqn (ap2 recPCodeF enc recs) (ap2 Pair n33T sCr))
+  recPCodeRed =
+    ruleTrans (fanRed (kF2 n33T) origA Pair enc recs)
+    (ruleTrans (congL Pair (ap2 origA enc recs) (kF2Red n33T enc recs))
+               (congR Pair n33T origARedE))
+
+  pairF2FRed : {hyp : Equation} ->
+               Deriv hyp (eqn (ap2 pairF2F enc recs) (ap2 Pair n26T O))
+  pairF2FRed =
+    ruleTrans (fanRed (kF2 n26T) (kF2 O) Pair enc recs)
+    (ruleTrans (congL Pair (ap2 (kF2 O) enc recs) (kF2Red n26T enc recs))
+               (congR Pair n26T (kF2Red O enc recs)))
+
+  -- Reify values we want
+  pairABReify : Term
+  pairABReify = ap2 Pair tagAp2T (ap2 Pair (ap2 Pair n26T O) (ap2 Pair aCr bCr))
+  lhsReify : Term
+  lhsReify =
+    ap2 Pair tagAp2T (ap2 Pair (ap2 Pair n33T sCr) (ap2 Pair pCr pairABReify))
+  xReify : Term
+  xReify =
+    ap2 Pair tagAp2T (ap2 Pair (ap2 Pair n26T O) (ap2 Pair pCr pairABReify))
+  recPaReify : Term
+  recPaReify =
+    ap2 Pair tagAp2T (ap2 Pair (ap2 Pair n33T sCr) (ap2 Pair pCr aCr))
+  recPbReify : Term
+  recPbReify =
+    ap2 Pair tagAp2T (ap2 Pair (ap2 Pair n33T sCr) (ap2 Pair pCr bCr))
+  yReify : Term
+  yReify =
+    ap2 Pair tagAp2T
+      (ap2 Pair (ap2 Pair n26T O) (ap2 Pair recPaReify recPbReify))
+  rhsReify : Term
+  rhsReify =
+    ap2 Pair tagAp2T (ap2 Pair sCr (ap2 Pair xReify yReify))
+
+  -- Sub-Fun2 reductions
+  pairABRed : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (mkAp2F pairF2F origB2a origB2b) enc recs) pairABReify)
+  pairABRed =
+    mkAp2FRed pairF2F origB2a origB2b enc recs
+      (ap2 Pair n26T O) aCr bCr
+      pairF2FRed origB2aRedE origB2bRedE
+
+  lhsRed : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (mkAp2F recPCodeF origB1 (mkAp2F pairF2F origB2a origB2b))
+                        enc recs) lhsReify)
+  lhsRed =
+    mkAp2FRed recPCodeF origB1 (mkAp2F pairF2F origB2a origB2b) enc recs
+      (ap2 Pair n33T sCr) pCr pairABReify
+      recPCodeRed origB1RedE pairABRed
+
+  xRed : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (mkAp2F pairF2F origB1 (mkAp2F pairF2F origB2a origB2b))
+                        enc recs) xReify)
+  xRed =
+    mkAp2FRed pairF2F origB1 (mkAp2F pairF2F origB2a origB2b) enc recs
+      (ap2 Pair n26T O) pCr pairABReify
+      pairF2FRed origB1RedE pairABRed
+
+  recPaRed : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (mkAp2F recPCodeF origB1 origB2a) enc recs) recPaReify)
+  recPaRed =
+    mkAp2FRed recPCodeF origB1 origB2a enc recs
+      (ap2 Pair n33T sCr) pCr aCr
+      recPCodeRed origB1RedE origB2aRedE
+
+  recPbRed : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (mkAp2F recPCodeF origB1 origB2b) enc recs) recPbReify)
+  recPbRed =
+    mkAp2FRed recPCodeF origB1 origB2b enc recs
+      (ap2 Pair n33T sCr) pCr bCr
+      recPCodeRed origB1RedE origB2bRedE
+
+  yRed : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (mkAp2F pairF2F (mkAp2F recPCodeF origB1 origB2a)
+                                        (mkAp2F recPCodeF origB1 origB2b))
+                        enc recs) yReify)
+  yRed =
+    mkAp2FRed pairF2F (mkAp2F recPCodeF origB1 origB2a)
+                      (mkAp2F recPCodeF origB1 origB2b) enc recs
+      (ap2 Pair n26T O) recPaReify recPbReify
+      pairF2FRed recPaRed recPbRed
+
+  rhsRed : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (mkAp2F origA
+                           (mkAp2F pairF2F origB1
+                             (mkAp2F pairF2F origB2a origB2b))
+                           (mkAp2F pairF2F (mkAp2F recPCodeF origB1 origB2a)
+                                           (mkAp2F recPCodeF origB1 origB2b)))
+                        enc recs) rhsReify)
+  rhsRed =
+    mkAp2FRed origA (mkAp2F pairF2F origB1 (mkAp2F pairF2F origB2a origB2b))
+                    (mkAp2F pairF2F (mkAp2F recPCodeF origB1 origB2a)
+                                    (mkAp2F recPCodeF origB1 origB2b)) enc recs
+      sCr xReify yReify
+      origARedE xRed yRed
+
+  case28Red : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 case28 enc recs) (ap2 Pair lhsReify rhsReify))
+  case28Red =
+    mkEqFRed (mkAp2F recPCodeF origB1 (mkAp2F pairF2F origB2a origB2b))
+             (mkAp2F origA
+                     (mkAp2F pairF2F origB1 (mkAp2F pairF2F origB2a origB2b))
+                     (mkAp2F pairF2F (mkAp2F recPCodeF origB1 origB2a)
+                                     (mkAp2F recPCodeF origB1 origB2b)))
+             enc recs lhsReify rhsReify lhsRed rhsRed
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn
+                     (eqn (ap2 (RecP s) p (ap2 Pair a b))
+                          (ap2 s (ap2 Pair p (ap2 Pair a b))
+                                 (ap2 Pair (ap2 (RecP s) p a)
+                                           (ap2 (RecP s) p b)))))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR sCr bInner recs)
+    (ruleTrans (ndDisp28V3 hCode body recs)
+               case28Red))
+
+------------------------------------------------------------------------
+-- Top-level thm14EV3 : Deriv H eq -> ProofE3 H eq.
+--
+-- The recursive dispatcher.  One arm per Deriv constructor.  All
+-- computation axioms (ax*) are base cases; all rule* constructors
+-- recurse on sub-derivations.
+
+thm14EV3 : {H eq : Equation} -> Deriv H eq -> ProofE3 H eq
+thm14EV3 {H} (axI t)               = thm14EV3AxI H t
+thm14EV3 {H} (axFst a b)           = thm14EV3AxFst H a b
+thm14EV3 {H} (axSnd a b)           = thm14EV3AxSnd H a b
+thm14EV3 {H} (axConst a b)         = thm14EV3AxConst H a b
+thm14EV3 {H} (axComp f g t)        = thm14EV3AxComp H f g t
+thm14EV3 {H} (axComp2 h f g t)     = thm14EV3AxComp2 H h f g t
+thm14EV3 {H} (axLift f a b)        = thm14EV3AxLift H f a b
+thm14EV3 {H} (axPost f h a b)      = thm14EV3AxPost H f h a b
+thm14EV3 {H} (axFan h1 h2 h a b)   = thm14EV3AxFan H h1 h2 h a b
+thm14EV3 {H} (axKT t x)            = thm14EV3AxKT H t x
+thm14EV3 {H} (axRecLf z s)         = thm14EV3AxRecLf H z s
+thm14EV3 {H} (axRecNd z s a b)     = thm14EV3AxRecNd H z s a b
+thm14EV3 {H} (axRecPLf s p)        = thm14EV3AxRecPLf H s p
+thm14EV3 {H} (axRecPNd s p a b)    = thm14EV3AxRecPNd H s p a b
+thm14EV3 {H} (axIfLfL a b)         = thm14EV3AxIfLfL H a b
+thm14EV3 {H} (axIfLfN x y a b)     = thm14EV3AxIfLfN H x y a b
+thm14EV3 {H} axTreeEqLL            = thm14EV3AxTreeEqLL H
+thm14EV3 {H} (axTreeEqLN a b)      = thm14EV3AxTreeEqLN H a b
+thm14EV3 {H} (axTreeEqNL a b)      = thm14EV3AxTreeEqNL H a b
+thm14EV3 {H} (axTreeEqNN a1 a2 b1 b2) = thm14EV3AxTreeEqNN H a1 a2 b1 b2
+thm14EV3 {H} (axRefl t)            = thm14EV3Refl H t
+thm14EV3 {H} (ruleSym d)           = thm14EV3Sym (thm14EV3 d)
+thm14EV3 {H} (ruleTrans d1 d2)     = thm14EV3Trans (thm14EV3 d1) (thm14EV3 d2)
+thm14EV3 {H} (cong1 f d)           = thm14EV3Cong1 f (thm14EV3 d)
+thm14EV3 {H} (congL g x d)         = thm14EV3CongL g x (thm14EV3 d)
+thm14EV3 {H} (congR g x d)         = thm14EV3CongR g x (thm14EV3 d)
+thm14EV3 {H} (ruleInst x t {eqn l r'} d) = thm14EV3Inst x t (thm14EV3 d)
+thm14EV3 {H} ruleHyp               = thm14EV3Hyp H
+thm14EV3 {H} (ruleF f g z s bf sf bg sg) =
+  thm14EV3F f g z s (thm14EV3 bf) (thm14EV3 sf) (thm14EV3 bg) (thm14EV3 sg)
