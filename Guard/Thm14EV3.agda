@@ -1209,3 +1209,122 @@ thm14EV3AxKT H t x = mkProofE3 (natCode n25) (nd (code t) (code x)) correct
                    (congR Pair codeKTTag (origARed tagR tC xC recs))))
         (origBRed tagR tC xC recs))
       (origARed tagR tC xC recs)))))))))))))))))))))))))))))
+
+------------------------------------------------------------------------
+-- Case 6: axLift f a b.
+
+thm14EV3AxLift : (H : Equation) (f : Fun1) (a b : Term) ->
+                 ProofE3 H (eqn (ap2 (Lift f) a b) (ap1 f a))
+thm14EV3AxLift H f a b = mkProofE3 (natCode n6) (nd (codeF1 f) (nd (code a) (code b))) correct
+  (\x' r' -> passthroughSucV3 hCode n5 (nd (codeF1 f) (nd (code a) (code b))) x' r')
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  fC    : Term ; fC    = reify (codeF1 f)
+  aC    : Term ; aC    = reify (code a)
+  bC    : Term ; bC    = reify (code b)
+  tagR  : Term ; tagR  = reify (natCode n6)
+  body  : Term ; body  = ap2 Pair fC (ap2 Pair aC bC)
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+  liftCTag : Term
+  liftCTag = reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn (eqn (ap2 (Lift f) a b) (ap1 f a)))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR fC (ap2 Pair aC bC) recs)
+    (ruleTrans (ndBranchMiss n6 n0  case0  (ndT1V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n6 n1  case1  (ndT2V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n6 n2  case2  (ndT3V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n6 n3  case3  (ndT4V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n6 n4  case4  (ndT5V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n6 n5  case5  (ndT6V3  hCode) body recs refl)
+    (ruleTrans (ndBranchHit n6 case6 (ndT7V3 hCode) body recs)
+    (mkEqFRed (mkAp2F (Fan (kF2 liftCTag) origA Pair) origB1 origB2)
+              (mkAp1F origA origB1) enc recs
+      (ap2 Pair (reify tagAp2) (ap2 Pair
+        (ap2 Pair liftCTag fC)
+        (ap2 Pair aC bC)))
+      (ap2 Pair (reify tagAp1) (ap2 Pair fC aC))
+      (mkAp2FRed (Fan (kF2 liftCTag) origA Pair) origB1 origB2 enc recs
+        (ap2 Pair liftCTag fC) aC bC
+        (ruleTrans (fanRed (kF2 liftCTag) origA Pair enc recs)
+        (ruleTrans (congL Pair (ap2 origA enc recs) (kF2Red liftCTag enc recs))
+                   (congR Pair liftCTag (origARed tagR fC (ap2 Pair aC bC) recs))))
+        (origB1Red tagR fC aC bC recs)
+        (origB2Red tagR fC aC bC recs))
+      (mkAp1FRed origA origB1 enc recs fC aC
+        (origARed tagR fC (ap2 Pair aC bC) recs)
+        (origB1Red tagR fC aC bC recs)))))))))))
+
+------------------------------------------------------------------------
+-- Case 7: axPost f h a b.
+
+thm14EV3AxPost : (H : Equation) (f : Fun1) (h : Fun2) (a b : Term) ->
+                 ProofE3 H (eqn (ap2 (Post f h) a b) (ap1 f (ap2 h a b)))
+thm14EV3AxPost H f h a b = mkProofE3 (natCode n7)
+    (nd (codeF1 f) (nd (codeF2 h) (nd (code a) (code b)))) correct
+  (\x' r' -> passthroughSucV3 hCode n6
+               (nd (codeF1 f) (nd (codeF2 h) (nd (code a) (code b)))) x' r')
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  fC    : Term ; fC    = reify (codeF1 f)
+  hhC   : Term ; hhC   = reify (codeF2 h)
+  aC    : Term ; aC    = reify (code a)
+  bC    : Term ; bC    = reify (code b)
+  tagR  : Term ; tagR  = reify (natCode n7)
+  body  : Term ; body  = ap2 Pair fC (ap2 Pair hhC (ap2 Pair aC bC))
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+  postCTag : Term
+  postCTag = reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn (eqn (ap2 (Post f h) a b) (ap1 f (ap2 h a b))))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR fC (ap2 Pair hhC (ap2 Pair aC bC)) recs)
+    (ruleTrans (ndBranchMiss n7 n0  case0  (ndT1V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n7 n1  case1  (ndT2V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n7 n2  case2  (ndT3V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n7 n3  case3  (ndT4V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n7 n4  case4  (ndT5V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n7 n5  case5  (ndT6V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n7 n6  case6  (ndT7V3  hCode) body recs refl)
+    (ruleTrans (ndBranchHit n7 case7 (ndT8V3 hCode) body recs)
+    (mkEqFRed
+      (mkAp2F (Fan (kF2 postCTag) (Fan origA origB1 Pair) Pair) origB2a origB2b)
+      (mkAp1F origA (mkAp2F origB1 origB2a origB2b))
+      enc recs
+      (ap2 Pair (reify tagAp2) (ap2 Pair
+        (ap2 Pair postCTag (ap2 Pair fC hhC))
+        (ap2 Pair aC bC)))
+      (ap2 Pair (reify tagAp1) (ap2 Pair fC
+        (ap2 Pair (reify tagAp2) (ap2 Pair hhC (ap2 Pair aC bC)))))
+      (mkAp2FRed (Fan (kF2 postCTag) (Fan origA origB1 Pair) Pair) origB2a origB2b
+        enc recs
+        (ap2 Pair postCTag (ap2 Pair fC hhC))
+        aC bC
+        (ruleTrans (fanRed (kF2 postCTag) (Fan origA origB1 Pair) Pair enc recs)
+        (ruleTrans (congL Pair (ap2 (Fan origA origB1 Pair) enc recs)
+                     (kF2Red postCTag enc recs))
+        (congR Pair postCTag
+          (ruleTrans (fanRed origA origB1 Pair enc recs)
+          (ruleTrans (congL Pair (ap2 origB1 enc recs)
+                       (origARed tagR fC (ap2 Pair hhC (ap2 Pair aC bC)) recs))
+                     (congR Pair fC
+                       (origB1Red tagR fC hhC (ap2 Pair aC bC) recs)))))))
+        (origB2aRed tagR fC hhC aC bC recs)
+        (origB2bRed tagR fC hhC aC bC recs))
+      (mkAp1FRed origA (mkAp2F origB1 origB2a origB2b) enc recs fC
+        (ap2 Pair (reify tagAp2) (ap2 Pair hhC (ap2 Pair aC bC)))
+        (origARed tagR fC (ap2 Pair hhC (ap2 Pair aC bC)) recs)
+        (mkAp2FRed origB1 origB2a origB2b enc recs hhC aC bC
+          (origB1Red tagR fC hhC (ap2 Pair aC bC) recs)
+          (origB2aRed tagR fC hhC aC bC recs)
+          (origB2bRed tagR fC hhC aC bC recs)))))))))))))
