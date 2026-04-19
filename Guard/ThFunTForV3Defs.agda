@@ -22,6 +22,7 @@ open import Guard.Term
 open import Guard.Step
 open import Guard.StepReduce
 open import Guard.ThFunTForDefs
+open import Guard.ExtractorRed
 open import Guard.ThFunTForV3
 open import Guard.GodelII using (treeEqSelf)
 
@@ -166,3 +167,56 @@ intermediateGenericV3 hCode tagT datT sp2a sp2b dispMiss =
      (ruleTrans (guardNdV3 hCode tagT sp2a sp2b recs)
      (ruleTrans (dispMiss dat recs)
                 (sndArg2RedV3 orig recs)))
+
+------------------------------------------------------------------------
+-- case19V3Match: at a genuine trans node where the middle terms agree,
+-- case19V3 reduces to  Pair (leftT sp1-result) (rightT sp2-result) .
+--
+-- Preconditions:
+--   * orig has shape Pair tagR dat (standard Rec node shape).
+--   * recs has shape Pair recTag (Pair recA recB), where recA and recB
+--     are the thmT-values of the two sub-proofs (assumed already
+--     reduced to Pair tC uC1 and Pair uC2 vC respectively).
+--   * The middle terms agree: uC1 = uC2 = uC.
+--
+-- Then case19V3 at (orig, recs) reduces to Pair tC vC.
+
+case19V3Match :
+  (tag dat recTag tC uC vC : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 case19V3
+                   (ap2 Pair tag dat)
+                   (ap2 Pair recTag (ap2 Pair (ap2 Pair tC uC) (ap2 Pair uC vC))))
+                 (ap2 Pair tC vC))
+case19V3Match tag dat recTag tC uC vC =
+  let orig = ap2 Pair tag dat
+      recs = ap2 Pair recTag (ap2 Pair (ap2 Pair tC uC) (ap2 Pair uC vC))
+      checkF  = Fan recsAR recsBL TreeEq
+      matchF  = Fan recsAL recsBR Pair
+      branchF = Fan matchF (kF2 O) Pair
+  in ruleTrans (fanRed checkF branchF IfLf orig recs)
+     -- check-result reduces to TreeEq(uC, uC) = O
+     (ruleTrans
+       (congL IfLf (ap2 branchF orig recs)
+         (ruleTrans (fanRed recsAR recsBL TreeEq orig recs)
+         (ruleTrans
+           (congL TreeEq (ap2 recsBL orig recs)
+             (recsARRed orig recTag tC uC (ap2 Pair uC vC)))
+         (ruleTrans
+           (congR TreeEq uC
+             (recsBLRed orig recTag (ap2 Pair tC uC) uC vC))
+           (treeEqSelf uC)))))
+     -- branchF reduces to Pair (matchF result) (kF2 O result) = Pair (Pair tC vC) O
+     (ruleTrans
+       (congR IfLf O
+         (ruleTrans (fanRed matchF (kF2 O) Pair orig recs)
+         (ruleTrans
+           (congL Pair (ap2 (kF2 O) orig recs)
+             (ruleTrans (fanRed recsAL recsBR Pair orig recs)
+             (ruleTrans
+               (congL Pair (ap2 recsBR orig recs)
+                 (recsALRed orig recTag tC uC (ap2 Pair uC vC)))
+               (congR Pair tC
+                 (recsBRRed orig recTag (ap2 Pair tC uC) uC vC)))))
+           (congR Pair (ap2 Pair tC vC)
+             (constF2Red O orig recs)))))
+       (axIfLfL (ap2 Pair tC vC) O)))

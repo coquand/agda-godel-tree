@@ -241,7 +241,7 @@ private
 
   ndDisp19V3 : (hCode d r : Term) -> {hyp : Equation} ->
     Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair (reify (natCode n19)) d) r)
-                   (ap2 case19 (ap2 Pair (reify (natCode n19)) d) r))
+                   (ap2 case19V3 (ap2 Pair (reify (natCode n19)) d) r))
   ndDisp19V3 hCode d r =
     ruleTrans (ndBranchMiss n19 n0  case0  (ndT1V3  hCode) d r refl)
     (ruleTrans (ndBranchMiss n19 n1  case1  (ndT2V3  hCode) d r refl)
@@ -262,7 +262,7 @@ private
     (ruleTrans (ndBranchMiss n19 n16 case16 (ndT17V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n19 n17 case17 (ndT18V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n19 n18 case18 (ndT19V3 hCode) d r refl)
-               (ndBranchHit n19 case19 (ndT20V3 hCode) d r)))))))))))))))))))
+               (ndBranchHit n19 case19V3 (ndT20V3 hCode) d r)))))))))))))))))))
 
 ------------------------------------------------------------------------
 -- Case 19: ruleTrans.  Composition of two ProofE3's.
@@ -324,9 +324,7 @@ thm14EV3Trans {H} {t} {u} {v} pe1 pe2 =
     (ruleTrans (congR (thmTStep hCode) enc recsExpand)
     (ruleTrans (guardNdV3 hCode tagR sp1R sp2R recs')
     (ruleTrans (ndDisp19V3 hCode dat recs')
-    (mkEqFRed recsAL recsBR enc recs' tC vC
-      (recsALRed enc (ap1 (thmT hCode) tagR) tC uC (ap2 Pair uC vC))
-      (recsBRRed enc (ap1 (thmT hCode) tagR) (ap2 Pair tC uC) uC vC)))))
+               (case19V3Match tagR dat (ap1 (thmT hCode) tagR) tC uC vC))))
 
 ------------------------------------------------------------------------
 -- Case 18: ruleSym.  One sub-proof.
@@ -440,7 +438,7 @@ private
     (ruleTrans (ndBranchMiss n20 n16 case16 (ndT17V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n20 n17 case17 (ndT18V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n20 n18 case18 (ndT19V3 hCode) d r refl)
-    (ruleTrans (ndBranchMiss n20 n19 case19 (ndT20V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n20 n19 case19V3 (ndT20V3 hCode) d r refl)
                (ndBranchHit n20 case20 (ndT21V3 hCode) d r))))))))))))))))))))
 
 ------------------------------------------------------------------------
@@ -607,7 +605,7 @@ private
     (ruleTrans (ndBranchMiss n26 n16 case16 (ndT17V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n17 case17 (ndT18V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n18 case18 (ndT19V3 hCode) d r refl)
-    (ruleTrans (ndBranchMiss n26 n19 case19 (ndT20V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n19 case19V3 (ndT20V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n20 case20 (ndT21V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n21 case21 (ndT22V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n26 n22 case22 (ndT23V3 hCode) d r refl)
@@ -720,7 +718,7 @@ private
     (ruleTrans (ndBranchMiss n21 n16 case16 (ndT17V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n21 n17 case17 (ndT18V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n21 n18 case18 (ndT19V3 hCode) d r refl)
-    (ruleTrans (ndBranchMiss n21 n19 case19 (ndT20V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n21 n19 case19V3 (ndT20V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n21 n20 case20 (ndT21V3 hCode) d r refl)
                (ndBranchHit n21 case21 (ndT22V3 hCode) d r)))))))))))))))))))))
 
@@ -747,7 +745,7 @@ private
     (ruleTrans (ndBranchMiss n22 n16 case16 (ndT17V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n22 n17 case17 (ndT18V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n22 n18 case18 (ndT19V3 hCode) d r refl)
-    (ruleTrans (ndBranchMiss n22 n19 case19 (ndT20V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n22 n19 case19V3 (ndT20V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n22 n20 case20 (ndT21V3 hCode) d r refl)
     (ruleTrans (ndBranchMiss n22 n21 case21 (ndT22V3 hCode) d r refl)
                (ndBranchHit n22 case22 (ndT23V3 hCode) d r))))))))))))))))))))))
@@ -1192,7 +1190,7 @@ thm14EV3AxKT H t x = mkProofE3 (natCode n25) (nd (code t) (code x)) correct
     (ruleTrans (ndBranchMiss n25 n16 case16 (ndT17V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n17 case17 (ndT18V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n18 case18 (ndT19V3 hCode) body recs refl)
-    (ruleTrans (ndBranchMiss n25 n19 case19 (ndT20V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n25 n19 case19V3 (ndT20V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n20 case20 (ndT21V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n21 case21 (ndT22V3 hCode) body recs refl)
     (ruleTrans (ndBranchMiss n25 n22 case22 (ndT23V3 hCode) body recs refl)

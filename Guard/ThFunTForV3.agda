@@ -89,6 +89,22 @@ case26 hCode =
       IfLf                                          -- O -> match, Pair -> miss
 
 ------------------------------------------------------------------------
+-- case19V3: validating trans case.
+--
+-- Unlike V2's case19 = mkEqF recsAL recsBR (which just emits
+-- Pair (left sp1) (right sp2) with no middle-term check), case19V3
+-- first verifies that the "middle term" — right-of-sp1 = left-of-sp2
+-- — agrees.  On mismatch, it returns the sentinel O, so fake trees
+-- like  trans(refl t, refl f)  with t ≠ f  no longer produce a valid
+-- codeEqn.  This is the load-bearing extra check beyond the n26 tag.
+
+case19V3 : Fun2
+case19V3 = Fan
+  (Fan recsAR recsBL TreeEq)                        -- check: right(sp1) = left(sp2) ?
+  (Fan (Fan recsAL recsBR Pair) (kF2 O) Pair)        -- (on-match, on-miss)
+  IfLf
+
+------------------------------------------------------------------------
 -- Dispatch chain, threaded with the ambient hypothesis code.
 --
 -- In the V2 chain (Guard.ThFunTFor) the bottom is  ndT26 = sndArg2 .
@@ -120,7 +136,7 @@ ndT20V3 : Term -> Fun2
 ndT20V3 hCode = branch (tc n20) case20 (ndT21V3 hCode)
 
 ndT19V3 : Term -> Fun2
-ndT19V3 hCode = branch (tc n19) case19 (ndT20V3 hCode)
+ndT19V3 hCode = branch (tc n19) case19V3 (ndT20V3 hCode)
 
 ndT18V3 : Term -> Fun2
 ndT18V3 hCode = branch (tc n18) case18 (ndT19V3 hCode)
