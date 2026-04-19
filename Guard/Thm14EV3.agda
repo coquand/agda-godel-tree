@@ -1445,6 +1445,100 @@ thm14EV3AxRecLf H z s = mkProofE3 (natCode n9) (nd (code z) (codeF2 s)) correct
       (origARed tagR zC sC recs)))))))))))))
 
 ------------------------------------------------------------------------
+-- Case 10: axRecNd z s a b.
+
+thm14EV3AxRecNd : (H : Equation) (z : Term) (s : Fun2) (a b : Term) ->
+  ProofE3 H (eqn (ap1 (Rec z s) (ap2 Pair a b))
+                 (ap2 s (ap2 Pair a b) (ap2 Pair (ap1 (Rec z s) a) (ap1 (Rec z s) b))))
+thm14EV3AxRecNd H z s a b = mkProofE3 (natCode n10)
+    (nd (code z) (nd (codeF2 s) (nd (code a) (code b)))) correct
+  (\x' r' -> passthroughSucV3 hCode n9
+               (nd (code z) (nd (codeF2 s) (nd (code a) (code b)))) x' r')
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  zC    : Term ; zC    = reify (code z)
+  sC    : Term ; sC    = reify (codeF2 s)
+  aC    : Term ; aC    = reify (code a)
+  bC    : Term ; bC    = reify (code b)
+  tagR  : Term ; tagR  = reify (natCode n10)
+  body  : Term ; body  = ap2 Pair zC (ap2 Pair sC (ap2 Pair aC bC))
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+  oCC : Term ; oCC = ap2 Pair O O
+  pairCF : Term ; pairCF = reify (codeF2 Pair)
+  recTagC : Term
+  recTagC = reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))))
+  recF : Fun2 ; recF = Fan (kF2 recTagC) (Fan origA origB1 Pair) Pair
+  pairAB : Fun2 ; pairAB = mkAp2F (kF2 pairCF) origB2a origB2b
+
+  recFVal : Term ; recFVal = ap2 Pair recTagC (ap2 Pair zC sC)
+  pairABVal : Term
+  pairABVal = ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair aC bC))
+
+  recFPf : {hyp : Equation} -> Deriv hyp (eqn (ap2 recF enc recs) recFVal)
+  recFPf =
+    ruleTrans (fanRed (kF2 recTagC) (Fan origA origB1 Pair) Pair enc recs)
+    (ruleTrans (congL Pair (ap2 (Fan origA origB1 Pair) enc recs) (kF2Red recTagC enc recs))
+    (congR Pair recTagC
+      (ruleTrans (fanRed origA origB1 Pair enc recs)
+      (ruleTrans (congL Pair (ap2 origB1 enc recs)
+                   (origARed tagR zC (ap2 Pair sC (ap2 Pair aC bC)) recs))
+                 (congR Pair zC (origB1Red tagR zC sC (ap2 Pair aC bC) recs))))))
+
+  pairABPf : {hyp : Equation} -> Deriv hyp (eqn (ap2 pairAB enc recs) pairABVal)
+  pairABPf =
+    mkAp2FRed (kF2 pairCF) origB2a origB2b enc recs pairCF aC bC
+      (kF2Red pairCF enc recs)
+      (origB2aRed tagR zC sC aC bC recs)
+      (origB2bRed tagR zC sC aC bC recs)
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn (eqn (ap1 (Rec z s) (ap2 Pair a b))
+                     (ap2 s (ap2 Pair a b) (ap2 Pair (ap1 (Rec z s) a) (ap1 (Rec z s) b)))))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR zC (ap2 Pair sC (ap2 Pair aC bC)) recs)
+    (ruleTrans (ndBranchMiss n10 n0 case0 (ndT1V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n1 case1 (ndT2V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n2 case2 (ndT3V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n3 case3 (ndT4V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n4 case4 (ndT5V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n5 case5 (ndT6V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n6 case6 (ndT7V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n7 case7 (ndT8V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n8 case8 (ndT9V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n10 n9 case9 (ndT10V3 hCode) body recs refl)
+    (ruleTrans (ndBranchHit n10 case10 (ndT11V3 hCode) body recs)
+    (mkEqFRed (mkAp1F recF pairAB)
+              (mkAp2F origB1 pairAB (mkAp2F (kF2 pairCF) (mkAp1F recF origB2a) (mkAp1F recF origB2b)))
+      enc recs
+      (ap2 Pair (reify tagAp1) (ap2 Pair recFVal pairABVal))
+      (ap2 Pair (reify tagAp2) (ap2 Pair sC (ap2 Pair pairABVal
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair
+          (ap2 Pair (reify tagAp1) (ap2 Pair recFVal aC))
+          (ap2 Pair (reify tagAp1) (ap2 Pair recFVal bC))))))))
+      (mkAp1FRed recF pairAB enc recs recFVal pairABVal recFPf pairABPf)
+      (mkAp2FRed origB1 pairAB
+        (mkAp2F (kF2 pairCF) (mkAp1F recF origB2a) (mkAp1F recF origB2b))
+        enc recs sC pairABVal
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair
+          (ap2 Pair (reify tagAp1) (ap2 Pair recFVal aC))
+          (ap2 Pair (reify tagAp1) (ap2 Pair recFVal bC)))))
+        (origB1Red tagR zC sC (ap2 Pair aC bC) recs)
+        pairABPf
+        (mkAp2FRed (kF2 pairCF) (mkAp1F recF origB2a) (mkAp1F recF origB2b) enc recs
+          pairCF
+          (ap2 Pair (reify tagAp1) (ap2 Pair recFVal aC))
+          (ap2 Pair (reify tagAp1) (ap2 Pair recFVal bC))
+          (kF2Red pairCF enc recs)
+          (mkAp1FRed recF origB2a enc recs recFVal aC recFPf
+            (origB2aRed tagR zC sC aC bC recs))
+          (mkAp1FRed recF origB2b enc recs recFVal bC recFPf
+            (origB2bRed tagR zC sC aC bC recs)))))))))))))))))
+
+------------------------------------------------------------------------
 -- Case 5: axComp2 h f g t.
 
 thm14EV3AxComp2 : (H : Equation) (h : Fun2) (f g : Fun1) (t : Term) ->
