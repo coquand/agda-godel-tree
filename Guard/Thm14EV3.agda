@@ -56,6 +56,7 @@ private
   n23 : Nat ; n23 = suc n22
   n24 : Nat ; n24 = suc n23
   n25 : Nat ; n25 = suc n24
+  n26 : Nat ; n26 = suc n25
 
 ------------------------------------------------------------------------
 -- ProofE3: V3 correctness witness.
@@ -498,3 +499,154 @@ thm14EV3Cong1 {H} {t} {u} f pe =
       (mkAp1FRed origA recsBR enc recs' fC uC
         (origARed tagR fC spR recs')
         (recsBRRed enc (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) fC) tC uC))))))
+
+------------------------------------------------------------------------
+-- Case 2: axSnd a b.  Mirror of axFst.
+
+thm14EV3AxSnd : (H : Equation) (a b : Term) ->
+                ProofE3 H (eqn (ap1 Snd (ap2 Pair a b)) b)
+thm14EV3AxSnd H a b = mkProofE3 (natCode n2) (nd (code a) (code b)) correct
+  (\x' r' -> passthroughSucV3 hCode n1 (nd (code a) (code b)) x' r')
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  aC    : Term ; aC    = reify (code a)
+  bC    : Term ; bC    = reify (code b)
+  tagR  : Term ; tagR  = reify (natCode n2)
+  body  : Term ; body  = ap2 Pair aC bC
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+  codeSndF : Term ; codeSndF = reify (codeF1 Snd)
+  pairCF   : Term ; pairCF   = reify (codeF2 Pair)
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn (eqn (ap1 Snd (ap2 Pair a b)) b))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR aC bC recs)
+    (ruleTrans (ndBranchMiss n2 n0 case0 (ndT1V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n2 n1 case1 (ndT2V3 hCode) body recs refl)
+    (ruleTrans (ndBranchHit n2 case2 (ndT3V3 hCode) body recs)
+    (mkEqFRed (mkAp1F (kF2 codeSndF) (mkAp2F (kF2 pairCF) origA origB))
+              origB enc recs
+      (ap2 Pair (reify tagAp1) (ap2 Pair codeSndF
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair aC bC)))))
+      bC
+      (mkAp1FRed (kF2 codeSndF) (mkAp2F (kF2 pairCF) origA origB)
+        enc recs codeSndF
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair aC bC)))
+        (kF2Red codeSndF enc recs)
+        (mkAp2FRed (kF2 pairCF) origA origB enc recs pairCF aC bC
+          (kF2Red pairCF enc recs)
+          (origARed tagR aC bC recs)
+          (origBRed tagR aC bC recs)))
+      (origBRed tagR aC bC recs))))))
+
+------------------------------------------------------------------------
+-- Case 3: axConst a b.
+
+thm14EV3AxConst : (H : Equation) (a b : Term) ->
+                  ProofE3 H (eqn (ap2 Const a b) a)
+thm14EV3AxConst H a b = mkProofE3 (natCode n3) (nd (code a) (code b)) correct
+  (\x' r' -> passthroughSucV3 hCode n2 (nd (code a) (code b)) x' r')
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  aC    : Term ; aC    = reify (code a)
+  bC    : Term ; bC    = reify (code b)
+  tagR  : Term ; tagR  = reify (natCode n3)
+  body  : Term ; body  = ap2 Pair aC bC
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+  constCF : Term ; constCF = reify (codeF2 Const)
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn (eqn (ap2 Const a b) a))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR aC bC recs)
+    (ruleTrans (ndBranchMiss n3 n0 case0 (ndT1V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n3 n1 case1 (ndT2V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n3 n2 case2 (ndT3V3 hCode) body recs refl)
+    (ruleTrans (ndBranchHit n3 case3 (ndT4V3 hCode) body recs)
+    (mkEqFRed (mkAp2F (kF2 constCF) origA origB) origA enc recs
+      (ap2 Pair (reify tagAp2) (ap2 Pair constCF (ap2 Pair aC bC)))
+      aC
+      (mkAp2FRed (kF2 constCF) origA origB enc recs constCF aC bC
+        (kF2Red constCF enc recs)
+        (origARed tagR aC bC recs)
+        (origBRed tagR aC bC recs))
+      (origARed tagR aC bC recs)))))))
+
+------------------------------------------------------------------------
+-- Navigate ndDispatchV3 hCode to case26 (the hypothesis case).
+
+private
+  ndDisp26V3 : (hCode d r : Term) -> {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair (reify (natCode n26)) d) r)
+                   (ap2 (case26 hCode) (ap2 Pair (reify (natCode n26)) d) r))
+  ndDisp26V3 hCode d r =
+    ruleTrans (ndBranchMiss n26 n0  case0  (ndT1V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n1  case1  (ndT2V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n2  case2  (ndT3V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n3  case3  (ndT4V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n4  case4  (ndT5V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n5  case5  (ndT6V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n6  case6  (ndT7V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n7  case7  (ndT8V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n8  case8  (ndT9V3  hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n9  case9  (ndT10V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n10 case10 (ndT11V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n11 case11 (ndT12V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n12 case12 (ndT13V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n13 case13 (ndT14V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n14 case14 (ndT15V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n15 case15 (ndT16V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n16 case16 (ndT17V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n17 case17 (ndT18V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n18 case18 (ndT19V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n19 case19 (ndT20V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n20 case20 (ndT21V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n21 case21 (ndT22V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n22 case22 (ndT23V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n23 case23 (ndT24V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n24 case24 (ndT25V3 hCode) d r refl)
+    (ruleTrans (ndBranchMiss n26 n25 case25 (ndT26V3 hCode) d r refl)
+               (ndBranchHit n26 (case26 hCode) ndT27V3 d r))))))))))))))))))))))))))
+
+------------------------------------------------------------------------
+-- Case 26: ruleHyp.  The semantic heart of the redesign.
+--
+-- Encoding: encHyp (codeEqn H) = nd (natCode n26) (codeEqn H).
+-- At Term:  reify encHyp = Pair (reify(natCode n26)) (reify(codeEqn H)) = Pair tagR hCode.
+-- Conclusion: H = eqn l r, so codeEqn H = hCode, i.e., the encoding's
+-- thmT-value IS the hypothesis code itself.
+
+thm14EV3Hyp : (H : Equation) -> ProofE3 H H
+thm14EV3Hyp (eqn l r) = mkProofE3 (natCode n26) (codeEqn (eqn l r)) correct passF
+  where
+  lC    : Term ; lC    = reify (code l)
+  rC    : Term ; rC    = reify (code r)
+  hCode : Term ; hCode = ap2 Pair lC rC      -- = reify (codeEqn (eqn l r))
+  tagR  : Term ; tagR  = reify (natCode n26)
+  enc   : Term ; enc   = ap2 Pair tagR hCode
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) hCode)
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc) (reify (codeEqn (eqn l r))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR hCode)
+    (ruleTrans (guardNdV3 hCode tagR lC rC recs)
+    (ruleTrans (ndDisp26V3 hCode hCode recs)
+               (case26Match hCode tagR recs)))
+
+  -- Passthrough: encoding's outer tag is natCode n26 = suc n25, so it
+  -- has shape Pair O (reify (natCode n25)).  Matches the "natCode (suc n)"
+  -- passthrough pattern (a1 = O, a2 = natCode n25, b = hCode).
+  passF : (x rcs : Term) -> {hyp : Equation} ->
+          Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair enc x) rcs)
+                         (ap2 sndArg2 (ap2 Pair enc x) rcs))
+  passF x rcs = ndDispatchV3PairMiss hCode O (reify (natCode n25)) hCode x rcs
