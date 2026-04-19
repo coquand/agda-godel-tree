@@ -27,58 +27,36 @@ The full file set — `Guard/*.agda` — typechecks under `--safe --without-K --
 
 **Goal:** `godelIDeriv : Deriv godelSentence_V3 (eqn trueT falseT)`.
 
-**The obstacle.** V2's `godelSentence` (in `Guard/SubstTForPrecomp.agda`) uses `thFunTFor` as its evaluator. V3's `thm14EV3` produces `ProofE3 H eq` whose `corr` field is a `Deriv` about `thmT (reify (codeEqn H))`, **not** about `thFunTFor`. These two evaluators agree on encodings that do **not** use `encHyp` (the `n26` tag), but `thm14EV3Hyp H` emits exactly such an `encHyp` encoding. So for the Gödel I argument to close, the sentence itself must use `thmT hCode` where `hCode = reify (codeEqn godelSentence_V3)` (self-referential).
+**THE REAL obstacle, uncovered while attempting this session.**  V2's `godelSentence` (in `Guard/SubstTForPrecomp.agda`) works because `thFunTFor` is *hCode-agnostic* — a single closed `Fun1`.  V3's `thmT` is *hCode-specific* — the case26 check inside `thmT hCode` on an `encHyp(body)` encoding returns `hCode` only when `body = hCode`, else sentinel `O`.
 
-**Plan.** Create `Guard/SubstTForPrecompV3.agda` that mirrors `SubstTForPrecomp.agda` with three substitutions:
+The V2 diagonal trick (substitute `var v1 ↦ reify templateCode`) gives a sentence whose `thmT`'s `hCode` becomes `reify templateCode_V3`.  But `thm14EV3Hyp H` produces a proof-encoding `enc = encHyp (reify (codeEqn H)) = encHyp (reify cGS_V3)`.  Its `corr` witness is
 
-1. Replace `(ap1 thFunTFor (var zero))` with `(ap1 (thmT (var v1)) (var zero))` inside the template.
-2. Replace `(ap1 substTFor (var v1))` with `(ap2 substOp (ap2 Pair (var v1) (reify (natCode v1))) (var v1))`.
-3. Everything else (`templateCode`, `crTC`, `cGS`, `codeEqn` decomposition) restructured around the new template.
-
-Key identity to re-prove in V3 form:
-
-```agda
-diagFTargetV3 :
-  Deriv hyp (eqn (ap2 substOp (ap2 Pair (reify crTC_V3) (reify (natCode v1)))
-                              (reify templateCode_V3))
-                 (reify cGS_V3))
+```
+corr pe : thmT (reify cGS_V3) enc = reify cGS_V3
 ```
 
-Strategy: use `substOpEquiv` to reduce to `closedSubstTFor` on the tree, then reuse V2's `closedSTFNd` machinery (`codedSubstNd`, `csCorrect`, etc.) — these operate purely on trees and don't care whether the original template used `thFunTFor` or `thmT`.
+with `hCode = reify cGS_V3`, NOT `reify templateCode_V3`.  Since `cGS_V3 ≠ templateCode_V3` (they differ by the diagonal substitution), these two `thmT` applications *disagree* on `enc`:
 
-Also: the `substGodelSentence` and `instForm2` lemmas need V3 analogues. Since `substOp` doesn't have internal `var 11 / var 12`, **`instForm2` is unnecessary** — the substitution parameters are embedded in the `Pair` argument to `substOp`, not in free variables. That simplifies the chain.
-
-Sketch of `godelIDeriv`:
-
-```agda
-godelIDeriv : Deriv godelSentence_V3 (eqn trueT falseT)
-godelIDeriv =
-  let hyp = godelSentence_V3
-      dG = ruleHyp {godelSentence_V3}
-      pe = thm14EV3Hyp godelSentence_V3       -- ProofE3 GS GS ; no loophole
-      enc = encT pe
-      hCodeV3 = reify cGS_V3                   -- = reify (codeEqn godelSentence_V3)
-
-      corrPf : Deriv hyp (eqn (ap1 (thmT hCodeV3) enc) (reify cGS_V3))
-      corrPf = corr pe
-
-      -- thmT hCodeV3 (enc) == substOp(P,tgt)(reify templateCode_V3) == reify cGS_V3
-      chain = ruleTrans corrPf (ruleSym diagFTargetV3)
-
-      -- Instantiate godelSentence_V3 at var 0 = enc.
-      instD = eqSubst _ (substGodelSentenceV3 enc) (ruleInst zero enc dG)
-      -- Now instD : ap2 TreeEq (ap1 (thmT hCodeV3) enc) (ap2 substOp _ _) = poo.
-      -- Rewrite ap1 (thmT hCodeV3) enc to substOp(..) using chain.
-
-      step = ruleTrans (ruleSym (congL TreeEq _ chain)) instD
-      -- step : ap2 TreeEq (substOp(..)) (substOp(..)) = poo
-
-      selfEq = treeEqSelf (ap2 substOp _ _)   -- = O
-
-  in ruleTrans (ruleSym selfEq) step
+```
+thmT (reify cGS_V3)        enc = reify cGS_V3      -- case26 matches
+thmT (reify templateCode_V3) enc = O               -- case26 mismatches → sentinel
 ```
 
-The heavy machinery is getting `SubstTForPrecompV3.agda` right.  Estimated: one full session (maybe two). The V2 structure is a close template.
+So the sentence's instantiated form can't be directly rewritten via `corr pe` — there is no bridge.
+
+**Design question for next session.**  Three options to explore:
+
+1. **Change the diagonal.**  Design `templateCode_V3` so that `reify cGS_V3 = reify templateCode_V3` — requires `cGS_V3 = templateCode_V3`, i.e., no substitution, i.e., the template has no `var v1` — but then the template is just the sentence itself, and the fixed-point construction collapses.  Likely unworkable.
+
+2. **Use a different ambient hypothesis.**  Pick `H' = template_V3` (the un-substituted, open equation) as ambient; then `reify (codeEqn H') = reify templateCode_V3` matches the sentence's `thmT` hCode.  But then we need `Deriv H' (eqn trueT falseT)` instead of `Deriv godelSentence_V3 (eqn trueT falseT)`.  The Gödel-II direction from there is different from the V2 template, and it's unclear what the negative soundness statement should look like.
+
+3. **Externalise hCode from the sentence.**  Let `godelSentence_V3` have `var v1` *unbound* (not substituted) — an open equation with a free `v1`.  Instantiate it at `var v1 ↦ reify cGS_V3` at the Deriv level via `ruleInst`.  But then proofs need to know `cGS_V3` as a specific closed tree, which still requires solving the fixed point.
+
+**Recommended approach for next session:** attempt option 2 carefully, with `H' = template_V3`.  This shifts the Gödel II statement from "no consistent H proves Con_H" to a slightly stronger form "no consistent extension of `template_V3` proves Con_{extension}".  The argument may close cleanly because corr's `hCode` and the sentence's embedded `hCode` both become `reify templateCode_V3`.
+
+Alternatively, revisit what "V3 Gödel II" should mean in the first place.  The cleanest statement may require redesigning `thmT` to be hCode-agnostic *for sub-proofs* while still enforcing hCode at the ruleHyp level.  E.g., make `case26` permissive: it always returns body (thus behaves like V2's missing-case path), and enforce the hypothesis discipline via an *external* check on the final encoding rather than inside the evaluator.  That would let V3 reuse V2's diagonal directly.
+
+**Bottom line.** D6 is a design-level problem, not a mechanical port.  The existing `Guard/archive/v2/GodelIIFull.agda` is NOT a template — the V3 mechanism diverges structurally at the sentence layer.
 
 ### D7 — Gödel II on V3 + negative test
 
