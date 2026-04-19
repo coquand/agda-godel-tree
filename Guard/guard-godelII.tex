@@ -733,6 +733,69 @@ By transitivity: $H \vdash \trueT = \falseT$,
 contradicting $\mathit{Consistent}(H)$.
 \qed
 
+\subsection*{Modal presentation (\texttt{Prov.agda}, \texttt{GodelIIProv.agda})}
+
+The proof above has a natural reading as a diagonal argument
+through a provability modality, in the style of Dijk and
+Gietelink-Oldenziel~\cite{dijk2020} (who gave Joyal's
+arithmetic-universe proof of G\"odel's theorems).  We make this
+reading explicit in two additional files, leaving
+\texttt{GodelIIFull.agda} untouched.
+
+\begin{definition}[\texttt{Prov.agda}]
+For an equation $e$, define the provability predicate
+\[
+  \mathrm{Prov}(e) \;=\; \bigl\{\, t : \mathrm{Term}
+    \;\bigm|\; \thFunTFor(t) = \reify{\code{e}} \,\bigr\}
+\]
+(the record has fields \texttt{enc} and \texttt{corr}, and the
+correctness witness is polymorphic in the hypothesis).
+\end{definition}
+
+\noindent
+Three operators, each a few lines of Agda, suffice:
+\begin{itemize}
+\item \textbf{Necessitation.}
+  $\mathit{ProofE}(H) \to (H \vdash e) \to \mathrm{Prov}(e)$,
+  obtained by packaging the output of \texttt{thm14E}.  This is
+  exactly the first Hilbert--Bernays derivability condition
+  (DC1), and corresponds to Lemma~5.15 of~\cite{dijk2020}.
+\item \textbf{Internal Cantor diagonal.}
+  Given $c : \mathrm{Term}$,
+  \[
+    H \vdash \TreeEq(c, c) = \falseT
+    \;\to\;
+    H \vdash \trueT = \falseT,
+  \]
+  by composition with the \SchemaF{} reflexivity
+  $\TreeEq(c, c) = \trueT$.  This is the shared tail of Rose's
+  Theorems~17 and~18 and of Theorems~5.19 and~5.20
+  of~\cite{dijk2020}: each reduces, at the final step, to the
+  same collapse of a diagonal equalizer.
+\item \textbf{G\"odel~II as a one-liner.}  Let
+  $\mathit{provBot} : \mathrm{Prov}(\trueT = \falseT)$ be the
+  necessitation of the G\"odel~I derivation.  Then
+  \texttt{conToBot} is literally:
+\begin{verbatim}
+    conToBot dCon =
+      diagContradict codeBotT
+        (ruleTrans (ruleSym (congL TreeEq codeBotT (corr provBot)))
+                   (ruleInst zero (enc provBot) dCon))
+\end{verbatim}
+  i.e.\ ``instantiate $\mathrm{Con}$ at the witness of
+  $\mathrm{Prov}(\bot)$, rewrite by its correctness, apply the
+  diagonal collapse''.
+\end{itemize}
+
+\noindent
+The refactor does not shorten the total development ---
+\texttt{Thm14E.agda} is unchanged --- but it \emph{renames} the
+load-bearing step into the form it has in the categorical proof:
+the Cantor-diagonal equalizer, applied once at the level of
+$\mathrm{Prov}$.  G\"odel~I and G\"odel~II are then visibly two
+instances of the same collapse, on $\reify{\mathit{cGS}}$ and
+on $\reify{\code{\bot}}$ respectively.
+
 %% ===============================================================
 \section{Discussion}
 
@@ -1009,6 +1072,8 @@ ExtractorRed.agda & $<1$s & Extractor reduction lemmas \\
 GodelII.agda & $<1$s & G\"odel I (168 lines) + treeEqSelf \\
 ProofEAny.agda & $<1$s & mkProofEAny + strengthened G\"odel I \\
 GodelIIFull.agda & $<1$s & \textbf{G\"odel II} ($\sim$90 lines) \\
+Prov.agda & $<1$s & Provability modality, necessitation, diagContradict \\
+GodelIIProv.agda & $<1$s & G\"odel II, modal presentation via \texttt{Prov} \\
 CookPV.agda & $<1$s & Boolean ops, De Morgan, excluded middle \\
 NoPChecker.agda & $<1$s & No proof-checker (corollary of G\"odel II) \\
 \hline
@@ -1063,6 +1128,11 @@ same theorems.
   H.~Simmons,
   ``The realm of primitive recursion,''
   \emph{Archive for Mathematical Logic}, vol.~27, pp.~177--188, 1988.
+
+\bibitem{dijk2020}
+  J.~van~Dijk and A.~Gietelink-Oldenziel,
+  ``G\"odel's Incompleteness after Joyal,''
+  arXiv:2004.10482, 2020.
 \end{thebibliography}
 
 \end{document}
