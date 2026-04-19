@@ -32,6 +32,13 @@ private
   poo : Term
   poo = ap2 Pair O O
 
+-- sndArg2 applied at any orig, recs: returns recs.
+-- (Generic; independent of V2/V3.)
+sndArg2RedV3 : (orig recs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 sndArg2 orig recs) recs)
+sndArg2RedV3 orig recs =
+  ruleTrans (postRed Snd Pair orig recs) (axSnd orig recs)
+
 ------------------------------------------------------------------------
 -- Rec unfolding for thmT hCode = Rec O (thmTStep hCode).
 --
@@ -132,3 +139,30 @@ case26Match hCode tag recs =
   treeEqSelfAtHCode : (c : Term) -> {hyp : Equation} ->
                       Deriv hyp (eqn (ap2 TreeEq c c) O)
   treeEqSelfAtHCode c = treeEqSelf c
+
+------------------------------------------------------------------------
+-- Intermediate passthrough (V3): when the data of a node has shape
+-- Pair(sp2a, sp2b) and the tag itself is a valid sub-encoding tagT
+-- (so ndDispatchV3 misses at it), thmT hCode pushes through to
+-- Pair(thmT hCode tagT, thmT hCode (Pair sp2a sp2b)).
+--
+-- Direct port of Guard.IntermediatePassthrough.intermediateGeneric.
+
+intermediateGenericV3 :
+  (hCode tagT datT : Term)
+  (sp2a sp2b : Term)
+  -> ((x recs : Term) -> {hyp : Equation} ->
+      Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair tagT x) recs)
+                     (ap2 sndArg2 (ap2 Pair tagT x) recs)))
+  -> {hyp : Equation}
+  -> Deriv hyp (eqn (ap1 (thmT hCode) (ap2 Pair tagT (ap2 Pair sp2a sp2b)))
+                    (ap2 Pair (ap1 (thmT hCode) tagT)
+                              (ap1 (thmT hCode) (ap2 Pair sp2a sp2b))))
+intermediateGenericV3 hCode tagT datT sp2a sp2b dispMiss =
+  let dat  = ap2 Pair sp2a sp2b
+      orig = ap2 Pair tagT dat
+      recs = ap2 Pair (ap1 (thmT hCode) tagT) (ap1 (thmT hCode) dat)
+  in ruleTrans (recNdRed O (thmTStep hCode) tagT dat)
+     (ruleTrans (guardNdV3 hCode tagT sp2a sp2b recs)
+     (ruleTrans (dispMiss dat recs)
+                (sndArg2RedV3 orig recs)))
