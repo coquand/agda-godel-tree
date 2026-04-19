@@ -525,6 +525,7 @@ $\reify{\hat{N}}$ unnecessarily.
 
 %% ===============================================================
 \section{Proof of G\"odel I}
+\label{sec:godelI}
 
 \begin{theorem}[G\"odel~I, constructive form]
 \label{thm:godel1cf}
@@ -607,136 +608,156 @@ We assume $H \vdash G$ and derive $H \vdash \trueT = \falseT$:
 %% ===============================================================
 \section{Proof of G\"odel II}
 
-\subsection*{The internal consistency statement}
+\subsection{The internal consistency statement}
 
-The code of the contradiction $\trueT = \falseT$ is
+We define the (open) consistency statement as the equation in one
+free variable~$x$:
 \[
-  \code{\bot} \;=\; \code{\trueT = \falseT}
-  \;=\; \pair{\code{O}}{\code{\pair{O}{O}}}.
+  \mathrm{Con}(x) \;\equiv\;
+  \TreeEq\bigl(\thFunTFor(x),\;\code{\trueT = \falseT}\bigr) = \falseT.
 \]
+Thus $\mathrm{Con}(x)$ states: \emph{the proof encoded by~$x$ is
+not a proof of $\trueT = \falseT$}.  Since the system has no
+quantifiers, consistency is expressed as this open equation;
+the intended reading is ``for all~$x$, $\mathrm{Con}(x)$''.
+This formulation is predicative: no internal universal
+quantification or derivability conditions are required.
 
-\begin{definition}
-The \emph{internal consistency statement} is the equation
+\subsection{A hypothesis-polymorphic reflection lemma (DC1-poly)}
+
+The key technical invariant is the following strengthening of
+Theorem~14.
+
+\begin{lemma}[DC1-poly]
+\label{lem:dc1poly}
+If $H \vdash t = u$, then there exists a closed term~$p$ such that
+for every hypothesis~$H'$,
 \[
-  \mathrm{Con} \;\equiv\quad
-  \TreeEq\bigl(\thFunTFor(x),\;\reify{\code{\bot}}\bigr) \;=\; \falseT
+  H' \vdash \thFunTFor(p) = \code{t = u}.
 \]
-where $x$ is a free variable, implicitly universally quantified.
-Since $\TreeEq(a, b) = \falseT$ means $a \neq b$,
-$\mathrm{Con}$ says:
-\emph{for every proof tree~$x$, the equation encoded by~$x$
-is not $\trueT = \falseT$} --- i.e., the system does not
-prove $\trueT = \falseT$.
-\end{definition}
+\end{lemma}
 
-\noindent
-When the hypothesis is a trivially true equation such as
-$\trueT = \trueT$, this corresponds exactly to Guard's
-Theorem~14: ``$\mathrm{th}(y) \neq \text{``}0 = 1\text{''}$
-is valid but unprovable in BRA''~\cite{guard1963}.
+\begin{proof}
+Theorem~14 produces, from a derivation $H \vdash t = u$, a proof
+code~$p$ together with a correctness derivation of
+$\thFunTFor(p) = \code{t = u}$, constructed by recursion on the
+given derivation.
 
-\subsection*{Statement}
+Inspecting the definition of \texttt{thm14E}, each of its 26 cases
+emits a correctness derivation using only computation axioms and
+structural rules; the only recursive uses of hypothesis-dependent
+data come from the recursive calls on the input $\mathit{ProofE}(H)$.
+Consequently the resulting correctness derivation contains no
+uses of the hypothesis rule and is independent of the ambient
+hypothesis.  It therefore transports to any~$H'$, yielding
+\[
+  H' \vdash \thFunTFor(p) = \code{t = u}. \qedhere
+\]
+\end{proof}
+
+\subsection{Diagonal collapse}
+
+We isolate the final step common to G\"odel~I and G\"odel~II.
+
+\begin{lemma}[Diagonal collapse]
+\label{lem:diagCollapse}
+For any closed term~$c$, if
+$H \vdash \TreeEq(c, c) = \falseT$, then
+$H \vdash \trueT = \falseT$.
+\end{lemma}
+
+\begin{proof}
+By \SchemaF{}, $\TreeEq(c, c) = \trueT$ for every~$c$.
+Combine with the assumption by transitivity.
+\end{proof}
+
+\subsection{Statement}
 
 \begin{theorem}[G\"odel~II, constructive form --- \texttt{conToBot} in \texttt{GodelIIFull.agda}]
 \label{thm:godel2cf}
-For any hypothesis equation~$H$:
+For any hypothesis equation~$H$,
 \[
-  H \vdash \mathrm{Con} \;\to\;
+  H \vdash \mathrm{Con}(x) \;\Longrightarrow\;
   H \vdash \trueT = \falseT.
 \]
 \end{theorem}
 
-\noindent
-That is: if the system derives $\mathrm{Con}$,
-then it derives $\trueT = \falseT$.  This is the direct constructive
-content --- no consistency assumption, no Markov's principle.
-
 \begin{corollary}[G\"odel~II, standard form --- \texttt{godelII} in \texttt{GodelIIFull.agda}]
 \label{thm:godel2s}
-For any hypothesis equation~$H$:
-\[
-  \mathit{Consistent}(H) \;\to\;
-  H \vdash \mathrm{Con} \;\to\; \bot.
-\]
+If $H$ is consistent, then $H \nvdash \mathrm{Con}(x)$.
 \end{corollary}
 
-\begin{remark}
-The constructive form (Theorem~\ref{thm:godel2cf}) is stronger
-than the standard form (Corollary~\ref{thm:godel2s}).
-Classically they are equivalent by contraposition.
-Constructively, our proof directly produces the derivation
-$H \vdash \trueT = \falseT$ from $H \vdash \mathrm{Con}$
-without any classical reasoning: the consistency
-assumption is applied only at the final step to obtain~$\bot$.
-\end{remark}
+\subsection{Proof}
 
-\subsection*{Proof}
+The proof has three steps.
 
-The proof has three components.
-
-\medskip\noindent
-\textbf{Step 1: Pre-compute the encoding of the G\"odel~I argument.}
-
-\noindent
-Specialize the G\"odel~I proof to the hypothesis
-$H_0 = G$ (the G\"odel sentence itself).
-With this hypothesis, $\mathrm{ruleHyp}$ gives
-$G \vdash G$, and the G\"odel~I argument
-(Theorem~\ref{thm:godel1cf}) produces a derivation:
+\paragraph{Step 1: A concrete contradiction derivation.}
+By G\"odel~I (Theorem~\ref{thm:godel1cf}), taking the hypothesis
+$H_0 = G$, we obtain a derivation
 \[
-  d_\bot : G \vdash \trueT = \falseT.
+  d_\bot \;:\; G \vdash \trueT = \falseT.
 \]
-Apply Theorem~14 (\texttt{thm14E}) to~$d_\bot$ to obtain
-the proof encoding $\mathit{enc}_\bot$ and the correctness proof:
+This derivation is produced constructively using \texttt{ruleHyp}
+(to obtain $G \vdash G$) followed by the G\"odel~I argument;
+it involves no consistency assumption.
+
+\paragraph{Step 2: Reflect the derivation uniformly.}
+To apply Lemma~\ref{lem:dc1poly} we need a proof encoding of the
+hypothesis~$G$.  This is supplied by \texttt{mkProofEAny}, which
+produces a term witnessing $\mathit{ProofE}(G)$ for any equational
+hypothesis.
+
+Applying Lemma~\ref{lem:dc1poly} to~$d_\bot$ yields a closed
+term~$\mathit{enc}_\bot$ such that for every hypothesis~$H$,
 \[
-  \mathit{corrBot} : \thFunTFor(\mathit{enc}_\bot) = \reify{\code{\bot}}.
+  H \vdash \thFunTFor(\mathit{enc}_\bot) = \code{\trueT = \falseT}.
 \]
-Crucially, $\mathit{corrBot}$ is \emph{polymorphic in the hypothesis}:
-it is a derivation using only computation axioms and structural
-rules, not the hypothesis rule.  Therefore it holds in any
-hypothesis context, not just under~$G$.
+In particular, this holds in the ambient hypothesis~$H$.
 
-The term $\mathit{enc}_\bot$ is a specific closed term computed
-at the Agda meta-level.  It encodes the entire G\"odel~I
-proof: the diagonal (\texttt{diagFTarget}), tree equality
-self-comparison (\texttt{treeEqSelf}), variable instantiation,
-and all 26~case verifications through \texttt{thm14E}.
-
-\medskip\noindent
-\textbf{Step 2: Instantiate the consistency hypothesis.}
-
-\noindent
-Given $H \vdash \mathrm{Con}$, apply variable
-substitution (\texttt{ruleInst}) with $x := \mathit{enc}_\bot$:
+\paragraph{Step 3: Instantiate consistency and collapse.}
+Assume $H \vdash \mathrm{Con}(x)$.  By substitution
+(\texttt{ruleInst}) with $x := \mathit{enc}_\bot$,
 \[
-  H \vdash \TreeEq(\thFunTFor(\mathit{enc}_\bot),\;\reify{\code{\bot}}) = \falseT.
+  H \vdash \TreeEq\bigl(\thFunTFor(\mathit{enc}_\bot),\;\code{\trueT = \falseT}\bigr) = \falseT.
 \]
-
-\medskip\noindent
-\textbf{Step 3: Derive the contradiction.}
-
-\noindent
-From $\mathit{corrBot}$ (polymorphic, instantiated at~$H$):
+Rewriting with the equality from Step~2 and congruence,
 \[
-  H \vdash \thFunTFor(\mathit{enc}_\bot) = \reify{\code{\bot}}.
+  H \vdash \TreeEq\bigl(\code{\trueT = \falseT},\;\code{\trueT = \falseT}\bigr) = \falseT.
 \]
-Replace $\thFunTFor(\mathit{enc}_\bot)$ with $\reify{\code{\bot}}$
-by congruence:
-\[
-  H \vdash \TreeEq(\reify{\code{\bot}},\;\reify{\code{\bot}}) = \falseT.
-\]
-But $\TreeEq(t, t) = \trueT$ for all~$t$ (by \SchemaF{}):
-\[
-  H \vdash \TreeEq(\reify{\code{\bot}},\;\reify{\code{\bot}}) = \trueT.
-\]
-By transitivity: $H \vdash \trueT = \falseT$,
-contradicting $\mathit{Consistent}(H)$.
-\qed
+Applying Lemma~\ref{lem:diagCollapse} (diagonal collapse) gives
+$H \vdash \trueT = \falseT$. \qed
 
-\subsection*{Modal presentation (\texttt{Prov.agda}, \texttt{GodelIIProv.agda})}
+\subsection{Discussion}
 
-The proof above has a natural reading as a diagonal argument
-through a provability modality, in the style of Dijk and
+The proof uses only a single instance of reflection (DC1),
+strengthened to hypothesis-polymorphism.  No internal modus ponens
+(D3) or iterated reflection (D2) is required.
+
+Conceptually, G\"odel~II reduces to
+\begin{itemize}
+\item constructing one explicit derivation of contradiction
+  under the hypothesis~$G$ (G\"odel~I);
+\item reflecting it to a closed proof code~$\mathit{enc}_\bot$;
+\item instantiating consistency at this witness;
+\item collapsing via $\TreeEq(c, c) = \trueT$.
+\end{itemize}
+Thus G\"odel~II is obtained by transporting a \emph{single concrete
+proof witness} across hypotheses, rather than by reasoning about
+all proofs internally.
+
+\paragraph{Integration with earlier sections.}
+The diagonal construction (template, $N$, $\mathrm{cstf}$, etc.)
+remains entirely in Section~\ref{sec:godelI} (G\"odel~I), where it
+belongs.  No reference to \texttt{SubstTForPrecomp},
+\texttt{instForm2}, or the fast chain is needed here; those
+concern the construction of~$d_\bot$, not its use.  The modal
+presentation below is a direct abstraction of
+Lemmas~\ref{lem:dc1poly} and~\ref{lem:diagCollapse}.
+
+\subsection{Modal presentation (\texttt{Prov.agda}, \texttt{GodelIIProv.agda})}
+
+Lemmas~\ref{lem:dc1poly} and~\ref{lem:diagCollapse} admit a
+direct modal abstraction, in the style of Dijk and
 Gietelink-Oldenziel~\cite{dijk2020} (who gave Joyal's
 arithmetic-universe proof of G\"odel's theorems).  We make this
 reading explicit in two additional files, leaving
@@ -758,20 +779,13 @@ Three operators, each a few lines of Agda, suffice:
 \item \textbf{Necessitation.}
   $\mathit{ProofE}(H) \to (H \vdash e) \to \mathrm{Prov}(e)$,
   obtained by packaging the output of \texttt{thm14E}.  This is
-  exactly the first Hilbert--Bernays derivability condition
-  (DC1), and corresponds to Lemma~5.15 of~\cite{dijk2020}.
+  Lemma~\ref{lem:dc1poly} in record form, and corresponds to
+  Lemma~5.15 of~\cite{dijk2020}.
 \item \textbf{Internal Cantor diagonal.}
-  Given $c : \mathrm{Term}$,
-  \[
-    H \vdash \TreeEq(c, c) = \falseT
-    \;\to\;
-    H \vdash \trueT = \falseT,
-  \]
-  by composition with the \SchemaF{} reflexivity
-  $\TreeEq(c, c) = \trueT$.  This is the shared tail of Rose's
-  Theorems~17 and~18 and of Theorems~5.19 and~5.20
-  of~\cite{dijk2020}: each reduces, at the final step, to the
-  same collapse of a diagonal equalizer.
+  Exactly Lemma~\ref{lem:diagCollapse}; this is the shared tail
+  of Rose's Theorems~17 and~18 and of Theorems~5.19 and~5.20
+  of~\cite{dijk2020}, each of which reduces at the final step to
+  the same collapse of a diagonal equalizer.
 \item \textbf{G\"odel~II as a one-liner.}  Let
   $\mathit{provBot} : \mathrm{Prov}(\trueT = \falseT)$ be the
   necessitation of the G\"odel~I derivation.  Then
