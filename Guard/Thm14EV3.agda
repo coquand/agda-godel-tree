@@ -1539,6 +1539,113 @@ thm14EV3AxRecNd H z s a b = mkProofE3 (natCode n10)
             (origB2bRed tagR zC sC aC bC recs)))))))))))))))))
 
 ------------------------------------------------------------------------
+-- Case 16: axTreeEqNN a1 a2 b1 b2.
+
+thm14EV3AxTreeEqNN : (H : Equation) (a1 a2 b1 b2 : Term) ->
+  ProofE3 H (eqn (ap2 TreeEq (ap2 Pair a1 a2) (ap2 Pair b1 b2))
+                 (ap2 IfLf (ap2 TreeEq a1 b1)
+                           (ap2 Pair (ap2 TreeEq a2 b2) (ap2 Pair O O))))
+thm14EV3AxTreeEqNN H a1 a2 b1 b2 = mkProofE3 (natCode n16)
+    (nd (code a1) (nd (code a2) (nd (code b1) (code b2)))) correct
+  (\x' r' -> passthroughSucV3 hCode n15
+               (nd (code a1) (nd (code a2) (nd (code b1) (code b2)))) x' r')
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  a1C   : Term ; a1C   = reify (code a1)
+  a2C   : Term ; a2C   = reify (code a2)
+  b1C   : Term ; b1C   = reify (code b1)
+  b2C   : Term ; b2C   = reify (code b2)
+  tagR  : Term ; tagR  = reify (natCode n16)
+  body  : Term ; body  = ap2 Pair a1C (ap2 Pair a2C (ap2 Pair b1C b2C))
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+  treeeqCF : Term ; treeeqCF = reify (codeF2 TreeEq)
+  pairCF   : Term ; pairCF   = reify (codeF2 Pair)
+  iflfCF   : Term ; iflfCF   = reify (codeF2 IfLf)
+  oCC      : Term ; oCC      = ap2 Pair O O
+  reifyTagAp2 : Term
+  reifyTagAp2 = ap2 Pair O (ap2 Pair O (ap2 Pair O O))
+  oneCF       : Term
+  oneCF       = ap2 Pair reifyTagAp2 (ap2 Pair pairCF (ap2 Pair oCC oCC))
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc)
+                   (reify (codeEqn (eqn (ap2 TreeEq (ap2 Pair a1 a2) (ap2 Pair b1 b2))
+                     (ap2 IfLf (ap2 TreeEq a1 b1)
+                               (ap2 Pair (ap2 TreeEq a2 b2) (ap2 Pair O O)))))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR a1C (ap2 Pair a2C (ap2 Pair b1C b2C)) recs)
+    (ruleTrans (ndBranchMiss n16 n0  case0  (ndT1V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n1  case1  (ndT2V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n2  case2  (ndT3V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n3  case3  (ndT4V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n4  case4  (ndT5V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n5  case5  (ndT6V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n6  case6  (ndT7V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n7  case7  (ndT8V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n8  case8  (ndT9V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n9  case9  (ndT10V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n10 case10 (ndT11V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n11 case11 (ndT12V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n12 case12 (ndT13V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n13 case13 (ndT14V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n14 case14 (ndT15V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n16 n15 case15 (ndT16V3 hCode) body recs refl)
+    (ruleTrans (ndBranchHit n16 case16 (ndT17V3 hCode) body recs)
+    (mkEqFRed
+      (mkAp2F (kF2 treeeqCF) (mkAp2F (kF2 pairCF) origA origB1)
+                              (mkAp2F (kF2 pairCF) origB2a origB2b))
+      (mkAp2F (kF2 iflfCF) (mkAp2F (kF2 treeeqCF) origA origB2a)
+                            (mkAp2F (kF2 pairCF) (mkAp2F (kF2 treeeqCF) origB1 origB2b)
+                                                  (kF2 oneCF)))
+      enc recs
+      (ap2 Pair (reify tagAp2) (ap2 Pair treeeqCF (ap2 Pair
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair a1C a2C)))
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair b1C b2C))))))
+      (ap2 Pair (reify tagAp2) (ap2 Pair iflfCF (ap2 Pair
+        (ap2 Pair (reify tagAp2) (ap2 Pair treeeqCF (ap2 Pair a1C b1C)))
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair
+          (ap2 Pair (reify tagAp2) (ap2 Pair treeeqCF (ap2 Pair a2C b2C))) oneCF))))))
+      (mkAp2FRed (kF2 treeeqCF) (mkAp2F (kF2 pairCF) origA origB1)
+                                 (mkAp2F (kF2 pairCF) origB2a origB2b) enc recs
+        treeeqCF
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair a1C a2C)))
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair b1C b2C)))
+        (kF2Red treeeqCF enc recs)
+        (mkAp2FRed (kF2 pairCF) origA origB1 enc recs pairCF a1C a2C
+          (kF2Red pairCF enc recs)
+          (origARed tagR a1C (ap2 Pair a2C (ap2 Pair b1C b2C)) recs)
+          (origB1Red tagR a1C a2C (ap2 Pair b1C b2C) recs))
+        (mkAp2FRed (kF2 pairCF) origB2a origB2b enc recs pairCF b1C b2C
+          (kF2Red pairCF enc recs)
+          (origB2aRed tagR a1C a2C b1C b2C recs)
+          (origB2bRed tagR a1C a2C b1C b2C recs)))
+      (mkAp2FRed (kF2 iflfCF) (mkAp2F (kF2 treeeqCF) origA origB2a)
+                               (mkAp2F (kF2 pairCF) (mkAp2F (kF2 treeeqCF) origB1 origB2b)
+                                                     (kF2 oneCF))
+        enc recs iflfCF
+        (ap2 Pair (reify tagAp2) (ap2 Pair treeeqCF (ap2 Pair a1C b1C)))
+        (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair
+          (ap2 Pair (reify tagAp2) (ap2 Pair treeeqCF (ap2 Pair a2C b2C))) oneCF)))
+        (kF2Red iflfCF enc recs)
+        (mkAp2FRed (kF2 treeeqCF) origA origB2a enc recs treeeqCF a1C b1C
+          (kF2Red treeeqCF enc recs)
+          (origARed tagR a1C (ap2 Pair a2C (ap2 Pair b1C b2C)) recs)
+          (origB2aRed tagR a1C a2C b1C b2C recs))
+        (mkAp2FRed (kF2 pairCF) (mkAp2F (kF2 treeeqCF) origB1 origB2b) (kF2 oneCF)
+          enc recs pairCF
+          (ap2 Pair (reify tagAp2) (ap2 Pair treeeqCF (ap2 Pair a2C b2C)))
+          oneCF
+          (kF2Red pairCF enc recs)
+          (mkAp2FRed (kF2 treeeqCF) origB1 origB2b enc recs treeeqCF a2C b2C
+            (kF2Red treeeqCF enc recs)
+            (origB1Red tagR a1C a2C (ap2 Pair b1C b2C) recs)
+            (origB2bRed tagR a1C a2C b1C b2C recs))
+          (kF2Red oneCF enc recs))))))))))))))))))))))
+
+------------------------------------------------------------------------
 -- Case 5: axComp2 h f g t.
 
 thm14EV3AxComp2 : (H : Equation) (h : Fun2) (f g : Fun1) (t : Term) ->
