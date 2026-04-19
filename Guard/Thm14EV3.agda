@@ -20,9 +20,13 @@ open import Guard.StepReduce
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForDefs
 open import Guard.ThFunTForCases0
+open import Guard.ThFunTForCases1
+open import Guard.ThFunTForCases2
+open import Guard.ThFunTForCases3
 open import Guard.ThFunTForCorrectDefs using (ndBranchHit ; ndBranchMiss)
 open import Guard.ThFunTForV3
 open import Guard.ThFunTForV3Defs
+open import Guard.ThFunTForV3Pass
 open import Guard.ExtractorRed
 
 private
@@ -30,6 +34,21 @@ private
   n1 : Nat ; n1 = suc n0
   n2 : Nat ; n2 = suc n1
   n3 : Nat ; n3 = suc n2
+  n4  : Nat ; n4  = suc n3
+  n5  : Nat ; n5  = suc n4
+  n6  : Nat ; n6  = suc n5
+  n7  : Nat ; n7  = suc n6
+  n8  : Nat ; n8  = suc n7
+  n9  : Nat ; n9  = suc n8
+  n10 : Nat ; n10 = suc n9
+  n11 : Nat ; n11 = suc n10
+  n12 : Nat ; n12 = suc n11
+  n13 : Nat ; n13 = suc n12
+  n14 : Nat ; n14 = suc n13
+  n15 : Nat ; n15 = suc n14
+  n16 : Nat ; n16 = suc n15
+  n17 : Nat ; n17 = suc n16
+  n18 : Nat ; n18 = suc n17
 
 ------------------------------------------------------------------------
 -- ProofE3: V3 correctness witness.
@@ -45,6 +64,10 @@ record ProofE3 (H : Equation) (eq : Equation) : Set where
     corr : {hyp : Equation} ->
            Deriv hyp (eqn (ap1 (thmT (reify (codeEqn H))) encT)
                           (reify (codeEqn eq)))
+    pass : (x rcs : Term) -> {hyp : Equation} ->
+           Deriv hyp (eqn (ap2 (ndDispatchV3 (reify (codeEqn H)))
+                               (ap2 Pair encT x) rcs)
+                          (ap2 sndArg2 (ap2 Pair encT x) rcs))
 open ProofE3 public
 
 ------------------------------------------------------------------------
@@ -55,7 +78,7 @@ open ProofE3 public
 -- Expected conclusion:      codeEqn (eqn (ap1 I t) t).
 
 thm14EV3AxI : (H : Equation) (t : Term) -> ProofE3 H (eqn (ap1 I t) t)
-thm14EV3AxI H t = mkProofE3 enc correct
+thm14EV3AxI H t = mkProofE3 enc correct (\x' r' -> axIPassthroughV3 hCode t x' r')
   where
   hCode : Term ; hCode = reify (codeEqn H)
   tC    : Term ; tC    = reify (code t)
@@ -88,6 +111,7 @@ thm14EV3AxI H t = mkProofE3 enc correct
 thm14EV3AxFst : (H : Equation) (a b : Term) ->
                 ProofE3 H (eqn (ap1 Fst (ap2 Pair a b)) a)
 thm14EV3AxFst H a b = mkProofE3 enc correct
+  (\x' r' -> passthroughSucV3 hCode n0 (nd (code a) (code b)) x' r')
   where
   hCode : Term ; hCode = reify (codeEqn H)
   aC    : Term ; aC    = reify (code a)
@@ -123,3 +147,50 @@ thm14EV3AxFst H a b = mkProofE3 enc correct
           (origARed tagR aC bC recs)
           (origBRed tagR aC bC recs)))
       (origARed tagR aC bC recs)))))
+
+------------------------------------------------------------------------
+-- Case 17: axRefl t.
+--
+-- Encoding: encRefl (code t) = nd (natCode n17) (nd (code t) lf).
+-- At Term:  reify = Pair (reify(natCode n17)) (Pair tC O).
+-- Conclusion: eqn t t, so codeEqn = nd (code t) (code t).
+
+thm14EV3Refl : (H : Equation) (t : Term) -> ProofE3 H (eqn t t)
+thm14EV3Refl H t = mkProofE3 enc correct
+  (\x' r' -> passthroughSucV3 hCode n16 (nd (code t) lf) x' r')
+  where
+  hCode : Term ; hCode = reify (codeEqn H)
+  tC    : Term ; tC    = reify (code t)
+  tagR  : Term ; tagR  = reify (natCode n17)
+  body  : Term ; body  = ap2 Pair tC O
+  enc   : Term ; enc   = ap2 Pair tagR body
+  recs  : Term
+  recs  = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+  correct : {hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT hCode) enc) (reify (codeEqn (eqn t t))))
+  correct =
+    ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+    (ruleTrans (guardNdV3 hCode tagR tC O recs)
+    -- navigate from n0 through n16 (misses), hit at n17
+    (ruleTrans (ndBranchMiss n17 n0  case0  (ndT1V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n1  case1  (ndT2V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n2  case2  (ndT3V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n3  case3  (ndT4V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n4  case4  (ndT5V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n5  case5  (ndT6V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n6  case6  (ndT7V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n7  case7  (ndT8V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n8  case8  (ndT9V3  hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n9  case9  (ndT10V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n10 case10 (ndT11V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n11 case11 (ndT12V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n12 case12 (ndT13V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n13 case13 (ndT14V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n14 case14 (ndT15V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n15 case15 (ndT16V3 hCode) body recs refl)
+    (ruleTrans (ndBranchMiss n17 n16 case16 (ndT17V3 hCode) body recs refl)
+    (ruleTrans (ndBranchHit n17 case17 (ndT18V3 hCode) body recs)
+    (mkEqFRed origA origA enc recs tC tC
+      (origARed tagR tC O recs)
+      (origARed tagR tC O recs)))))))))))))))))))))

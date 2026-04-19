@@ -24,6 +24,8 @@ open import Guard.ThFunTForCases3
 open import Guard.ThFunTForV3
 open import Guard.PairPassthrough
 
+-- codeF1, codeF2, code, reify all re-exported via Guard.Term above.
+
 private
   n0  : Nat ; n0  = zero
   n1  : Nat ; n1  = suc n0
@@ -132,3 +134,47 @@ ndDispatchV3OPairMiss hCode c1 c2 d x recs =
   (ruleTrans (o n24 case24 (ndT25V3 hCode) recs)
   (ruleTrans (o n25 case25 (ndT26V3 hCode) recs)
              (o n26 (case26 hCode) ndT27V3 recs))))))))))))))))))))))))))
+
+------------------------------------------------------------------------
+-- passthroughSucV3: convenience wrapper around ndDispatchV3PairMiss
+-- specialised to tags of shape  Pair O (reify (natCode n))  — the
+-- reification of  natCode (suc n) .  Used by every base case except
+-- axI (whose tag is natCode 0 = lf).
+
+passthroughSucV3 : (hCode : Term) (n : Nat) (dat : Tree) (x rcs : Term) ->
+                   {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                  (ap2 Pair (ap2 Pair (ap2 Pair O (reify (natCode n))) (reify dat)) x) rcs)
+                 (ap2 sndArg2
+                  (ap2 Pair (ap2 Pair (ap2 Pair O (reify (natCode n))) (reify dat)) x) rcs))
+passthroughSucV3 hCode n dat x rcs =
+  ndDispatchV3PairMiss hCode O (reify (natCode n)) (reify dat) x rcs
+
+------------------------------------------------------------------------
+-- axIPassthroughV3: passthrough for  encAxI (code t)  = nd lf (nd (code t) lf).
+--
+-- The encoding's tag is  natCode n0 = lf ; reify = O.  Since the tag is
+-- a leaf (not a suc), we need the OPair form with the first Pair being
+-- (O, reify(code t)).  reify(code t) is always a Pair (Pair c1 c2) for
+-- some c1, c2 extractable by case analysis on the Term t.
+
+axIPassthroughV3 : (hCode : Term) (t : Term) (x rcs : Term) ->
+                   {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                  (ap2 Pair (ap2 Pair O (ap2 Pair (reify (code t)) O)) x) rcs)
+                 (ap2 sndArg2
+                  (ap2 Pair (ap2 Pair O (ap2 Pair (reify (code t)) O)) x) rcs))
+axIPassthroughV3 hCode O x rcs =
+  ndDispatchV3OPairMiss hCode O O O x rcs
+axIPassthroughV3 hCode (var n) x rcs =
+  ndDispatchV3OPairMiss hCode
+    (ap2 Pair (ap2 Pair (ap2 Pair O O) O) O) (reify (natCode n)) O x rcs
+axIPassthroughV3 hCode (ap1 f t) x rcs =
+  ndDispatchV3OPairMiss hCode
+    (ap2 Pair O (ap2 Pair O O))
+    (ap2 Pair (reify (codeF1 f)) (reify (code t))) O x rcs
+axIPassthroughV3 hCode (ap2 g a b) x rcs =
+  ndDispatchV3OPairMiss hCode
+    (ap2 Pair O (ap2 Pair O (ap2 Pair O O)))
+    (ap2 Pair (reify (codeF2 g)) (ap2 Pair (reify (code a)) (reify (code b))))
+    O x rcs
