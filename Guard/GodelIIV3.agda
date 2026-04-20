@@ -104,3 +104,17 @@ godelIIV3 : Consistent godelSentenceV3 ->
   Deriv godelSentenceV3 conSentenceV3 ->
   Empty
 godelIIV3 con dCon = con (godelIIPositive dCon)
+
+------------------------------------------------------------------------
+-- Gödel II, sharpest formulation:  conSentenceV3  alone is
+-- inconsistent.  From the internal consistency sentence as the only
+-- ambient hypothesis, the base equational system derives  trueT = falseT .
+--
+-- This is the "positive" statement of Gödel II without any other
+-- premise: the internal consistency statement is refutable by the
+-- system, because the system has enough computational content to
+-- exhibit a concrete proof-encoding  enc_⊥  with  thmT(⌜gs⌝)(enc_⊥) =
+-- ⌜trueT = falseT⌝ , and  conSentenceV3  asserts no such witness exists.
+
+godelIIConAlone : Deriv conSentenceV3 (eqn trueT falseT)
+godelIIConAlone = conToBotV3 (ruleHyp {conSentenceV3})
