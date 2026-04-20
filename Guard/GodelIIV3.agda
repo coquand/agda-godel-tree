@@ -14,46 +14,12 @@ open import Guard.Base
 open import Guard.Term
 open import Guard.Step
 open import Guard.StepReduce
-open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForV3 using (thmT)
 open import Guard.SubstTForPrecompV3
-open import Guard.TreeEqSelf using (treeEqSelf)
-open import Guard.Thm14EV3 using (ProofE3 ; thm14EV3 ; encT ; corr)
+open import Guard.Thm14EV3 using (thm14EV3)
 open import Guard.GodelIV3 using (godelIDerivV3)
 open import Guard.Nelson.SubstReify using (substReify)
-
-------------------------------------------------------------------------
--- Tree-level truth values and the ⊥ code.
-
-trueT : Term
-trueT = O
-
-falseT : Term
-falseT = ap2 Pair O O
-
-codeBot : Tree
-codeBot = codeEqn (eqn trueT falseT)
-
-codeBotT : Term
-codeBotT = reify codeBot
-
-------------------------------------------------------------------------
--- Prov3 H eq: internal provability of  eq  under hypothesis code  H .
-
-record Prov3 (H eq : Equation) : Set where
-  constructor mkProv3
-  field
-    enc  : Term
-    corr : {hyp : Equation} ->
-           Deriv hyp (eqn (ap1 (thmT (reify (codeEqn H))) enc)
-                          (reify (codeEqn eq)))
-open Prov3 public
-
-------------------------------------------------------------------------
--- Necessitation: wrap a ProofE3 witness as a Prov3.
-
-necessitation : {H eq : Equation} -> ProofE3 H eq -> Prov3 H eq
-necessitation pe = mkProv3 (encT pe) (corr pe)
+open import Guard.ProvV3
 
 ------------------------------------------------------------------------
 -- The V3 internal consistency statement, specialised to godelSentenceV3.
@@ -64,14 +30,6 @@ necessitation pe = mkProv3 (encT pe) (corr pe)
 conSentenceV3 : Equation
 conSentenceV3 = eqn (ap2 TreeEq (ap1 (thmT (reify cGSV3)) (var zero)) codeBotT)
                     falseT
-
-------------------------------------------------------------------------
--- Cantor diagonal: from  TreeEq(c,c) = falseT , derive  trueT = falseT .
-
-diagContradict : {hyp : Equation} (c : Term) ->
-  Deriv hyp (eqn (ap2 TreeEq c c) falseT) ->
-  Deriv hyp (eqn trueT falseT)
-diagContradict c d = ruleTrans (ruleSym (treeEqSelf c)) d
 
 ------------------------------------------------------------------------
 -- provBot: the V3 encoding of  godelSentenceV3 ⊢ trueT = falseT .

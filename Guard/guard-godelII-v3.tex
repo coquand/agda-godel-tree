@@ -1,0 +1,231 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{mathtools}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\trueT}{\mathbf{t}}
+\newcommand{\falseT}{\mathbf{f}}
+\newcommand{\code}[1]{\ulcorner #1 \urcorner}
+\newcommand{\reify}[1]{\widehat{#1}}
+\newcommand{\RecP}{\mathrm{RecP}}
+\newcommand{\substOp}{\mathrm{substOp}}
+\newcommand{\thmT}{\mathrm{thmT}}
+\newcommand{\thFunTFor}{\mathrm{thFunTFor}}
+\newcommand{\cstf}{\mathrm{cstf}}
+\newcommand{\TreeEq}{\mathrm{TreeEq}}
+\newcommand{\IfLf}{\mathrm{IfLf}}
+\newcommand{\encHyp}{\mathrm{encHyp}}
+
+\title{V3 Redesign: Closing Two Loopholes in the Guard/Rose
+  G\"odel~II Formalization}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The V2 formalization of G\"odel~II in the Guard/Rose equational system
+(see \texttt{Guard/archive/guard-godelII.tex}) proves a strictly weaker
+theorem than the colloquial statement: its object-level proof evaluator
+$\thFunTFor$ admits \emph{two} encoding loopholes that make
+\emph{every} consistency sentence refutable by pure computation,
+independent of the object theory's actual axiomatic content.  This V3
+redesign adds a single new primitive, $\RecP : \mathrm{Fun}_2 \to
+\mathrm{Fun}_2$, and restructures the evaluator into a
+hypothesis-aware $\thmT$, closing both loopholes and producing a
+genuine internal G\"odel~II.
+\end{abstract}
+
+\section{The two V2 loopholes}
+
+\subsection{\texttt{mkProofEAny} (the encoding loophole)}
+
+V2's Theorem~14 takes \emph{any} equation $H$ (the ambient hypothesis)
+and produces a proof-encoding $\code{H}$ such that
+$\thFunTFor(\code{H}) = \reify{\mathrm{codeEqn}\,H}$ --- not because
+$H$ is actually derivable from itself, but because the encoding
+function \texttt{mkProofEAny} constructs a \emph{fake tree} whose
+recursive evaluation ignores $H$'s truth and just echoes $H$'s coded
+form.  This collapses the constructive statement ``$H \vdash \mathrm{Con}_H
+\Rightarrow H \vdash \bot$'' to a pure computation: ANY equation~$H$
+satisfies the premise's syntactic shape, so ANY equation refutes
+$\mathrm{Con}_H$.
+
+\subsection{\texttt{case19} (the middle-term loophole)}
+
+V2's $\thFunTFor$ handles the \texttt{ruleTrans} case by emitting
+$\mathrm{Pair}(\mathrm{left}(sp_1), \mathrm{right}(sp_2))$ without
+checking that $\mathrm{right}(sp_1) = \mathrm{left}(sp_2)$.  This
+means
+$$\mathrm{trans}(\text{refl}\,\trueT, \text{refl}\,\falseT)$$
+has $\mathrm{codeEqn}$-evaluation result $\reify{\mathrm{codeEqn}(\trueT = \falseT)}$
+--- a fake encoding of the bottom equation built from genuine refl-proofs.
+Combined with \texttt{mkProofEAny}, this compounds the first loophole.
+
+\section{The V3 fix}
+
+\subsection{New primitive: \texorpdfstring{$\RecP$}{RecP}}
+
+We extend the functor syntax with
+$$
+\RecP : \mathrm{Fun}_2 \to \mathrm{Fun}_2,
+\qquad
+\RecP(s)\,p\,O = O,
+\quad
+\RecP(s)\,p\,\mathrm{Pair}(a,b)
+  = s\,\mathrm{Pair}(p, \mathrm{Pair}(a,b))\,\mathrm{Pair}(\RecP(s)\,p\,a,\;\RecP(s)\,p\,b).
+$$
+This is a \emph{parameterised} tree-recursion: the step function $s$
+receives the RecP-argument $p$ packed alongside the current node
+$\mathrm{Pair}(a,b)$, giving closed-form access to $p$ without
+embedding it as a free variable inside $s$'s structure.
+
+From $\RecP$ we build
+$$
+\substOp : \mathrm{Fun}_2
+\qquad
+\substOp = \RecP(\mathrm{stepSubstP})
+$$
+with a step function that inspects the current node's tag and, when
+it sees $\mathrm{tagVar}$, substitutes according to the parameter pair
+$\mathrm{Pair}(t_C, x_C)$.  The load-bearing correctness lemma is
+$$
+\substOp\,\mathrm{Pair}(\reify{\mathrm{code}\,t},\;\reify{\mathrm{natCode}\,x})\,\reify{\mathrm{code}\,l}
+  = \reify{\mathrm{code}(\mathrm{subst}\,x\,t\,l)}.
+$$
+
+\subsection{Case 19: middle-term matching}
+
+$$
+\mathrm{case19V3} =
+\mathrm{Fan}\bigl(\mathrm{Fan}\,\mathrm{recs_{AR}}\,\mathrm{recs_{BL}}\,\TreeEq\bigr)
+\;\bigl(\mathrm{Fan}\,(\mathrm{Fan}\,\mathrm{recs_{AL}}\,\mathrm{recs_{BR}}\,\mathrm{Pair})\;(\mathrm{kF_2}\,O)\;\mathrm{Pair}\bigr)\;\IfLf
+$$
+This inserts a $\TreeEq$ check between $\mathrm{right}(sp_1)$ and
+$\mathrm{left}(sp_2)$: on match, emit
+$\mathrm{Pair}(\mathrm{left}(sp_1), \mathrm{right}(sp_2))$; on
+mismatch, emit the sentinel $O$.  The attempted fake
+$\mathrm{trans}(\text{refl}\,\trueT, \text{refl}\,\falseT)$ no longer
+typechecks in the V3 system because the middle terms fail to unify.
+
+\subsection{Case 23: dynamic $\mathrm{ruleInst}$ via $\substOp$}
+
+$$
+\mathrm{case23V3} =
+\mathrm{Fan}\;(\mathrm{Fan}\,\mathrm{origA}\,\mathrm{recs_{BL}}\,\substOp)
+\;(\mathrm{Fan}\,\mathrm{origA}\,\mathrm{recs_{BR}}\,\substOp)\;\mathrm{Pair}
+$$
+V2's \texttt{case23} applied \texttt{substTFor}~(a closed Fun$_1$ with
+free variables $v_{11}, v_{12}$ inside it) to each sub-equation side,
+and later \emph{ruleInst-bound} $v_{11}, v_{12}$ at proof-construction
+time.  V3's \texttt{case23V3} evaluates $\substOp$ at the Fun$_2$-level
+with the substitution parameters already packed into the
+\texttt{Pair} argument --- no var-capture.
+
+\subsection{Hypothesis check: \texttt{case26}}
+
+At the dispatch bottom we add a new tag $n_{26}$ with
+$$
+\mathrm{case26}(h) =
+\mathrm{Fan}\,(\mathrm{Fan}\,(\mathrm{Lift}\,\mathrm{Snd})\,(\mathrm{kF_2}\,h)\,\TreeEq)\;
+(\mathrm{Fan}\,(\mathrm{kF_2}\,h)\,(\mathrm{kF_2}\,O)\,\mathrm{Pair})\;\IfLf
+$$
+and the $\mathrm{ruleHyp}$ encoding is redefined as $\encHyp(h) =
+\mathrm{nd}(\mathrm{natCode}\,n_{26},\;h)$.  The encoding is accepted
+only when the body literally equals the ambient hypothesis code $h$,
+so \texttt{mkProofEAny} no longer passes:
+any encoding of \texttt{ruleHyp} at a fake-hypothesis $H'$ now
+evaluates to the sentinel $O$ under $\thmT(\reify{\mathrm{codeEqn}\,H})$.
+
+\section{The V3 G\"odel I argument}
+
+The V2 diagonal $\cstf\,(\reify{\mathrm{templateCode}}) = \reify{cGS}$
+translates to V3 via $\substOp$ --- \texttt{diagFTargetV3} in
+\texttt{Guard/GodelIV3.agda}.  The key wrinkle: since $\thmT$ is
+hypothesis-specific, the V2 trick of substituting a single variable
+$v_1$ with $\reify{\mathrm{templateCode}}$ in the template doesn't
+suffice: after substitution, the sentence's embedded $\thmT$-hCode
+becomes $\reify{\mathrm{templateCode}}$, whereas $\mathrm{thm}_{14\mathrm{E}}\mathrm{V}3$'s
+correctness witness produces $\thmT(\reify{cGS})$.
+
+\emph{Fix:} use \emph{two} free variables in the template~---
+$v_1$ for the self-code (substituted in the template) and $v_2$ for
+$\thmT$'s hCode (kept free until Deriv-level $\mathrm{ruleInst}$).
+The G\"odel~I proof chain then threads four $\mathrm{ruleInst}$'s
+($v_2 \mapsto \reify{cGS}$, $v_{11}' \mapsto \reify{crTC}$,
+$v_{12}' \mapsto \reify{\mathrm{natCode}\,v_1}$, $0 \mapsto enc$) to
+bring the sentence's embedded $\thmT$-hCode into alignment with
+$\mathrm{corr}\,pe$'s witness.  Both sides of the sentence's $\TreeEq$
+collapse to $\reify{cGS}$; \texttt{treeEqSelf} closes the diagonal.
+
+\begin{theorem}[G\"odel~I on V3 --- \texttt{godelIDerivV3} in \texttt{GodelIV3.agda}]
+For the V3 G\"odel sentence $\mathrm{gs}_{V3}$:
+\[
+  \mathrm{gs}_{V3} \vdash \trueT = \falseT.
+\]
+\end{theorem}
+
+\section{The V3 G\"odel II statement}
+
+\begin{theorem}[G\"odel~II on V3 --- \texttt{godelIIV3} in \texttt{GodelIIV3.agda}]
+If $\mathrm{gs}_{V3}$ is consistent, then
+$\mathrm{gs}_{V3} \not\vdash \mathrm{Con}_{V3}$,
+where
+$\mathrm{Con}_{V3} = \TreeEq(\thmT(\reify{cGS})(x),\;\reify{\mathrm{codeEqn}(\trueT = \falseT)}) = \falseT$.
+\end{theorem}
+
+The argument: necessitation of \texttt{godelIDerivV3} gives a
+\texttt{Prov3}-witness $enc_\bot$ with
+$\thmT(\reify{cGS})(enc_\bot) = \reify{\mathrm{codeEqn}(\trueT=\falseT)}$.
+Plugging $enc_\bot$ into the consistency sentence via ruleInst and
+rewriting the $\thmT$-application using \texttt{corr}, both arguments
+of the internal $\TreeEq$ become $\reify{\mathrm{codeEqn}(\trueT=\falseT)}$;
+\texttt{treeEqSelf} then contradicts the sentence's claim that this
+should equal $\falseT$.
+
+\section{Negative acceptance test}
+
+\texttt{Guard/GodelIITestV3.agda} documents that the V2-style attack
+$\mathrm{thm}_{14\mathrm{E}}\mathrm{V}3\mathrm{Trans}(\text{refl}\,\trueT)(\text{refl}\,\falseT)$
+is rejected at type-checking time: Agda reports
+$\falseT = \mathrm{Pair}(O,O) \neq O = \trueT$ when unifying the two
+middle terms.  V3 has no \texttt{mkProofEAny}-like escape hatch, so
+the type system structurally rules out the V2 loopholes.
+
+\section{Files and sizes}
+
+All files typecheck under \texttt{--safe --without-K --exact-split}
+with the \texttt{agda-2.9.0} binary.  Clean rebuild of
+\texttt{Guard/GodelIIV3.agda} (the top of the V3 chain) is $\sim$7~s.
+
+\begin{itemize}
+\item \texttt{Guard/Term.agda}, \texttt{Guard/Step.agda} ---
+  $\RecP$ primitive and its axioms \texttt{axRecPLf}, \texttt{axRecPNd}.
+\item \texttt{Guard/SubstOp.agda} --- $\substOp$ + $\texttt{substOpEquiv}$
+  + $\texttt{substOpCorrect}$.
+\item \texttt{Guard/ThFunTForV3.agda} --- the hypothesis-aware dispatcher,
+  including \texttt{case19V3}, \texttt{case23V3}, \texttt{case26},
+  \texttt{case27}, \texttt{case28}.
+\item \texttt{Guard/Thm14EV3.agda} --- \texttt{thm14EV3} (total, 29
+  Deriv constructors) and the per-rule encodings.
+\item \texttt{Guard/SubstTForPrecompV3.agda} --- V3 diagonal machinery
+  (templateCode$_{V3}$, cGS$_{V3}$, etc.) plus the fused
+  \texttt{fullyInstGS} substEq lemma.
+\item \texttt{Guard/GodelIV3.agda} --- \texttt{godelIDerivV3},
+  \texttt{diagFTargetV3}.
+\item \texttt{Guard/ProvV3.agda} --- \texttt{Prov3},
+  \texttt{necessitation}, \texttt{diagContradict}.
+\item \texttt{Guard/GodelIIV3.agda} --- \texttt{provBot},
+  \texttt{conToBotV3}, \texttt{godelIIV3}.
+\item \texttt{Guard/GodelIITestV3.agda} --- negative acceptance test.
+\end{itemize}
+
+\end{document}
