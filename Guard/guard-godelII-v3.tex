@@ -145,6 +145,92 @@ so \texttt{mkProofEAny} no longer passes:
 any encoding of \texttt{ruleHyp} at a fake-hypothesis $H'$ now
 evaluates to the sentinel $O$ under $\thmT(\reify{\mathrm{codeEqn}\,H})$.
 
+\section{What $\thmT$ means}
+
+$\thmT : \mathrm{Term} \to \mathrm{Fun}_1$ is the object-level
+\emph{proof evaluator} --- a decoder from encoded proof-trees back to
+reified equation-codes.  For any hypothesis code $h = \reify{\code{H}}$,
+the specialization $\thmT(h) : \mathrm{Fun}_1$ is a closed primitive
+recursive tree function.  Applied to a Term $x$ (the encoded proof):
+
+\begin{itemize}
+\item $x = O$: result is $O$ (the sentinel).
+\item $x = \mathrm{Pair}(\mathrm{natCode}\,n, b)$ for some
+  $n \in \{0, \ldots, 28\}$: dispatch to the case for rule~$n$.
+  Each $\mathrm{case}_n$ extracts the relevant sub-data from $b$ and
+  emits the reified $\mathrm{codeEqn}$ of that rule's conclusion.
+\item $n = 26$ (\texttt{ruleHyp}): check $b \equiv h$ via $\TreeEq$;
+  on match return $h$, on mismatch return the sentinel $O$.
+\item Other shapes: sentinel $O$.
+\end{itemize}
+
+The load-bearing invariant is soundness of the encoding (Theorem~14
+of V3, \texttt{thm14EV3}):
+
+\begin{theorem}[Encoding soundness]
+For every $d : \mathrm{Deriv}\,H\,A$, there is a Term $\mathrm{enc}(d)$
+(computed by \texttt{thm14EV3} $d$) such that for every Deriv-hypothesis
+$\mathrm{hyp}$:
+\[
+  \mathrm{hyp} \vdash
+   \;\thmT(\reify{\code{H}})(\mathrm{enc}(d)) = \reify{\code{A}}.
+\]
+\end{theorem}
+
+This is a \emph{decoder}, not a boolean check.  $\thmT(\reify{\code{H}})(x)$
+always produces some equation-code or the sentinel~$O$; it never
+produces a truth-value.  Also note: the result Term is a
+\emph{reified $\mathrm{codeEqn}$}, whose shape is always of the form
+$\mathrm{Pair}\,*\,*$ --- disjoint from the sentinel $O$.  So
+$\thmT(\reify{\code{H}})(x) = O$ is the unambiguous "invalid encoding"
+outcome; a non-sentinel value is some claimed conclusion code.
+
+V3 does \emph{not} prove the converse (decoder-faithfulness: every~$x$
+with $\thmT(\reify{\code{H}})(x) = \reify{\code{A}}$ comes from a
+genuine $\mathrm{Deriv}\,H\,A$).  The V3 shape-check refinements
+($\mathrm{case19V3}$, $\mathrm{case26}$) only rule out the specific
+V2 loopholes; full faithfulness is a stronger claim we do not need.
+
+\section{How consistency is represented}
+
+The V3 internal consistency statement for the G\"odel sentence
+$\mathrm{gs}_{V3}$ is the single \emph{Equation}:
+
+\[
+  \mathrm{conSentenceV3} \;=\;
+  \TreeEq\bigl(\,\thmT(\reify{cGS})(\mathrm{var}\,0),\;\;
+                \reify{\mathrm{codeEqn}(\trueT = \falseT)}\,\bigr)
+  \;=\; \falseT.
+\]
+
+Unfolding: the equation has one free variable (the proof-slot
+$\mathrm{var}\,0$).  Derivation rules allow $\mathrm{ruleInst}$ at
+this variable, so assuming $\mathrm{conSentenceV3}$ as an axiom is
+equivalent to assuming the \emph{universal}
+``for every candidate encoding $x$,
+$\TreeEq(\thmT(\reify{cGS})(x), \reify{\code{\bot}}) = \falseT$''.
+
+Reading the inner equation: for each~$x$, the $\thmT$-evaluator
+decodes $x$ as an alleged proof-encoding with hypothesis~$\mathrm{gs}_{V3}$;
+the $\TreeEq$ compares the decoder's output against
+$\reify{\mathrm{codeEqn}(\bot)}$; the whole sentence asserts this
+comparison yields $\falseT$ for every $x$.  Equivalently: \emph{no~$x$
+encodes a $\mathrm{gs}_{V3}$-derivation of~$\bot$}.  That is
+$\mathrm{Con}_{\mathrm{gs}_{V3}}$ reflected inside the object language
+via the V3 decoder.
+
+There are two complementary layers:
+
+\begin{itemize}
+\item \textbf{Meta-level (Agda) consistency}:
+  $\mathrm{Consistent}\,\mathrm{gs}_{V3} := \mathrm{Deriv}\,\mathrm{gs}_{V3}\,(\trueT=\falseT) \to \bot$.
+  An Agda type, not a formal statement of the object theory.
+\item \textbf{Object-level (internal) consistency}: $\mathrm{conSentenceV3}$
+  above, a single Equation in the object language, expressible because
+  the equational system is rich enough to represent its own decoder
+  $\thmT$.
+\end{itemize}
+
 \section{The V3 G\"odel I argument}
 
 The V2 diagonal $\cstf\,(\reify{\mathrm{templateCode}}) = \reify{cGS}$
@@ -167,29 +253,67 @@ $\mathrm{corr}\,pe$'s witness.  Both sides of the sentence's $\TreeEq$
 collapse to $\reify{cGS}$; \texttt{treeEqSelf} closes the diagonal.
 
 \begin{theorem}[G\"odel~I on V3 --- \texttt{godelIDerivV3} in \texttt{GodelIV3.agda}]
+\label{thm:godel1v3}
 For the V3 G\"odel sentence $\mathrm{gs}_{V3}$:
 \[
   \mathrm{gs}_{V3} \vdash \trueT = \falseT.
 \]
 \end{theorem}
 
-\section{The V3 G\"odel II statement}
+\section{The V3 G\"odel II statements}
 
-\begin{theorem}[G\"odel~II on V3 --- \texttt{godelIIV3} in \texttt{GodelIIV3.agda}]
-If $\mathrm{gs}_{V3}$ is consistent, then
-$\mathrm{gs}_{V3} \not\vdash \mathrm{Con}_{V3}$,
-where
-$\mathrm{Con}_{V3} = \TreeEq(\thmT(\reify{cGS})(x),\;\reify{\mathrm{codeEqn}(\trueT = \falseT)}) = \falseT$.
+The same argument furnishes three progressively-sharper formulations.
+
+\begin{theorem}[G\"odel~II, positive form --- \texttt{godelIIPositive}]
+\label{thm:g2pos}
+\[
+  \mathrm{gs}_{V3} \vdash \mathrm{conSentenceV3}
+  \;\Longrightarrow\;
+  \mathrm{gs}_{V3} \vdash \trueT = \falseT.
+\]
 \end{theorem}
 
-The argument: necessitation of \texttt{godelIDerivV3} gives a
-\texttt{Prov3}-witness $enc_\bot$ with
-$\thmT(\reify{cGS})(enc_\bot) = \reify{\mathrm{codeEqn}(\trueT=\falseT)}$.
-Plugging $enc_\bot$ into the consistency sentence via ruleInst and
-rewriting the $\thmT$-application using \texttt{corr}, both arguments
-of the internal $\TreeEq$ become $\reify{\mathrm{codeEqn}(\trueT=\falseT)}$;
-\texttt{treeEqSelf} then contradicts the sentence's claim that this
-should equal $\falseT$.
+\begin{theorem}[G\"odel~II, contrapositive --- \texttt{godelIIV3}]
+If $\mathrm{gs}_{V3}$ is meta-consistent, then
+$\mathrm{gs}_{V3} \not\vdash \mathrm{conSentenceV3}$.
+\end{theorem}
+
+\begin{theorem}[G\"odel~II, sharpest --- \texttt{godelIIConAlone}]
+\label{thm:g2sharp}
+$\mathrm{conSentenceV3} \vdash \trueT = \falseT$.
+\end{theorem}
+
+Theorem~\ref{thm:g2sharp} is a one-line consequence of
+Theorem~\ref{thm:g2pos} applied at $\mathrm{hyp} = \mathrm{conSentenceV3}$
+via $\mathrm{ruleHyp}$: the internal consistency sentence, taken as the
+sole axiom, proves $\bot$.
+
+\subsection*{Proof sketch}
+
+Necessitation of \texttt{godelIDerivV3} gives a \texttt{Prov3}-witness
+$enc_\bot$ with $\thmT(\reify{cGS})(enc_\bot) = \reify{\mathrm{codeEqn}(\trueT=\falseT)}$
+--- crucially, this equation is derivable in any Deriv-hypothesis
+(polymorphic in $\mathrm{hyp}$).  Plugging $enc_\bot$ into
+$\mathrm{conSentenceV3}$ via $\mathrm{ruleInst}$ and rewriting the
+$\thmT$-application using $\mathrm{corr}\,\mathit{provBot}$, both
+arguments of the internal $\TreeEq$ become
+$\reify{\mathrm{codeEqn}(\trueT=\falseT)}$; $\mathrm{treeEqSelf}$ then
+contradicts the sentence's claim that this should equal $\falseT$.
+
+\subsection*{Why the sharpest form is the natural one}
+
+Classical G\"odel~II over PA cannot construct a concrete
+$enc_\bot$ --- PA is (we believe) consistent, so no such $\bot$-proof
+exists.  Here, $\mathrm{gs}_{V3}$ is \emph{deliberately} inconsistent by
+the diagonal construction (Theorem~\ref{thm:godel1v3} below, in the
+Gödel~I section), so $enc_\bot$ exists and the base equational system
+has enough computational content to verify it.
+$\mathrm{conSentenceV3}$ asserts no such witness exists; the system
+concretely refutes that claim.  This is the sharpest
+positive reading of G\"odel~II: the internal consistency sentence is
+refutable \emph{in the base system extended with it as an axiom},
+because the base system can exhibit a $\bot$-proof whose validity the
+sentence asserts to be impossible.
 
 \section{Negative acceptance test}
 
