@@ -380,57 +380,180 @@ Two layers of consistency coexist:
 \end{itemize}
 
 %% ===============================================================
-\section{The G\"odel sentence and diagonalisation}
+\section{The G\"odel sentence and the diagonal construction}
 \label{sec:diagonal}
 
-\subsection{Template}
+This is a standard Carnap-style diagonalisation, rendered at the
+tree-code level.  The goal is a self-referential sentence ---
+an equation that, informally, ``talks about its own code''.
 
-Template with free variables $x_0$ (proof slot), $x_1$ (self-code
-slot), $x_2$ (evaluator hCode slot), and $x_{11}, x_{12}$
-(substitution parameters):
+\subsection{Informal picture}
+
+Classically (Carnap~1934, G\"odel~1931): given a one-free-variable
+formula $\phi(x)$, the diagonal lemma constructs a sentence $\psi$
+such that $\psi \iff \phi(\code{\psi})$.  The key move is
+substituting a numeral for the formula's own code into a
+specifically-crafted template.
+
+We adapt this to the equational setting as follows.  A
+\emph{template equation} with a free ``self-code slot'' $x_1$ is
+written down.  A specific substitution instance of this template,
+with $x_1$ replaced by a concrete Term representing the template's
+own code, yields the G\"odel sentence.  A \emph{diagonal identity}
+then says: applying $\substOp$ (the object-level substitution
+operator) to the template's code reproduces the G\"odel sentence's
+code.  This is the fixed-point equation that makes the sentence
+self-referential.
+
+\subsection{The template}
+
+The template uses five free variables, each with a distinct role:
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+  $x_0$    & proof slot --- will receive a proof-encoding. \\
+  $x_1$    & self-code slot --- will be replaced by the template's own
+               code (as a Term). \\
+  $x_2$    & evaluator hCode --- will be bound to
+               $\reify{\code{\mathrm{gs}_{V3}}}$ via $\mathrm{ruleInst}$. \\
+  $x_{11}$ & $\substOp$ replacement parameter --- will be bound to
+               $\reify{\mathrm{crTC}}$. \\
+  $x_{12}$ & $\substOp$ variable-index parameter --- will be bound to
+               $\reify{\nat{1}}$.
+\end{tabular}
+\end{center}
+
 \[
   \mathrm{templateEqn} \;\coloneqq\;
-  \bigl(\TreeEq(\thmT(x_2)(x_0),\;
-         \substOp(\pair{x_{11}}{x_{12}},\, x_1)) = \falseT\bigr).
+  \Bigl(\TreeEq\bigl(\thmT(x_2)(x_0),\;\;
+         \substOp(\pair{x_{11}}{x_{12}},\; x_1)\bigr) \;=\; \falseT\Bigr).
 \]
-Let $N = \code{\mathrm{templateEqn}}$ be its tree code.
+
+The two layers of parameters ($x_{11}, x_{12}$ and $x_2$) are kept
+free \emph{on purpose}.  Baking them into the template would force
+the template's own code to contain the specific substituted values,
+creating a circular definition (see \S\ref{subsec:why-free} below).
+Keeping them free means the template's tree-code stays small and
+self-contained; their values are bound later, by
+$\mathrm{ruleInst}$ at proof-construction time.
+
+\subsection{The self-code and the replacement tree}
+\label{subsec:N-and-crTC}
+
+Two closely-related trees enter the diagonal; distinguishing them is
+the key conceptual step.
+
+\begin{definition}[Template code]
+\[
+  N \;\coloneqq\; \code{\mathrm{templateEqn}} \;\in\; \mathrm{Tree}.
+\]
+This is the tree obtained by applying $\mathrm{codeEqn}$ to the
+template Equation.  It is the ``Gödel number'' of the template
+(in tree form).
+\end{definition}
+
+\begin{definition}[Replacement tree]
+\[
+  \mathrm{crTC} \;\coloneqq\; \code{\reify{N}} \;\in\; \mathrm{Tree}.
+\]
+This is the tree obtained by \emph{reifying} $N$ into a closed
+Term $\reify{N}$, and then coding \emph{that Term} back to a Tree.
+\end{definition}
+
+\medskip
+
+\textbf{Why are $N$ and $\mathrm{crTC}$ different?}
+Because the coding function $\mathrm{code} : \mathrm{Term} \to \mathrm{Tree}$
+and the reification $\reify{\cdot} : \mathrm{Tree} \to \mathrm{Term}$
+are \emph{not} inverses.  Reification just wraps a tree as a nested
+pair-Term (every $\mathrm{nd}$ becomes an
+$\mathrm{ap}_2\mathrm{Pair}$), whereas $\mathrm{code}$ attaches
+constructor-tag information (each $\mathrm{ap}_2$ becomes
+$\mathrm{nd}\,\mathrm{tagAp_2}\,(\mathrm{nd}\,\ldots)$).
+Concretely:
+\[
+  \mathrm{code}(\reify{\mathrm{lf}}) \;=\; \mathrm{code}(O)
+    \;=\; \mathrm{nd}\,\mathrm{lf}\,\mathrm{lf} \;\neq\; \mathrm{lf},
+\]
+so code-$\circ$-reify strictly inflates trees.  In particular
+$\mathrm{crTC}$ is larger than $N$.
+
+\medskip
+
+\textbf{What $\mathrm{crTC}$ is for.}
+The V3 G\"odel sentence is obtained by substituting $\reify{N}$ for
+$x_1$ at the \emph{Term} level:
+\[
+  \mathrm{gs}_{V3} \;\coloneqq\; \mathrm{templateEqn}[\reify{N} / x_1].
+\]
+At the \emph{tree-code} level, this corresponds to replacing each
+occurrence of $\code{x_1} = \mathrm{nd}\,\mathrm{tagVar}\,\nat{1}$
+inside $N$ by the tree-code of the term being plugged in.  That
+tree-code is precisely $\mathrm{code}(\reify{N}) = \mathrm{crTC}$.
+
+So $N$ is the target of the coded substitution, and $\mathrm{crTC}$
+is the replacement.  This is the standard \emph{diagonal lemma}
+pattern: a tree-code-level substitution that plugs the code of
+the template-plus-its-own-code back into the template.
 
 \subsection{The V3 G\"odel sentence}
 
 \[
   \mathrm{gs}_{V3} \;\coloneqq\; \mathrm{templateEqn}[\reify{N}/x_1].
 \]
-The self-code slot $x_1$ is replaced by the reified code of the
-template.  All other free variables ($x_0, x_2, x_{11}, x_{12}$)
-remain, to be instantiated during the proof by
-$\mathrm{ruleInst}$.
+Only $x_1$ is substituted; $x_0, x_2, x_{11}, x_{12}$ remain free.
 
-\subsection{Two-free-variable trick}
+\subsection{Why keep $x_2, x_{11}, x_{12}$ free}
+\label{subsec:why-free}
 
-V2 had only a single free variable for the self-code; since V2's
-evaluator $\mathrm{thFunTFor}$ was hypothesis-agnostic, this was
-enough.  V3's $\thmT(h)$ is hypothesis-specific (via $\mathrm{case26}$),
-so the evaluator's hCode must match whatever the $\mathrm{corr}$
-component of an encoded proof produces.  Keeping $x_2$ free allows
-the $\mathrm{ruleInst}$ chain to bind it at the right moment
-(to $\reify{\code{\mathrm{gs}_{V3}}}$) so that evaluator hCode
-aligns with encoding hypothesis.
+If we baked $x_{11}$ and $x_{12}$ into the template before computing
+$N = \code{\mathrm{templateEqn}}$, then $N$ would contain the specific
+Term values $\reify{\mathrm{crTC}}$ and $\reify{\nat{1}}$ literally.
+But $\mathrm{crTC}$ is defined in terms of $N$: it is
+$\code{\reify{N}}$.  So $N$ would depend on itself, producing a
+circular definition with no fixed-point.
+
+Keeping $x_{11}, x_{12}$ free breaks the circularity: $N$ references
+these as abstract free variables; $\mathrm{crTC}$ is then computed
+from the fixed $N$; the parameters are supplied via
+$\mathrm{ruleInst}$ only at the point where the diagonal identity
+is used inside the proof.
+
+Similarly, $x_2$ stays free because V3's evaluator $\thmT(h)$ is
+hypothesis-specific (via $\mathrm{case26}$), so the evaluator's
+hCode must match whatever the $\mathrm{corr}$ component of an
+encoded proof produces.  V2 did not need an $x_2$ slot because its
+evaluator $\mathrm{thFunTFor}$ was hypothesis-agnostic.
 
 \subsection{Diagonal identity}
 
 \begin{lemma}[\texttt{diagFTargetV3} in \texttt{Guard/GodelIV3.agda}]
 \label{lem:diagFT}
+Let $\mathrm{cGS} = \code{\mathrm{gs}_{V3}}$.  Then:
 \[
-  \vdash \;\substOp(\pair{\reify{\mathrm{crTC}}}{\reify{\nat{1}}},\;
-                    \reify{N}) \;=\; \reify{\code{\mathrm{gs}_{V3}}}
+  \vdash \;\substOp\bigl(\pair{\reify{\mathrm{crTC}}}{\reify{\nat{1}}},\;
+                    \reify{N}\bigr) \;=\; \reify{\mathrm{cGS}}.
 \]
-where $\mathrm{crTC} = \code{\reify{N}}$.
 \end{lemma}
 
-Proof reduces $\substOp$ to the older closed-substitution operator
-$\mathrm{cstf}$ via $\mathrm{substOpEquiv}$, then applies
-$\mathrm{closedSTFNd}$ and the diagonal fixed-point decomposition
-$\mathrm{cGSisCSV3}$.
+Read: at the object level, applying $\substOp$ --- with parameters
+$(\reify{\mathrm{crTC}}, \reify{\nat{1}})$ --- to the reified template
+code $\reify{N}$ yields the reified G\"odel-sentence code
+$\reify{\mathrm{cGS}}$.  This is the fixed-point identity making
+the construction self-referential.
+
+\begin{proof}[Proof sketch]
+At the tree level, $\mathrm{codedSubst}(\mathrm{crTC}, \nat{1}, N) = \mathrm{cGS}$,
+because $\mathrm{cGS}$ \emph{is} the result of substituting
+$\reify{N}$ for $x_1$ in $\mathrm{templateEqn}$, and this
+substitution at the Term level pushes through to
+$\mathrm{codedSubst}$ at the code level (this is the content of
+the V2 correctness lemmas, re-used unchanged).
+Lifting to the object level:
+$\mathrm{substOpEquiv}$ bridges $\substOp$ to the older closed
+substitution $\mathrm{cstf}$, and $\mathrm{closedSTFNd}$ evaluates
+$\mathrm{cstf}(\reify{N})$ to $\reify{\mathrm{cGS}}$.  Full Agda
+proof: 42 lines.
+\end{proof}
 
 %% ===============================================================
 \section{G\"odel's First Incompleteness Theorem}
