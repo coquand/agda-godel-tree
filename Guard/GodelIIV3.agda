@@ -86,10 +86,21 @@ conToBotV3 {hyp} dCon = diagContradict codeBotT chainTop
     (ruleSym (congL TreeEq codeBotT corrBot)) instD
 
 ------------------------------------------------------------------------
--- Gödel II (constructive form): no consistent hypothesis proves its
--- own consistency.  Specialised here to  godelSentenceV3 .
+-- Gödel II (positive / constructive form, specialised to godelSentenceV3):
+--
+--   if  godelSentenceV3  proves its own internal consistency statement,
+--   then  godelSentenceV3  proves  trueT = falseT .
+
+godelIIPositive :
+  Deriv godelSentenceV3 conSentenceV3 ->
+  Deriv godelSentenceV3 (eqn trueT falseT)
+godelIIPositive dCon = conToBotV3 dCon
+
+------------------------------------------------------------------------
+-- Gödel II (negative / contrapositive form): no consistent hypothesis
+-- proves its own consistency.  Specialised here to  godelSentenceV3 .
 
 godelIIV3 : Consistent godelSentenceV3 ->
   Deriv godelSentenceV3 conSentenceV3 ->
   Empty
-godelIIV3 con dCon = con (conToBotV3 dCon)
+godelIIV3 con dCon = con (godelIIPositive dCon)
