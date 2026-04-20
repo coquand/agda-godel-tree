@@ -1,0 +1,727 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{mathtools}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\pair}[2]{\langle #1, #2 \rangle}
+\newcommand{\trueT}{\mathbf{t}}
+\newcommand{\falseT}{\mathbf{f}}
+\newcommand{\SchemaF}{\textbf{Schema~F}}
+\newcommand{\nat}[1]{\overline{#1}}
+\newcommand{\code}[1]{\ulcorner #1 \urcorner}
+\newcommand{\reify}[1]{\widehat{#1}}
+\newcommand{\thmT}{\mathrm{thmT}}
+\newcommand{\substOp}{\mathrm{substOp}}
+\newcommand{\RecP}{\mathrm{RecP}}
+\newcommand{\TreeEq}{\mathrm{TreeEq}}
+\newcommand{\IfLf}{\mathrm{IfLf}}
+\newcommand{\encHyp}{\mathrm{encHyp}}
+
+\title{G\"odel's First and Second Incompleteness Theorems\\
+in a Guard/Rose Equational System:\\
+Formalization in Agda}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We formalize G\"odel's first and second incompleteness theorems
+inside a purely equational system combining Guard's tree/functor
+syntax with Rose's equational proof style.  The ambient meta-theory
+is Agda with \verb|--safe --without-K --exact-split|.  No postulates.
+
+The system has no logical connectives: the only judgement is an
+equation $t = u$ of terms; rules are computation axioms, congruence,
+substitution, a tree-induction schema, and a single hypothesis
+rule.  We add one new primitive ($\RecP$) in order to give the
+object-level proof evaluator a genuine hypothesis-awareness, closing
+two loopholes that made an earlier formalization (V2) prove a
+strictly weaker theorem.
+
+The main constructive statement is:
+\[
+  \mathrm{conSentenceV3} \;\vdash\; \trueT = \falseT,
+\]
+the internal consistency sentence, taken as the only axiom, proves
+bottom.  Equivalently, if the G\"odel sentence $\mathrm{gs}$ proves
+its own internal consistency, then $\mathrm{gs}$ is inconsistent.
+\end{abstract}
+
+\tableofcontents
+
+\section{Overview}
+
+The formalization uses two deliberate design choices:
+
+\begin{itemize}
+\item \emph{Guard's} binary trees with unary and binary functors, as
+  both data and term language~\cite{guard1963}.
+\item \emph{Rose's} purely equational proof style~\cite{rose1961}:
+  no connectives, no sequents, no logical rules --- only
+  computation, congruence, substitution, Schema~F, and
+  a rule for a single equational hypothesis.
+\end{itemize}
+
+This is strictly weaker than either author's setting (Guard's BRA
+has $\sim, \supset$, modus ponens and a Hilbert-style induction;
+Rose works with unary numerals), and the classical Hilbert--Bernays
+route to G\"odel~II is unavailable: there is no implication
+connective and no modus ponens.  We show that the diagonal argument
+adapts, via \emph{polymorphic reflection} and a strong
+coding of derivations, to yield a sharp positive statement of
+G\"odel~II.
+
+The version~V3 of the formalization (described here) replaces an
+earlier V2 evaluator that had two encoding loopholes; the old V2
+development is preserved in \verb|Guard/archive/| for comparison.
+
+%% ===============================================================
+\section{The formal system}
+\label{sec:system}
+
+\subsection{Trees}
+
+The ground data are finite binary trees:
+\[
+  a, b \;::=\; O \;\mid\; \pair{a}{b}
+\]
+with $O$ the leaf and $\pair{a}{b}$ the node.  We stipulate:
+\[
+  \trueT = O, \qquad \falseT = \pair{O}{O}.
+\]
+These are structurally distinct trees; "inconsistent" at the meta
+level means the equation $\trueT = \falseT$ is derivable.  Natural
+numbers are encoded unarily: $\nat{0} = O$, $\nat{n+1} = \pair{O}{\nat{n}}$.
+
+\subsection{Terms and functors}
+
+Terms are built from trees, variables, and functor applications.
+We write $t, u, v$ for terms, $a, b$ for trees.  The system has
+countably many variables $x_0, x_1, x_2, \ldots$.
+
+\textbf{Unary functors} ($f, g : \mathrm{Fun}_1$) and
+\textbf{binary functors} ($h, s : \mathrm{Fun}_2$):
+\[
+\begin{array}{rcl@{\qquad}l}
+  f, g &::=& \mathrm{I} & \text{identity} \\
+       &\mid& \pi_1,\; \pi_2 & \text{projections} \\
+       &\mid& f \circ g & \text{composition} \\
+       &\mid& h[f, g] & \text{binary composition} \\
+       &\mid& \mathrm{R}(z, s) & \text{tree recursion} \\
+       &\mid& \mathrm{K}_c & \text{constant} \\[4pt]
+  h, s &::=& \mathrm{P} & \text{pair} \\
+    &\mid& \mathrm{C} & \text{left projection} \\
+    &\mid& \mathrm{Lf}(f) & \text{lift: } (t,u) \mapsto f(t) \\
+    &\mid& \mathrm{Ps}(f, h) & \text{post: } (t,u) \mapsto f(h(t,u)) \\
+    &\mid& \mathrm{Fn}(h_1,h_2,h) & \text{fan: } (t,u) \mapsto h(h_1(t,u), h_2(t,u)) \\
+    &\mid& \IfLf & \text{conditional} \\
+    &\mid& \TreeEq & \text{tree equality} \\
+    &\mid& \RecP(s) & \text{parameterised tree recursion (V3 addition)}
+\end{array}
+\]
+
+Terms:
+\[
+  t, u \;::=\; O \;\mid\; x_i \;\mid\; f(t) \;\mid\; h(t, u).
+\]
+An \emph{equation} is a pair $t = u$.
+
+\subsection{Embedding trees into terms}
+
+Every tree $a$ determines a closed term $\reify{a}$ by
+$\reify{O} = O$, $\reify{\pair{a}{b}} = \pair{\reify{a}}{\reify{b}}$.
+(In Agda: \verb|reify|.)
+
+\subsection{Derivation rules}
+
+Derivations use a single equational hypothesis~$H$ (another equation);
+we write $H \vdash t = u$.
+
+\medskip\noindent
+\textbf{Computation axioms.}
+\begin{alignat*}{2}
+  &\text{Identity:}          &\quad \mathrm{I}(t) &= t \\
+  &\text{Projections:}        &\quad \pi_1(\pair{t}{u}) &= t, \qquad \pi_2(\pair{t}{u}) = u \\
+  &\text{Constant:}          &\quad \mathrm{C}(t, u) &= t \\
+  &\text{Composition:}       &\quad (f \circ g)(t) &= f(g(t)) \\
+  &\text{Bin. composition:}&\quad h[f,g](t) &= h(f(t),\, g(t)) \\
+  &\text{Lift:}              &\quad \mathrm{Lf}(f)(t, u) &= f(t) \\
+  &\text{Post:}              &\quad \mathrm{Ps}(f, h)(t, u) &= f(h(t,u)) \\
+  &\text{Fan:}               &\quad \mathrm{Fn}(h_1,h_2,h)(t,u)
+                                      &= h(h_1(t,u),\, h_2(t,u)) \\
+  &\text{K constant:}  &\quad \mathrm{K}_c(t) &= c
+\end{alignat*}
+
+\textbf{Tree recursion.}
+\begin{alignat*}{2}
+  &\text{Base:} &\quad \mathrm{R}(z, s)(O) &= z \\
+  &\text{Step:} &\quad \mathrm{R}(z, s)(\pair{t}{u})
+    &= s(\pair{t}{u},\; \pair{\mathrm{R}(z,s)(t)}{\mathrm{R}(z,s)(u)})
+\end{alignat*}
+
+\textbf{Parameterised tree recursion (V3).}
+\begin{alignat*}{2}
+  &\RecP(s)(p, O) &\;=\; O \\
+  &\RecP(s)(p, \pair{a}{b}) &\;=\; s(\pair{p}{\pair{a}{b}},\;
+       \pair{\RecP(s)(p,a)}{\RecP(s)(p,b)})
+\end{alignat*}
+$\RecP(s)$ is a binary functor.  It recurses on its second argument
+while carrying the first argument $p$ unchanged, making $p$ available
+inside the step function at every node.  See
+\S\ref{sec:recp-explained} for the design rationale.
+
+\textbf{Conditional.}
+\begin{alignat*}{2}
+  &\IfLf(O,\, \pair{t}{u}) &\;=\; t \\
+  &\IfLf(\pair{a}{b},\, \pair{t}{u}) &\;=\; u
+\end{alignat*}
+
+\textbf{Tree equality.}
+\begin{alignat*}{2}
+  &\TreeEq(O, O) &\;=\; \trueT \\
+  &\TreeEq(O, \pair{t}{u}) &\;=\; \falseT \\
+  &\TreeEq(\pair{t}{u}, O) &\;=\; \falseT \\
+  &\TreeEq(\pair{t_1}{t_2}, \pair{u_1}{u_2})
+    &\;=\; \IfLf(\TreeEq(t_1, u_1),\; \pair{\TreeEq(t_2, u_2)}{\falseT})
+\end{alignat*}
+
+\textbf{Structural rules.}
+\[
+  \frac{}{t = t}\,\text{refl} \qquad
+  \frac{t = u}{u = t}\,\text{sym} \qquad
+  \frac{t = u \qquad u = v}{t = v}\,\text{trans}
+\]
+\[
+  \frac{t = u}{f(t) = f(u)}\,\text{cong}_1 \qquad
+  \frac{t = u}{h(t, v) = h(u, v)}\,\text{cong}_L \qquad
+  \frac{t = u}{h(v, t) = h(v, u)}\,\text{cong}_R
+\]
+
+\textbf{Substitution.}
+\[
+  \frac{H \vdash t = u}
+       {H \vdash t[c/x_i] = u[c/x_i]}\,\text{inst}
+\]
+
+\textbf{Hypothesis.}
+\[
+  \frac{}{H \vdash H}\,\text{hyp}
+\]
+
+\textbf{\SchemaF{} (tree induction).}
+If $f, g : \mathrm{Fun}_1$, $z$ a term, $s : \mathrm{Fun}_2$, and
+\begin{align*}
+  f(O) &= z, & f(\pair{x_0}{x_1}) &= s(\pair{x_0}{x_1},\; \pair{f(x_0)}{f(x_1)}), \\
+  g(O) &= z, & g(\pair{x_0}{x_1}) &= s(\pair{x_0}{x_1},\; \pair{g(x_0)}{g(x_1)}),
+\end{align*}
+then $f(x_0) = g(x_0)$.  Schema~F is \emph{uniqueness of tree
+recursion}: two functions satisfying the same recurrence agree
+everywhere.
+
+\subsection{Meta-level consistency}
+
+\begin{definition}[Meta-consistency]
+$\mathit{Consistent}(H)$ means there is no derivation of
+$\trueT = \falseT$ from $H$.  Formally (Agda):
+\[
+  \mathit{Consistent}(H) \;\coloneqq\; (H \vdash \trueT = \falseT) \to \bot.
+\]
+\end{definition}
+
+Note: $\mathit{Consistent}$ is an Agda-level predicate (a \verb|Set|),
+\emph{not} a formal statement of the object theory.  The object-level
+counterpart is $\mathrm{conSentenceV3}$ (Definition~\ref{def:conV3}).
+
+%% ===============================================================
+\section{Encoding terms, equations, and derivations}
+\label{sec:encoding}
+
+Every syntactic object has a \emph{tree code}.
+
+\subsection{Term and equation codes}
+
+Mutually recursive codings $\mathrm{code} : \mathrm{Term} \to \mathrm{Tree}$,
+$\mathrm{codeF}_1$, $\mathrm{codeF}_2$ on functors, with 29 tag
+values assigning distinct trees to each term constructor and each
+functor:
+\begin{align*}
+  \mathrm{code}(O) &= \pair{\mathrm{tagO}}{O} \\
+  \mathrm{code}(x_n) &= \pair{\mathrm{tagVar}}{\nat{n}} \\
+  \mathrm{code}(f(t)) &= \pair{\mathrm{tagAp_1}}{\pair{\mathrm{codeF}_1(f)}{\mathrm{code}(t)}} \\
+  \mathrm{code}(h(t,u)) &= \pair{\mathrm{tagAp_2}}{\pair{\mathrm{codeF}_2(h)}{\pair{\mathrm{code}(t)}{\mathrm{code}(u)}}}
+\end{align*}
+For equations: $\mathrm{codeEqn}(t = u) = \pair{\mathrm{code}(t)}{\mathrm{code}(u)}$.
+
+We write $\code{t}$ for $\mathrm{code}(t)$ when unambiguous;
+$\code{H}$ for $\mathrm{codeEqn}(H)$.
+The \emph{reified code} of a term~$t$ is the closed term
+$\reify{\code{t}}$; similarly for equations.
+
+\subsection{Encoded derivations}
+
+Every derivation $d : H \vdash t = u$ has a tree-encoding
+$\mathrm{enc}(d)$, computed by a function $\mathrm{thm14EV3}$
+defined in \verb|Guard/Thm14EV3.agda| that dispatches on the
+constructor of $d$.  Each of the 29 derivation-constructors has a
+distinct tag $n_0 \ldots n_{28}$; the encoded tree has this tag as
+its outer left child and the relevant sub-data (including encoded
+sub-derivations) as its right child.
+
+For $\mathrm{hyp}$: $\mathrm{enc}(\mathrm{hyp}_H) = \pair{\nat{26}}{\reify{\code{H}}}$.
+
+%% ===============================================================
+\section{The object-level proof evaluator $\thmT$}
+\label{sec:thmT}
+
+$\thmT : \mathrm{Term} \to \mathrm{Fun}_1$ is a meta-level function
+producing a specific closed unary functor for each Term argument.
+Its defining equation:
+\[
+  \thmT(h) \;=\; \mathrm{R}(O,\; \thmT\mathrm{Step}(h))
+\]
+where $\thmT\mathrm{Step}(h) : \mathrm{Fun}_2$ is a 29-branch
+Fan-dispatch on the outer tag of its first argument.  Every branch
+is closed except the \emph{hypothesis branch}, which has $h$
+embedded as a $\mathrm{K}_h$-like constant.
+
+\subsection{What $\thmT(h)(x)$ computes}
+
+Informally, $\thmT(h)(x)$ is a \emph{decoder}: given a Term $h$
+interpreted as the reified code of a hypothesis~$H$ and a Term $x$
+interpreted as a proof-tree encoding, it returns the reified
+$\mathrm{codeEqn}$ of the decoded conclusion, or the sentinel~$O$
+if the input shape is ill-formed.
+
+\begin{itemize}
+\item $x = O$: returns $O$.
+\item $x = \pair{\nat{n}}{\mathrm{body}}$ for $n \in \{0, \ldots, 28\}$:
+  dispatches to the $n$-th case.  Each $\mathrm{case}_n$ extracts
+  sub-data from $\mathrm{body}$ and produces the reified codeEqn
+  corresponding to rule~$n$.
+\item $n = 26$ (the \emph{hypothesis case}): checks $\mathrm{body} \equiv h$
+  via $\TreeEq$; on match returns~$h$, on mismatch returns~$O$.
+\item Any other shape: returns $O$.
+\end{itemize}
+
+$\thmT(h)(x)$ is not a boolean test: it returns equation codes,
+with the sentinel $O$ reserved for invalid inputs.  Reified equation
+codes are always pair-shaped, hence disjoint from~$O$.
+
+\subsection{Soundness of the encoding (Theorem~14, V3)}
+
+\begin{theorem}[\texttt{thm14EV3} in \texttt{Guard/Thm14EV3.agda}]
+\label{thm:thm14v3}
+For every derivation $d : H \vdash t = u$, the encoding
+$\mathrm{enc}(d) : \mathrm{Term}$ satisfies, in any ambient
+hypothesis context:
+\[
+  \vdash \;\thmT(\reify{\code{H}})\,(\mathrm{enc}(d)) = \reify{\code{t = u}}.
+\]
+\end{theorem}
+
+The crucial adjective is \emph{polymorphic in the ambient
+hypothesis}: the derivation on the right-hand side uses only
+computation axioms, congruences, substitution, and Schema~F ---
+never the hypothesis rule.  This is what makes the G\"odel~II
+argument work: the encoding's correctness is an \emph{absolute}
+equation, not conditional on any outer assumption.
+
+The converse (decoder-faithfulness: every $x$ such that
+$\thmT(\reify{\code{H}})(x) = \reify{\code{t=u}}$ comes from a
+genuine derivation) is \emph{not} proved and is not needed.  The V3
+shape-checks in $\mathrm{case26}$ (hypothesis match) and
+$\mathrm{case19V3}$ (middle-term match in trans) are sufficient to
+close the specific loopholes that made the V2 consistency sentence
+refutable by pure computation.
+
+%% ===============================================================
+\section{Consistency: meta and object}
+\label{sec:consistency}
+
+\begin{definition}[Internal consistency statement]
+\label{def:conV3}
+For a specific hypothesis $H$ and its G\"odel sentence code
+$\reify{\code{H}}$, the \emph{internal consistency statement} is
+the single Equation
+\[
+  \mathrm{Con}_H \;\coloneqq\;
+  \bigl(\TreeEq(\thmT(\reify{\code{H}})(x_0),\;
+               \reify{\code{\trueT = \falseT}}) = \falseT\bigr)
+\]
+with one free variable $x_0$ (the ``proof slot'').  In the V3
+formalization with $H = \mathrm{gs}_{V3}$ the G\"odel sentence, the
+Equation is called $\mathrm{conSentenceV3}$.
+\end{definition}
+
+Since $\mathrm{inst}$ allows any Term to be substituted for~$x_0$,
+asserting $\mathrm{Con}_H$ is equivalent to asserting the universal
+\emph{``for every Term $x$, $\thmT(\reify{\code{H}})(x) \neq
+\reify{\code{\trueT = \falseT}}$''}.  Unpacking:
+\emph{``no encoded proof, decoded under the $H$-evaluator,
+produces $\reify{\code{\trueT = \falseT}}$ as its conclusion''}.
+That is $\mathrm{Con}_H$ reflected inside the object language.
+
+Two layers of consistency coexist:
+\begin{itemize}
+\item \textbf{Meta-level}: $\mathit{Consistent}(H)$ is an Agda predicate
+  asserting the empty type of derivations of $\trueT = \falseT$ from~$H$.
+\item \textbf{Object-level}: $\mathrm{Con}_H$ is a formal Equation,
+  expressible precisely because the equational system can represent
+  its own decoder via $\thmT$.
+\end{itemize}
+
+%% ===============================================================
+\section{The G\"odel sentence and diagonalisation}
+\label{sec:diagonal}
+
+\subsection{Template}
+
+Template with free variables $x_0$ (proof slot), $x_1$ (self-code
+slot), $x_2$ (evaluator hCode slot), and $x_{11}, x_{12}$
+(substitution parameters):
+\[
+  \mathrm{templateEqn} \;\coloneqq\;
+  \bigl(\TreeEq(\thmT(x_2)(x_0),\;
+         \substOp(\pair{x_{11}}{x_{12}},\, x_1)) = \falseT\bigr).
+\]
+Let $N = \code{\mathrm{templateEqn}}$ be its tree code.
+
+\subsection{The V3 G\"odel sentence}
+
+\[
+  \mathrm{gs}_{V3} \;\coloneqq\; \mathrm{templateEqn}[\reify{N}/x_1].
+\]
+The self-code slot $x_1$ is replaced by the reified code of the
+template.  All other free variables ($x_0, x_2, x_{11}, x_{12}$)
+remain, to be instantiated during the proof by
+$\mathrm{ruleInst}$.
+
+\subsection{Two-free-variable trick}
+
+V2 had only a single free variable for the self-code; since V2's
+evaluator $\mathrm{thFunTFor}$ was hypothesis-agnostic, this was
+enough.  V3's $\thmT(h)$ is hypothesis-specific (via $\mathrm{case26}$),
+so the evaluator's hCode must match whatever the $\mathrm{corr}$
+component of an encoded proof produces.  Keeping $x_2$ free allows
+the $\mathrm{ruleInst}$ chain to bind it at the right moment
+(to $\reify{\code{\mathrm{gs}_{V3}}}$) so that evaluator hCode
+aligns with encoding hypothesis.
+
+\subsection{Diagonal identity}
+
+\begin{lemma}[\texttt{diagFTargetV3} in \texttt{Guard/GodelIV3.agda}]
+\label{lem:diagFT}
+\[
+  \vdash \;\substOp(\pair{\reify{\mathrm{crTC}}}{\reify{\nat{1}}},\;
+                    \reify{N}) \;=\; \reify{\code{\mathrm{gs}_{V3}}}
+\]
+where $\mathrm{crTC} = \code{\reify{N}}$.
+\end{lemma}
+
+Proof reduces $\substOp$ to the older closed-substitution operator
+$\mathrm{cstf}$ via $\mathrm{substOpEquiv}$, then applies
+$\mathrm{closedSTFNd}$ and the diagonal fixed-point decomposition
+$\mathrm{cGSisCSV3}$.
+
+%% ===============================================================
+\section{G\"odel's First Incompleteness Theorem}
+\label{sec:godel1}
+
+\begin{theorem}[G\"odel~I, constructive form --- \texttt{godelIDerivV3}]
+\label{thm:godel1v3}
+\[
+  \mathrm{gs}_{V3} \;\vdash\; \trueT = \falseT.
+\]
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Work inside the ambient $\mathrm{gs}_{V3}$.  Let
+$d_G = \mathrm{hyp}_{\mathrm{gs}_{V3}}$.  Apply
+Theorem~\ref{thm:thm14v3} to $d_G$, obtaining a specific encoding
+$e$ and a witness $\mathrm{corr}$ polymorphic in ambient hypothesis:
+\[
+  \vdash\; \thmT(\reify{\code{\mathrm{gs}_{V3}}})(e) = \reify{\code{\mathrm{gs}_{V3}}}.
+\]
+
+Now instantiate $\mathrm{gs}_{V3}$ via $\mathrm{ruleInst}$:
+\begin{enumerate}
+\item $x_2 \mapsto \reify{\code{\mathrm{gs}_{V3}}}$ --- align the
+  evaluator's hCode with $\mathrm{corr}$'s witness.
+\item $x_{11} \mapsto \reify{\mathrm{crTC}}$.
+\item $x_{12} \mapsto \reify{\nat{1}}$.
+\item $x_0 \mapsto e$ --- plug the encoded proof into the
+  proof slot.
+\end{enumerate}
+
+The conclusion becomes
+\[
+  \mathrm{gs}_{V3} \;\vdash\;
+  \TreeEq\bigl(\thmT(\reify{\code{\mathrm{gs}_{V3}}})(e),\;
+               \substOp(\pair{\reify{\mathrm{crTC}}}{\reify{\nat{1}}},\, \reify{N})\bigr)
+  = \falseT.
+\]
+By $\mathrm{corr}$ the first $\TreeEq$ argument reduces to
+$\reify{\code{\mathrm{gs}_{V3}}}$; by Lemma~\ref{lem:diagFT} the
+second does too.  Schema~F gives
+$\TreeEq(\reify{\code{\mathrm{gs}_{V3}}}, \reify{\code{\mathrm{gs}_{V3}}}) = \trueT$
+(via \texttt{treeEqSelf}), so the derivation concludes
+$\trueT = \falseT$.
+\end{proof}
+
+\begin{corollary}[G\"odel~I, standard form]
+If $\mathit{Consistent}(H)$ and $H \vdash \mathrm{gs}_{V3}$, then $\bot$.
+\end{corollary}
+
+%% ===============================================================
+\section{G\"odel's Second Incompleteness Theorem}
+\label{sec:godel2}
+
+Three progressively-sharper formulations of G\"odel~II, all proved
+from the same underlying argument.  Let $\mathrm{gs} = \mathrm{gs}_{V3}$
+and $\mathrm{Con} = \mathrm{conSentenceV3}$.
+
+\subsection{Auxiliary: the encoded $\bot$-proof}
+
+\begin{lemma}[\texttt{provBot} in \texttt{Guard/GodelIIV3.agda}]
+\label{lem:provbot}
+There is a specific closed Term $e_\bot$ such that, in any ambient
+hypothesis:
+\[
+  \vdash\; \thmT(\reify{\code{\mathrm{gs}}})(e_\bot) \;=\;
+    \reify{\code{\trueT = \falseT}}.
+\]
+\end{lemma}
+
+This is the necessitation of Theorem~\ref{thm:godel1v3}.  The
+equation on the right is \emph{hypothesis-polymorphic}: it is
+derivable without any assumption beyond the base equational system.
+
+\subsection{Positive form}
+
+\begin{theorem}[\texttt{godelIIPositive}]
+\label{thm:g2pos}
+\[
+  \mathrm{gs} \vdash \mathrm{Con} \;\Longrightarrow\; \mathrm{gs} \vdash \trueT = \falseT.
+\]
+\end{theorem}
+
+\begin{proof}
+From $\mathrm{gs} \vdash \mathrm{Con}$ instantiate $x_0$ with $e_\bot$:
+\[
+  \mathrm{gs} \vdash\;
+  \TreeEq(\thmT(\reify{\code{\mathrm{gs}}})(e_\bot),\;
+          \reify{\code{\trueT = \falseT}}) = \falseT.
+\]
+Rewrite the inner $\thmT$-application using Lemma~\ref{lem:provbot}
+(cong$_L$): both $\TreeEq$ arguments become
+$\reify{\code{\trueT = \falseT}}$.  Schema~F gives
+$\TreeEq(c, c) = \trueT$, so $\mathrm{gs} \vdash \trueT = \falseT$.
+\end{proof}
+
+\subsection{Contrapositive}
+
+\begin{theorem}[\texttt{godelIIV3}]
+$\mathit{Consistent}(\mathrm{gs}) \Longrightarrow \mathrm{gs} \not\vdash \mathrm{Con}$.
+\end{theorem}
+
+Immediate from Theorem~\ref{thm:g2pos}.
+
+\subsection{Sharpest form}
+
+\begin{theorem}[\texttt{godelIIConAlone}]
+\label{thm:g2sharp}
+\[
+  \mathrm{Con} \;\vdash\; \trueT = \falseT.
+\]
+The internal consistency sentence $\mathrm{Con}$, taken as the only
+axiom, proves $\bot$.
+\end{theorem}
+
+\begin{proof}
+Apply Theorem~\ref{thm:g2pos} with ambient hypothesis
+$\mathrm{Con}$ itself; the premise $\mathrm{Con} \vdash \mathrm{Con}$ is
+the hypothesis rule.
+\end{proof}
+
+\paragraph{Remark.}
+The sharpest form is not available classically over PA.  It uses
+the fact that our $\mathrm{gs}_{V3}$ is deliberately inconsistent
+by diagonal construction (Theorem~\ref{thm:godel1v3}), so the
+encoded $\bot$-proof $e_\bot$ actually exists and is verifiable.
+PA, conjecturally consistent, admits no such concrete witness ---
+hence classical G\"odel~II is stated contrapositively.  In our
+setting the positive witness is available and the sharpest
+statement is just Theorem~\ref{thm:g2sharp}.
+
+%% ===============================================================
+\section{Negative acceptance test}
+
+\verb|Guard/GodelIITestV3.agda| documents that the V2 attack of
+building a $\mathrm{ProofE3}\,H\,(\trueT = \falseT)$ from
+$\mathrm{trans}(\mathrm{refl}\,\trueT, \mathrm{refl}\,\falseT)$ is
+rejected by Agda's type-checker.  The two sub-proofs have middle
+terms $\trueT = O$ and $\falseT = \pair{O}{O}$, which do not unify;
+$\mathrm{thm14EV3Trans}$'s type-signature requires them to agree.
+This would have succeeded in V2 but does not in V3.
+
+\appendix
+
+\section{Design rationale for $\RecP$}
+\label{sec:recp-explained}
+
+$\RecP$ is not derivable from the V2 combinators as a $\mathrm{Fun}_2$
+expression.  Informally:
+
+\begin{itemize}
+\item $\mathrm{R}(z, s)$ takes a single recursion target; its step
+  $s$ receives $(\mathrm{currentNode}, \mathrm{recs})$ --- no
+  sideband parameter.
+\item Packing a parameter $p$ with the target $t$ into a pair
+  $\pair{p}{t}$ and applying $\mathrm{R}$ causes $\mathrm{R}$ to
+  recurse into \emph{both} children, including $p$'s substructure
+  --- wrong semantics.
+\item Embedding $p$ via $x_0$-placeholder and $\mathrm{ruleInst}$ at
+  the Deriv level does work, but produces a \emph{family of $\mathrm{Fun}_1$}
+  indexed by $p$, not a single $\mathrm{Fun}_2$ that handles runtime $(p, t)$.
+\end{itemize}
+
+$\RecP$ gives the combinator algebra a genuine
+parameterized-recursion primitive.  It does not extend the class of
+\emph{computable} functions (the class is already primitive
+recursion with parameters), only the class of closed
+$\mathrm{Fun}_2$ \emph{expressions}.  This matters because the V3
+evaluator's proof-dispatch case~$n_{23}$ (the $\mathrm{ruleInst}$
+case) requires a closed $\mathrm{Fun}_2$ applying substitution
+dynamically to a runtime pair $\pair{\reify{\code{t}}}{\reify{\nat{x}}}$.
+
+\section{Connections with predecessors}
+
+\subsection{Guard (1963)~\cite{guard1963}}
+
+Guard's system BRA has binary trees, unary and binary functors, an
+induction schema analogous to Schema~F, and propositional
+connectives $\sim, \supset$ with modus ponens.  Guard states
+G\"odel~II at p.~16 (Theorem~14 in Guard's numbering).  The
+implication-plus-modus-ponens formulation enables the classical
+Hilbert--Bernays derivability conditions to be stated internally;
+Guard's proof follows the DC1-DC3 pattern.  Our system omits
+$\sim, \supset$ and modus ponens entirely, keeping only the
+equational core.
+
+\subsection{Rose (1961)~\cite{rose1961}}
+
+Rose's equational system is purely equational: no connectives.  Proofs
+are derivations of $t = u$ using computation axioms, congruence,
+substitution, and an induction principle over unary numerals.  Rose
+states Theorem~18, an equational analogue of G\"odel~II.  His
+formalism operates on unary numerals $\nat{n}$ rather than binary
+trees; we adapt his arguments to Guard's tree framework.
+
+Our Theorem~\ref{thm:thm14v3} corresponds to Rose's Theorem~14 (the
+object-level reflection of derivability).  Our $\mathrm{Con}_H$
+(Def.~\ref{def:conV3}) is Rose's equational consistency schema
+translated into the tree setting.
+
+\subsection{Hilbert--Bernays derivability conditions}
+
+Classical G\"odel~II uses three derivability conditions:
+\begin{itemize}
+\item (DC1) If $T \vdash \varphi$ then $T \vdash \mathrm{Prov}_T(\code{\varphi})$.
+\item (DC2) $T \vdash \mathrm{Prov}_T(\code{\varphi \to \psi}) \to
+          \mathrm{Prov}_T(\code{\varphi}) \to \mathrm{Prov}_T(\code{\psi})$.
+\item (DC3) $T \vdash \mathrm{Prov}_T(\code{\varphi}) \to
+          \mathrm{Prov}_T(\code{\mathrm{Prov}_T(\code{\varphi})})$.
+\end{itemize}
+In a system with $\to$ and modus ponens, DC2 lets one derive
+$\mathrm{Prov}_T(\code{\bot})$ from $\mathrm{Con}_T \to \bot$ by
+internalised modus ponens.  We have no $\to$ and no modus ponens.
+Instead, we use Theorem~\ref{thm:thm14v3} as a \emph{polymorphic
+DC1-like} reflection, and the diagonal manoeuvre directly within
+the equational system.  In effect we use the sharper
+Theorem~\ref{thm:g2sharp} (equational inconsistency of
+$\mathrm{Con}$ alone) where the classical argument uses DC2.
+
+\subsection{Joyal's approach~\cite{dijk2020goedel}}
+
+Dijk and Gietelink-Oldenziel (following unpublished ideas of
+A.~Joyal) view G\"odel's incompleteness categorically, as a
+diagonal argument in a cartesian closed category of theories and
+interpretations.  The provability \emph{modality} $\mathrm{Prov}$
+is realised as a functor; necessitation becomes functoriality, and
+G\"odel~I/II become properties of certain diagrams.
+
+The V3 file \verb|Guard/ProvV3.agda| exposes an analogous modal
+layer on top of $\thmT$: $\mathrm{Prov3}\,H\,\mathrm{eq}$ records
+an encoding $\mathrm{enc}$ and a correctness witness; the function
+$\mathrm{necessitation}$ wraps a $\mathrm{ProofE3}$ into a
+$\mathrm{Prov3}$.  The Joyal-style reading is compatible with our
+formalism but not formalised further here.
+
+\subsection{V2 of this formalization}
+
+The V2 development in \verb|Guard/archive/| formalizes G\"odel~II
+with an evaluator $\mathrm{thFunTFor}$ that is
+hypothesis-agnostic.  It proves a strictly weaker theorem: its
+consistency sentence is \emph{refutable by pure computation}
+because a fabricator $\mathrm{mkProofEAny}$ produces encoded proofs
+of any equation, independent of the actual derivability.  V3
+closes this loophole via a hypothesis-specific $\thmT$
+(Section~\ref{sec:thmT}), a $\mathrm{case26}$ match on the
+hypothesis encoding, and a $\mathrm{case19V3}$ middle-term match
+for transitivity.
+
+%% ===============================================================
+\section{File index}
+
+\begin{itemize}
+\item \verb|Guard/Term.agda|, \verb|Guard/Step.agda|:
+  datatypes of $\mathrm{Fun}_1, \mathrm{Fun}_2, \mathrm{Term},
+  \mathrm{Equation}$ and the $\mathrm{Deriv}$ rules;
+  $\RecP$ with axioms $\mathrm{axRecPLf}, \mathrm{axRecPNd}$.
+\item \verb|Guard/SubstOp.agda|: $\substOp$ with correctness
+  (\texttt{substOpEquiv}, \texttt{substOpCorrect}).
+\item \verb|Guard/ThFunTForV3.agda|: the dispatcher, 29 cases;
+  $\mathrm{case26}$, $\mathrm{case19V3}$, $\mathrm{case23V3}$.
+\item \verb|Guard/Thm14EV3.agda|: Theorem~14 V3.
+\item \verb|Guard/SubstTForPrecompV3.agda|: diagonal machinery
+  (templateCode, crTC, $\mathrm{gs}_{V3}$, cGS, cGSisCS).
+\item \verb|Guard/GodelIV3.agda|: \texttt{godelIDerivV3},
+  \texttt{diagFTargetV3}.
+\item \verb|Guard/ProvV3.agda|: $\mathrm{Prov3}$,
+  $\mathrm{necessitation}$, $\mathrm{diagContradict}$.
+\item \verb|Guard/GodelIIV3.agda|: $\mathrm{conSentenceV3}$,
+  $\mathrm{conToBotV3}$, $\mathrm{godelIIPositive}$,
+  $\mathrm{godelIIV3}$, $\mathrm{godelIIConAlone}$.
+\item \verb|Guard/GodelIITestV3.agda|: negative acceptance test.
+\end{itemize}
+
+Every file typechecks under \verb|--safe --without-K --exact-split|
+in under 10~s with the \verb|agda-2.9.0| binary.  No postulates.
+
+\begin{thebibliography}{9}
+\bibitem{guard1963}
+D.~Guard, \emph{Simplified foundations for mathematical logic},
+notes, 1963.
+
+\bibitem{rose1961}
+H.~E.~Rose, \emph{On the consistency and undecidability of recursive
+arithmetic}, Z. Math. Logik Grundlagen Math. \textbf{7} (1961),
+124--135.
+
+\bibitem{dijk2020goedel}
+D.~Dijk and M.~Gietelink-Oldenziel,
+\emph{G\"odel's incompleteness after Joyal},
+arXiv:2004.10482, 2020.
+
+\end{thebibliography}
+
+\end{document}

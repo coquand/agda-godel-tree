@@ -16,5 +16,7 @@ Guard/*.pdf
 !Guard/guard-godelII.pdf
 !Guard/guard-godelII-v3.tex
 !Guard/guard-godelII-v3.pdf
+!Guard/guard-godelII-complete.tex
+!Guard/guard-godelII-complete.pdf
 !Guard/nelson-boundary.tex
 !Guard/nelson-boundary.pdf
