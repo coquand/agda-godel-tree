@@ -120,8 +120,35 @@ abstract
          poo)
   godelSentenceV3Form = refl
 
-  -- TODO: substV2GS / substV11GS / substV12GS / subst0GS.
-  -- Each individual  refl  lemma is provable inside the abstract block
-  -- but all four together cost ~430s because each one re-traverses the
-  -- (large) reify templateCodeV3 structure.  Must use V2-Fast-style
-  -- schematic proof (substReify + eqCong + named lemmas for thmT, substOp).
+  -- Schematic substF propagation lemmas.  Universally quantified — Y
+  -- stays opaque under reduction, so the proof doesn't re-traverse
+  -- any large sub-term.  Inside abstract, thmT/substOp unfold once;
+  -- the resulting  refl  proof is cached and used as a black box.
+
+  substThmT : (x : Nat) (r Y : Term) ->
+    Eq (substF1 x r (thmT Y)) (thmT (subst x r Y))
+  substThmT x r Y = refl
+
+  substSubstOpClosed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r substOp) substOp
+  substSubstOpClosed x r = refl
+
+  -- substEq v2 on godelSentenceV3.  Since var v2 appears only inside
+  -- thmT's hCode, the substitution propagates via substThmT.
+  -- Single fused substEq lemma capturing the entire ruleInst chain.
+  -- All intermediate substitutions push through the Gödel sentence in
+  -- one reduction step; universally quantified args keep Agda from
+  -- materializing any concrete term.
+
+  fullyInstGS : (X0 X2 X11 X12 : Term) ->
+    Eq (substEq zero X0
+         (substEq v12' X12
+           (substEq v11' X11
+             (substEq v2 X2 godelSentenceV3))))
+       (eqn (ap2 TreeEq (ap1 (thmT (subst zero X0 (subst v12' X12 (subst v11' X11 X2)))) X0)
+                        (ap2 substOp
+                             (ap2 Pair (subst zero X0 (subst v12' X12 X11))
+                                       (subst zero X0 X12))
+                             (reify templateCodeV3)))
+            poo)
+  fullyInstGS X0 X2 X11 X12 = refl

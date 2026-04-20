@@ -28,6 +28,7 @@ open import Guard.ThFunTForV3 using (thmT)
 open import Guard.SubstTForPrecompV3
 open import Guard.TreeEqSelf using (treeEqSelf)
 open import Guard.Thm14EV3 using (ProofE3 ; thm14EV3 ; thm14EV3Hyp ; encT ; corr)
+open import Guard.Nelson.SubstReify using (substReify)
 
 private
   v1 : Nat ; v1 = suc zero
@@ -103,22 +104,6 @@ diagFTargetV3 {hyp} =
   in ruleTrans step1 combinedCGS
 
 ------------------------------------------------------------------------
--- Gödel I on V3 — pending.
---
--- Blocker: need schematic substEq-lemmas for the ruleInst chain
--- (v2, v11', v12', 0) on godelSentenceV3.  Direct  refl  proofs cost
--- ~430s because each of the four substitutions re-traverses the large
--- (reify templateCodeV3) sub-term.  Must be written V2-Fast-style via
--- substReify + substClosedSTF + analogous lemmas for  thmT  and
---  substOp .  See the Guard.Nelson.SubstReify / Guard.Nelson.InstForm
--- template in V2.
---
--- diagFTargetV3 (above) is the main "mathematical" content of the
--- diagonal; the remaining work is purely the ruleInst plumbing.
-
-{- Deferred: godelIDerivV3 : Deriv godelSentenceV3 (eqn trueT falseT)
-
-------------------------------------------------------------------------
 -- Gödel I on V3.
 --
 -- Under ambient hypothesis  godelSentenceV3 :
@@ -135,79 +120,99 @@ diagFTargetV3 {hyp} =
 --   6. ⊢ eqn O poo  =  eqn trueT falseT.
 
 godelIDerivV3 : Deriv godelSentenceV3 (eqn trueT falseT)
-godelIDerivV3 =
-  let
-    hyp = godelSentenceV3
+godelIDerivV3 = ruleTrans (ruleSym selfEq) stepB
+  where
+  hyp : Equation
+  hyp = godelSentenceV3
 
-    dG : Deriv hyp hyp
-    dG = ruleHyp {hyp}
+  dG : Deriv hyp hyp
+  dG = ruleHyp {hyp}
 
-    pe : ProofE3 hyp hyp
-    pe = thm14EV3Hyp hyp
+  pe : ProofE3 hyp hyp
+  pe = thm14EV3Hyp hyp
 
-    enc : Term
-    enc = encT pe
+  enc : Term
+  enc = encT pe
 
-    corrPf : Deriv hyp (eqn (ap1 (thmT (reify cGSV3)) enc) (reify cGSV3))
-    corrPf = eqSubst
-      (\c -> Deriv hyp (eqn (ap1 (thmT (reify c)) enc) (reify c)))
-      (eqSym cGSdefV3)
-      (corr pe)
+  corrPf : Deriv hyp (eqn (ap1 (thmT (reify cGSV3)) enc) (reify cGSV3))
+  corrPf = eqSubst
+    (\c -> Deriv hyp (eqn (ap1 (thmT (reify c)) enc) (reify c)))
+    (eqSym cGSdefV3)
+    (corr pe)
 
-    -- Four successive ruleInst's to bind the free variables in the sentence.
-    d1 : Deriv hyp (substEq v2 (reify cGSV3) hyp)
-    d1 = ruleInst v2 (reify cGSV3) dG
+  -- Four successive ruleInst's to bind the free variables in the sentence.
+  d1 : Deriv hyp (substEq v2 (reify cGSV3) hyp)
+  d1 = ruleInst v2 (reify cGSV3) dG
 
-    d2 : Deriv hyp (substEq v11' (reify crTCV3) (substEq v2 (reify cGSV3) hyp))
-    d2 = ruleInst v11' (reify crTCV3) d1
+  d2 : Deriv hyp (substEq v11' (reify crTCV3) (substEq v2 (reify cGSV3) hyp))
+  d2 = ruleInst v11' (reify crTCV3) d1
 
-    d3 : Deriv hyp (substEq v12' (reify (natCode v1))
-                     (substEq v11' (reify crTCV3) (substEq v2 (reify cGSV3) hyp)))
-    d3 = ruleInst v12' (reify (natCode v1)) d2
+  d3 : Deriv hyp (substEq v12' (reify (natCode v1))
+                   (substEq v11' (reify crTCV3) (substEq v2 (reify cGSV3) hyp)))
+  d3 = ruleInst v12' (reify (natCode v1)) d2
 
-    d4 : Deriv hyp (substEq zero enc
-                     (substEq v12' (reify (natCode v1))
-                       (substEq v11' (reify crTCV3)
-                         (substEq v2 (reify cGSV3) hyp))))
-    d4 = ruleInst zero enc d3
+  d4 : Deriv hyp (substEq zero enc
+                   (substEq v12' (reify (natCode v1))
+                     (substEq v11' (reify crTCV3)
+                       (substEq v2 (reify cGSV3) hyp))))
+  d4 = ruleInst zero enc d3
 
-    -- d4's conclusion is a specific equation.  Claim: it equals
-    --   eqn (ap2 TreeEq (ap1 (thmT (reify cGSV3)) enc)
-    --                   (ap2 substOp (ap2 Pair (reify crTCV3) (reify (natCode v1)))
-    --                                (reify templateCodeV3)))
-    --       poo
-    -- This reduces by substEq pushed through the sentence's structure.
+  lhsT : Term
+  lhsT = ap1 (thmT (reify cGSV3)) enc
 
-    lhsT : Term
-    lhsT = ap1 (thmT (reify cGSV3)) enc
+  rhsT : Term
+  rhsT = ap2 substOp (ap2 Pair (reify crTCV3) (reify (natCode v1)))
+                     (reify templateCodeV3)
 
-    rhsT : Term
-    rhsT = ap2 substOp (ap2 Pair (reify crTCV3) (reify (natCode v1)))
-                       (reify templateCodeV3)
+  expected : Equation
+  expected = eqn (ap2 TreeEq lhsT rhsT) poo
 
-    expected : Equation
-    expected = eqn (ap2 TreeEq lhsT rhsT) poo
+  -- The subst-chain in fullyInstGS's RHS reduces to identity because
+  -- every X is a reified tree (closed).  Explicit via  substReify .
+  substsAreIdentities :
+    Eq (eqn (ap2 TreeEq
+              (ap1 (thmT (subst zero enc
+                           (subst v12' (reify (natCode v1))
+                             (subst v11' (reify crTCV3) (reify cGSV3)))))
+                   enc)
+              (ap2 substOp
+                (ap2 Pair
+                  (subst zero enc (subst v12' (reify (natCode v1)) (reify crTCV3)))
+                  (subst zero enc (reify (natCode v1))))
+                (reify templateCodeV3)))
+            poo)
+       expected
+  substsAreIdentities =
+    eqCong2 (\X2' X11' ->
+               eqn (ap2 TreeEq (ap1 (thmT X2') enc)
+                               (ap2 substOp (ap2 Pair X11' (reify (natCode v1)))
+                                            (reify templateCodeV3)))
+                   poo)
+      (eqTrans (eqCong (subst zero enc)
+        (eqTrans (eqCong (subst v12' (reify (natCode v1)))
+                         (substReify v11' (reify crTCV3) cGSV3))
+                 (substReify v12' (reify (natCode v1)) cGSV3)))
+        (substReify zero enc cGSV3))
+      (eqTrans (eqCong (subst zero enc)
+                       (substReify v12' (reify (natCode v1)) crTCV3))
+               (substReify zero enc crTCV3))
 
-    -- After the four ruleInst's, d4 should directly have conclusion `expected`
-    -- by Agda's definitional unfolding of substEq through the open template.
-    d4Conv : Deriv hyp expected
-    d4Conv = d4
+  -- Convert d4's substEq-chain conclusion to `expected` via fullyInstGS.
+  d4Conv : Deriv hyp expected
+  d4Conv =
+    eqSubst (\eq -> Deriv hyp eq)
+      (eqTrans (fullyInstGS enc (reify cGSV3) (reify crTCV3) (reify (natCode v1)))
+               substsAreIdentities)
+      d4
 
-    -- Rewrite LHS: thmT(reify cGSV3)(enc) = reify cGSV3 (via corrPf).
-    -- congL TreeEq rhsT corrPf : TreeEq(ap1 ..., rhsT) = TreeEq(reify cGSV3, rhsT).
-    stepA : Deriv hyp (eqn (ap2 TreeEq (reify cGSV3) rhsT) poo)
-    stepA = ruleTrans (ruleSym (congL TreeEq rhsT corrPf)) d4Conv
+  -- Rewrite LHS: thmT(reify cGSV3)(enc) = reify cGSV3 (via corrPf).
+  stepA : Deriv hyp (eqn (ap2 TreeEq (reify cGSV3) rhsT) poo)
+  stepA = ruleTrans (ruleSym (congL TreeEq rhsT corrPf)) d4Conv
 
-    -- Rewrite RHS: rhsT = reify cGSV3 (via diagFTargetV3).
-    -- congR TreeEq (reify cGSV3) diagFTargetV3 :
-    --   TreeEq(reify cGSV3, rhsT) = TreeEq(reify cGSV3, reify cGSV3).
-    stepB : Deriv hyp (eqn (ap2 TreeEq (reify cGSV3) (reify cGSV3)) poo)
-    stepB = ruleTrans (ruleSym (congR TreeEq (reify cGSV3) diagFTargetV3)) stepA
+  -- Rewrite RHS: rhsT = reify cGSV3 (via diagFTargetV3).
+  stepB : Deriv hyp (eqn (ap2 TreeEq (reify cGSV3) (reify cGSV3)) poo)
+  stepB = ruleTrans (ruleSym (congR TreeEq (reify cGSV3) diagFTargetV3)) stepA
 
-    -- treeEqSelf: TreeEq(X, X) = O.
-    selfEq : Deriv hyp (eqn (ap2 TreeEq (reify cGSV3) (reify cGSV3)) O)
-    selfEq = treeEqSelf (reify cGSV3)
-
-    -- Combine: O = poo.
-  in ruleTrans (ruleSym selfEq) stepB
--}
+  -- treeEqSelf: TreeEq(X, X) = O.
+  selfEq : Deriv hyp (eqn (ap2 TreeEq (reify cGSV3) (reify cGSV3)) O)
+  selfEq = treeEqSelf (reify cGSV3)
