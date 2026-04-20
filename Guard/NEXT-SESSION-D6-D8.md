@@ -82,14 +82,43 @@ d4 = ruleInst 0   enc                  d3   -- proof slot → enc
 
 **Implementation plan (for next session):**
 
-1. Copy `Guard/SubstTForPrecomp.agda` → `Guard/SubstTForPrecompV3.agda`, replacing:
-   - `thFunTFor` → `thmT (var v2)` (introduce v2)
-   - `substTFor` → `substOp` in the template, with `var v11`, `var v12` as params (these are NEW v11, v12 — unrelated to the old substTFor-internal v11, v12)
-2. Re-prove `cGSisCS_V3`, `codeLhsTForm_V3`, etc. — most are `refl` by definitional unfolding.
-3. State and prove `diagFTargetV3 : substOp(Pair(reify crTC_V3')(reify(natCode v1)))(reify templateCode_V3') = reify cGS_V3'` via `substOpEquiv` + existing `closedSTFNd` machinery.
-4. Guard/GodelIV3.agda: execute the `d1..d4` chain above.
+1. ✅ DONE. `Guard/SubstTForPrecompV3.agda` is written (~4.9s compile).  All
+   abstract declarations in place: `codeLhsTV3`, `templateCodeV3`, `crTCV3`,
+   `godelSentenceV3`, `cGSV3`, `cGSisCSV3`, `cstfV3`, `godelSentenceV3Form`.
 
-Estimated: one full session to get the SubstTForPrecompV3 machinery, one more for GodelIV3.
+2. ✅ DONE. `Guard/GodelIV3.agda`'s `diagFTargetV3` is proved:
+     substOp(Pair(reify crTCV3)(reify(natCode v1)))(reify templateCodeV3)
+       = reify cGSV3
+   via `substOpEquiv + closedSTFNd + cGSisCSV3`.
+
+3. PENDING.  The ruleInst chain for `godelIDerivV3` is blocked on
+   performant substEq-lemmas.  The naive approach (4× `refl`) compiles
+   in ~430s because each step re-traverses the large `reify templateCodeV3`.
+
+**Next session: write schematic substEq-lemmas V2-Fast-style.**
+
+The specific lemmas needed (all in `SubstTForPrecompV3.agda` abstract block,
+each using Nelson-style structural proofs — NO naive `refl`):
+
+```agda
+-- (a) substF1 propagates through  thmT :
+substThmT : (x : Nat) (r Y : Term) ->
+  Eq (substF1 x r (thmT Y)) (thmT (subst x r Y))
+
+-- (b) substF2 is identity on closed  substOp :
+substSubstOpClosed : (x : Nat) (r : Term) ->
+  Eq (substF2 x r substOp) substOp
+
+-- (c) For each step of the ruleInst chain, a one-line Deriv-level
+--     conversion lemma built from (a), (b), and Nelson's substReify.
+```
+
+The `godelIDerivV3` draft is already in a block comment at the bottom
+of `Guard/GodelIV3.agda`.  Once the substEq-lemmas exist, activate it
+by uncommenting and adjusting the convert steps to use the schematic
+lemmas (not definitional equality).
+
+Estimated: one full session for the substEq-lemmas + activation.
 
 **Bottom line.** D6 is a mechanical port after all — the trick is to add one more free variable (`var v2`) for thmT's hCode, separate from V2's `var v1`.
 
