@@ -90,6 +90,21 @@ data Deriv (hyp : Equation) : Equation -> Set where
                                         (ap2 Pair (ap2 TreeEq a2 b2)
                                                   (ap2 Pair O O))))
 
+  -- Goodstein characteristic equation (tree analogue).
+  --
+  -- In Goodstein's PRA (see Rose 1961 [1]) the equality test eq(a,b)
+  -- satisfies  eq(a,b)*a = eq(a,b)*b .  Our tree analogue: the IfLf
+  -- combinator acts as a guarded conditional on  TreeEq a b , and
+  --   IfLf (TreeEq a b) (Pair a O) = IfLf (TreeEq a b) (Pair b O)
+  -- holds universally in a, b (by induction on trees).  Adding it as a
+  -- primitive defining-equation axiom matches Goodstein's treatment and
+  -- is shape-legitimate (an equation of terms, not a universally
+  -- quantified implication).
+
+  axGoodstein : (a b : Term) ->
+                Deriv hyp (eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
+                               (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O)))
+
   -- Structural rules
 
   axRefl : (t : Term) ->

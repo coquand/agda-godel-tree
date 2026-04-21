@@ -62,6 +62,7 @@ lift axTreeEqLL            = axTreeEqLL
 lift (axTreeEqLN a b)      = axTreeEqLN a b
 lift (axTreeEqNL a b)      = axTreeEqNL a b
 lift (axTreeEqNN a1 a2 b1 b2) = axTreeEqNN a1 a2 b1 b2
+lift (axGoodstein a b)     = axGoodstein a b
 lift (axRefl t)            = axRefl t
 lift (ruleSym d)           = ruleSym (lift d)
 lift (ruleTrans d1 d2)     = ruleTrans (lift d1) (lift d2)
