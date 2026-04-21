@@ -128,27 +128,34 @@ Reductio under the hypothetical
     H_enc is not provable.  Classical-Gödel-II reasoning uses the
     above chain + Triv-consistency to derive this.
 
-#### The sticky point (noted last session)
+#### The sticky point — reassessed as mechanical
 
-Step 2 needs a polymorphic-in-hyp tCorr.  The natural tCorr under
-hyp = H_enc would use ruleHyp — but roseLemma1T at tag n26 (case26)
-checks body against hCode = trivCT, not against reify (codeEqn H_enc).
+An earlier session's handoff (and the 2026-04-21 Phase-A+B session
+debrief) flagged step 2 and the step-9/10 discharge as a potential
+**design gap**.  On closer reading of Rose1.pdf this is wrong:
+Rose's calculus is Goodstein-style (explicit equational recursion),
+**not Peano-PRA**, so the "impT = trueT  →  TreeEq = poo" bridge is
+**equationally derivable** — just non-obvious.
 
-Three routes tried/considered historically (see
+The likely mechanism is a Schema-F induction establishing **2-valuedness
+of TreeEq's output** on the relevant term family.  axGoodstein is
+exactly the ruleF step-case building block; treeEqRefl handles one
+direction (=0 gives equality, closing the reductio); and the =poo
+direction is the ruleF consequence when combined with dConStrong's
+"not =0".  This puts the bridge squarely inside the 200-400-line
+transcription budget.
+
+Three routes to the polymorphic-tCorr obstacle (see
 Guard/RoseChainAnalysis.md lines 165-180):
 
   (i) Encode tPa, tPb as direct Term-level witnesses of
       H_enc's content + supply tCorr from a Triv-polymorphic chain
-      using axGoodstein + treeEqRefl.  This is the route the
-      Goodstein-axiom plan was designed to enable.
+      using axGoodstein + treeEqRefl.  **This is the intended route**
+      — the Goodstein-axiom infrastructure was designed for it.
 
-  (ii) Redesign gsCR with a hypothesis-code slot (V3-style).  Requires
-       redoing the whole diagonal construction.
+  (ii) Redesign gsCR with a hypothesis-code slot (V3-style).  Heavy.
 
-  (iii) More Schema-F splits to bypass the Pair-var case.  Stuck on
-        open var 1.
-
-Route (i) is the intended path for this session.
+  (iii) More Schema-F splits to bypass the Pair-var case.  Stuck.
 
 #### Key new lever: treeEqRefl
 
@@ -187,14 +194,22 @@ Lemma 1 application).
 - Possibly `Guard/RoseEncE.agda` or `Guard/ImpTProp.agda` for auxiliary
   object-level reasoning lemmas.
 
-### Risk map
+### Risk map (revised)
 
 | Phase | Risk | Mitigation |
 |---|---|---|
 | Chain steps 1-7 | medium | use treeEqRefl + existing lemmas; worked-out sketch above |
 | Step 8 (falseT=trueT under H_enc) | low | reduces to axIfLfL + ruleTrans |
-| Step 9-10 (discharge H_enc + land on TreeEq = poo) | high | the "object-level contrapositive" step — may require new lemmas |
+| Step 9-10 (discharge H_enc + land on TreeEq = poo) | medium | Schema-F 2-valuedness of TreeEq via axGoodstein + treeEqRefl + dConStrong; mechanical transcription of Rose1.pdf's Goodstein-style chain |
 | Phase D assembly | low | just godelIIClassicalTrivStrongWithCoreFromCon + composition |
+
+**Key insight (2026-04-21 reassessment)**: Rose1.pdf's equational
+calculus is Goodstein-style, so the "impT = trueT → TreeEq = poo"
+step is not a design gap requiring new theory — it is a Schema-F
+induction establishing TreeEq's 2-valuedness equationally.
+axGoodstein is specifically the step-case ingredient Rose uses for
+this induction.  Phase C/D is transcription work, not open-ended
+research.
 
 ## Past incarnations of this handoff
 
