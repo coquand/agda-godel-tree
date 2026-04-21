@@ -59,8 +59,8 @@ f39c293  [gii-triv] GodelIIClassicalTriv: infrastructure for Schema F approach
 Plus this session (2026-04-21):
 
 ```
-<pending>  [gii-triv] dNegGsRose + dNegGsRoseEncoded (incremental infrastructure)
-93e0f31    [rose-efun] Introduce eT Fun1 combinator + design memo
+3085f58  [gii-triv] dNegGsRose: Rose-style e-negation of gsCR at Pair v0 v1
+93e0f31  [rose-efun] Introduce eT Fun1 combinator + design memo
 ```
 
 Key artifacts (updated):
