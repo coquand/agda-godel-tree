@@ -29,6 +29,7 @@ open import Guard.ThFunTForV3Defs
 open import Guard.ThFunTForV3Pass
 open import Guard.ExtractorRed
 open import Guard.SubstOp using (substOp ; substOpCorrect)
+open import Guard.ProofEnc using (encAxGoodsteinCorr ; encAxGoodsteinPass)
 
 private
   n0 : Nat ; n0 = zero
@@ -1650,6 +1651,30 @@ thm14EV3AxTreeEqNN H a1 a2 b1 b2 = mkProofE3 (natCode n16)
           (kF2Red oneCF enc recs))))))))))))))))))))))
 
 ------------------------------------------------------------------------
+-- Case 29: axGoodstein a b.
+--
+-- Encoding at Tree level:  encAxGoodstein (code a) (code b)
+--   = nd (natCode n29) (nd (code a) (code b)) .
+-- Conclusion:
+--   eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
+--       (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O))
+--
+-- We reuse encAxGoodsteinCorr / encAxGoodsteinPass from  Guard.ProofEnc
+-- (their expanded RHS matches  reify (codeEqn (axGoodstein-eqn))
+-- definitionally).
+
+thm14EV3AxGoodstein : (H : Equation) (a b : Term) ->
+  ProofE3 H (eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
+                 (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O)))
+thm14EV3AxGoodstein H a b =
+  mkProofE3 (natCode (suc (suc (suc (suc n25)))))    -- n29
+            (nd (code a) (code b))
+            (encAxGoodsteinCorr (reify (codeEqn H))
+                                (reify (code a))
+                                (reify (code b)))
+            (\x' r' -> encAxGoodsteinPass (reify (codeEqn H)) a b x' r')
+
+------------------------------------------------------------------------
 -- f1gDispMissV3: dispatch-miss for tag  Pair (codeF1 f) (codeF1 g) .
 -- Case-split on f; analogue of V2's f1gDispMiss.
 
@@ -2436,6 +2461,7 @@ thm14EV3 {H} axTreeEqLL            = thm14EV3AxTreeEqLL H
 thm14EV3 {H} (axTreeEqLN a b)      = thm14EV3AxTreeEqLN H a b
 thm14EV3 {H} (axTreeEqNL a b)      = thm14EV3AxTreeEqNL H a b
 thm14EV3 {H} (axTreeEqNN a1 a2 b1 b2) = thm14EV3AxTreeEqNN H a1 a2 b1 b2
+thm14EV3 {H} (axGoodstein a b)     = thm14EV3AxGoodstein H a b
 thm14EV3 {H} (axRefl t)            = thm14EV3Refl H t
 thm14EV3 {H} (ruleSym d)           = thm14EV3Sym (thm14EV3 d)
 thm14EV3 {H} (ruleTrans d1 d2)     = thm14EV3Trans (thm14EV3 d1) (thm14EV3 d2)

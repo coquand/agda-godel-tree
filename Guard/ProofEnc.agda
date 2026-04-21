@@ -1262,6 +1262,155 @@ encAxTreeEqNNPass hCode a1 a2 b1 b2 x rcs =
     (nd (code a1) (nd (code a2) (nd (code b1) (code b2)))) x rcs
 
 ------------------------------------------------------------------------
+-- encAxGoodstein: axGoodstein a b.  Tag n29.  Body = Pair aC bC.
+--
+-- Encoding:  nd (natCode n29) (nd (code a) (code b))
+-- Conclusion:
+--   eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
+--       (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O))
+--
+-- Correctness: thmT hCode (encAxGoodstein aC bC)
+--   = reify (codeEqn (axGoodstein-eqn)) .
+
+private
+  n26Gs : Nat ; n26Gs = suc n25
+  n27Gs : Nat ; n27Gs = suc n26Gs
+  n28Gs : Nat ; n28Gs = suc n27Gs
+  n29Gs : Nat ; n29Gs = suc n28Gs
+
+encAxGoodstein : Term -> Term -> Term
+encAxGoodstein aC bC = ap2 Pair (reify (natCode n29Gs)) (ap2 Pair aC bC)
+
+encAxGoodsteinCorr : (hCode aC bC : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (encAxGoodstein aC bC))
+    (ap2 Pair
+      (ap2 Pair reifyTagAp2 (ap2 Pair iflfCFR (ap2 Pair
+        (ap2 Pair reifyTagAp2 (ap2 Pair treeeqCFR (ap2 Pair aC bC)))
+        (ap2 Pair reifyTagAp2 (ap2 Pair pairCFR (ap2 Pair aC oCC))))))
+      (ap2 Pair reifyTagAp2 (ap2 Pair iflfCFR (ap2 Pair
+        (ap2 Pair reifyTagAp2 (ap2 Pair treeeqCFR (ap2 Pair aC bC)))
+        (ap2 Pair reifyTagAp2 (ap2 Pair pairCFR (ap2 Pair bC oCC))))))))
+encAxGoodsteinCorr hCode aC bC {hyp} =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+  (ruleTrans (guardNdV3 hCode tagR aC bC recs)
+  (ruleTrans (ndBranchMiss n29Gs n0  case0  (ndT1V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n1  case1  (ndT2V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n2  case2  (ndT3V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n3  case3  (ndT4V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n4  case4  (ndT5V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n5  case5  (ndT6V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n6  case6  (ndT7V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n7  case7  (ndT8V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n8  case8  (ndT9V3  hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n9  case9  (ndT10V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n10 case10 (ndT11V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n11 case11 (ndT12V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n12 case12 (ndT13V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n13 case13 (ndT14V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n14 case14 (ndT15V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n15 case15 (ndT16V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n16 case16 (ndT17V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n17 case17 (ndT18V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n18 case18 (ndT19V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n19 case19V3 (ndT20V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n20 case20 (ndT21V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n21 case21 (ndT22V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n22 case22 (ndT23V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n23 case23V3 (ndT24V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n24 case24 (ndT25V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n25 case25 (ndT26V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n26Gs (case26 hCode) ndT27V3 body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n27Gs case27 ndT28V3 body recs refl)
+  (ruleTrans (ndBranchMiss n29Gs n28Gs case28 ndT29V3 body recs refl)
+  (ruleTrans (ndBranchHit n29Gs case29 ndT30V3 body recs)
+  (mkEqFRed lhsF rhsF enc recs lhsReify rhsReify lhsRed rhsRed))))))))))))))))))))))))))))))))
+  where
+  tagR : Term ; tagR = reify (natCode n29Gs)
+  body : Term ; body = ap2 Pair aC bC
+  enc  : Term ; enc  = ap2 Pair tagR body
+  recs : Term
+  recs = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+  treeEqABF : Fun2
+  treeEqABF = mkAp2F (kF2 treeeqCFR) origA origB
+
+  pairAOF : Fun2
+  pairAOF = mkAp2F (kF2 pairCFR) origA (kF2 oCC)
+
+  pairBOF : Fun2
+  pairBOF = mkAp2F (kF2 pairCFR) origB (kF2 oCC)
+
+  lhsF : Fun2
+  lhsF = mkAp2F (kF2 iflfCFR) treeEqABF pairAOF
+
+  rhsF : Fun2
+  rhsF = mkAp2F (kF2 iflfCFR) treeEqABF pairBOF
+
+  treeEqABReify : Term
+  treeEqABReify = ap2 Pair reifyTagAp2 (ap2 Pair treeeqCFR (ap2 Pair aC bC))
+
+  pairAOReify : Term
+  pairAOReify = ap2 Pair reifyTagAp2 (ap2 Pair pairCFR (ap2 Pair aC oCC))
+
+  pairBOReify : Term
+  pairBOReify = ap2 Pair reifyTagAp2 (ap2 Pair pairCFR (ap2 Pair bC oCC))
+
+  lhsReify : Term
+  lhsReify = ap2 Pair reifyTagAp2 (ap2 Pair iflfCFR (ap2 Pair treeEqABReify pairAOReify))
+
+  rhsReify : Term
+  rhsReify = ap2 Pair reifyTagAp2 (ap2 Pair iflfCFR (ap2 Pair treeEqABReify pairBOReify))
+
+  treeEqABRed : Deriv hyp (eqn (ap2 treeEqABF enc recs) treeEqABReify)
+  treeEqABRed =
+    mkAp2FRed (kF2 treeeqCFR) origA origB enc recs
+      treeeqCFR aC bC
+      (kF2Red treeeqCFR enc recs)
+      (origARed tagR aC bC recs)
+      (origBRed tagR aC bC recs)
+
+  pairAORed : Deriv hyp (eqn (ap2 pairAOF enc recs) pairAOReify)
+  pairAORed =
+    mkAp2FRed (kF2 pairCFR) origA (kF2 oCC) enc recs
+      pairCFR aC oCC
+      (kF2Red pairCFR enc recs)
+      (origARed tagR aC bC recs)
+      (kF2Red oCC enc recs)
+
+  pairBORed : Deriv hyp (eqn (ap2 pairBOF enc recs) pairBOReify)
+  pairBORed =
+    mkAp2FRed (kF2 pairCFR) origB (kF2 oCC) enc recs
+      pairCFR bC oCC
+      (kF2Red pairCFR enc recs)
+      (origBRed tagR aC bC recs)
+      (kF2Red oCC enc recs)
+
+  lhsRed : Deriv hyp (eqn (ap2 lhsF enc recs) lhsReify)
+  lhsRed =
+    mkAp2FRed (kF2 iflfCFR) treeEqABF pairAOF enc recs
+      iflfCFR treeEqABReify pairAOReify
+      (kF2Red iflfCFR enc recs)
+      treeEqABRed
+      pairAORed
+
+  rhsRed : Deriv hyp (eqn (ap2 rhsF enc recs) rhsReify)
+  rhsRed =
+    mkAp2FRed (kF2 iflfCFR) treeEqABF pairBOF enc recs
+      iflfCFR treeEqABReify pairBOReify
+      (kF2Red iflfCFR enc recs)
+      treeEqABRed
+      pairBORed
+
+encAxGoodsteinPass :
+  (hCode : Term) (a b : Term) (x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair (encAxGoodstein (reify (code a)) (reify (code b))) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encAxGoodstein (reify (code a)) (reify (code b))) x) rcs))
+encAxGoodsteinPass hCode a b x rcs =
+  passthroughSucV3 hCode n28Gs (nd (code a) (code b)) x rcs
+
+------------------------------------------------------------------------
 -- Navigation: ndDispatchV3 -> case26 (hCode-parameterised) at tag n26.
 
 private

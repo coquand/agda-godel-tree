@@ -86,6 +86,19 @@ private
   poo : Term
   poo = ap2 Pair O O
 
+  -- Reified codeF2 constants used in case29 (axGoodstein encoder).
+  iflfCFR : Term
+  iflfCFR = reify (codeF2 IfLf)
+
+  treeeqCFR : Term
+  treeeqCFR = reify (codeF2 TreeEq)
+
+  pairCFR : Term
+  pairCFR = reify (codeF2 Pair)
+
+  oCC : Term
+  oCC = ap2 Pair O O   -- reify (code O) = reify (nd lf lf)
+
 ------------------------------------------------------------------------
 -- case26: hypothesis-use case.
 --
@@ -187,14 +200,45 @@ case28 =
   in Fan lhsF rhsF Pair
 
 ------------------------------------------------------------------------
+-- case29: encoder for  axGoodstein a b .
+--
+-- The axiom's conclusion is
+--   eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
+--       (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O))
+--
+-- Encoding:  nd (natCode n29) (nd (code a) (code b))
+-- At Term level:  enc = Pair (natCode n29 reified) (Pair aC bC)
+-- origA = aC, origB = bC.
+--
+-- case29 builds  Pair (reify(code LHS)) (reify(code RHS))  where
+--   reify(code (TreeEq a b)) = Pair tagAp2T (Pair treeeqCFR (Pair aC bC))
+--   reify(code (Pair a O))   = Pair tagAp2T (Pair pairCFR  (Pair aC oCC))
+--   reify(code (Pair b O))   = Pair tagAp2T (Pair pairCFR  (Pair bC oCC))
+--   reify(code LHS) = Pair tagAp2T (Pair iflfCFR (Pair <TreeEq a b> <Pair a O>))
+--   reify(code RHS) = Pair tagAp2T (Pair iflfCFR (Pair <TreeEq a b> <Pair b O>))
+
+case29 : Fun2
+case29 =
+  let treeEqABF = mkAp2F (kF2 treeeqCFR) origA origB              -- reify(code (TreeEq a b))
+      pairAOF   = mkAp2F (kF2 pairCFR)   origA (kF2 oCC)           -- reify(code (Pair a O))
+      pairBOF   = mkAp2F (kF2 pairCFR)   origB (kF2 oCC)           -- reify(code (Pair b O))
+      lhsF = mkAp2F (kF2 iflfCFR) treeEqABF pairAOF                -- reify(code LHS)
+      rhsF = mkAp2F (kF2 iflfCFR) treeEqABF pairBOF                -- reify(code RHS)
+  in mkEqF lhsF rhsF
+
+------------------------------------------------------------------------
 -- Dispatch chain, threaded with the ambient hypothesis code.
 --
 -- In the V2 chain (Guard.ThFunTFor) the bottom is  ndT26 = sndArg2 .
 -- Here we insert a real tag-26 check in front of the fallthrough,
 -- renaming the old fallthrough to  ndT27V3 .
 
+-- n30 is the new bottom of the chain after adding case29.
+ndT30V3 : Fun2
+ndT30V3 = sndArg2
+
 ndT29V3 : Fun2
-ndT29V3 = sndArg2
+ndT29V3 = branch (tc n29) case29 ndT30V3
 
 ndT28V3 : Fun2
 ndT28V3 = branch (tc n28) case28 ndT29V3

@@ -412,6 +412,15 @@ roseL1T_AxRecPNd H s p a b = mkL1T
                           (reify (code a)) (reify (code b)))
   (\x' rcs -> encAxRecPNdPass trivCT s p a b x' rcs)
 
+roseL1T_AxGoodstein : (H : Equation) (a b : Term) ->
+  Lemma1T H (eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
+                 (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O)))
+roseL1T_AxGoodstein H a b = mkL1T
+  (reify (natCode (suc (suc (suc (suc n25))))))  -- n29
+  (ap2 Pair (reify (code a)) (reify (code b)))
+  (encAxGoodsteinCorr trivCT (reify (code a)) (reify (code b)))
+  (\x' rcs -> encAxGoodsteinPass trivCT a b x' rcs)
+
 ------------------------------------------------------------------------
 -- Structural rule wrappers.
 
@@ -589,6 +598,7 @@ roseLemma1T {H} axTreeEqLL                _ _ _ _ = roseL1T_AxTreeEqLL H
 roseLemma1T {H} (axTreeEqLN a b)          _ _ _ _ = roseL1T_AxTreeEqLN H a b
 roseLemma1T {H} (axTreeEqNL a b)          _ _ _ _ = roseL1T_AxTreeEqNL H a b
 roseLemma1T {H} (axTreeEqNN a1 a2 b1 b2)  _ _ _ _ = roseL1T_AxTreeEqNN H a1 a2 b1 b2
+roseLemma1T {H} (axGoodstein a b)         _ _ _ _ = roseL1T_AxGoodstein H a b
 roseLemma1T {H} (axRefl x)                _ _ _ _ = roseL1T_AxRefl H x
 roseLemma1T {H} ruleHyp                   tPa tPb tCorr tPass =
   roseL1T_Hyp H tPa tPb tCorr tPass
