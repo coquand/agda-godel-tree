@@ -799,3 +799,66 @@ encAxKTPass :
                    (ap2 Pair (encAxKT (reify (code t)) (reify (code x))) x') rcs))
 encAxKTPass hCode t x x' rcs =
   passthroughSucV3 hCode n24 (nd (code t) (code x)) x' rcs
+
+------------------------------------------------------------------------
+-- Navigation: ndDispatchV3 -> case17 at tag n17 (axRefl).
+
+ndDisp17V3Pub : (hCode d r : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair (reify (natCode n17)) d) r)
+                 (ap2 case17 (ap2 Pair (reify (natCode n17)) d) r))
+ndDisp17V3Pub hCode d r =
+  ruleTrans (ndBranchMiss n17 n0  case0  (ndT1V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n1  case1  (ndT2V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n2  case2  (ndT3V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n3  case3  (ndT4V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n4  case4  (ndT5V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n5  case5  (ndT6V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n6  case6  (ndT7V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n7  case7  (ndT8V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n8  case8  (ndT9V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n9  case9  (ndT10V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n10 case10 (ndT11V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n11 case11 (ndT12V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n12 case12 (ndT13V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n13 case13 (ndT14V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n14 case14 (ndT15V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n15 case15 (ndT16V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n17 n16 case16 (ndT17V3 hCode) d r refl)
+             (ndBranchHit n17 case17 (ndT18V3 hCode) d r)))))))))))))))))
+
+------------------------------------------------------------------------
+-- encAxRefl: axRefl t.  Tag n17.
+--
+-- Encoding: Pair (natCode n17) (Pair tC O), tC = reify (code t).
+-- Body has shape  Pair tC O  so that origA extracts tC.
+-- Correctness: thmT hCode (encAxRefl tC) = Pair tC tC
+--   ( = codeEqn (eqn t t) reified ).
+
+encAxRefl : Term -> Term
+encAxRefl tC = ap2 Pair (reify (natCode n17)) (ap2 Pair tC O)
+
+encAxReflCorr : (hCode tC : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (encAxRefl tC))
+                 (ap2 Pair tC tC))
+encAxReflCorr hCode tC {hyp} =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+  (ruleTrans (guardNdV3 hCode tagR tC O recs)
+  (ruleTrans (ndDisp17V3Pub hCode body recs)
+  (mkEqFRed origA origA enc recs tC tC
+    (origARed tagR tC O recs)
+    (origARed tagR tC O recs))))
+  where
+  tagR : Term ; tagR = reify (natCode n17)
+  body : Term ; body = ap2 Pair tC O
+  enc  : Term ; enc  = ap2 Pair tagR body
+  recs : Term
+  recs = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+encAxReflPass :
+  (hCode : Term) (t : Term) (x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair (encAxRefl (reify (code t))) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encAxRefl (reify (code t))) x) rcs))
+encAxReflPass hCode t x rcs =
+  passthroughSucV3 hCode n16 (nd (code t) lf) x rcs
