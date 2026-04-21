@@ -4,189 +4,167 @@
 
 ```
 cd /Users/coquand/CHWISTEK
-~/.cabal/bin/agda-2.9.0 <file>     # use THIS binary, not /opt/homebrew/bin/agda
+~/.cabal/bin/agda-2.9.0 <file>     # THIS binary, not /opt/homebrew/bin/agda
 ```
 
 Repo: `https://github.com/coquand/agda-godel-tree.git`, branch `main`.
-Last commit: `e17eb10` `[proofenc] Add encRuleInst (n23) combinator`.
-Everything under `Guard/` typechecks under `--safe --without-K --exact-split`.
-Each file compiles under 10s via the abstract-block + fused-lemma pattern.
+Last commit: `b4d3039` `[proofenc] Add encAxKT (n25) + ndDisp25V3Pub navigation`.
 
-## What's done (classical Gödel I)
+## What's done — Classical Gödel I (unchanged)
 
-Commit `8229215` delivers Ryan's Lemma 3 in tree form:
+Commit `8229215`. See `Guard/GodelIClassical.agda`, `Guard/SubstTForPrecompClassical.agda`, `Guard/CodeOfReify.agda`. Ryan's Lemma 3 in tree form, `Triv`-based, one-free-variable `gsCR`.
 
-- `Guard/CodeOfReify.agda` — **`cor : Fun1`** (= `Rec poo stepCor`), a pure Rec-based Fun1 with lemma
-  ```agda
-  corOfReify : (t : Tree) -> {hyp : Equation} ->
-    Deriv hyp (eqn (ap1 cor (reify t)) (reify (code (reify t))))
-  ```
-  No new primitive; proved by induction on `t`.
-- `Guard/SubstTForPrecompClassical.agda` — one-free-variable diagonal. Template `lhsTermCR` uses
-  `substOp (Pair (ap1 cor (var v1)) (reify (natCode v1))) (var v1)`.
-  After `substEq v1 := reify templateCodeCR`, `gsCR` has **only `v_0` free** (proof slot). `crTCCR = code (reify templateCodeCR)` and `cGSCR = codeEqn gsCR`.
-- `Guard/GodelIClassical.agda` —
-  ```agda
-  godelIClassical       : Deriv Triv gsCR -> Deriv Triv (eqn trueT falseT)
-  godelIClassicalContra : Consistent Triv -> Deriv Triv gsCR -> Empty
-  ```
-  `Triv = eqn O O` (trivially-consistent hypothesis; `trivCT = reify (codeEqn Triv)`).
+## What's done — Architecture validation (April 2026 session)
 
-Meaning of `gsCR`: after the diagonal identity, `gsCR ≡ TreeEq(thmT(trivCT)(x_0), ⌜gsCR⌝) = falseT`, i.e. "for every candidate encoding `x_0`, its decoding under the Triv-evaluator is not the code of me". One free variable — classical Ryan Lemma 3 form.
+### `Guard/GodelIIClassicalSkel.agda` (207 lines, 0.13s)
 
-## Progress made on classical Gödel II (April 2026 session)
+Parameterised module: takes `Phi : Fun1` and `strongPhiCorr : StrongPhiCorr Phi` as module arguments, derives classical Gödel II (positive and contrapositive). **Validates that the user's deviation (meta-level Agda arrow only; no object-level `→` in Deriv) is CONSISTENT with a feasible Gödel II proof**, given the right Phi + strongPhiCorr.
 
-Commit range `9856d71..e17eb10` — `Guard/ProofEnc.agda` (564 lines, compiles in 0.23s):
+The `StrongPhiCorr` equation is:
+```agda
+StrongPhiCorr : Fun1 -> Set
+StrongPhiCorr Phi =
+  (v0 : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 TreeEq (ap1 (thmT trivCT) v0) (reify cGSCR))
+                 (ap2 TreeEq (ap1 (thmT trivCT) (ap1 Phi v0)) codeBotT))
+```
 
-Five proof-encoding combinators built. Each takes Term-level sub-encodings
-and a polymorphic Deriv correctness assumption, producing a new Term +
-polymorphic correctness lemma + tag-opaque pass property.
+No IfLf, no ternary-tree implication. Just a raw Deriv-level equation between two TreeEqs.
 
-| Combinator       | Tag | Mirrors            | Purpose                               |
-|------------------|-----|--------------------|---------------------------------------|
-| `encRuleSym`     | n18 | `thm14EV3Sym`      | wrap sub-proof as Sym                 |
-| `encRuleTrans`   | n19 | `thm14EV3Trans`    | compose two sub-proofs as Trans       |
-| `encCongL`       | n21 | `thm14EV3CongL`    | congL g x wrap of sub-proof           |
-| `encCongR`       | n22 | `thm14EV3CongR`    | congR g x wrap of sub-proof           |
-| `encRuleInst`    | n23 | `thm14EV3Inst`     | instantiate sub-proof at (t, x)       |
+### `Guard/ProofEnc.agda` (963 lines, 0.30s)
 
-All five:
-- Take sub-proof as `Pair paR pbR` (standard proof-encoding shape).
-- Take correctness `Deriv hyp (eqn (thmT hCode (Pair paR pbR)) (Pair lC rC))`.
-- For congL/R/Inst: take dispMiss as a parameter (avoids pulling in the
-  private `f2xDispMissV3`/`aRPassV3` helpers from `Thm14EV3.agda`).
-- Yield a polymorphic Deriv of the combined encoding's evaluation.
-- Expose a `*Pass` tag-opacity property via `ndDispatchV3PairMiss`.
+Eight combinators so far:
 
-`ndDisp18V3Pub`, `ndDisp19V3Pub`, `ndDisp21V3Pub`, `ndDisp22V3Pub`,
-`ndDisp23V3Pub` are publicly accessible copies of the private navigation
-helpers in `Thm14EV3.agda`.
+| Name              | Tag | Kind           | Used for                           |
+|-------------------|-----|----------------|-------------------------------------|
+| `encRuleSym`      | n18 | rule (1 sub)   | sym of a sub-proof                 |
+| `encRuleTrans`    | n19 | rule (2 subs)  | transitivity chain                 |
+| `encCongL`        | n21 | rule (1 sub)   | congL g x wrap                     |
+| `encCongR`        | n22 | rule (1 sub)   | congR g x wrap                     |
+| `encRuleInst`     | n23 | rule (1 sub)   | variable instantiation             |
+| `encAxI`          | n0  | axiom (closed) | axI t                              |
+| `encAxFst`        | n1  | axiom (closed) | axFst a b                          |
+| `encAxSnd`        | n2  | axiom (closed) | axSnd a b                          |
+| `encAxKT`         | n25 | axiom (closed) | axKT t x                           |
 
-**No postulates, no holes, compiles clean under `--safe --without-K --exact-split`.**
+Each with polymorphic `{hyp}` correctness + tag-opaque `pass` property. All compile in 0.30s under `--safe --without-K --exact-split`.
 
-## Target
+### Published navigation helpers
+`ndDisp18V3Pub`, `ndDisp19V3Pub`, `ndDisp21V3Pub`, `ndDisp22V3Pub`, `ndDisp23V3Pub`, `ndDisp25V3Pub` — copies of the private navigation helpers in `Thm14EV3.agda`.
+
+## Key architectural insight (the big one)
+
+Phi's construction can **reuse `thm14EV3` meta-level for CLOSED sub-derivations**. Specifically:
 
 ```agda
-ConTriv : Equation
-ConTriv = eqn (ap2 TreeEq (ap1 (thmT trivCT) (var zero)) codeBotT) falseT
-
-godelIIClassical : Deriv Triv ConTriv -> Deriv Triv (eqn trueT falseT)
-
-godelIIClassicalContra : Consistent Triv -> Deriv Triv ConTriv -> Empty
+encSelfEq        : Term := encT (thm14EV3 (treeEqSelf (reify cGSCR)))
+encDiagFTargetCR : Term := encT (thm14EV3 diagFTargetCR)
 ```
 
-`ConTriv` says "no `x_0` is a Triv-derivation of ⊥". The positive form says: if Triv proves its own consistency, Triv is inconsistent. Contrapositive is the sharp form of Gödel II.
+These are meta-level computations yielding specific closed Terms. Their correctness is inherited from `corr (thm14EV3 _)` — polymorphic in `hyp` — **no need to encode the treeEqSelf or diagFTargetCR derivation step by step**.
 
-## Why the existing V3 Gödel II is not enough
+This cuts Phi's estimated line count roughly in half (~1000 lines, not ~2000).
 
-`Guard/GodelIIV3.agda` proves
-```
-conSentenceV3 : eqn (ap2 TreeEq (ap1 (thmT (reify cGSV3)) (var zero)) codeBotT) falseT
-conToBotV3    : Deriv hyp conSentenceV3 -> Deriv hyp (eqn trueT falseT)
-```
-but this is a statement about `gsV3`-derivations of ⊥, not about Triv-derivations of ⊥. And `gsV3` itself has the two-free-variable exhibition property — not classical Gödel I. For classical Gödel II we need the Triv-evaluator version, linked through `godelIClassical`.
+## What Phi needs after this insight
 
-## The barrier: the DC2 bridge
-
-Standard Gödel II (Löb-style) routes: Gödel I + DC1 + DC2 + DC3 ⟹ Gödel II. In our equational setting:
-- **DC1** (necessitation): `Guard/Thm14EV3.agda` (2448 lines) turns `Deriv H eq` into `ProofE3 H eq` with polymorphic `corr`. ✓
-- **DC2** (internal modus ponens): **missing**. Required shape: a closed Fun1 `Phi` such that, polymorphically in any ambient `hyp`,
-  ```
-  Deriv hyp (eqn (ap1 (thmT trivCT) v0) (reify cGSCR))
-  -- implies --
-  Deriv hyp (eqn (ap1 (thmT trivCT) (ap1 Phi v0)) codeBotT)
-  ```
-  i.e. `Phi` transforms any encoding of a Triv-derivation of `gsCR` into an encoding of a Triv-derivation of ⊥.
-- **DC3** (Prov(⌜A⌝) ⟹ Prov(⌜Prov(⌜A⌝)⌝)): not needed for this route; our Gödel I does not use it.
-
-`Phi` is the internalisation of `godelIClassical`. Its body is a structural map on proof-encodings that mirrors the Agda-level construction
+Phi's structure mirrors `godelIClassical`'s Deriv tree:
 ```
 godelIClassical d = ruleTrans (ruleSym selfEq) stepB
-  where stepB = ruleTrans (ruleSym (congR TreeEq ... diagFTargetCR)) stepA
-        stepA = ruleTrans (ruleSym (congL TreeEq rhsT corrPf)) d1Conv
-        d1Conv = eqSubst (Deriv Triv) (subst0GSCR enc) d1
-        d1 = ruleInst zero enc d       -- d is the input; enc = encT (thm14EV3 d)
-        corrPf = eqSubst ... (corr (thm14EV3 d))
-        selfEq = treeEqSelf (reify cGSCR)
+  where
+  stepB = ruleTrans (ruleSym (congR TreeEq (reify cGSCR) diagFTargetCR)) stepA
+  stepA = ruleTrans (ruleSym (congL TreeEq rhsT corrPf)) d1Conv
+  d1Conv = eqSubst ... d1                           -- meta rewrite, identity on Deriv
+  d1 = ruleInst zero enc d                          -- depends on d
+  corrPf = ... (corr (thm14EV3 d))                  -- depends on d
+  selfEq = treeEqSelf (reify cGSCR)                 -- closed
 ```
-All of these steps have explicit **proof-code** formulations under our tag scheme (tags `n0..n28` in `ThFunTForForV3.agda`). `Phi` must emit the composite encoding.
 
-## Scope estimate
+The **d-dependent parts** are `d1` and `corrPf`:
 
-**Size**: ~1500–2500 new Agda lines, comparable to `Thm14EV3.agda` (2448). The core work is packaging each Agda-level derivation step as a closed tree-builder and proving, by `Rec`/`RecP` induction, that `thmT trivCT` on the builder's output yields the correct encoded equation.
+- **`d1 = ruleInst zero enc d`** — encoded as `encRuleInst aR_v0 v0` where `aR_v0 = ap2 Pair (ap1 cor v0) (reify (natCode 0))`. Uses the `cor` Fun1 (pure Rec-based codeOfReify) to compute `reify (code v0)` at Deriv level.
 
-**Sessions**: 3–5 (one session complete — ~25% progress, covering the 5 primitive combinators).
+- **`corrPf`** — the hard one. `corr (thm14EV3 d)` is a polymorphic Deriv whose *structure* depends on d. To encode, we need `encT (thm14EV3 corrPf)` — effectively a "reflection of reflection". This second-order encoding is the main open question.
 
-## Remaining work (in order)
+## The corrPf encoding question
 
-1. **Axiom encoders** in `Guard/ProofEnc.agda` (~400 lines): `encAxI` (n0), `encAxFst` (n1), `encAxSnd` (n2), `encAxComp2` (n5), `encAxKT` (n25), `encAxTreeEqLL` (n13), `encAxTreeEqNN` (n16), `encAxPost` (n7), `encAxLift` (n6) — closed (no sub-proofs) Term builders.
-   Each mirrors a `thm14EV3Ax*` case from `Thm14EV3.agda`.
-   Most are direct: encode the axiom tag n_k with the reified parameters as body; correctness uses the matching `ndDispNNV3Pub` + `mkEqFRed`/`mkAp1FRed`/`mkAp2FRed` chain.
-   `encAxKT` uses n25 (currently no `ndDisp25V3Pub` published — needs to be added).
+`corrPf : Deriv Triv (eqn (ap1 (thmT trivCT) enc) (reify cGSCR))`.
 
-2. **Schema F encoder** in `Guard/ProofEnc.agda` (~200 lines): `encRuleF` (n24). Takes 4 sub-proofs. Mirrors `thm14EV3F`. Requires a new `ndDisp24V3Pub` publication and the `f1gDispMissV3` helper (private in `Thm14EV3.agda`).
+With `enc` abstracted to `v0`, we want an encoded Term `encCorrPf v0` such that polymorphically in `hyp`,
+```
+Deriv hyp (eqn (ap1 (thmT trivCT) (encCorrPf v0))
+               (reify (codeEqn (eqn (ap1 (thmT trivCT) v0) (reify cGSCR)))))
+```
 
-3. **`Guard/EncTreeEqSelf.agda`** (~150 lines): closed Term `encSelfEq` for `thmT trivCT encSelfEq = codeEqn (eqn (TreeEq c c) O)` at a specific `c`. Uses the axiom encoders + `encRuleF` + `encRuleInst`. The target `c = reify cGSCR` in our use.
+Two approaches:
 
-4. **`Guard/EncDiagFTargetCR.agda`** (~400 lines): encode the `diagFTargetCR` derivation. Mechanical — applies encCongL/R, encRuleTrans, encRuleSym and axiom encoders in the same pattern as the Agda-level proof in `Guard/GodelIClassical.agda`.
+### (A) Generic encoder for `corr (thm14EV3 X)`
+Internalise Thm14EV3's correctness lemma as a SELF-APPLICATIVE Term. Requires encoding each case of thm14EV3's dispatch + a meta-recursion on pe's structure. Large (~800 lines).
 
-5. **`Guard/EncGodelIClassical.agda`** (~800 lines):
-   - `Phi : Term -> Term` (a closed meta-function on Terms, potentially also as `Fun1` via `Comp2 Pair ...` compositions). On input `v0` = encoded `d : Deriv Triv gsCR`, returns the encoded Deriv of `eqn trueT falseT`.
-   - `phiCorr` — the DC2 bridge at the polymorphic `{hyp}` Deriv level (Option B fallback). This is the deviation the user specified: "replace object-language → with meta-level `Deriv hyp → Deriv hyp`".
+### (B) Accept `encCorrPf` as an abstract parameter
+Supply as a module parameter. Doesn't prove Gödel II standalone but CLOSES the skeleton in terms of two concrete pieces (encCorrPf + strongPhiCorr) that are each DERIVABLE from the architecture. Smaller but less satisfying.
 
-6. **`Guard/GodelIIClassical.agda`** (~200 lines):
-   - From `d : Deriv Triv ConTriv`, derive `Deriv Triv (eqn trueT falseT)`.
-   - Strategy: the meta-level `phiCorr` is NOT a Deriv; it's a function `Deriv hyp A → Deriv hyp B`. The bridge equation ⦃Deriv hyp (eqn (TreeEq (thmT trivCT v0) cGSCR) (TreeEq (thmT trivCT (Phi v0)) codeBotT))⦄ does NOT follow from `phiCorr` alone (both sides can be unconditional).
-   - **Open question**: how to derive `Deriv Triv gsCR` from `Deriv Triv ConTriv` given only meta-level `phiCorr`.
-     - Option A: give up on one-free-variable form, switch to a Löb-style sentence that has internal implication. This changes gsCR's definition.
-     - Option B: give an EXISTENCE witness — show that a specific encoded proof (built from an assumed `Deriv Triv ConTriv`) decodes to ⊥'s code. This still requires a bridge.
-     - Option C: prove `Deriv Triv (eqn (TreeEq (thmT trivCT (Phi (var zero))) codeBotT) (TreeEq (thmT trivCT (var zero)) (reify cGSCR)))` via Schema F or induction over all v_0. Not clear this is derivable.
+### (C) Reframe via Schema F on v0
+Use `ruleF` to prove strongPhiCorr directly via tree induction on v0, bypassing the need for explicit `encCorrPf`. Requires Phi to be structurally compatible with a Rec on v0 — possible but unclear how to arrange.
 
-## Proposed file layout (updated)
+## Remaining axiom encoders needed by Phi (under approach A)
 
-1. **`Guard/ProofEnc.agda`** (currently 564 lines, target ~1200 after axioms + ruleF). [25% done]
+Already have: `encAxI`, `encAxFst`, `encAxSnd`, `encAxKT`, plus all 5 rule encoders.
 
-2. **`Guard/EncTreeEqSelf.agda`** (~150 lines). [Not started]
+Still needed (estimated size):
+- `encAxTreeEqLL` (n13, ~40 lines, closed)
+- `encAxTreeEqLN` (n14, ~50 lines)
+- `encAxTreeEqNL` (n15, ~50 lines)
+- `encAxTreeEqNN` (n16, ~60 lines)
+- `encAxRefl` (n17, ~30 lines)
+- `encAxComp2` (n5, ~50 lines)
+- `encAxLift` (n6, ~50 lines)
+- `encAxPost` (n7, ~50 lines)
+- `encAxFan` (n8, ~60 lines)
+- `encAxConst` (n3, ~30 lines)
+- `encAxComp` (n4, ~40 lines)
+- `encAxRecLf` (n9, ~40 lines)
+- `encAxRecNd` (n10, ~50 lines)
+- `encAxIfLfL` (n11, ~40 lines)
+- `encAxIfLfN` (n12, ~40 lines)
+- `encRuleCong1` (n20, ~80 lines, one sub)
+- `encRuleF` (n24, ~150 lines, FOUR subs — hardest remaining)
+- `encRuleHyp` (n26, ~30 lines)
+- `encAxRecPLf` (n27, ~50 lines)
+- `encAxRecPNd` (n28, ~80 lines)
 
-3. **`Guard/EncDiagFTargetCR.agda`** (~400 lines). [Not started]
+Total: ~1000 more lines of mechanical encoding.
 
-4. **`Guard/EncGodelIClassical.agda`** (~800 lines). [Not started]
+## Key discoveries to keep in mind
 
-5. **`Guard/GodelIIClassical.agda`** (~200 lines). [Not started; blocked on architectural decision above]
+1. **IfLf is NOT a "ternary tree"** — it's an existing Fun2 primitive. If the architectural path requires object-level implication, IfLf provides it without violating the user's instruction.
 
-## Must-have invariants (unchanged)
+2. **closed sub-derivations (`treeEqSelf c`, `diagFTargetCR`) don't need axiom-level encoding** — they can be packaged via `encT ∘ thm14EV3` at the meta level.
 
-- **No postulates. No holes.** If something cannot be closed, stop and write a session doc.
-- **Every file compiles under 10s** via abstract blocks and fused lemmas.
-- **Use `~/.cabal/bin/agda-2.9.0`**, not `/opt/homebrew/bin/agda`.
-- **No new Term/Step primitives.** `RecP` is sufficient; everything else can be built.
-- **Stay syntactic.** No semantic arguments, no "true but unprovable" reasoning — only Deriv.
+3. **`corrPf` is the load-bearing obstacle** — its encoding requires second-order thm14EV3 or a different architecture.
 
-## Sanity check at the start of the next session
+4. **The skeleton (`Guard/GodelIIClassicalSkel.agda`) is CORRECT** — if we can supply `Phi` and `strongPhiCorr`, Gödel II follows in ~20 lines. This means the ARCHITECTURE is validated even before Phi is built.
+
+## Recommended next step for the following session
+
+**Try approach (C)** — prove `strongPhiCorr` by Schema F / direct induction, sidestepping the need for `encCorrPf` entirely. Specifically:
+- Define a trial Phi = `KT (some-constant)` or similar minimal closed form.
+- Attempt to prove strongPhiCorr by hand for this trivial Phi.
+- If impossible for trivial Phi, identify the minimal structural property Phi needs, then design Phi to match.
+
+If (C) turns out intractable, revert to (A): continue the axiom encoders and build full Phi over another 2–3 sessions.
+
+## Must-have invariants
+
+- No postulates, no holes. ✓
+- Each file under 10s. ✓ (biggest so far is 0.30s)
+- `~/.cabal/bin/agda-2.9.0`, not `/opt/homebrew/bin/agda`. ✓
+- `--safe --without-K --exact-split`. ✓
+
+## Sanity check
 
 ```
 ~/.cabal/bin/agda-2.9.0 Guard/ProofEnc.agda
+~/.cabal/bin/agda-2.9.0 Guard/GodelIIClassicalSkel.agda
 ~/.cabal/bin/agda-2.9.0 Guard/GodelIClassical.agda
 ```
-
-Both should succeed in under 1s with no output.
-
-## Open architectural question for user
-
-The NEXT-SESSION doc's "bridge equation" claim:
-> "it follows from `phiCorr` by `congR`/`congL TreeEq`"
-
-But `phiCorr` (in the Option B / user's deviation formulation) is a meta-level function type, not a Deriv. `congR` takes a Deriv, not a function. So the bridge can't "follow" from `phiCorr` by congR directly.
-
-**Need user input** on whether to:
-- (a) formulate `phiCorr` as a Deriv rather than a meta-function (object-language ⇒ on encoded proofs — which is a specific schema relation we'd have to express via IfLf on encoded equations);
-- (b) change the proof strategy of `godelIIClassical` so it doesn't need the bridge equation (e.g., use Schema F-induction over all v_0);
-- (c) weaken the goal — e.g., prove `godelIIClassicalContra` directly at the meta level without building `Deriv Triv gsCR`.
-
-**Recommendation from this session**: option (c). Under option (c), `godelIIClassicalContra con d` does the following meta-level argument:
-- Suppose (for contradiction) `con : Consistent Triv` and `d : Deriv Triv ConTriv`.
-- Build encT-style encoding `enc_d = encT (thm14EV3 d)` : closed Term.
-- Instantiate `d` at `var zero := reify (code enc_d)` (or similar) to get a specific Deriv equation.
-- ... still needs a bridge to ⊥. ???
-
-Option (c) also doesn't trivially work. This deserves a dedicated design session.
+All should succeed under 1s with no output.
