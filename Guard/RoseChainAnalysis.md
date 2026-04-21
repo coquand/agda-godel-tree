@@ -185,6 +185,89 @@ premise factored).  The theorem `godelIIClassicalTrivWithCore`
 reduces classical Gödel II over Triv to a single precise open
 lemma of known content.
 
+### Session update 2: Option (i) executed
+
+Implemented `Guard/RoseLemma1T.agda` (614 lines, 0.25s, no postulates)
+-- the Ryan-style Lemma 1 over the ambient `thmT trivCT`, matching
+Rose (1967) and Ryan (1978) Lemma 1.  Key structural difference from
+`Guard/RoseLemma1.agda`:
+
+  * `Lemma1T H B` fixes the evaluator to `thmT trivCT` throughout,
+    rather than `thmT (reify (codeEqn H))`.
+  * At each closed axiom case (axI / axFst / ... / axRecPNd), uses
+    `enc*Corr trivCT` directly from `Guard.ProofEnc` instead of
+    `fromProofE3 (thm14EV3Ax* H)`.
+  * Structural cases (Sym / Trans / Cong1 / CongL / CongR / Inst / F)
+    use the same hCode-parametric encoders at `hCode = trivCT`.
+  * Hypothesis case (`roseL1T_Hyp`) splices in caller-supplied
+    `tPa, tPb, tCorr, tPass` unchanged.
+  * Top-level `roseLemma1T : Deriv H B -> ... -> Lemma1T H B` with
+    full dispatch over all 28 Deriv constructors.
+
+The key object `dAux : Deriv H_enc B_aux` is now exhibited in
+`Guard/GodelIIClassicalTriv.agda`:
+
+  H_enc = "Pair (var 0) (var 1) encodes gsCR under thmT trivCT"
+  B_aux = "TreeEq (thmT trivCT (Pair v0 v1)) diagBody = O"
+
+  dAux = ruleTrans (congL TreeEq diagBody (ruleHyp {H_enc}))
+                   (ruleTrans (congR TreeEq (reify cGSCR) diagFTargetCR)
+                              (treeEqSelf (reify cGSCR)))
+
+`dAuxEncoded` witnesses that `roseLemma1T dAux` typechecks and
+produces a `Lemma1T H_enc B_aux`.
+
+### What remains to close godelIIClassicalTriv
+
+With Lemma1T implemented and dAux exhibited, the remaining chain
+(Rose/Ryan Theorem 4 last step) is:
+
+ 1. Apply `roseLemma1T dAux` with  tPa = var 0 , tPb = var 1 ,
+    and  tCorr = hypothetical "Pair v0 v1 encodes gsCR".  The
+    hypothesis H_enc is played against `ruleHyp`, so tCorr gets
+    substituted where `dAux` uses `ruleHyp{H_enc}`.  Result:
+    `V : Term` with
+      `vCorr : thmT trivCT V = reify (codeEqn B_aux)`.
+
+ 2. Instantiate  dCon  at  var 0 := V : object-level theorem
+      `impT (TreeEq (thmT trivCT V) codeBotT) falseT = trueT`.
+
+ 3. Establish the tree-disequality fact
+      `TreeEq (reify (codeEqn B_aux)) codeBotT = poo`
+    via  axTreeEqNN  recursive decomposition (or by showing the
+    two trees differ in a specific slot).  The two trees ARE
+    syntactically distinct --  codeEqn B_aux  = codeEqn (eqn LHS O)
+    vs  codeBot = codeEqn (eqn O poo) -- so this is a concrete
+    computation.
+
+ 4. Combine:  thmT trivCT V = reify (codeEqn B_aux) (from 1)
+    with  TreeEq (reify (codeEqn B_aux)) codeBotT = poo (from 3)
+    to obtain  TreeEq (thmT trivCT V) codeBotT = poo .  Apply the
+    impT-instance from 2 with a  falseT  antecedent  (poo = Pair O O
+    matches the Pair-shape antecedent pattern of the impT
+    evaluation): step 2's impT says "if antecedent is O, consequent
+    falseT; else trueT".  With antecedent = poo (Pair), impT
+    evaluates to trueT vacuously.  We need the OTHER direction:
+    with antecedent = O (trueT).
+
+ 5. Use the  Pair v0 v1  hypothesis to reduce the antecedent to
+    trueT, close the chain via modus ponens to get  falseT = trueT
+    under the H_enc hypothesis.  This is the final contrapositive
+    step (if Pair v0 v1 encodes gsCR, then inconsistency).
+
+ 6. Wrap up in object-level  impT  to get Schema-F step-F premise
+    proper.
+
+Estimated additional work: 150-300 more lines of Deriv-level tree-
+disequality + modus-ponens chain.  The non-trivial piece is step 5/6
+(object-level contrapositive closure), not any of steps 1-4 which
+are direct applications of existing machinery.
+
+Total session 2 output:
+  * `Guard/RoseLemma1T.agda`  (614 lines, new).
+  * `Guard/GodelIIClassicalTriv.agda` additions (+90 lines).
+  All clean, no postulates.
+
 ## Why stopping now
 
 With roseLemma1 (669 lines) complete, the "hard" machinery IS in
