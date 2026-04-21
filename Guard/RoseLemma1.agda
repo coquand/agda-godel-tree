@@ -601,3 +601,69 @@ roseL1F H f g z s sub1 sub2 sub3 sub4 = mkL1 vPa' vPb' corr' pass'
   pass' x' rcs = encRuleFPass hCode f g zC sC
                    (vTerm sub1) (vTerm sub2) (vTerm sub3) (vTerm sub4)
                    x' rcs
+
+------------------------------------------------------------------------
+-- Top-level recursion: apply Rose's Lemma 1 to any Deriv.
+--
+-- Given d : Deriv H B, produce a Lemma1At1 H B parameterised by the
+-- caller-supplied hypothesis proof-code (tPa, tPb) + tCorr + tPass.
+--
+-- The recursion structurally mirrors thm14EV3, except that the
+-- hypothesis case returns t = ap2 Pair tPa tPb  instead of case26-
+-- encoded  reify (codeEqn H).
+
+roseLemma1 : {H B : Equation} (d : Deriv H B) ->
+  (tPa tPb : Term) ->
+  ({hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT (hCodeOf H)) (ap2 Pair tPa tPb))
+                   (reify (codeEqn H)))) ->
+  ((x' rcs : Term) {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 (hCodeOf H))
+                        (ap2 Pair (ap2 Pair tPa tPb) x') rcs)
+                   (ap2 sndArg2
+                        (ap2 Pair (ap2 Pair tPa tPb) x') rcs))) ->
+  Lemma1At1 H B
+roseLemma1 {H} (axI x)          tPa tPb _ _ = roseL1AxI H x
+roseLemma1 {H} (axFst a b)      tPa tPb _ _ = roseL1AxFst H a b
+roseLemma1 {H} (axSnd a b)      tPa tPb _ _ = roseL1AxSnd H a b
+roseLemma1 {H} (axConst a b)    tPa tPb _ _ = roseL1AxConst H a b
+roseLemma1 {H} (axComp f g x)   tPa tPb _ _ = roseL1AxComp H f g x
+roseLemma1 {H} (axComp2 h f g x) tPa tPb _ _ = roseL1AxComp2 H h f g x
+roseLemma1 {H} (axLift f a b)   tPa tPb _ _ = roseL1AxLift H f a b
+roseLemma1 {H} (axPost f h a b) tPa tPb _ _ = roseL1AxPost H f h a b
+roseLemma1 {H} (axFan h1 h2 h a b) tPa tPb _ _ = roseL1AxFan H h1 h2 h a b
+roseLemma1 {H} (axKT x y)       tPa tPb _ _ = roseL1AxKT H x y
+roseLemma1 {H} (axRecLf z s)    tPa tPb _ _ = roseL1AxRecLf H z s
+roseLemma1 {H} (axRecNd z s a b) tPa tPb _ _ = roseL1AxRecNd H z s a b
+roseLemma1 {H} (axRecPLf s p)   tPa tPb _ _ = roseL1AxRecPLf H s p
+roseLemma1 {H} (axRecPNd s p a b) tPa tPb _ _ = roseL1AxRecPNd H s p a b
+roseLemma1 {H} (axIfLfL a b)    tPa tPb _ _ = roseL1AxIfLfL H a b
+roseLemma1 {H} (axIfLfN x y a b) tPa tPb _ _ = roseL1AxIfLfN H x y a b
+roseLemma1 {H} axTreeEqLL       tPa tPb _ _ = roseL1AxTreeEqLL H
+roseLemma1 {H} (axTreeEqLN a b) tPa tPb _ _ = roseL1AxTreeEqLN H a b
+roseLemma1 {H} (axTreeEqNL a b) tPa tPb _ _ = roseL1AxTreeEqNL H a b
+roseLemma1 {H} (axTreeEqNN a1 a2 b1 b2) tPa tPb _ _ =
+  roseL1AxTreeEqNN H a1 a2 b1 b2
+roseLemma1 {H} (axRefl x)       tPa tPb _ _ = roseL1AxRefl H x
+roseLemma1 {H} ruleHyp          tPa tPb tCorr tPass =
+  roseL1Hyp H tPa tPb tCorr tPass
+roseLemma1 {H} (ruleSym {t} {u} d) tPa tPb tCorr tPass =
+  roseL1Sym H t u (roseLemma1 d tPa tPb tCorr tPass)
+roseLemma1 {H} (ruleTrans {t} {u} {v} d1 d2) tPa tPb tCorr tPass =
+  roseL1Trans H t u v
+    (roseLemma1 d1 tPa tPb tCorr tPass)
+    (roseLemma1 d2 tPa tPb tCorr tPass)
+roseLemma1 {H} (cong1 f {t} {u} d) tPa tPb tCorr tPass =
+  roseL1Cong1 H t u f (roseLemma1 d tPa tPb tCorr tPass)
+roseLemma1 {H} (congL g {t} {u} x d) tPa tPb tCorr tPass =
+  roseL1CongL H t u g x (roseLemma1 d tPa tPb tCorr tPass)
+roseLemma1 {H} (congR g x {t} {u} d) tPa tPb tCorr tPass =
+  roseL1CongR H t u g x (roseLemma1 d tPa tPb tCorr tPass)
+roseLemma1 {H} (ruleInst x t {eqn l r'} d) tPa tPb tCorr tPass =
+  roseL1Inst H l r' x t (roseLemma1 d tPa tPb tCorr tPass)
+roseLemma1 {H} (ruleF f g z s d1 d2 d3 d4) tPa tPb tCorr tPass =
+  roseL1F H f g z s
+    (roseLemma1 d1 tPa tPb tCorr tPass)
+    (roseLemma1 d2 tPa tPb tCorr tPass)
+    (roseLemma1 d3 tPa tPb tCorr tPass)
+    (roseLemma1 d4 tPa tPb tCorr tPass)
