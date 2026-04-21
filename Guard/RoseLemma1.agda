@@ -26,6 +26,7 @@ open import Guard.ThFunTForDefs using (sndArg2)
 open import Guard.ThFunTForV3Pass using (ndDispatchV3PairMiss)
 open import Guard.Thm14EV3
 open import Guard.ProofEnc
+open import Guard.SubstOp using (substOp ; substOpCorrect)
 
 private
   hCodeOf : Equation -> Term
@@ -116,6 +117,56 @@ private
   f1DM hCode (KT t)        x' rc' =
     ndDispatchV3PairMiss hCode O (reify (natCode (suc (suc (suc (suc (suc (suc n25))))))))
       (reify (code t)) x' rc'
+
+  -- Local copy of aRPassV3: dispatch-miss at (code t, natCode x) pair
+  -- used for ruleInst.
+
+  aRPass : (hCode : Term) (t : Term) (x : Nat) (x' rc' : Term) ->
+           {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                    (ap2 Pair (ap2 Pair (reify (code t)) (reify (natCode x))) x') rc')
+                   (ap2 sndArg2
+                    (ap2 Pair (ap2 Pair (reify (code t)) (reify (natCode x))) x') rc'))
+  aRPass hCode O         x x' rc' =
+    ndDispatchV3PairMiss hCode O O (reify (natCode x)) x' rc'
+  aRPass hCode (var n)   x x' rc' =
+    ndDispatchV3PairMiss hCode (reify tagVar) (reify (natCode n))
+                               (reify (natCode x)) x' rc'
+  aRPass hCode (ap1 f t) x x' rc' =
+    ndDispatchV3PairMiss hCode (reify tagAp1)
+      (ap2 Pair (reify (codeF1 f)) (reify (code t)))
+      (reify (natCode x)) x' rc'
+  aRPass hCode (ap2 g a b) x x' rc' =
+    ndDispatchV3PairMiss hCode (reify tagAp2)
+      (ap2 Pair (reify (codeF2 g)) (ap2 Pair (reify (code a)) (reify (code b))))
+      (reify (natCode x)) x' rc'
+
+  -- Local copy of f1gDispMissV3 for Schema F.
+
+  f1gDM : (hCode : Term) (f g : Fun1) (x' rc' : Term) -> {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                     (ap2 Pair (ap2 Pair (reify (codeF1 f)) (reify (codeF1 g))) x') rc')
+                   (ap2 sndArg2
+                     (ap2 Pair (ap2 Pair (reify (codeF1 f)) (reify (codeF1 g))) x') rc'))
+  f1gDM hCode I             g' x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc n25))) O (reify (codeF1 g')) x' rc'
+  f1gDM hCode Fst           g' x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc (suc n25)))) O (reify (codeF1 g')) x' rc'
+  f1gDM hCode Snd           g' x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc (suc (suc n25))))) O (reify (codeF1 g')) x' rc'
+  f1gDM hCode (Comp f1 f2)  g' x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc (suc (suc (suc n25))))))
+      (ap2 Pair (reify (codeF1 f1)) (reify (codeF1 f2))) (reify (codeF1 g')) x' rc'
+  f1gDM hCode (Comp2 h f1 f2) g' x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc (suc (suc (suc (suc n25)))))))
+      (ap2 Pair (reify (codeF2 h)) (ap2 Pair (reify (codeF1 f1)) (reify (codeF1 f2))))
+      (reify (codeF1 g')) x' rc'
+  f1gDM hCode (Rec z' s')   g' x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc (suc (suc (suc (suc (suc n25))))))))
+      (ap2 Pair (reify (code z')) (reify (codeF2 s'))) (reify (codeF1 g')) x' rc'
+  f1gDM hCode (KT t)        g' x' rc' =
+    ndDispatchV3PairMiss hCode (reify (natCode (suc (suc (suc (suc (suc (suc (suc n25)))))))))
+      (reify (code t)) (reify (codeF1 g')) x' rc'
 
 ------------------------------------------------------------------------
 -- Lemma1At1 record: a proof-encoding split into pa/pb with correctness
@@ -448,3 +499,105 @@ roseL1CongR H t u g x sub = mkL1 vPa' vPb' corr' pass'
                          (ap2 sndArg2
                               (ap2 Pair (ap2 Pair vPa' vPb') x') rcs))
   pass' x' rcs = encCongRPass hCode g xC (vPa sub) (vPb sub) x' rcs
+
+-- ruleInst: Lemma1At1 H (eqn l r') -> Lemma1At1 H (eqn (subst x t l) (subst x t r')).
+--
+-- encRuleInstCorr's output is in terms of substOp; we bridge via
+-- substOpCorrect to express the result as  reify (codeEqn (subst ..))
+
+roseL1Inst : (H : Equation) (l r' : Term) (x : Nat) (t : Term) ->
+  Lemma1At1 H (eqn l r') ->
+  Lemma1At1 H (eqn (subst x t l) (subst x t r'))
+roseL1Inst H l r' x t sub = mkL1 vPa' vPb' corr' pass'
+  where
+  hCode : Term ; hCode = hCodeOf H
+  tC : Term ; tC = reify (code t)
+  xC : Term ; xC = reify (natCode x)
+  lC : Term ; lC = reify (code l)
+  r'C : Term ; r'C = reify (code r')
+  aR : Term ; aR = ap2 Pair tC xC
+
+  vPa' : Term
+  vPa' = reify (natCode n23)
+
+  vPb' : Term
+  vPb' = ap2 Pair aR (ap2 Pair (vPa sub) (vPb sub))
+
+  -- Bridge: Pair (substOp aR lC) (substOp aR r'C) = Pair (code (subst x t l)) (code (subst x t r'))
+
+  substBoth : {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 Pair (ap2 substOp aR lC) (ap2 substOp aR r'C))
+                   (ap2 Pair (reify (code (subst x t l)))
+                             (reify (code (subst x t r')))))
+  substBoth =
+    ruleTrans (congL Pair (ap2 substOp aR r'C) (substOpCorrect t x l))
+              (congR Pair (reify (code (subst x t l)))
+                          (substOpCorrect t x r'))
+
+  corr' : {hyp : Equation} ->
+          Deriv hyp (eqn (ap1 (thmT hCode) (ap2 Pair vPa' vPb'))
+                         (reify (codeEqn (eqn (subst x t l) (subst x t r')))))
+  corr' {hyp} =
+    ruleTrans
+      (encRuleInstCorr hCode aR (vPa sub) (vPb sub) lC r'C
+        (\x' rc' {hyp'} -> aRPass hCode t x x' rc')
+        (vCorr sub))
+      substBoth
+
+  pass' : (x' rcs : Term) {hyp : Equation} ->
+          Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                              (ap2 Pair (ap2 Pair vPa' vPb') x') rcs)
+                         (ap2 sndArg2
+                              (ap2 Pair (ap2 Pair vPa' vPb') x') rcs))
+  pass' x' rcs = encRuleInstPass hCode aR (vPa sub) (vPb sub) x' rcs
+
+-- ruleF (Schema F): four sub-derivations combine into a conclusion
+-- about f and g.  V takes the four sub-V's from our four sub-Lemma1At1s.
+--
+-- Deriv rule: from four premises (f-base, f-step, g-base, g-step),
+-- conclude  eqn (ap1 f (var 0)) (ap1 g (var 0)).
+
+roseL1F : (H : Equation) (f g : Fun1) (z : Term) (s : Fun2) ->
+  Lemma1At1 H (eqn (ap1 f O) z) ->
+  Lemma1At1 H (eqn (ap1 f (ap2 Pair (var zero) (var (suc zero))))
+                    (ap2 s (ap2 Pair (var zero) (var (suc zero)))
+                           (ap2 Pair (ap1 f (var zero))
+                                     (ap1 f (var (suc zero)))))) ->
+  Lemma1At1 H (eqn (ap1 g O) z) ->
+  Lemma1At1 H (eqn (ap1 g (ap2 Pair (var zero) (var (suc zero))))
+                    (ap2 s (ap2 Pair (var zero) (var (suc zero)))
+                           (ap2 Pair (ap1 g (var zero))
+                                     (ap1 g (var (suc zero)))))) ->
+  Lemma1At1 H (eqn (ap1 f (var zero)) (ap1 g (var zero)))
+roseL1F H f g z s sub1 sub2 sub3 sub4 = mkL1 vPa' vPb' corr' pass'
+  where
+  hCode : Term ; hCode = hCodeOf H
+  zC : Term ; zC = reify (code z)
+  sC : Term ; sC = reify (codeF2 s)
+
+  vPa' : Term
+  vPa' = reify (natCode n24)
+
+  vPb' : Term
+  vPb' = ap2 Pair (ap2 Pair (reify (codeF1 f)) (reify (codeF1 g)))
+                  (ap2 Pair (ap2 Pair zC sC)
+                            (ap2 Pair (ap2 Pair (vTerm sub1) (vTerm sub2))
+                                      (ap2 Pair (vTerm sub3) (vTerm sub4))))
+
+  corr' : {hyp : Equation} ->
+          Deriv hyp (eqn (ap1 (thmT hCode) (ap2 Pair vPa' vPb'))
+                         (reify (codeEqn (eqn (ap1 f (var zero))
+                                              (ap1 g (var zero))))))
+  corr' {hyp} =
+    encRuleFCorr hCode f g zC sC
+      (vTerm sub1) (vTerm sub2) (vTerm sub3) (vTerm sub4)
+      (\x' rc' {hyp'} -> f1gDM hCode f g x' rc')
+
+  pass' : (x' rcs : Term) {hyp : Equation} ->
+          Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                              (ap2 Pair (ap2 Pair vPa' vPb') x') rcs)
+                         (ap2 sndArg2
+                              (ap2 Pair (ap2 Pair vPa' vPb') x') rcs))
+  pass' x' rcs = encRuleFPass hCode f g zC sC
+                   (vTerm sub1) (vTerm sub2) (vTerm sub3) (vTerm sub4)
+                   x' rcs
