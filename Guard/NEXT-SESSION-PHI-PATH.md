@@ -49,13 +49,14 @@ extends to derivations that depend on `d`.
 4. ~~**Write `encRuleHyp` (n26)**~~ — DONE (commit `a54f0f5`).
 5. ~~**Write remaining axiom encoders**~~ — DONE (commits `790ae1c`,
    `97946e9`, `13344a9`, `64761d7`).  All 12 axiom encoders ported.
-6. **Write `encRuleF` (n24)** — FOUR sub-proofs.  Hardest remaining.
-   Pattern from `Guard.Thm14EV3.thm14EV3RuleF` (around line 2050+).
-   Likely needs its own session (~200+ lines).
-7. **Tackle `encCorrPf`**: investigate whether the meta-reflection
-   pattern from `EncSelfEq.agda` extends to d-dependent cases by
-   parameterising thm14EV3 over a hypothetical `d`.  Load-bearing
-   second-order reflection question; potentially the longest piece.
+6. ~~**Write `encRuleF` (n24)**~~ — DONE (commit `a1dd11f`).  131 lines;
+   case24 dispatches purely on f/g; sub-encodings stored only for
+   nested-thm14EV3 reflection.  dispMiss taken as parameter.
+7. **Tackle `encCorrPf`** — the only remaining piece.  Investigate
+   whether the meta-reflection pattern from `EncSelfEq.agda` extends to
+   d-dependent cases by parameterising thm14EV3 over a hypothetical `d`.
+   Load-bearing second-order reflection question; this is design work,
+   not mechanical porting — recommend a fresh session for it.
 
 ## Current encoder roster (post-session)
 
@@ -85,14 +86,15 @@ extends to derivations that depend on `d`.
 | n21 | `encCongL`                    | rule  (1 sub)     |
 | n22 | `encCongR`                    | rule  (1 sub)     |
 | n23 | `encRuleInst`                 | rule  (1 sub)     |
+| n24 | `encRuleF`                    | rule  (4 subs)    |
 | n25 | `encAxKT`                     | axiom (2 args)    |
 | n26 | `encRuleHyp`                  | hypothesis        |
 | n27 | `encAxRecPLf`                 | axiom (2 args)    |
 | n28 | `encAxRecPNd`                 | axiom (4 args)    |
 
-**26 / 28 encoders done.**  Remaining: n24 (`encRuleF`) + `encCorrPf`.
+**27 / 28 encoders done.**  Only `encCorrPf` remains.
 
-ProofEnc.agda is 2390 lines, compiles in ~0.17s.  No postulates,
+ProofEnc.agda is 2521 lines, compiles in ~0.17s.  No postulates,
 no holes anywhere.
 
 Each combinator has the same skeleton as `encRuleSym` and `encRuleTrans`
