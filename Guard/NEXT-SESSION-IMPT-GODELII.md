@@ -1,5 +1,55 @@
 # Next Session: Gödel II via object-level implication (Rose/Ryan approach)
 
+## Command for fresh session
+
+From `/Users/coquand/CHWISTEK`:
+
+```
+claude
+```
+
+Then paste:
+
+```
+Read Guard/NEXT-SESSION-IMPT-GODELII.md for full context, then proceed.
+
+Goal: prove classical Gödel II following Rose (1967) Theorem 4 / Ryan
+(1978), using the object-level implication  impT A B = ap2 IfLf A
+(ap2 Pair B O)  prototyped in Guard/ImpT.agda.  This replaces the
+abandoned strongPhiCorr approach (see Guard/StrongPhiCorrAnalysis.agda
+and Guard/EncCorrPfAnalysis.agda for why the pure-equational path
+failed).
+
+Start by running:
+  ~/.cabal/bin/agda-2.9.0 Guard/ImpT.agda
+Should compile under 0.1s with no output.
+
+Five-layer plan per NEXT-SESSION-IMPT-GODELII.md:
+  L1 Guard/ImpT.agda          (DONE)
+  L2 Guard/ImpTProp.agda      propositional theorems
+  L3 Guard/RoseDC1.agda       Lemma 2 packaging
+  L4 Guard/RoseDC2.agda       Rose's Lemma 1 (the creative work)
+  L5 Guard/GodelIIRose.agda   Theorem 4 transcription
+
+Begin with L2.  Each theorem compiles cleanly before moving on.
+
+Use ~/.cabal/bin/agda-2.9.0 (NOT /opt/homebrew/bin/agda).
+Conventions: --safe --without-K --exact-split.
+No postulates, no holes.
+Object-level implication IS PERMITTED -- it is defined in
+Guard/ImpT.agda via existing IfLf primitives; no extension of Deriv.
+Reference papers: Rose1.pdf (Rose 1967, esp. Lemma 1 and Theorem 4),
+Ryan.pdf (Ryan 1978, cleaner restatement of Rose's proof).
+Commit and push after each file compiles clean.
+
+If any layer reveals an unexpected obstruction, document in a
+markdown file (mirror the StrongPhiCorrAnalysis.agda / 
+EncCorrPfAnalysis.agda style) and suggest next steps before
+continuing.
+
+Proceed autonomously.
+```
+
 ## Motivation
 
 The earlier attempts at classical Gödel II via
