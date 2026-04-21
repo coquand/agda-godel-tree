@@ -33,6 +33,7 @@ open import Guard.ThFunTForV3
 open import Guard.ThFunTForV3Defs
 open import Guard.ThFunTForV3Pass
 open import Guard.ExtractorRed
+open import Guard.SubstOp using (substOp)
 
 private
   n0  : Nat ; n0  = zero
@@ -467,3 +468,97 @@ encCongRPass :
 encCongRPass hCode g xC paR pbR x rcs =
   ndDispatchV3PairMiss hCode O (reify (natCode n21))
     (ap2 Pair (ap2 Pair (reify (codeF2 g)) xC) (ap2 Pair paR pbR)) x rcs
+
+------------------------------------------------------------------------
+-- Navigation: ndDispatchV3 -> case23V3 at tag n23 (ruleInst).
+
+ndDisp23V3Pub : (hCode d r : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair (reify (natCode n23)) d) r)
+                 (ap2 case23V3 (ap2 Pair (reify (natCode n23)) d) r))
+ndDisp23V3Pub hCode d r =
+  ruleTrans (ndBranchMiss n23 n0  case0  (ndT1V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n1  case1  (ndT2V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n2  case2  (ndT3V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n3  case3  (ndT4V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n4  case4  (ndT5V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n5  case5  (ndT6V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n6  case6  (ndT7V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n7  case7  (ndT8V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n8  case8  (ndT9V3  hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n9  case9  (ndT10V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n10 case10 (ndT11V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n11 case11 (ndT12V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n12 case12 (ndT13V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n13 case13 (ndT14V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n14 case14 (ndT15V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n15 case15 (ndT16V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n16 case16 (ndT17V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n17 case17 (ndT18V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n18 case18 (ndT19V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n19 case19V3 (ndT20V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n20 case20 (ndT21V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n21 case21 (ndT22V3 hCode) d r refl)
+  (ruleTrans (ndBranchMiss n23 n22 case22 (ndT23V3 hCode) d r refl)
+             (ndBranchHit n23 case23V3 (ndT24V3 hCode) d r)))))))))))))))))))))))
+
+------------------------------------------------------------------------
+-- encRuleInst: wrap a sub-proof with the ruleInst tag (n23).
+--
+-- Encoding: Pair (natCode n23) (Pair aR subEnc) , where aR is the
+-- reified code-pair  Pair (reify (code t)) (reify (natCode x))  of the
+-- substitution parameters.  Caller supplies aR and its dispMiss.
+--
+-- Correctness yields  thmT hCode (encRuleInst ...) = Pair (substOp aR
+-- lC) (substOp aR r'C) .  Caller combines with substOpCorrect to reach
+-- codeEqn (subst x t l, subst x t r') as needed.
+
+encRuleInst : Term -> Term -> Term
+encRuleInst aR enc =
+  ap2 Pair (reify (natCode n23)) (ap2 Pair aR enc)
+
+encRuleInstCorr :
+  (hCode aR paR pbR lC r'C : Term) {hyp : Equation} ->
+  ((x' rc' : Term) {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 hCode) (ap2 Pair aR x') rc')
+                   (ap2 sndArg2 (ap2 Pair aR x') rc'))) ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (ap2 Pair paR pbR)) (ap2 Pair lC r'C)) ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (encRuleInst aR (ap2 Pair paR pbR)))
+                 (ap2 Pair (ap2 substOp aR lC) (ap2 substOp aR r'C)))
+encRuleInstCorr hCode aR paR pbR lC r'C {hyp} dispMiss subCorr =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR dat)
+  (ruleTrans (congR (thmTStep hCode) enc recsExpand)
+  (ruleTrans (guardNdV3 hCode tagR aR spR recs')
+  (ruleTrans (ndDisp23V3Pub hCode dat recs')
+             (case23V3Match tagR aR spR
+                (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) aR) lC r'C))))
+  where
+  spR   : Term ; spR   = ap2 Pair paR pbR
+  tagR  : Term ; tagR  = reify (natCode n23)
+  dat   : Term ; dat   = ap2 Pair aR spR
+  enc   : Term ; enc   = ap2 Pair tagR dat
+  recs' : Term
+  recs' = ap2 Pair (ap1 (thmT hCode) tagR)
+                   (ap2 Pair (ap1 (thmT hCode) aR) (ap2 Pair lC r'C))
+
+  datExpand :
+    Deriv hyp (eqn (ap1 (thmT hCode) dat)
+                   (ap2 Pair (ap1 (thmT hCode) aR) (ap2 Pair lC r'C)))
+  datExpand =
+    ruleTrans (intermediateGenericV3 hCode aR spR paR pbR
+                (\x' rc' -> dispMiss x' rc'))
+              (congR Pair (ap1 (thmT hCode) aR) subCorr)
+
+  recsExpand :
+    Deriv hyp (eqn (ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) dat))
+                   recs')
+  recsExpand = congR Pair (ap1 (thmT hCode) tagR) datExpand
+
+encRuleInstPass :
+  (hCode aR paR pbR x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair (encRuleInst aR (ap2 Pair paR pbR)) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encRuleInst aR (ap2 Pair paR pbR)) x) rcs))
+encRuleInstPass hCode aR paR pbR x rcs =
+  ndDispatchV3PairMiss hCode O (reify (natCode n22))
+    (ap2 Pair aR (ap2 Pair paR pbR)) x rcs
