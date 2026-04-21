@@ -44,23 +44,44 @@ extends to derivations that depend on `d`.
 
 1. ~~**Write `encAxRefl` (n17)**~~ — DONE (commit `0e30100`).
 2. ~~**Write `encRuleCong1` (n20)**~~ — DONE (commit `12b3f24`).
-3. **Write `encAxTreeEq*` (n13–n16)** — needed for `treeEqSelf`-style
-   equations.  Each ~40–60 lines.  `encAxTreeEqLL` (n13) DONE
-   (commit `d92b40a`); `encAxTreeEqLN/NL/NN` remain.  Pattern: port
-   from `Guard.Thm14EV3.thm14EV3AxTreeEq*`, abstracting `hCode` from
-   `H`.
-4. **Write remaining axiom encoders**: `encAxConst` (n3), `encAxComp`
+3. ~~**Write `encAxTreeEq*` (n13–n16)**~~ — DONE
+   (commits `d92b40a`, `144143a`).
+4. ~~**Write `encRuleHyp` (n26)**~~ — DONE (commit `a54f0f5`).
+5. **Write remaining axiom encoders**: `encAxConst` (n3), `encAxComp`
    (n4), `encAxComp2` (n5), `encAxLift` (n6), `encAxPost` (n7),
    `encAxFan` (n8), `encAxRecLf` (n9), `encAxRecNd` (n10),
    `encAxIfLfL` (n11), `encAxIfLfN` (n12), `encAxRecPLf` (n27),
    `encAxRecPNd` (n28).  Each has a corresponding `thm14EV3Ax*` in
-   `Thm14EV3.agda` to port.
-5. **Write `encRuleHyp` (n26)** — case26 takes hCode as parameter
-   (the only case that does); tag-opaque pass via passthroughSucV3.
+   `Thm14EV3.agda` to port — see `encAxTreeEq*` for the porting
+   recipe (copy `correct` body, replace `hCode = reify (codeEqn H)`
+   with abstract `hCode` parameter, port `passF` to `enc*Pass`).
 6. **Write `encRuleF` (n24)** — FOUR sub-proofs.  Hardest remaining.
 7. **Tackle `encCorrPf`**: investigate whether the meta-reflection
    pattern from `EncSelfEq.agda` extends to d-dependent cases by
    parameterising thm14EV3 over a hypothetical `d`.
+
+## Current encoder roster (post-session)
+
+| Tag | Combinator                    | Kind              |
+|-----|-------------------------------|-------------------|
+| n0  | `encAxI`                      | axiom (1 arg)     |
+| n1  | `encAxFst`                    | axiom (2 args)    |
+| n2  | `encAxSnd`                    | axiom (2 args)    |
+| n13 | `encAxTreeEqLL`               | axiom (closed)    |
+| n14 | `encAxTreeEqLN`               | axiom (2 args)    |
+| n15 | `encAxTreeEqNL`               | axiom (2 args)    |
+| n16 | `encAxTreeEqNN`               | axiom (4 args)    |
+| n17 | `encAxRefl`                   | axiom (1 arg)     |
+| n18 | `encRuleSym`                  | rule  (1 sub)     |
+| n19 | `encRuleTrans`                | rule  (2 subs)    |
+| n20 | `encRuleCong1`                | rule  (1 sub)     |
+| n21 | `encCongL`                    | rule  (1 sub)     |
+| n22 | `encCongR`                    | rule  (1 sub)     |
+| n23 | `encRuleInst`                 | rule  (1 sub)     |
+| n25 | `encAxKT`                     | axiom (2 args)    |
+| n26 | `encRuleHyp`                  | hypothesis        |
+
+Remaining: n3..n12, n24, n27, n28 (12 axiom encoders + encRuleF).
 
 Each combinator has the same skeleton as `encRuleSym` and `encRuleTrans`
 in `Guard/ProofEnc.agda` — the work is mechanical once the navigation
