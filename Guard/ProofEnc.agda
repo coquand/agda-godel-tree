@@ -562,3 +562,149 @@ encRuleInstPass :
 encRuleInstPass hCode aR paR pbR x rcs =
   ndDispatchV3PairMiss hCode O (reify (natCode n22))
     (ap2 Pair aR (ap2 Pair paR pbR)) x rcs
+
+------------------------------------------------------------------------
+-- Axiom encoders (closed; no sub-proofs).
+--
+-- Each axiom of the Deriv system has its own tag (n0..n28) and a
+-- fixed body shape.  The encoder here mirrors thm14EV3Ax* from
+-- Guard.Thm14EV3 but takes the reified codes of the Term parameters
+-- directly, so the output's correctness speaks in terms of supplied
+-- reified codes (not opaque Terms).
+
+------------------------------------------------------------------------
+-- encAxI: axI t.  Tag n0 (reify = O).
+--
+-- encAxI tC = Pair O (Pair tC O) , where tC = reify (code t).
+-- Correctness: thmT hCode (encAxI tC) = codeEqn(eqn (ap1 I t) t) reified.
+
+encAxI : Term -> Term
+encAxI tC = ap2 Pair O (ap2 Pair tC O)
+
+encAxICorr : (hCode tC : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (encAxI tC))
+    (ap2 Pair (ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 I)) tC)) tC))
+encAxICorr hCode tC {hyp} =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+  (ruleTrans (guardNdV3 hCode tagR tC O recs)
+  (ruleTrans (ndBranchHit n0 case0 (ndT1V3 hCode) body recs)
+  (mkEqFRed (mkAp1F (kF2 codeIF) origA) origA enc recs
+    (ap2 Pair (reify tagAp1) (ap2 Pair codeIF tC)) tC
+    (mkAp1FRed (kF2 codeIF) origA enc recs codeIF tC
+      (kF2Red codeIF enc recs)
+      (origARed tagR tC O recs))
+    (origARed tagR tC O recs))))
+  where
+  tagR   : Term ; tagR   = O
+  body   : Term ; body   = ap2 Pair tC O
+  enc    : Term ; enc    = ap2 Pair tagR body
+  codeIF : Term ; codeIF = reify (codeF1 I)
+  recs   : Term
+  recs   = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+-- encAxIPass: requires the actual Term t (not just reified code) to
+-- pattern-match on t's structure for passthrough.
+
+encAxIPass :
+  (hCode : Term) (t : Term) (x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair (encAxI (reify (code t))) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encAxI (reify (code t))) x) rcs))
+encAxIPass hCode t x rcs = axIPassthroughV3 hCode t x rcs
+
+------------------------------------------------------------------------
+-- encAxFst / encAxSnd: Tag n1, n2.  Body = Pair aC bC.
+
+encAxFst : Term -> Term -> Term
+encAxFst aC bC = ap2 Pair (reify (natCode n1)) (ap2 Pair aC bC)
+
+encAxFstCorr : (hCode aC bC : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (encAxFst aC bC))
+    (ap2 Pair
+      (ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 Fst))
+        (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair aC bC)))))
+      aC))
+encAxFstCorr hCode aC bC {hyp} =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+  (ruleTrans (guardNdV3 hCode tagR aC bC recs)
+  (ruleTrans (ndBranchMiss n1 n0 case0 (ndT1V3 hCode) body recs refl)
+  (ruleTrans (ndBranchHit n1 case1 (ndT2V3 hCode) body recs)
+  (mkEqFRed (mkAp1F (kF2 codeFstF) (mkAp2F (kF2 pairCF) origA origB))
+            origA enc recs
+    (ap2 Pair (reify tagAp1) (ap2 Pair codeFstF
+      (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair aC bC)))))
+    aC
+    (mkAp1FRed (kF2 codeFstF) (mkAp2F (kF2 pairCF) origA origB)
+      enc recs codeFstF
+      (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair aC bC)))
+      (kF2Red codeFstF enc recs)
+      (mkAp2FRed (kF2 pairCF) origA origB enc recs pairCF aC bC
+        (kF2Red pairCF enc recs)
+        (origARed tagR aC bC recs)
+        (origBRed tagR aC bC recs)))
+    (origARed tagR aC bC recs)))))
+  where
+  tagR     : Term ; tagR     = reify (natCode n1)
+  body     : Term ; body     = ap2 Pair aC bC
+  enc      : Term ; enc      = ap2 Pair tagR body
+  codeFstF : Term ; codeFstF = reify (codeF1 Fst)
+  pairCF   : Term ; pairCF   = reify (codeF2 Pair)
+  recs     : Term
+  recs     = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+encAxFstPass :
+  (hCode : Term) (a b : Term) (x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair (encAxFst (reify (code a)) (reify (code b))) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encAxFst (reify (code a)) (reify (code b))) x) rcs))
+encAxFstPass hCode a b x rcs =
+  passthroughSucV3 hCode n0 (nd (code a) (code b)) x rcs
+
+encAxSnd : Term -> Term -> Term
+encAxSnd aC bC = ap2 Pair (reify (natCode n2)) (ap2 Pair aC bC)
+
+encAxSndCorr : (hCode aC bC : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (encAxSnd aC bC))
+    (ap2 Pair
+      (ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 Snd))
+        (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair aC bC)))))
+      bC))
+encAxSndCorr hCode aC bC {hyp} =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+  (ruleTrans (guardNdV3 hCode tagR aC bC recs)
+  (ruleTrans (ndBranchMiss n2 n0 case0 (ndT1V3 hCode) body recs refl)
+  (ruleTrans (ndBranchMiss n2 n1 case1 (ndT2V3 hCode) body recs refl)
+  (ruleTrans (ndBranchHit n2 case2 (ndT3V3 hCode) body recs)
+  (mkEqFRed (mkAp1F (kF2 codeSndF) (mkAp2F (kF2 pairCF) origA origB))
+            origB enc recs
+    (ap2 Pair (reify tagAp1) (ap2 Pair codeSndF
+      (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair aC bC)))))
+    bC
+    (mkAp1FRed (kF2 codeSndF) (mkAp2F (kF2 pairCF) origA origB)
+      enc recs codeSndF
+      (ap2 Pair (reify tagAp2) (ap2 Pair pairCF (ap2 Pair aC bC)))
+      (kF2Red codeSndF enc recs)
+      (mkAp2FRed (kF2 pairCF) origA origB enc recs pairCF aC bC
+        (kF2Red pairCF enc recs)
+        (origARed tagR aC bC recs)
+        (origBRed tagR aC bC recs)))
+    (origBRed tagR aC bC recs))))))
+  where
+  tagR     : Term ; tagR     = reify (natCode n2)
+  body     : Term ; body     = ap2 Pair aC bC
+  enc      : Term ; enc      = ap2 Pair tagR body
+  codeSndF : Term ; codeSndF = reify (codeF1 Snd)
+  pairCF   : Term ; pairCF   = reify (codeF2 Pair)
+  recs     : Term
+  recs     = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) body)
+
+encAxSndPass :
+  (hCode : Term) (a b : Term) (x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair (encAxSnd (reify (code a)) (reify (code b))) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encAxSnd (reify (code a)) (reify (code b))) x) rcs))
+encAxSndPass hCode a b x rcs =
+  passthroughSucV3 hCode n1 (nd (code a) (code b)) x rcs
