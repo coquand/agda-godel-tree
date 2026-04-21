@@ -1,4 +1,4 @@
-# Next session: execute the Goodstein-axiom plan
+# Next session: close stepFCoreFromConStrong (Phase C+D)
 
 ## Command
 
@@ -11,9 +11,10 @@ Then paste:
 ```
 Read Guard/NEXT-SESSION-GOODSTEIN.md and Guard/GOODSTEIN-PLAN.md for context, then proceed.
 
-Goal: add  axGoodstein  as a new Deriv axiom and execute the full
-fan-out, then close  stepFCoreFromConStrong  via the Goodstein-based
-treeEqRefl meta-function and Ryan's Main Theorem chain.
+Goal: transcribe Ryan's Main Theorem chain into
+stepFCoreFromConStrong : Deriv Triv ConTrivRoseStrong -> StepFCoreType
+using the Goodstein infrastructure delivered last session (axGoodstein
+axiom, treeEqRefl, extended roseLemma1T / thm14EV3 / ProofEnc chains).
 
 Conventions: --safe --without-K --exact-split, no postulates, no holes.
 Use ~/.cabal/bin/agda-2.9.0.
@@ -22,163 +23,183 @@ Commit after each major piece.
 Proceed autonomously.
 ```
 
-## Why the plan needs a full session (not a partial one)
+## Status
 
-Adding `axGoodstein` as a Deriv constructor requires updating
-EVERY pattern-match on Deriv in the repo.  Attempting a minimal
-add-then-stub approach fails because:
+Phases A and B of Guard/GOODSTEIN-PLAN.md are complete.
+Phase C (chain transcription) + Phase D (top-level closure) remain.
 
-- `roseLemma1T`'s new axGoodstein case requires a valid `Lemma1T`
-  record, which needs `vPa, vPb : Term` encoding the axiom plus
-  `vCorr : Deriv hyp (eqn (ap1 (thmT trivCT) (Pair vPa vPb)) (reify
-  (codeEqn B)))` — a polymorphic derivation that `thmT trivCT`
-  evaluates the encoding to the correct codeEqn.  No existing
-  encoding matches `B = eqn (ap2 IfLf ...) (ap2 IfLf ...)`; we
-  genuinely need a new dispatch case.
+### Delivered (committed)
 
-- Similarly `thm14EV3` needs a `ProofE3` record for this axiom, with
-  a new tag in `Guard/ThFunTForV3.agda`'s `ndDispatchV3` and a new
-  `case29` Fun2 that produces the correct codeEqn.
+- `[goodstein-A1-A2]` 1edbe6f — Guard/Step.agda adds axGoodstein
+  constructor; Guard/DerivLift.agda extends lift with axGoodstein case.
 
-- Without those, the fan-out leaves RoseLemma1T.agda and
-  Thm14EV3.agda non-exhaustive — Agda rejects them.
+- `[goodstein-A3-A6]` 5452b27 — full fan-out into the thmT evaluator
+  and Deriv-pattern-matching recursors:
+    * Guard/ThFunTForV3.agda: case29 + ndT29V3/ndT30V3 redesign
+    * Guard/ThFunTForV3Pass.agda: 29-miss ndDispatchV3PairMiss /
+      ndDispatchV3OPairMiss chains
+    * Guard/ProofEnc.agda: encAxGoodstein / encAxGoodsteinCorr /
+      encAxGoodsteinPass
+    * Guard/RoseLemma1T.agda: roseL1T_AxGoodstein + dispatch
+    * Guard/Thm14EV3.agda: thm14EV3AxGoodstein (wraps ProofEnc helpers)
+      + dispatch; imports Guard.ProofEnc (no cycle).
 
-Cannot ship a "partial" axGoodstein addition that leaves repo broken.
+- `[goodstein-B]` 11f3124 — Guard/TreeEqRefl.agda:
+    treeEqRefl : Deriv hyp (TreeEq a b = O) -> Deriv hyp (a = b)
+  Five-step chain using axGoodstein + axIfLfL + congL.
 
-## Sequence of work
+Guard/GodelIIClassicalTrivStrong.agda still typechecks; the
+top-level theorem remains parameterised by stepFCoreFromConStrong
+(now the only open piece).
 
-### Phase A (Infrastructure)
+### What remains: Phase C (chain transcription) + Phase D (close theorem)
 
-1. **`Guard/Step.agda`**: add `axGoodstein (a b : Term) : Deriv hyp
-   (eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O)) (ap2 IfLf (ap2
-   TreeEq a b) (ap2 Pair b O)))`.  ~4 lines.
-
-2. **`Guard/DerivLift.agda`**: `lift (axGoodstein a b) = axGoodstein
-   a b`.  1 line.
-
-3. **`Guard/ThFunTForV3.agda`**: extend `ndDispatchV3` to recognize a
-   new tag (say `n29`).  Currently the chain bottoms out at
-   `ndT29V3 = sndArg2`; replace with `ndT29V3 = branch (tc n29)
-   case29 sndArg2` where `case29 : Fun2` is the encoder for
-   axGoodstein.  Design `case29` as a Fan/Pair expression matching
-   the codeEqn of `eqn (IfLf (TreeEq a b) (Pair a O)) (IfLf (TreeEq
-   a b) (Pair b O))` from the input body encoding `Pair aC bC`
-   where `aC = reify (code a), bC = reify (code b)`.  ~20-30 lines.
-
-4. **`Guard/ProofEnc.agda`**: add `encAxGoodsteinCorr` and
-   `encAxGoodsteinPass` helpers — parallel to
-   `encAxTreeEqNNCorr/Pass`.  Use `ndBranchMiss` lemmas to navigate
-   to tag n29, then `ndBranchHit` + structural reduction.  ~40-80
-   lines.
-
-5. **`Guard/RoseLemma1T.agda`**: add `roseL1T_Goodstein : (H :
-   Equation) (a b : Term) -> Lemma1T H (eqn ...)` using the new
-   helpers, and extend the top-level `roseLemma1T` dispatch.  Also
-   extend the helper functions `aRPass`, `f1DM`, `f1gDM`, `f2xDM` in
-   the private block to route tag n29 through their ndDispatchV3PairMiss
-   calls.  ~30-60 lines.
-
-6. **`Guard/Thm14EV3.agda`**: add `thm14EV3Goodstein : (H : Equation)
-   (a b : Term) -> ProofE3 H (eqn ...)` parallel to `thm14EV3AxRefl`,
-   and extend the top-level `thm14EV3` dispatch.  Also add a
-   `axGoodsteinPassthroughV3` helper in `Guard/ThFunTForV3Pass.agda`
-   or equivalent.  ~80-150 lines.
-
-### Phase B (Reflection meta-function)
-
-7. **`Guard/TreeEqRefl.agda`** (new): define
+The target:
 
 ```agda
-treeEqRefl : {a b : Term} {hyp : Equation} ->
-             Deriv hyp (eqn (ap2 TreeEq a b) O) ->
-             Deriv hyp (eqn a b)
-treeEqRefl {a} {b} treeEqHyp =
-  ruleTrans
-    (ruleSym step3)
-    (ruleTrans step2 step4)
-  where
-  step1 : Deriv hyp (eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
-                         (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O)))
-  step1 = axGoodstein a b
-
-  -- Rewrite LHS of step1 using treeEqHyp.
-  step2 : Deriv hyp (eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
-                         (ap2 IfLf O (ap2 Pair a O)))
-  step2 = congL IfLf (ap2 Pair a O) treeEqHyp
-
-  step3 : Deriv hyp (eqn (ap2 IfLf O (ap2 Pair a O)) a)
-  step3 = axIfLfL a O
-
-  -- (Similarly bridge step1's RHS to b.)
-  ...
+stepFCoreFromConStrong :
+  Deriv Triv ConTrivRoseStrong -> StepFCoreType
+-- where StepFCoreType = Deriv Triv (eqn (ap2 TreeEq (thmT trivCT pv)
+--                                                    diagBody)
+--                                        poo)
+-- pv = Pair v0 v1
 ```
 
-~30-50 lines.
+#### Chain structure (per Ryan.pdf p.459 + Rose1.pdf p.383)
 
-### Phase C (Chain transcription)
+Reductio under the hypothetical
+`H_enc = eqn (ap1 (thmT trivCT) pv) (reify cGSCR)`
+("Pair v0 v1 encodes gsCR under thmT trivCT"):
 
-8. **`Guard/GodelIIClassicalTrivStrong.agda`**: transcribe Ryan's
-   Main Theorem chain into `stepFCoreFromConStrong`.  Uses:
-   `thm14EV3` (Lemma 2), `roseLemma1T` (Lemma 1), `eTCorrect` (ε),
-   `godelIClassical` (Lemma 3), `treeEqRefl` (new, from step 7),
-   `axGoodstein` (for any direct uses).
+1. Under H_enc: derive B_aux = `eqn (ap2 TreeEq (ap1 (thmT trivCT) pv)
+   diagBody) O` (= "TreeEq of thmT-evaluation and diagBody is 0").
 
-   Chain structure per Ryan.pdf p.459 Main Theorem + Rose1.pdf p.383
-   Theorem 4 proof:
+   dAux already exists in Guard/GodelIIClassicalTriv.agda (uses
+   ruleHyp{H_enc} + diagFTargetCR + treeEqSelf).
 
-   1. Assume dConStrong + reductio assumption "z is proof of gsCR"
-      (encoded as hypothesis `H_enc` using `ruleHyp`).
-   2. Under H_enc: derive `G(z) = 0` via `congR TreeEq + treeEqSelf`.
-   3. Apply `thm14EV3` to step 2's derivation → proof-code `p_G` with
-      `thmT trivCT p_G = reify (codeEqn {G(z) = 0})`.
-   4. Construct derivation `{G(z) = 0} ⊢ {se(N,N) = th(z)}` using
-      `treeEqRefl` (the new Goodstein-derived meta-function).
-   5. Apply `roseLemma1T` to step 4's derivation → V with `thmT
-      trivCT V = reify (codeEqn {se(N,N) = th(z)})` conditional on
-      tCorr for the hypothesis `{G(z) = 0}`.
-   6. Apply `eTCorrect` to get `ε(thmT trivCT V) = reify (codeEqn
-      {se(N,N) ≠ th(z)})`.
-   7. Apply `dConStrong` at (var 0 := z, var 1 := V) with the
-      transform from step 6.
-   8. Close by reductio against the diagonal identity
-      (`diagFTargetCR`) and `godelIClassical`.
+2. Apply roseLemma1T dAux v0 v1 tCorr tPass — produces V1 : Term with
 
-   ~200-400 lines.
+     vCorr₁ : Deriv hyp (thmT trivCT (Pair (vPa V1) (vPb V1))
+                         = reify (codeEqn B_aux))
 
-### Phase D (Close the top-level theorem)
+   conditional on caller's tCorr witnessing that Pair v0 v1 encodes
+   H_enc under thmT trivCT.
 
-9. **Provide `stepFCoreFromConStrong`** satisfying its type signature
-   in `Guard/GodelIIClassicalTrivStrong.agda`.  Combine with existing
-   `godelIIClassicalTrivStrongWithCoreFromCon` to obtain the actual
-   `godelIIClassicalTrivStrong : Consistent Triv -> Deriv Triv
-   ConTrivRoseStrong -> Empty`.
+3. Construct the key step via **treeEqRefl**:
 
-10. **Typecheck**: `~/.cabal/bin/agda-2.9.0
-    Guard/GodelIIClassicalTrivStrong.agda`.  Fix any errors.
+   Under the hyp "Pair v0 v1 encodes gsCR", we have (by 2.vCorr₁) that
+   V1 encodes B_aux = "TreeEq (thmT trivCT pv) diagBody = O".  Apply
+   treeEqRefl at the encoded level to transport this into the
+   equation  thmT trivCT pv = diagBody.  The detail: treeEqRefl
+   operates on terms directly, not encodings — the meta-role here is
+   to provide a Deriv (a = b) from Deriv (TreeEq a b = O).
 
-11. **Commit**: final commit with message summarising what's done.
+4. Apply roseLemma1T again to the Deriv-H_enc of
+   `thmT trivCT pv = diagBody` (from step 3): produces V2 : Term with
 
-## Estimated total
+     vCorr₂ : Deriv hyp (thmT trivCT V2 = reify (codeEqn
+                           (eqn (thmT trivCT pv) diagBody)))
 
-~400-700 lines, 1 focused session if infrastructure pieces click
-cleanly; 2 if the Thm14EV3 dispatch extension needs debugging (it's
-the most fragile part — 2448-line file, 29 existing tags, careful
-ndBranchHit/ndBranchMiss chain).
+   This is the "Lemma 1 twice" step of Rose Theorem 4.
 
-## Risk map
+5. Apply eTCorrect (Guard.RoseEFun) to V2's conclusion:
+     eT (thmT trivCT V2) = reify (codeEqn
+                           (eqn (TreeEq (thmT trivCT pv) diagBody) falseT))
+
+6. Apply dConStrong via ruleInst at (var 0 := Pair v0 v1, var 1 := V2):
+     impT (TreeEq (thmT trivCT pv) (eT (thmT trivCT V2))) falseT = trueT.
+
+7. Under the H_enc hypothesis, derive the antecedent of step 6 evaluates
+   to O (= trueT): thmT trivCT pv = eT (thmT trivCT V2) holds because
+   thmT trivCT pv = reify cGSCR (by H_enc) and eT (thmT trivCT V2) =
+   reify (codeEqn (...)) = reify (something equal to cGSCR via the
+   diagonal identity).  The exact shape needs diagFTargetCR plumbing.
+
+8. So impT O falseT = falseT (axIfLfL); but step 6 gives impT = trueT.
+   Hence Deriv H_enc (falseT = trueT) — inconsistency under H_enc.
+
+9. Discharge H_enc: since we have Deriv H_enc (falseT = trueT), we know
+   that Triv does NOT prove H_enc (else Triv would be inconsistent,
+   which is not what we're proving here).  This step is tricky — the
+   "does not prove" is a meta-statement, not an equation.
+
+10. The step-F core StepFCoreType states TreeEq (thmT trivCT pv)
+    diagBody = poo.  This holds iff  thmT trivCT pv ≠ diagBody  iff
+    H_enc is not provable.  Classical-Gödel-II reasoning uses the
+    above chain + Triv-consistency to derive this.
+
+#### The sticky point (noted last session)
+
+Step 2 needs a polymorphic-in-hyp tCorr.  The natural tCorr under
+hyp = H_enc would use ruleHyp — but roseLemma1T at tag n26 (case26)
+checks body against hCode = trivCT, not against reify (codeEqn H_enc).
+
+Three routes tried/considered historically (see
+Guard/RoseChainAnalysis.md lines 165-180):
+
+  (i) Encode tPa, tPb as direct Term-level witnesses of
+      H_enc's content + supply tCorr from a Triv-polymorphic chain
+      using axGoodstein + treeEqRefl.  This is the route the
+      Goodstein-axiom plan was designed to enable.
+
+  (ii) Redesign gsCR with a hypothesis-code slot (V3-style).  Requires
+       redoing the whole diagonal construction.
+
+  (iii) More Schema-F splits to bypass the Pair-var case.  Stuck on
+        open var 1.
+
+Route (i) is the intended path for this session.
+
+#### Key new lever: treeEqRefl
+
+`treeEqRefl` transforms `Deriv hyp (TreeEq a b = O)` into `Deriv hyp
+(a = b)`.  Previously, deriving `a = b` required a chain of congX
+rewrites and the equation `a = b` had to be explicit at the outer
+level.  treeEqRefl lets us work with TreeEq-form statements and
+project to equality form at the end, which matches the shape of
+Ryan's Main Theorem chain (the V2 encoding produces a TreeEq-form
+equation B_aux that we then convert to equality form for the next
+Lemma 1 application).
+
+### Size estimate
+
+200-400 lines for `stepFCoreFromConStrong`, per original plan.
+
+### Approach
+
+1. **Build the core hypothetical chain** (under hyp = H_enc):
+   dAux → roseLemma1T → treeEqRefl → roseLemma1T-again → eTCorrect →
+   ruleInst dConStrong → modus ponens → falseT = trueT.
+
+2. **Discharge H_enc** via the "internal Gödel II" trick.  Possibly
+   uses impTProp lemmas from Guard.ImpTProp to object-level-ify the
+   reasoning.
+
+3. **Plug into stepFCoreFromConStrong**.
+
+4. **Close** `godelIIClassicalTrivStrong = ... godelIIClassicalTrivStrongWithCoreFromCon stepFCoreFromConStrong`.
+
+### Files likely touched
+
+- `Guard/GodelIIClassicalTrivStrong.agda` (+200-400 lines).
+- Possibly `Guard/RoseLemma1T.agda` if a polymorphic tCorr helper
+  needs adding there.
+- Possibly `Guard/RoseEncE.agda` or `Guard/ImpTProp.agda` for auxiliary
+  object-level reasoning lemmas.
+
+### Risk map
 
 | Phase | Risk | Mitigation |
 |---|---|---|
-| A1-A2 | none | one-liners |
-| A3 (ThFunTForV3 dispatch) | low-medium | copy existing branch pattern |
-| A4 (ProofEnc helpers) | medium | parallel to existing enc*Corr/Pass |
-| A5 (RoseLemma1T case) | low-medium | 17+ existing analogues to copy |
-| A6 (Thm14EV3 case) | medium-high | 29 existing cases, but each very specific; the exact encoding structure for IfLf/Pair/TreeEq needs careful derivation |
-| B (TreeEqRefl) | low | purely local, uses axGoodstein + existing primitives |
-| C (chain) | medium | requires picking correct Term-level instantiations for dConStrong; specific roseLemma1T tCorr supply needs working out |
-| D | low | assembly |
+| Chain steps 1-7 | medium | use treeEqRefl + existing lemmas; worked-out sketch above |
+| Step 8 (falseT=trueT under H_enc) | low | reduces to axIfLfL + ruleTrans |
+| Step 9-10 (discharge H_enc + land on TreeEq = poo) | high | the "object-level contrapositive" step — may require new lemmas |
+| Phase D assembly | low | just godelIIClassicalTrivStrongWithCoreFromCon + composition |
 
-## Current session outcome
+## Past incarnations of this handoff
 
-Plan written + committed.  Infrastructure changes NOT made (reverted
-to keep repo green).  Handoff doc in place for next session.
+- Session 2026-04-21 (prior): plan written + infrastructure attempted
+  + reverted.  Handoff for axGoodstein full fan-out.
+
+- Session 2026-04-21 (this): Phase A + Phase B delivered (3 commits).
+  Handoff for Phase C + Phase D.
