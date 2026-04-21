@@ -177,6 +177,49 @@ dNegGsRoseUniv =
         (congR TreeEq (reify cGSCR) diagFTargetCR)
         (treeEqSelf (reify cGSCR)))
 
+-- Generalised form: given a proof of H_encUniv under any hyp,
+-- derive B_negGsUniv under the same hyp.  This is the "lifted"
+-- version of dNegGsRoseUniv that doesn't fix hyp = H_encUniv.
+
+dNegGsRoseUnivGen : {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT trivCT) (var zero)) (reify cGSCR)) ->
+  Deriv hyp B_negGsUniv
+dNegGsRoseUnivGen {hyp} dHenc =
+  ruleTrans
+    (congL TreeEq poo dAuxGen)
+    (axTreeEqLN O O)
+  where
+  dAuxGen : Deriv hyp
+    (eqn (ap2 TreeEq (ap1 (thmT trivCT) (var zero)) diagBody) O)
+  dAuxGen =
+    ruleTrans
+      (congL TreeEq diagBody dHenc)
+      (ruleTrans
+        (congR TreeEq (reify cGSCR) diagFTargetCR)
+        (treeEqSelf (reify cGSCR)))
+
+-- Similarly for instantiated Z: given Deriv hyp "Z encodes gsCR",
+-- derive the instantiated B_negGsUniv.
+
+dNegGsRoseInstGen : (Z : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT trivCT) Z) (reify cGSCR)) ->
+  Deriv hyp (eqn (ap2 TreeEq (ap2 TreeEq (ap1 (thmT trivCT) Z) diagBody)
+                              poo)
+                  (ap2 Pair O O))
+dNegGsRoseInstGen Z {hyp} dHenc =
+  ruleTrans
+    (congL TreeEq poo dAuxInst)
+    (axTreeEqLN O O)
+  where
+  dAuxInst : Deriv hyp
+    (eqn (ap2 TreeEq (ap1 (thmT trivCT) Z) diagBody) O)
+  dAuxInst =
+    ruleTrans
+      (congL TreeEq diagBody dHenc)
+      (ruleTrans
+        (congR TreeEq (reify cGSCR) diagFTargetCR)
+        (treeEqSelf (reify cGSCR)))
+
 -- Encoded form of dNegGsRoseUniv: applies roseLemma1T to produce a
 -- Lemma1T instance for H_encUniv and B_negGsUniv, parameterised by
 -- caller tPa, tPb, tCorr, tPass.
