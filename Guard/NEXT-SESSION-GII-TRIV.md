@@ -1,4 +1,4 @@
-# Next Session: close godelIIClassicalTriv via e-encoder
+# Next Session: close godelIIClassicalTriv
 
 ## Command
 
@@ -16,223 +16,213 @@ Read Guard/NEXT-SESSION-GII-TRIV.md for full context, then proceed.
 Goal: close  godelIIClassicalTriv : Consistent Triv ->
                                     Deriv Triv ConTrivRose ->
                                     Empty
-by completing the Rose/Ryan Theorem 4 modus-ponens chain started in
-Guard/GodelIIClassicalTriv.agda.
+by upgrading ConTrivRose to the two-parameter e-negation form and
+completing the Rose/Ryan Theorem 4 / Theorem 18 chain.
 
-Infrastructure already delivered and committed:
-  * Guard/RoseLemma1T.agda             Ryan-style Lemma 1 over thmT trivCT.
-  * Guard/GodelIIClassicalTriv.agda    Schema F reduction with 3 of 4
-                                        premises proved; dAux exhibited;
-                                        dAuxEncoded typechecks.
+Infrastructure delivered as of 2026-04-21 (main):
+  * Guard/RoseLemma1T.agda          Ryan-style Lemma 1 over thmT trivCT.
+  * Guard/GodelIIClassicalTriv.agda Schema F reduction; dAux + dNegGsRose
+                                    constructed and encoded via Lemma1T.
   * Guard/ImpT.agda  +  Guard/ImpTProp.agda   object-level impT toolkit.
-  * Guard/RoseEncE.agda                e-Tree / e-Term encoder skeleton.
+  * Guard/RoseEncE.agda             e-Tree meta-level spec.
+  * Guard/RoseEFun.agda             eT : Fun1 object-level e-function,
+                                    with eTCorrect under any hyp.
+  * Guard/ROSE-CHAIN-DESIGN.md      design memo: why naive chain fails,
+                                    3 options surveyed, alpha recommended.
 
 Conventions: --safe --without-K --exact-split, no postulates, no holes.
 Use ~/.cabal/bin/agda-2.9.0 (NOT /opt/homebrew/bin/agda).
 Commit after each major piece.
+
+Read ROSE-CHAIN-DESIGN.md first -- it explains the core design issue
+(our ConTrivRose uses codeBotT; Rose/Ryan's Thm 18 needs the e-negation
+form) and lays out option alpha (the recommended path).
 
 Proceed autonomously.
 ```
 
 ## What's done (committed on main)
 
-Seven commits as of 2026-04-21:
+Eight commits as of 2026-04-21:
 
 ```
+93e0f31  [rose-efun] Introduce eT Fun1 combinator + design memo
+742a059  [doc] NEXT-SESSION-GII-TRIV.md: handoff for Rose-chain closure
 26b7a92  [doc] RoseChainAnalysis: option (i) executed, remaining chain laid out
 21da0a1  [gii-triv] Integrate RoseLemma1T and exhibit constructible dAux
 7ff35eb  [rose-l1t] RoseLemma1T: Ryan-style Lemma 1 over thmT trivCT
 08a8b3a  [doc] RoseChainAnalysis: session update on Guard/GodelIIClassicalTriv
 c8dc3ad  [gii-triv] Factor step-F premise through TreeEq-core form
 f39c293  [gii-triv] GodelIIClassicalTriv: infrastructure for Schema F approach
-0d5bfd6  [doc] RoseChainAnalysis: roseLemma1 done, gsFromCon identified as remaining bottleneck
 ```
 
-Key artifacts:
+Plus this session (2026-04-21):
 
-**`Guard/RoseLemma1T.agda`** (614 lines, 0.25s, no postulates):
-  * `Lemma1T H B` record: `vCorr` under `thmT trivCT` (Ryan-style).
-  * `roseL1T_Hyp`: splices caller-supplied `tPa, tPb, tCorr, tPass`.
-  * 22 closed-axiom cases (`roseL1T_AxI` … `roseL1T_AxRecPNd`).
-  * 7 structural-rule wrappers (Sym / Trans / Cong1 / CongL / CongR
-    / Inst / F).
-  * Top-level  `roseLemma1T : Deriv H B -> tPa tPb -> tCorr ->
-    tPass -> Lemma1T H B`  with dispatch over all 28 Deriv cases.
+```
+<pending>  [gii-triv] dNegGsRose + dNegGsRoseEncoded (incremental infrastructure)
+93e0f31    [rose-efun] Introduce eT Fun1 combinator + design memo
+```
 
-**`Guard/GodelIIClassicalTriv.agda`** (474 lines):
-  * `ConTrivRose` (impT-form Triv-consistency).
-  * Schema F ingredients `FF, GG, zz, ss` (FF = `Comp2 TreeEq (thmT
-    trivCT) (KT diagBody)`, GG = `KT poo`).
-  * `baseF` / `baseG` / `stepG` proved.
-  * `gsFromConWith : StepFType -> Deriv Triv gsCR` assembles via
-    `ruleF` + bridging.
-  * `StepFCoreType` factoring through the TreeEq-core form.
-  * `godelIIClassicalTrivWithStepF` / `godelIIClassicalTrivWithCore`
-    close the theorem modulo the open premise.
-  * `dAux : Deriv H_enc B_aux` where
-    - `H_enc = eqn (ap1 (thmT trivCT) (Pair (var 0) (var 1)))
-                   (reify cGSCR)`
-    - `B_aux = eqn (ap2 TreeEq (ap1 (thmT trivCT) (Pair v0 v1))
-                               diagBody)
-                   O`
-    Built from `ruleHyp{H_enc}` + `congL` + `congR` +
-    `diagFTargetCR` + `treeEqSelf`.
-  * `dAuxEncoded = roseLemma1T dAux`  -- sanity-checks that the
-    Lemma-1 application typechecks.
+Key artifacts (updated):
 
-## What's blocking
+**`Guard/RoseEFun.agda`** (168 lines, 0.04s, no postulates):
+  * `eT : Fun1` -- the object-level e-function, built from Comp2 Pair,
+    KT, I primitives.
+  * `eTReduces` -- Deriv-level reduction of `ap1 eT x` to its expanded
+    Pair form, polymorphic in hyp.
+  * `eTCorrect A B` -- Deriv-level: `ap1 eT (reify (codeEqn (eqn A B)))
+    = reify (codeEqn (eqn (ap2 TreeEq A B) falseT))` for any A, B.
 
-`dAuxEncoded` produces `V` with `thmT trivCT V = reify (codeEqn
-B_aux)`, but **codeEqn B_aux ≠ codeBotT** (different tree shapes).
-So instantiating `dCon` at `V`:
+**`Guard/GodelIIClassicalTriv.agda`** (additions this session):
+  * `B_negGs` + `dNegGsRose` : Deriv H_enc (Rose-style e-negation of
+    gsCR at Pair v0 v1).
+  * `dNegGsRoseEncoded` : roseLemma1T dNegGsRose produces V' whose
+    `thmT trivCT V' = reify (codeEqn B_negGs)`.
 
-  `dCon [v_0 := V] : impT (TreeEq (thmT trivCT V) codeBotT) falseT
-                      = trueT`
+**`Guard/ROSE-CHAIN-DESIGN.md`** (252 lines): complete analysis of why
+our ConTrivRose is strictly weaker than Rose/Ryan's, and the three
+options surveyed (alpha = strengthen, beta = internal bot, gamma =
+direct V).  Recommends option alpha.
 
-doesn't fire -- the antecedent evaluates to `poo` (via tree-
-disequality between `codeEqn B_aux` and `codeBotT`), and
-`impT poo falseT = trueT` is vacuous.
+## The core design issue
 
-**To actually derive bot from  dCon , we need a  V  with
-`thmT trivCT V = codeBotT`**, not  `= codeEqn B_aux`.  This requires
-composing with an `e`-encoder (Rose's function sending code of
-`A = B` to code of `A ≠ B`, where "≠" uses the `TreeEq`/`impT`
-structure).
+Our `ConTrivRose`:
+```agda
+ConTrivRose = eqn
+  (impT (ap2 TreeEq (ap1 (thmT trivCT) (var zero)) codeBotT) falseT)
+  trueT
+```
+
+Rose (1967) / Ryan (1978) Thm 18 (Main Theorem) consistency:
+```
+Con_Rose = th(x) != e(th(z))     -- parametric in BOTH x and z
+```
+
+Rose's proof of Thm 18 critically uses:
+(a) TWO free variables in the consistency statement (x and z).
+(b) The e-negation function: "if y = code(A=B), then e(y) = code(A!=B)".
+
+With only `codeBotT` (a specific constant) in place of `e(th(var 1))`,
+Rose's chain cannot be transcribed -- specifically, the instantiation
+step 2 of his proof (p.133) requires substituting an X with `th(X) =
+[se(nu(N), N) != th(0)]`, which is only possible when the target is
+parametric.
+
+**Recommendation (option alpha)**: upgrade ConTrivRose to the
+two-parameter e-negation form.
 
 ## Concrete plan -- pick up here
 
-### Step A: prove `e`-correctness under `thmT trivCT`
+### Step A: define ConTrivRose_Strong
 
-**File**: probably new `Guard/RoseEncECorr.agda` (or extend
-`Guard/RoseEncE.agda`).
+```agda
+ConTrivRose_Strong : Equation
+ConTrivRose_Strong = eqn
+  (impT (ap2 TreeEq (ap1 (thmT trivCT) (var zero))
+                    (ap1 eT (ap1 (thmT trivCT) (var (suc zero)))))
+        falseT)
+  trueT
+```
 
-**Goal**: given an encoding `encV : Term` of an equation `eqn A B`
-under `thmT trivCT` (i.e., `thmT trivCT encV = reify (codeEqn (eqn
-A B))`), build `encENeq : Term` such that:
+Reads: "For all x, z: thmT trivCT x != eT (thmT trivCT z)."  i.e., "no
+theorem-index's image is the e-negation of any theorem-index's image."
 
-  `thmT trivCT encENeq = reify (codeEqn (eqn (ap2 TreeEq A B)
-                                             falseT))`
+**File**: new module `Guard/GodelIIClassicalTrivStrong.agda`.
 
-I.e., "encENeq encodes the equation 'TreeEq A B = falseT' under
-`thmT trivCT`".
+### Step B: Rose's Thm 18 chain
 
-Construction: Rose/Ryan build `encENeq` as a *term-level* combinator
-applied to `encV`.  Specifically, use the existing axiom-encoders
-(`encAxTreeEq*`, `encCongL`, `encCongR`, etc.) to assemble the
-encoding of the longer equation from the encoding of the shorter.
+Given `dConStrong : Deriv Triv ConTrivRose_Strong`:
 
-Alternative route: build a specific small Deriv `dE : Deriv (eqn A
-B) (eqn (ap2 TreeEq A B) falseT)` and use `roseLemma1T dE` to get
-the e-encoder as V directly.  `dE` itself uses only `congL TreeEq B
-(ruleHyp ...)` + `treeEqSelf`-style reasoning with `axTreeEqNN`.
-Probably cleaner than hand-building the encoding term.
+1. Under H_enc, encode dNegGsRose via roseLemma1T: get V' with
+   `thmT trivCT V' = reify (codeEqn B_negGs)`.
+2. Separately, build a V that encodes "Pair v0 v1 encodes gsCR at
+   instance Pair v0 v1" -- the trivial encoder (via ruleHyp{H_enc}
+   itself encoded via Lemma1T from ruleHyp).
+3. Instantiate dConStrong at (var 0 := V', var 1 := V):
+     impT (TreeEq (thmT trivCT V') (ap1 eT (thmT trivCT V))) falseT = trueT.
+4. Under H_enc:
+   - `thmT trivCT V = reify cGSCR` (from H_enc + ruleHyp's encoding).
+   - `ap1 eT (reify cGSCR)` reduces via eTReduces to
+     `reify (eTree cGSCR)` (meta-level match with codeEqn B_negGs).
+   - `thmT trivCT V' = reify (codeEqn B_negGs)`.
+   - If  `codeEqn B_negGs = eTree cGSCR`  (!), then
+     TreeEq (reify (codeEqn B_negGs)) (reify (eTree cGSCR)) = O
+     (by treeEqSelf after congR).
+5. From (*) impT O falseT = trueT gives falseT = trueT (bot under
+   H_enc).
+6. Apply Lemma1T to this bot-under-H_enc derivation: get V_bot with
+   `thmT trivCT V_bot = codeBotT`.
+7. Plug V_bot into dCon (the ORIGINAL ConTrivRose, derivable from
+   ConTrivRose_Strong at a specific choice of var 1): derive bot
+   under Triv.
+8. `gsFromCon` then closes via Schema F (StepFCoreType).
 
-Estimated: 50-100 lines.
+### Crucial check: codeEqn B_negGs vs eTree cGSCR
 
-### Step B: compose e with dAux's V to land on codeBotT
+Need to verify:
+```
+codeEqn B_negGs  =?=  eTree (codeEqn (gsCR[var 0 := Pair v0 v1]))
+```
 
-We want final `V'` with `thmT trivCT V' = codeBotT =
-reify (codeEqn (eqn trueT falseT))`.
+B_negGs = eqn (ap2 TreeEq (ap2 TreeEq TP diagBody) poo) (ap2 Pair O O).
+  codeEqn B_negGs = nd (code (ap2 TreeEq (ap2 TreeEq TP diagBody) poo))
+                      (code (ap2 Pair O O))
 
-Chain:
-  * `dAux` gives V encoding B_aux = "TreeEq ... = O".
-  * Apply `e`-encoder: V' encoding "TreeEq (TreeEq ...) O = falseT".
-  * Hmm -- this doesn't directly give codeBot either.
+gsCR[var 0 := Pair v0 v1] = eqn (ap2 TreeEq TP diagBody) poo.
+  codeEqn that           = nd (code (ap2 TreeEq TP diagBody))
+                              (code poo)
 
-Actually re-examine: `codeBot = codeEqn (eqn trueT falseT) = codeEqn
-(eqn O poo)`.  We need a V whose `thmT trivCT`-image is
-`reify (codeEqn (eqn O poo))`.
+eTree(that) = nd (nd tagAp2 (nd (codeF2 TreeEq)
+                                 (nd (code (ap2 TreeEq TP diagBody))
+                                     (code poo))))
+                 codeFalse
 
-Cleaner plan: build `dBot : Deriv H_enc (eqn trueT falseT)`
-directly, then `roseLemma1T dBot` gives V with the right image.
+To match codeEqn B_negGs:
+  nd (code (ap2 TreeEq (ap2 TreeEq TP diagBody) poo)) (code (ap2 Pair O O))
+= nd (nd tagAp2 (nd (codeF2 TreeEq) (nd (code (ap2 TreeEq TP diagBody))
+                                        (code poo))))
+     (code falseT)                [since poo = falseT and code poo = code falseT]
 
-For  `dBot`  we need to derive `trueT = falseT` from H_enc (= "Pair
-v0 v1 encodes gsCR").  The chain inside Deriv:
+And codeFalse = code falseT.  So these DO match definitionally.
+The meta-equation is refl (after unfolding codeFalse = code falseT).
 
-  1. `ruleHyp {H_enc}` :  thmT trivCT (Pair v0 v1) = reify cGSCR.
-  2. Instantiate `gsCR` at var_0 := Pair v0 v1 -- but we DON'T have
-     `Deriv H_enc gsCR`.
+### Size estimate
 
-So `dBot : Deriv H_enc bot` is NOT directly constructible either,
-by the same Deriv-single-hypothesis obstacle.
+- Step A: 30 lines.
+- Step B chain: 150-250 lines of Deriv-level assembly.
+- Rebuild baseF/stepG/baseG for ConTrivRose_Strong (if we keep Schema F):
+  mostly mechanical, 50-100 lines.
+- Link ConTrivRose_Strong -> ConTrivRose (classical equivalence) if
+  keeping the original theorem statement: 50-100 lines.
 
-### Step C: reformulate the chain
+Total: 300-500 lines.
 
-This is where the design work is.  Options:
+## Alternative simpler target
 
-**Option α**: Use H = gsCR (not H_enc) and rely on Lemma 1 to
-splice tCorr at ruleHyp{gsCR}, with tCorr asserting "Pair v0 v1
-encodes gsCR".  But ruleHyp{gsCR} has conclusion `gsCR` (= "TreeEq
-... = poo"), not "... encodes gsCR".  The caller-supplied tCorr
-would need to be different from what Lemma 1 is designed to splice.
+If the full strong form is too ambitious, an intermediate deliverable
+is:
 
-**Option β**: Redesign Lemma 1 to take TWO hypotheses (Rose's n=2
-case in NEXT-SESSION-IMPT-GODELII.md:128-142), or use  Prov3  style
-combined encoding.
+```agda
+godelIIClassicalTrivStrong :
+  Consistent Triv ->
+  Deriv Triv ConTrivRose_Strong ->   -- NOTE: strong form
+  Empty
+```
 
-**Option γ**: Use H_enc and derive, under H_enc, a particular
-`Deriv H_enc (eqn (ap2 TreeEq X codeBotT) O)` directly, bypassing
-`gsCR`.  The idea: since H_enc says "thmT trivCT V' = reify cGSCR"
-(where V' is specific), instantiate dCon at V' and get
-`impT (TreeEq (reify cGSCR) codeBotT) falseT = trueT`.  The
-antecedent `TreeEq (reify cGSCR) codeBotT` structurally reduces
-(both are closed reified trees) to either O or poo.  If = poo,
-impT is vacuous.  If = O, means reify cGSCR = codeBotT -- check
-whether they're Agda-decidably distinct trees.
-
-Actually:  cGSCR = codeEqn gsCR  vs  codeBot = codeEqn (eqn O poo).
-These are distinct.  So `TreeEq (reify cGSCR) codeBotT = poo`
-derivably.  Hence `impT poo falseT = trueT` vacuously.  dCon at
-V' = Pair v0 v1 gives trueT identity, no useful info.
-
-So Option γ doesn't close either.
-
-### Step D: re-read Rose's proof precisely
-
-Before writing more Agda, **carefully re-read Rose (1967) Thm 4
-and Ryan (1978) Main Theorem** to trace EXACTLY what encoding `V`
-he constructs and how it lands on `codeBot` (or the equivalent
-"negation" in his setting).
-
-Key question: does Rose apply `e` to the WHOLE chain's output, or
-does he construct a different derivation whose natural encoding
-already yields the negation?
-
-My best guess: Rose's chain uses `e(th(V(x)))` where `V(x)` encodes
-"gsCR = 0" (i.e., the Gödel sentence has characteristic 0 at x),
-so `e(th(V(x)))` encodes the negation, which contradicts the
-Gödel sentence's assertion that "gsCR != th(z)".  So `e` is
-applied ONCE at the end, converting an "= O" encoding to a "!=
-O" encoding.
-
-If that's right, Step A (e-correctness under thmT trivCT) is
-the right tool, and Step B chains:
-  V from dAux = encodes "TreeEq ... = O"
-  e(V) = encodes "TreeEq (TreeEq ...) O = falseT"
-Neither is codeBot directly.
-
-Hmm.  Probably Rose's consistency statement is subtly different
-from ours (ConTrivRose uses codeBot; Rose uses a parametric
-"encoded negation").  **Action: examine Rose's consistency
-statement and ε(th(x)) in the paper, and align our ConTrivRose
-formulation.**
-
-Estimated: 200-400 lines after the design is settled (Step D).
+This proves Goedel II over the Rose-style consistency directly, without
+needing to bridge to the weaker ConTrivRose.  The bridge is a separate
+classical-logic exercise that can be deferred.
 
 ## Files to touch (in order)
 
-1. **Read** Rose1.pdf §3-4 and Ryan.pdf §2 (especially Main
-   Theorem proof, which Ryan says "parallels Rose").  Write down
-   what specific encoding lands on codeBot/eCode.
-2. **Design memo**: write  Guard/ROSE-CHAIN-DESIGN.md  (~100 lines)
-   laying out the exact shape of V and where `e` fits in.  This
-   is the missing piece of analysis.
-3. **`Guard/RoseEncECorr.agda`**: e-correctness under `thmT trivCT`
-   (Step A).  Either via direct term construction or by building
-   a small Deriv and roseLemma1T-encoding it.
-4. **`Guard/GodelIIClassicalTriv.agda`**: extend with the Rose
-   chain -- assemble `dBot` (or equivalent), encode, instantiate
-   `dCon`, close via  impT  modus ponens.
+1. **Read**  `Guard/ROSE-CHAIN-DESIGN.md`  for the full design analysis.
+2. **New**   `Guard/GodelIIClassicalTrivStrong.agda`  with
+              ConTrivRose_Strong definition + Schema-F premises
+              (analogues of baseF, stepG, baseG).
+3. **New or extend**  a Rose-chain module that assembles dConStrong +
+              roseLemma1T(dNegGsRose) + Lemma1T-hyp-encoding into the
+              bot-under-H_enc derivation (Step B 1-5 above).
+4. **Close** godelIIClassicalTrivStrong via Consistent Triv.
 
 ## Sanity commands
 
@@ -240,13 +230,7 @@ Estimated: 200-400 lines after the design is settled (Step D).
 time ~/.cabal/bin/agda-2.9.0 Guard/RoseLemma1T.agda
   # 0.25s, no output
 time ~/.cabal/bin/agda-2.9.0 Guard/GodelIIClassicalTriv.agda
-  # 0.15s, no output
+  # 0.13s, no output
+time ~/.cabal/bin/agda-2.9.0 Guard/RoseEFun.agda
+  # 0.04s, no output
 ```
-
-## Design-decision budget
-
-Before writing more Agda, spend ~30 min on paper re-reading Rose
-and drafting ROSE-CHAIN-DESIGN.md.  The Agda is mechanical once
-the shape of V is clear.  Rushing straight to Agda without the
-design step is exactly how we ended up with the hCode mismatch
-in the first place.

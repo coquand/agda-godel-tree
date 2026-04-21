@@ -448,6 +448,60 @@ dAuxEncoded tPa tPb tCorr tPass =
   roseLemma1T dAux tPa tPb tCorr tPass
 
 ------------------------------------------------------------------------
+-- Rose-style negation of gsCR at  var 0 := Pair v0 v1 .
+--
+-- B_negGs = eqn (ap2 TreeEq (ap2 TreeEq TP diagBody) poo) falseT
+--
+-- Reads: "TreeEq (TreeEq TP diagBody) poo = falseT",
+--   i.e., "TreeEq TP diagBody  is not  poo",
+--   i.e., "gsCR(Pair v0 v1) is false" -- the Rose-style negation of
+--   gsCR instantiated at the proof-code Pair v0 v1.
+--
+-- Construction: under H_enc + dAux, we have TreeEq TP diagBody = O.
+-- So TreeEq (TreeEq TP diagBody) poo = TreeEq O poo = poo = falseT
+-- (via axTreeEqLN with poo = ap2 Pair O O).
+--
+-- This is the object-level analogue of  eTree (codeEqn (gsCR[var 0 :=
+-- Pair v0 v1])) : the "e-negation" of the Gödel sentence at this
+-- specific instantiation.  It is a key building block of Rose's Thm
+-- 18 chain (see Guard/ROSE-CHAIN-DESIGN.md).
+--
+-- Note: poo  =  ap2 Pair O O  = falseT (by definition).  The axiom
+-- axTreeEqLN produces  ap2 Pair O O  on the RHS, which matches poo
+-- (and hence falseT) definitionally.
+
+B_negGs : Equation
+B_negGs = eqn (ap2 TreeEq (ap2 TreeEq (ap1 (thmT trivCT) pv) diagBody) poo)
+              (ap2 Pair O O)
+
+dNegGsRose : Deriv H_enc B_negGs
+dNegGsRose =
+  ruleTrans
+    -- congL TreeEq on dAux:
+    --   TreeEq (TreeEq TP diagBody) poo
+    --     = TreeEq O poo
+    (congL TreeEq poo dAux)
+    -- axTreeEqLN: TreeEq O (Pair O O) = Pair O O = falseT
+    (axTreeEqLN O O)
+
+-- Encoded form of dNegGsRose: applies roseLemma1T to produce a Lemma1T
+-- instance for  H_enc  and  B_negGs .
+
+dNegGsRoseEncoded :
+  (tPa tPb : Term) ->
+  ({hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT trivCT) (ap2 Pair tPa tPb))
+                   (reify (codeEqn H_enc)))) ->
+  ((x rcs : Term) {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 trivCT)
+                        (ap2 Pair (ap2 Pair tPa tPb) x) rcs)
+                   (ap2 sndArg2
+                        (ap2 Pair (ap2 Pair tPa tPb) x) rcs))) ->
+  Lemma1T H_enc B_negGs
+dNegGsRoseEncoded tPa tPb tCorr tPass =
+  roseLemma1T dNegGsRose tPa tPb tCorr tPass
+
+------------------------------------------------------------------------
 -- Summary (and what's deferred).
 --
 -- This module establishes the Rose/Ryan classical Gödel II theorem
@@ -464,11 +518,25 @@ dAuxEncoded tPa tPb tCorr tPass =
 --   * stepG  -- GG(Pair _ _) = poo          (step case of GG)
 --   * gsFromConWith StepFType -> Deriv Triv gsCR   (Schema F assembly)
 --
+-- Rose-chain infrastructure:
+--   * dAux             : Deriv H_enc B_aux
+--     (under H_enc = "Pair v0 v1 encodes gsCR", TreeEq TP diagBody = O)
+--   * dAuxEncoded      : roseLemma1T dAux produces encoding V of B_aux
+--   * dNegGsRose       : Deriv H_enc B_negGs
+--     (under H_enc, the Rose-style e-negation of gsCR at Pair v0 v1)
+--   * dNegGsRoseEncoded: roseLemma1T dNegGsRose produces encoding V'
+--     of B_negGs (whose codeEqn is the eTree image of codeEqn gsCR at
+--     Pair v0 v1 -- modulo equation-instance selection)
+--
 -- Deferred:
---   * StepFType : the F-step Schema-F premise.  This is the
---     non-mechanical piece; it encodes Rose's Theorem 4 argument
---     via roseLemma1 + dCon.  See RoseChainAnalysis.md for the
---     proof sketch.  Estimated ~200-400 lines.
+--   * StepFType : the F-step Schema-F premise.  The hard remaining
+--     step, requiring Rose's Thm 18 two-premise chain.  See
+--     Guard/ROSE-CHAIN-DESIGN.md for the design analysis of why our
+--     ConTrivRose (codeBotT form) is weaker than Rose's consistency
+--     statement (e-negation form) and the recommended path forward
+--     (option alpha: strengthen ConTrivRose to the two-parameter
+--     form).  The eT combinator in Guard/RoseEFun.agda is the
+--     object-level e-function; proved correct at the Deriv level.
 --
 -- Compiles under --safe --without-K --exact-split.  No postulates,
 -- no holes.
