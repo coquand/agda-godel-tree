@@ -42,13 +42,23 @@ extends to derivations that depend on `d`.
 
 ## Suggested order for the next session
 
-1. **Write `encAxRefl` (n17)** — small (~30 lines), needed for sym/trans
-   chains.  Pattern matches `encAxKT`.
-2. **Write `encRuleCong1` (n20)** — needed for `corrPf` reasoning.
-   Mirrors `encCongL`/`encCongR`.
+1. ~~**Write `encAxRefl` (n17)**~~ — DONE (commit `0e30100`).
+2. ~~**Write `encRuleCong1` (n20)**~~ — DONE (commit `12b3f24`).
 3. **Write `encAxTreeEq*` (n13–n16)** — needed for `treeEqSelf`-style
-   equations.  Each ~40–60 lines.
-4. **Tackle `encCorrPf`**: investigate whether the meta-reflection
+   equations.  Each ~40–60 lines.  `encAxTreeEqLL` (n13) DONE
+   (commit `d92b40a`); `encAxTreeEqLN/NL/NN` remain.  Pattern: port
+   from `Guard.Thm14EV3.thm14EV3AxTreeEq*`, abstracting `hCode` from
+   `H`.
+4. **Write remaining axiom encoders**: `encAxConst` (n3), `encAxComp`
+   (n4), `encAxComp2` (n5), `encAxLift` (n6), `encAxPost` (n7),
+   `encAxFan` (n8), `encAxRecLf` (n9), `encAxRecNd` (n10),
+   `encAxIfLfL` (n11), `encAxIfLfN` (n12), `encAxRecPLf` (n27),
+   `encAxRecPNd` (n28).  Each has a corresponding `thm14EV3Ax*` in
+   `Thm14EV3.agda` to port.
+5. **Write `encRuleHyp` (n26)** — case26 takes hCode as parameter
+   (the only case that does); tag-opaque pass via passthroughSucV3.
+6. **Write `encRuleF` (n24)** — FOUR sub-proofs.  Hardest remaining.
+7. **Tackle `encCorrPf`**: investigate whether the meta-reflection
    pattern from `EncSelfEq.agda` extends to d-dependent cases by
    parameterising thm14EV3 over a hypothetical `d`.
 
