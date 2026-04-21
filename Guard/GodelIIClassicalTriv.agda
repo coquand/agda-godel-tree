@@ -66,22 +66,23 @@ private
   v1 : Nat ; v1 = suc zero
   poo : Term ; poo = ap2 Pair O O
 
-  -- The diagonal body appearing on the RHS of TreeEq in  gsCR 's LHS.
-  -- We recall  diagFTargetCR :  diagBody = reify cGSCR  as a Deriv.
-  diagBody : Term
-  diagBody = ap2 substOp
-               (ap2 Pair (ap1 cor (reify templateCodeCR))
-                         (reify (natCode v1)))
-               (reify templateCodeCR)
+-- The diagonal body appearing on the RHS of TreeEq in  gsCR 's LHS.
+-- We recall  diagFTargetCR :  diagBody = reify cGSCR  as a Deriv.
+-- Exposed (not private) so downstream modules can reuse it.
+diagBody : Term
+diagBody = ap2 substOp
+             (ap2 Pair (ap1 cor (reify templateCodeCR))
+                       (reify (natCode v1)))
+             (reify templateCodeCR)
 
-  -- gsCR in expanded form (from SubstTForPrecompClassical.gsCRForm).
+-- gsCR in expanded form (from SubstTForPrecompClassical.gsCRForm).
 
-  gsCRExpanded : Equation
-  gsCRExpanded = eqn (ap2 TreeEq (ap1 (thmT trivCT) (var zero)) diagBody)
-                     poo
+gsCRExpanded : Equation
+gsCRExpanded = eqn (ap2 TreeEq (ap1 (thmT trivCT) (var zero)) diagBody)
+                   poo
 
-  gsCRIsExpanded : Eq gsCR gsCRExpanded
-  gsCRIsExpanded = gsCRForm
+gsCRIsExpanded : Eq gsCR gsCRExpanded
+gsCRIsExpanded = gsCRForm
 
 ------------------------------------------------------------------------
 -- The  Rose-style  consistency sentence over Triv.
@@ -383,14 +384,15 @@ private
   v0T = var zero
   v1T : Term
   v1T = var (suc zero)
-  pv : Term
-  pv = ap2 Pair v0T v1T
 
-  H_enc : Equation
-  H_enc = eqn (ap1 (thmT trivCT) pv) (reify cGSCR)
+pv : Term
+pv = ap2 Pair (var zero) (var (suc zero))
 
-  B_aux : Equation
-  B_aux = eqn (ap2 TreeEq (ap1 (thmT trivCT) pv) diagBody) O
+H_enc : Equation
+H_enc = eqn (ap1 (thmT trivCT) pv) (reify cGSCR)
+
+B_aux : Equation
+B_aux = eqn (ap2 TreeEq (ap1 (thmT trivCT) pv) diagBody) O
 
 dAux : Deriv H_enc B_aux
 dAux =
