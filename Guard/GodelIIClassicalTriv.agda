@@ -257,6 +257,55 @@ StepFType =
                                     (ap1 FF (var (suc zero))))))
 
 ------------------------------------------------------------------------
+-- Core F-step type: the  TreeEq-at-Pair  equation from which StepFType
+-- follows by axComp2 / axKT / axPost bridging.
+--
+-- This is the "TreeEq (thmT trivCT (Pair v0 v1)) diagBody = poo"
+-- statement which is the actual Rose-Theorem-4 content.  See
+-- RoseChainAnalysis.md for the proof sketch.
+
+StepFCoreType : Set
+StepFCoreType =
+  Deriv Triv
+    (eqn (ap2 TreeEq (ap1 (thmT trivCT) (ap2 Pair (var zero) (var (suc zero))))
+                      diagBody)
+         poo)
+
+-- Bridge:  StepFCoreType -> StepFType .
+-- Unfolds FF on the LHS via axComp2+axKT; unfolds ss on the RHS via
+-- axPost+axKT and shows both sides equal poo.
+
+stepFFromCore : StepFCoreType -> StepFType
+stepFFromCore stepCore =
+  ruleTrans lhsUnfold (ruleTrans stepCore (ruleSym rhsUnfold))
+  where
+  pv : Term
+  pv = ap2 Pair (var zero) (var (suc zero))
+
+  -- lhsUnfold:  ap1 FF (Pair v0 v1) = TreeEq (thmT trivCT (Pair v0 v1)) diagBody.
+  --   ap1 (Comp2 TreeEq (thmT trivCT) (KT diagBody)) (Pair v0 v1)
+  --     = TreeEq (thmT trivCT (Pair v0 v1)) (KT diagBody (Pair v0 v1))    [axComp2]
+  --     = TreeEq (thmT trivCT (Pair v0 v1)) diagBody                      [axKT]
+  lhsUnfold : Deriv Triv (eqn (ap1 FF pv)
+                              (ap2 TreeEq (ap1 (thmT trivCT) pv) diagBody))
+  lhsUnfold = ruleTrans
+    (axComp2 TreeEq (thmT trivCT) (KT diagBody) pv)
+    (congR TreeEq (ap1 (thmT trivCT) pv) (axKT diagBody pv))
+
+  -- rhsUnfold:  ss (Pair v0 v1) (Pair (FF v0) (FF v1)) = poo.
+  --   ap2 (Post (KT poo) Pair) (Pair v0 v1) (Pair (FF v0) (FF v1))
+  --     = KT poo (Pair (Pair v0 v1) (Pair (FF v0) (FF v1)))              [axPost]
+  --     = poo                                                              [axKT]
+  rhsUnfold : Deriv Triv (eqn (ap2 ss pv (ap2 Pair (ap1 FF (var zero))
+                                                    (ap1 FF (var (suc zero)))))
+                              poo)
+  rhsUnfold = ruleTrans
+    (axPost (KT poo) Pair pv
+            (ap2 Pair (ap1 FF (var zero)) (ap1 FF (var (suc zero)))))
+    (axKT poo (ap2 Pair pv (ap2 Pair (ap1 FF (var zero))
+                                     (ap1 FF (var (suc zero))))))
+
+------------------------------------------------------------------------
 -- gsFromConWith : the  Deriv Triv gsCR  derivation parameterised by
 -- the still-unbuilt F-step premise.
 
@@ -300,6 +349,13 @@ godelIIClassicalTrivWithStepF :
   Consistent Triv -> Deriv Triv ConTrivRose -> Empty
 godelIIClassicalTrivWithStepF stepF con dCon =
   godelIIClassicalTrivWith (\d -> gsFromConWith stepF) con dCon
+
+-- Variant taking the CORE F-step (TreeEq form):
+godelIIClassicalTrivWithCore :
+  StepFCoreType ->
+  Consistent Triv -> Deriv Triv ConTrivRose -> Empty
+godelIIClassicalTrivWithCore stepCore =
+  godelIIClassicalTrivWithStepF (stepFFromCore stepCore)
 
 ------------------------------------------------------------------------
 -- Summary (and what's deferred).
