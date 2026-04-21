@@ -128,6 +128,63 @@ or provide a way to equate hypothesis codes.
 
 Total remaining: ~350-600 lines.
 
+### Session update (Guard/GodelIIClassicalTriv.agda)
+
+Delivered this session:
+
+  * `Guard/GodelIIClassicalTriv.agda` -- 0.1s, no postulates no holes.
+  * Top-level `godelIIClassicalTrivWith gsFromCon con dCon` reducing
+    classical Gödel II over Triv to `godelIClassical` + consistency.
+  * Schema F ingredients:
+      - `FF` = `Comp2 TreeEq (thmT trivCT) (KT diagBody)`
+      - `GG` = `KT poo`
+      - `zz` = `poo`
+      - `ss` = `Post (KT poo) Pair`
+  * Three of four Schema-F premises proved:
+      - `baseF : FF O = zz`     (via axComp2 + axRecLf + axKT +
+                                  diagFTargetCR + axTreeEqLN)
+      - `baseG : GG O = zz`     (axKT)
+      - `stepG : GG (Pair v0 v1) = ss (Pair v0 v1) (Pair (GG v0)
+                                  (GG v1))`   (axKT + axPost)
+  * `gsFromConWith : StepFType -> Deriv Triv gsCR`  assembling
+    the four premises via `ruleF` + bridging to `gsCR`'s expanded form
+    (axComp2 + axKT on both sides).
+  * `StepFCoreType` + `stepFFromCore`: the F-step Schema-F premise
+    factored through its TreeEq-core form
+      Deriv Triv
+        (eqn (ap2 TreeEq (ap1 (thmT trivCT) (ap2 Pair (var 0) (var 1)))
+                           diagBody)
+             poo)
+  * `godelIIClassicalTrivWithStepF` / `godelIIClassicalTrivWithCore`
+    taking the remaining open premise as a parameter.
+
+Remaining work: `StepFCoreType`, i.e. a `Deriv Triv` of the above
+TreeEq-equation with `var 0`, `var 1` free.  The analysis of §2-§4
+above stands for this step.
+
+Concrete blocker observed while attempting the construction:
+`roseLemma1` as implemented produces encodings under `thmT (reify
+(codeEqn H))`, not under `thmT trivCT`, for any choice of hypothesis
+`H`.  This matches `thmT trivCT` only when `H = Triv`.  With `H =
+Triv` the needed input derivation would be `Deriv Triv gsCR` or
+`Deriv Triv bot` -- both circular.  Paths forward that were
+considered but not attempted:
+
+  (i)  Implement the "planned" roseLemma1 variant (see
+       NEXT-SESSION-IMPT-GODELII.md lines 128-142) which uses `thmT
+       trivCT` throughout and takes TWO encodings (for `A` and `A→B`);
+  (ii) Redesign gsCR to use `thmT` of the hypothesis's code rather
+       than the hardcoded `trivCT` (would require a V3-style free
+       slot in the template);
+  (iii) Direct tree-structural proof with MORE Schema-F splits (Pair
+        case of `thmT trivCT (Pair v0 v1)` is stuck on open var 1).
+
+Session output: Guard/GodelIIClassicalTriv.agda (~380 lines,
+infrastructure + three of four Schema-F premises proved, one open
+premise factored).  The theorem `godelIIClassicalTrivWithCore`
+reduces classical Gödel II over Triv to a single precise open
+lemma of known content.
+
 ## Why stopping now
 
 With roseLemma1 (669 lines) complete, the "hard" machinery IS in
