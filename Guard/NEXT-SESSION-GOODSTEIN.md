@@ -9,12 +9,18 @@ claude
 Then paste:
 
 ```
-Read Guard/NEXT-SESSION-GOODSTEIN.md and Guard/GOODSTEIN-PLAN.md for context, then proceed.
+Read Guard/NEXT-SESSION-GOODSTEIN.md and Guard/GOODSTEIN-PLAN.md for
+context.  Also read Rose1.pdf (at repo root, /Users/coquand/CHWISTEK/Rose1.pdf)
+pp. 382-384 for the Theorem 4 / Main Theorem chain — follow it
+rule-by-rule per feedback_follow_rose_paper.md.
 
-Goal: transcribe Ryan's Main Theorem chain into
+Goal: transcribe the Goodstein-style chain into
 stepFCoreFromConStrong : Deriv Triv ConTrivRoseStrong -> StepFCoreType
 using the Goodstein infrastructure delivered last session (axGoodstein
 axiom, treeEqRefl, extended roseLemma1T / thm14EV3 / ProofEnc chains).
+
+The impT-to-=poo bridge is a Schema-F induction establishing TreeEq
+2-valuedness, mechanical per Rose1.pdf.  Not open-ended.
 
 Conventions: --safe --without-K --exact-split, no postulates, no holes.
 Use ~/.cabal/bin/agda-2.9.0.
