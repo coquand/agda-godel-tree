@@ -963,3 +963,55 @@ encRuleCong1Pass :
 encRuleCong1Pass hCode f paR pbR x rcs =
   ndDispatchV3PairMiss hCode O (reify (natCode n19))
     (ap2 Pair (reify (codeF1 f)) (ap2 Pair paR pbR)) x rcs
+
+------------------------------------------------------------------------
+-- encAxTreeEqLL: axTreeEqLL.  Tag n13.  Body is O (lf case).
+--
+-- Encoding: Pair (natCode n13) O.  Closed (no parameters).
+-- Correctness: thmT hCode (encAxTreeEqLL)
+--   = codeEqn (eqn (ap2 TreeEq O O) O) reified
+--   = Pair (Pair tagAp2 (Pair codeF2_TreeEq (Pair (Pair O O) (Pair O O)))) (Pair O O)
+--
+-- Uses guardLfV3 + lfDispatchV3 (not ndDispatchV3) because body=O.
+
+private
+  treeeqCFR : Term ; treeeqCFR = reify (codeF2 TreeEq)
+  pairCFR   : Term ; pairCFR   = reify (codeF2 Pair)
+  iflfCFR   : Term ; iflfCFR   = reify (codeF2 IfLf)
+  oCC       : Term ; oCC       = ap2 Pair O O
+  reifyTagAp2 : Term ; reifyTagAp2 = reify tagAp2
+  oneC      : Term
+  oneC      = ap2 Pair reifyTagAp2 (ap2 Pair pairCFR (ap2 Pair oCC oCC))
+
+encAxTreeEqLL : Term
+encAxTreeEqLL = ap2 Pair (reify (natCode n13)) O
+
+encAxTreeEqLLCorr : (hCode : Term) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT hCode) encAxTreeEqLL)
+    (ap2 Pair (ap2 Pair reifyTagAp2 (ap2 Pair treeeqCFR (ap2 Pair oCC oCC))) oCC))
+encAxTreeEqLLCorr hCode {hyp} =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR O)
+  (ruleTrans (guardLfV3 hCode tagR recs)
+  (ruleTrans (ndBranchHit n13 case13 (kF2 O) O recs)
+  (mkEqFRed (mkAp2F (kF2 treeeqCFR) (kF2 oCC) (kF2 oCC)) (kF2 oCC) enc recs
+    (ap2 Pair reifyTagAp2 (ap2 Pair treeeqCFR (ap2 Pair oCC oCC)))
+    oCC
+    (mkAp2FRed (kF2 treeeqCFR) (kF2 oCC) (kF2 oCC) enc recs treeeqCFR oCC oCC
+      (kF2Red treeeqCFR enc recs)
+      (kF2Red oCC enc recs)
+      (kF2Red oCC enc recs))
+    (kF2Red oCC enc recs))))
+  where
+  tagR : Term ; tagR = reify (natCode n13)
+  enc  : Term ; enc  = ap2 Pair tagR O
+  recs : Term
+  recs = ap2 Pair (ap1 (thmT hCode) tagR) (ap1 (thmT hCode) O)
+
+encAxTreeEqLLPass :
+  (hCode : Term) (x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair encAxTreeEqLL x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair encAxTreeEqLL x) rcs))
+encAxTreeEqLLPass hCode x rcs =
+  passthroughSucV3 hCode n12 lf x rcs
