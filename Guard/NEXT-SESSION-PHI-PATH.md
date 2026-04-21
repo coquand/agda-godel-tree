@@ -47,18 +47,15 @@ extends to derivations that depend on `d`.
 3. ~~**Write `encAxTreeEq*` (n13–n16)**~~ — DONE
    (commits `d92b40a`, `144143a`).
 4. ~~**Write `encRuleHyp` (n26)**~~ — DONE (commit `a54f0f5`).
-5. **Write remaining axiom encoders**: `encAxConst` (n3), `encAxComp`
-   (n4), `encAxComp2` (n5), `encAxLift` (n6), `encAxPost` (n7),
-   `encAxFan` (n8), `encAxRecLf` (n9), `encAxRecNd` (n10),
-   `encAxIfLfL` (n11), `encAxIfLfN` (n12), `encAxRecPLf` (n27),
-   `encAxRecPNd` (n28).  Each has a corresponding `thm14EV3Ax*` in
-   `Thm14EV3.agda` to port — see `encAxTreeEq*` for the porting
-   recipe (copy `correct` body, replace `hCode = reify (codeEqn H)`
-   with abstract `hCode` parameter, port `passF` to `enc*Pass`).
+5. ~~**Write remaining axiom encoders**~~ — DONE (commits `790ae1c`,
+   `97946e9`, `13344a9`, `64761d7`).  All 12 axiom encoders ported.
 6. **Write `encRuleF` (n24)** — FOUR sub-proofs.  Hardest remaining.
+   Pattern from `Guard.Thm14EV3.thm14EV3RuleF` (around line 2050+).
+   Likely needs its own session (~200+ lines).
 7. **Tackle `encCorrPf`**: investigate whether the meta-reflection
    pattern from `EncSelfEq.agda` extends to d-dependent cases by
-   parameterising thm14EV3 over a hypothetical `d`.
+   parameterising thm14EV3 over a hypothetical `d`.  Load-bearing
+   second-order reflection question; potentially the longest piece.
 
 ## Current encoder roster (post-session)
 
@@ -67,6 +64,16 @@ extends to derivations that depend on `d`.
 | n0  | `encAxI`                      | axiom (1 arg)     |
 | n1  | `encAxFst`                    | axiom (2 args)    |
 | n2  | `encAxSnd`                    | axiom (2 args)    |
+| n3  | `encAxConst`                  | axiom (2 args)    |
+| n4  | `encAxComp`                   | axiom (3 args)    |
+| n5  | `encAxComp2`                  | axiom (4 args)    |
+| n6  | `encAxLift`                   | axiom (3 args)    |
+| n7  | `encAxPost`                   | axiom (4 args)    |
+| n8  | `encAxFan`                    | axiom (5 args)    |
+| n9  | `encAxRecLf`                  | axiom (2 args)    |
+| n10 | `encAxRecNd`                  | axiom (4 args)    |
+| n11 | `encAxIfLfL`                  | axiom (2 args)    |
+| n12 | `encAxIfLfN`                  | axiom (4 args)    |
 | n13 | `encAxTreeEqLL`               | axiom (closed)    |
 | n14 | `encAxTreeEqLN`               | axiom (2 args)    |
 | n15 | `encAxTreeEqNL`               | axiom (2 args)    |
@@ -80,8 +87,13 @@ extends to derivations that depend on `d`.
 | n23 | `encRuleInst`                 | rule  (1 sub)     |
 | n25 | `encAxKT`                     | axiom (2 args)    |
 | n26 | `encRuleHyp`                  | hypothesis        |
+| n27 | `encAxRecPLf`                 | axiom (2 args)    |
+| n28 | `encAxRecPNd`                 | axiom (4 args)    |
 
-Remaining: n3..n12, n24, n27, n28 (12 axiom encoders + encRuleF).
+**26 / 28 encoders done.**  Remaining: n24 (`encRuleF`) + `encCorrPf`.
+
+ProofEnc.agda is 2390 lines, compiles in ~0.17s.  No postulates,
+no holes anywhere.
 
 Each combinator has the same skeleton as `encRuleSym` and `encRuleTrans`
 in `Guard/ProofEnc.agda` — the work is mechanical once the navigation
