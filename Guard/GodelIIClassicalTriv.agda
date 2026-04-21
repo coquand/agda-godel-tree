@@ -54,6 +54,10 @@ open import Guard.SubstTForPrecompClassical
 open import Guard.GodelIClassical using (godelIClassical ; diagFTargetCR)
 open import Guard.ImpT using (impT ; trueT ; falseT)
 open import Guard.ProvV3 using (codeBotT)
+open import Guard.TreeEqSelf using (treeEqSelf)
+open import Guard.RoseLemma1T
+open import Guard.ThFunTForV3 using (ndDispatchV3)
+open import Guard.ThFunTForDefs using (sndArg2)
 
 ------------------------------------------------------------------------
 -- Local abbreviations.
@@ -356,6 +360,92 @@ godelIIClassicalTrivWithCore :
   Consistent Triv -> Deriv Triv ConTrivRose -> Empty
 godelIIClassicalTrivWithCore stepCore =
   godelIIClassicalTrivWithStepF (stepFFromCore stepCore)
+
+------------------------------------------------------------------------
+-- Ryan-style Lemma 1 integration (option (i) from RoseChainAnalysis).
+--
+-- Using Guard.RoseLemma1T.roseLemma1T, the Rose/Ryan chain for the
+-- F-step case proceeds as follows.
+--
+-- Let
+--   H_enc = eqn (ap1 (thmT trivCT) (ap2 Pair (var 0) (var 1)))
+--               (reify cGSCR) .
+-- "Pair (var 0) (var 1) encodes gsCR under  thmT trivCT ."
+--
+-- Build dAux : Deriv H_enc (eqn (ap2 TreeEq (thmT trivCT (Pair v0 v1))
+--                                           diagBody) O)
+-- using  ruleHyp {H_enc}  +  diagFTargetCR  +  treeEqSelf .
+-- This dAux is CONSTRUCTIBLE (exhibited below), using only primitive
+-- Deriv rules plus facts already polymorphic in hyp.
+
+private
+  v0T : Term
+  v0T = var zero
+  v1T : Term
+  v1T = var (suc zero)
+  pv : Term
+  pv = ap2 Pair v0T v1T
+
+  H_enc : Equation
+  H_enc = eqn (ap1 (thmT trivCT) pv) (reify cGSCR)
+
+  B_aux : Equation
+  B_aux = eqn (ap2 TreeEq (ap1 (thmT trivCT) pv) diagBody) O
+
+dAux : Deriv H_enc B_aux
+dAux =
+  ruleTrans
+    -- congL TreeEq on ruleHyp{H_enc}:
+    --   TreeEq (thmT trivCT (Pair v0 v1)) diagBody
+    --     = TreeEq (reify cGSCR) diagBody
+    (congL TreeEq diagBody (ruleHyp {H_enc}))
+  (ruleTrans
+    -- congR TreeEq on diagFTargetCR:
+    --   TreeEq (reify cGSCR) diagBody
+    --     = TreeEq (reify cGSCR) (reify cGSCR)
+    (congR TreeEq (reify cGSCR) diagFTargetCR)
+    -- treeEqSelf: TreeEq (reify cGSCR) (reify cGSCR) = O
+    (treeEqSelf (reify cGSCR)))
+
+-- Applying  roseLemma1T  to  dAux  gives a proof-encoder whose
+-- vCorr asserts:
+--   Deriv hyp (ap1 (thmT trivCT) (Pair vPa vPb) = reify (codeEqn B_aux))
+-- conditional on the caller's  tCorr  (that  Pair tPa tPb  encodes
+-- H_enc under  thmT trivCT ).
+--
+-- With this encoder in hand, the remaining Rose/Ryan chain for
+-- gsFromCon's Pair case is:
+--
+--  1.  From  roseLemma1T dAux (var 0) (var 1) tCorrVar tPassVar :
+--      given encodings  (var 0, var 1)  of H_enc under  thmT trivCT ,
+--      produce V encoding B_aux.
+--  2.  Instantiate  dCon  at  v_0 := V : get object-level
+--        impT (TreeEq (thmT trivCT V) codeBotT) falseT = trueT.
+--  3.  Close the modus-ponens chain against  codeEqn B_aux /= codeBotT
+--      (a tree-disequality fact).
+--  4.  Derive StepFCoreType polymorphically in hyp.
+--
+-- Steps 2-4 are NOT yet formalised in this module.  They correspond
+-- to Rose (1967) Lemma 1/Theorem 4's last line plus the object-level
+-- tree-disequality.  See RoseChainAnalysis.md for the full chain.
+
+-- Sanity check: roseLemma1T  applied to  dAux  typechecks and
+-- produces a  Lemma1T  instance.  (The produced V is a specific
+-- Term; its correctness follows from the caller-supplied tCorr.)
+
+dAuxEncoded :
+  (tPa tPb : Term) ->
+  ({hyp : Equation} ->
+    Deriv hyp (eqn (ap1 (thmT trivCT) (ap2 Pair tPa tPb))
+                   (reify (codeEqn H_enc)))) ->
+  ((x rcs : Term) {hyp : Equation} ->
+    Deriv hyp (eqn (ap2 (ndDispatchV3 trivCT)
+                        (ap2 Pair (ap2 Pair tPa tPb) x) rcs)
+                   (ap2 sndArg2
+                        (ap2 Pair (ap2 Pair tPa tPb) x) rcs))) ->
+  Lemma1T H_enc B_aux
+dAuxEncoded tPa tPb tCorr tPass =
+  roseLemma1T dAux tPa tPb tCorr tPass
 
 ------------------------------------------------------------------------
 -- Summary (and what's deferred).
