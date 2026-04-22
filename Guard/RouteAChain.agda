@@ -145,52 +145,91 @@ chainStep3 =
     rewrCorJ = prCongR Pair (ap1 cor j) (ap1 cor rhsT) (ap1 cor thx) corjCorrhsT
 
 ------------------------------------------------------------------------
--- Remaining work (follow-up)
+-- Step 4 — BLOCKED : formula-level negation encoding obstruction
 -- =====================================================================
 --
--- Step 4 : th(x) = j  ⊃  th(Y) = "th(x) ≠ sub(i,i)".
+-- Guard 1963's step 4 (guard15.pdf p.17):
+--   th(x) = j  ⊃  th(4J(J(num x,1),x)+1)  =  "th(x) ≠ sub(i,i)"
 --
--- "th(x) ≠ sub(i,i)" corresponds to the equation
---   TreeEq (thx) rhsT = poo
--- ("TreeEq returns poo iff unequal").  Under the whole-underline
--- encoding, this is  Pair (cor (TreeEq thx rhsT)) (cor poo) .  The step
--- uses  thm13AtRefl  at  t = TreeEq thx rhsT , y = poo , with the
--- Provable hypothesis  TreeEq thx rhsT = poo  extracted from  j 's
--- definition:  gsCR  (substituted form) IS exactly this equation,
--- modulo the  thx  slot.  Hence "by the definition of j" in Guard.
--- The hypothesis is NOT  thx = j  (that's the premise), but a closed
--- consequence of  j 's encoding — obtained via the unfolding of
---  reify cGSCR  as the Gödel number of  gsCR .  Requires careful
--- threading through  subst0GSCR  (Guard.SubstTForPrecompClassical).
+-- In Guard's BRA, the RHS  "th(x) ≠ sub(i,i)"  is the Goedel number of
+-- the FORMULA  ~(th(x) = sub(i,i)) , using Def 11.3's negation
+-- encoding  "~P" = 3("P") + 2 .  The LHS  4J(J(num x,1),x) + 1  is a
+-- SPECIFIC BRA term whose value (at runtime, depending on x's value)
+-- equals this negation-encoded Goedel number BY CONSTRUCTION — no
+-- proof of the equation itself is needed.  th just routes through the
+-- formula-level-negation dispatch.
 --
--- Step 5 : combine steps 3 and 4.
+-- Our tree system works at the EQUATIONAL layer only: our thmT
+-- validates encoded proofs of Deriv-level equations, and every
+-- validator output is the Goedel code of a VALID equational conclusion
+-- (provable under the Deriv system).  There is no  3P + 2  negation-
+-- dispatch.  Instead we encode "A ≠ B" as the equation
+-- "TreeEq A B = poo".
 --
--- Under hyp, we have:
---   step3:  th (D1) = Pair (cor thx) (cor rhsT)           -- "thx = rhsT"
---   step4:  th (D2) = Pair (cor (TreeEq thx rhsT)) (cor poo)
---                                                          -- "TreeEq thx rhsT = poo"
--- "combined" should validate to  "0 = 1" = Pair (cor O) (cor poo)
---  under hyp.
+-- Obstruction: to have Y such that  thmT trivCT Y = encEq("TreeEq thx
+-- rhsT = poo") , Y would have to encode an actual Deriv proof of
+--  TreeEq thx rhsT = poo .  But  TreeEq thx rhsT = poo  IS (the
+-- substituted form of) gsCR — the Gödel sentence, unprovable in our
+-- system by Gödel I.  So no such Y exists polymorphically.
 --
--- This is where a genuine Df-combining combinator enters: we need to
--- build a combined encoded proof whose validator output is exactly
---  Pair (cor O) (cor poo) .  In our Deriv system this is the
--- contradiction step: from  TreeEq thx rhsT = O  (derivable from step
--- 3 via axRefl + TreeEq self-equality  treeEqSelfReify ) AND
---  TreeEq thx rhsT = poo  (step 4), we get  O = poo , which is
--- "0 = 1".
+-- Under the inner hyp  thx = j , we can go the OPPOSITE way:
+--   thx = j      (hyp)
+--   rhsT = j     (closed, diagFTargetCR)
+--   ~> thx = rhsT
+--   ~> TreeEq thx rhsT = TreeEq rhsT rhsT  (via axEqCongL TreeEq)
+--   ~> TreeEq rhsT rhsT = O                (treeEqSelfReify cGSCR +
+--                                           rhsT = reify cGSCR rewrite)
+--   ~> TreeEq thx rhsT = O
+-- which is the NEGATION of what step 4 wants (O vs poo).  So our
+-- equational framework proves the step-4-OPPOSITE, not step 4 itself.
 --
--- Encoding at the Deriv / thmT level: use  encRuleTrans  to glue
--- Dth(x)-based and Y-based encoded proofs.  Requires a new encoded-
--- proof combinator  encMp  or manual construction via  encRuleTrans
--- + encRuleSym .  ~80-120 lines.
+-- This asymmetry is intrinsic to having replaced BRA's formula-level
+-- negation with the  TreeEq-returns-poo  convention: equational
+-- reasoning alone cannot manufacture a "negative" validator output
+-- without an actual positive proof of the equation.
 --
--- Step 6 : ChainBRA closure.  Substitute  var zero := combined  into
--- the hypothesis  ConBRA  to obtain  th(combined) ≠ codeBot , then
--- combine with step 5's conclusion  th(combined) = codeBot  to derive
---  atomic gsCR  (Gödel I's input, via  provableGodelIBridge ).
+-- Resolution options (deferred, each is a substantial extension):
 --
--- ~80 lines.
+--  (Q1) Add a formula-level negation encoder to the Deriv/ProofEnc
+--       system: a new encoded-proof combinator whose validator output
+--       is ~(encoded-equation) per Def 11.3.  This would add BRA's
+--       formula-level reasoning to our otherwise equational Deriv.
+--       Requires extending  thmTStep  with a new dispatch case.
+--       Estimated ~500-1000 lines.
+--
+--  (Q2) Reframe the chain to use EQUATIONAL-level reasoning only,
+--       skipping the formula-level-negation step.  Specifically,
+--       replace step 4's  "th(Y) = 'th(x) ≠ sub(i,i)'"  with
+--       "Y = encoded proof of  TreeEq thx rhsT = O  (NOT poo)"
+--       — which IS derivable under  thx = j  + diagFTargetCR +
+--       treeEqSelfReify .  Then step 5 becomes: from  ConBRA
+--       substituted + (TreeEq thx rhsT = O) via the formula-
+--       substitution at var zero := combined_new , derive
+--        O = falseT , i.e., codeBot.
+--       Requires redesigning combined_new and step 5's Provable
+--       derivation.  Estimated ~300-500 lines.
+--
+--  (Q3) Move the contradiction-extraction to the closure step
+--       (step 6) entirely, bypassing step 4 and 5.  Under ConBRA +
+--       Formula-substitute var zero := (reify cGSCR) = j  (a specific
+--       closed term in the image of reify): ConBRA@j gives  TreeEq
+--       (th j) codeBotT = falseT .  Under the semantic interpretation
+--       (provExtract), this means there's NO Deriv proof of 0 = 1 via
+--       j.  Combined with godelIClassical's use of j as the Gödel
+--       sentence — this is exactly the closed form of the chain we
+--       already have in Guard.ProvableGodelIBridge!  May short-circuit
+--       the chain construction.  Requires verifying that the
+--       substituted ConBRA's content equals gsCR's content modulo
+--       closed facts — which it may or may not, depending on the
+--       exact Provable vs Deriv semantic mapping.
+--
+-- Given the complexity, further progress requires picking one of
+-- (Q1)-(Q3).  This file commits chain steps 1-3 as a clean partial
+-- deliverable.
+
+------------------------------------------------------------------------
+-- Typechecks under --safe --without-K --exact-split.  No postulates,
+-- no holes.
 
 ------------------------------------------------------------------------
 -- Typechecks under --safe --without-K --exact-split.  No postulates,
