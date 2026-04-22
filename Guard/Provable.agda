@@ -70,3 +70,14 @@ data Provable (hyp : Formula) : Formula -> Set where
        Provable hyp (P imp Q) ->
        Provable hyp P ->
        Provable hyp Q
+
+  ------------------------------------------------------------------
+  -- Substitution rule (Guard's substitution of terms for numerical
+  -- variables, applied uniformly to a formula).
+  --
+  -- Note: substitution applies to the CONCLUSION; the hypothesis is
+  -- not substituted (mirroring Deriv's ruleInst).
+
+  ruleSubP : (x : Nat) (t : Term) {P : Formula} ->
+             Provable hyp P ->
+             Provable hyp (substF x t P)

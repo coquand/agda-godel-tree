@@ -11,7 +11,8 @@
 
 module Guard.Formula where
 
-open import Guard.Term using (Equation)
+open import Guard.Base
+open import Guard.Term using (Equation ; Term ; substEq)
 
 ------------------------------------------------------------------------
 -- Formula: propositional combination of atomic equations.
@@ -27,3 +28,14 @@ data Formula : Set where
 
 infixr 5 not_
 infixr 4 _imp_
+
+------------------------------------------------------------------------
+-- Substitution at the Formula level: replace variable x with term t.
+--
+-- Atomic equations use the existing substEq (Guard.Term).
+-- Compound formulas recurse structurally.
+
+substF : Nat -> Term -> Formula -> Formula
+substF x t (atomic eq) = atomic (substEq x t eq)
+substF x t (not P)     = not (substF x t P)
+substF x t (P imp Q)   = (substF x t P) imp (substF x t Q)
