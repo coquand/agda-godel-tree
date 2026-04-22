@@ -141,14 +141,26 @@ Notes:
 
 Derived theorems and the deduction theorem.
 
+**Note on the deduction theorem.** Guard 1963 (`guard15.pdf`, page 11)
+states the deduction theorem for BRA as **Exercise 19**, not as an
+axiom or theorem proved in the text. It is treated as a standard
+derived meta-theorem of any propositional system with K (axiom 11), S
+(axiom 12), and modus ponens — a result going back to Hilbert-Bernays
+and Church, found in any introductory logic textbook. The proof is
+well-known to terminate; the only friction in our setting is the Agda
+mechanics of inducting on the `Provable` data type. We do not need to
+add it as an axiom: with K, S, and modus ponens admitted (Guard's
+axioms 11, 12), deduction theorem follows.
+
 ```agda
--- Identity:  P ⊃ P.  Standard combinator derivation: P ⊃ ((P ⊃ P) ⊃ P)
--- by axK, then axS+axK to get P ⊃ P.
+-- Identity:  P ⊃ P.  Standard combinator derivation: I = S K K.
+-- ~5 lines using axK and axS chained by mp.
 provI : (P : Formula) -> Provable hyp (P imp P)
 
 -- Deduction theorem.  This is THE key meta-theorem.
 -- "If under (P :: hyp) we can derive Q, then under hyp we can derive
--- P ⊃ Q."  Proved by induction on Provable.
+-- P ⊃ Q."  Proved by induction on Provable, mirroring the standard
+-- combinatory-logic proof.
 deductionThm : {P Q : Formula} ->
                Provable P Q ->                  -- under hypothesis P
                Provable hyp (P imp Q)            -- at any other hyp
