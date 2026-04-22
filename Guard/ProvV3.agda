@@ -19,7 +19,7 @@ open import Guard.Term
 open import Guard.Step
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForV3 using (thmT)
-open import Guard.TreeEqSelf using (treeEqSelf)
+open import Guard.TreeEqSelf using (treeEqSelf ; treeEqSelfReify)
 open import Guard.Thm14EV3 using (ProofE3 ; encT ; corr)
 
 ------------------------------------------------------------------------
@@ -65,7 +65,12 @@ necessitation pe = mkProv3 (encT pe) (corr pe)
 --
 -- If  TreeEq(c, c) = falseT  is derivable, then so is  trueT = falseT .
 
+-- diagContradict takes a self-equality witness for c as a parameter
+-- (typically discharged by treeEqSelfReify when c is a reify of a tree).
+-- This avoids the ruleInst side-condition cascading into ProvV3.
+
 diagContradict : {hyp : Equation} (c : Term) ->
+  ({h : Equation} -> Deriv h (eqn (ap2 TreeEq c c) O)) ->
   Deriv hyp (eqn (ap2 TreeEq c c) falseT) ->
   Deriv hyp (eqn trueT falseT)
-diagContradict c d = ruleTrans (ruleSym (treeEqSelf c)) d
+diagContradict c cSelf d = ruleTrans (ruleSym cSelf) d

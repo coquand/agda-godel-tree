@@ -35,7 +35,7 @@ open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForV3 using (thmT)
 open import Guard.CodeOfReify using (cor ; corOfReify)
 open import Guard.SubstTForPrecompClassical
-open import Guard.TreeEqSelf using (treeEqSelf)
+open import Guard.TreeEqSelf using (treeEqSelf ; treeEqSelfReify)
 open import Guard.Thm14EV3 using (ProofE3 ; thm14EV3 ; encT ; corr)
 open import Guard.Nelson.SubstReify using (substReify)
 
@@ -153,9 +153,10 @@ godelIClassical d = ruleTrans (ruleSym selfEq) stepB
         (eqSym cGSdefCR)
         (corr pe))
 
-  -- ruleInst the proof slot v_0 := enc.
+  -- ruleInst the proof slot v_0 := enc.  Side condition discharged
+  -- by trivClosed: Triv is closed, so substEq is identity on it.
   d1 : Deriv Triv (substEq zero enc gsCR)
-  d1 = ruleInst zero enc d
+  d1 = ruleInst zero enc (trivClosed zero enc) d
 
   lhsT : Term
   lhsT = ap1 (thmT trivCT) enc
@@ -180,7 +181,7 @@ godelIClassical d = ruleTrans (ruleSym selfEq) stepB
   stepB = ruleTrans (ruleSym (congR TreeEq (reify cGSCR) diagFTargetCR)) stepA
 
   selfEq : Deriv Triv (eqn (ap2 TreeEq (reify cGSCR) (reify cGSCR)) O)
-  selfEq = treeEqSelf (reify cGSCR)
+  selfEq = treeEqSelfReify cGSCR
 
 ------------------------------------------------------------------------
 -- Contrapositive: if Triv is consistent, Triv does not prove gsCR.

@@ -44,6 +44,12 @@ abstract
   trivCTDef : Eq trivCT (reify (codeEqn Triv))
   trivCTDef = refl
 
+  -- Triv is closed: substitution at any (x, t) is identity on Triv.
+  -- Used to discharge the ruleInst Hilbert-Bernays side condition at
+  -- hyp = Triv (the standard sound use of variable instantiation).
+  trivClosed : (x : Nat) (t : Term) -> Eq (substEq x t Triv) Triv
+  trivClosed x t = refl
+
   -- The NEW template LHS: substOp's first Pair arg is  (ap1 cor (var v_1)) .
   lhsTermCR : Term
   lhsTermCR = ap2 TreeEq (ap1 (thmT trivCT) (var zero))
