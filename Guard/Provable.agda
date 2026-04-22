@@ -64,6 +64,35 @@ data Provable (hyp : Formula) : Formula -> Set where
           Provable hyp ((not P) imp ((not Q) imp (Q imp P)))
 
   ------------------------------------------------------------------
+  -- Equality axioms (Guard 1963 BRA, axioms 4, 5, 6, 7).
+  --
+  -- Axiom 4: x_0 = x_1 . x_0 = x_2 ⊃ x_1 = x_2  (transitivity in
+  -- conjunctive form, equivalent under ⊃-currying to:
+  -- x_0 = x_1 ⊃ x_0 = x_2 ⊃ x_1 = x_2).
+  -- Axiom 5: x_0 = x_1 ⊃ f(x_0) = f(x_1)  (singulary congruence).
+  -- Axiom 6: x_0 = x_1 ⊃ g(x_0, x_2) = g(x_1, x_2)  (binary cong, left).
+  -- Axiom 7: x_1 = x_2 ⊃ g(x_0, x_1) = g(x_0, x_2)  (binary cong, right).
+  --
+  -- We universalise over Terms (a, b, c) and over Fun1 / Fun2 (f, g).
+
+  axEqTrans : (a b c : Term) ->
+              Provable hyp ((atomic (eqn a b))
+                             imp ((atomic (eqn a c))
+                                   imp (atomic (eqn b c))))
+
+  axEqCong1 : (f : Fun1) (a b : Term) ->
+              Provable hyp ((atomic (eqn a b))
+                             imp (atomic (eqn (ap1 f a) (ap1 f b))))
+
+  axEqCongL : (g : Fun2) (a b c : Term) ->
+              Provable hyp ((atomic (eqn a b))
+                             imp (atomic (eqn (ap2 g a c) (ap2 g b c))))
+
+  axEqCongR : (g : Fun2) (a b c : Term) ->
+              Provable hyp ((atomic (eqn a b))
+                             imp (atomic (eqn (ap2 g c a) (ap2 g c b))))
+
+  ------------------------------------------------------------------
   -- Modus ponens.
 
   mp : {P Q : Formula} ->

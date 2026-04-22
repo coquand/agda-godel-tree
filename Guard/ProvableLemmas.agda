@@ -96,7 +96,33 @@ deductionThm P .((not P') imp ((not Q') imp (Q' imp P'))) (axNeg P' Q') =
   mp (axK ((not P') imp ((not Q') imp (Q' imp P'))) P)
      (axNeg P' Q')
 
--- (6) mp pq p : Provable P Q derived from Provable P (R imp Q) and
+-- (6-9) Equality axioms (Guard ax 4-7): each lifts via axK over P.
+
+deductionThm P
+  .((atomic (eqn a b)) imp ((atomic (eqn a c)) imp (atomic (eqn b c))))
+  (axEqTrans a b c) =
+  mp (axK ((atomic (eqn a b)) imp ((atomic (eqn a c)) imp (atomic (eqn b c)))) P)
+     (axEqTrans a b c)
+
+deductionThm P
+  .((atomic (eqn a b)) imp (atomic (eqn (ap1 f a) (ap1 f b))))
+  (axEqCong1 f a b) =
+  mp (axK ((atomic (eqn a b)) imp (atomic (eqn (ap1 f a) (ap1 f b)))) P)
+     (axEqCong1 f a b)
+
+deductionThm P
+  .((atomic (eqn a b)) imp (atomic (eqn (ap2 g a c) (ap2 g b c))))
+  (axEqCongL g a b c) =
+  mp (axK ((atomic (eqn a b)) imp (atomic (eqn (ap2 g a c) (ap2 g b c)))) P)
+     (axEqCongL g a b c)
+
+deductionThm P
+  .((atomic (eqn a b)) imp (atomic (eqn (ap2 g c a) (ap2 g c b))))
+  (axEqCongR g a b c) =
+  mp (axK ((atomic (eqn a b)) imp (atomic (eqn (ap2 g c a) (ap2 g c b)))) P)
+     (axEqCongR g a b c)
+
+-- (10) mp pq p : Provable P Q derived from Provable P (R imp Q) and
 -- Provable P R.  IH on pq gives Provable hyp (P imp (R imp Q)); IH on
 -- p gives Provable hyp (P imp R).  Combine via dedThmMp.
 
