@@ -1,0 +1,313 @@
+{-# OPTIONS --safe --without-K --exact-split #-}
+
+-- Guard.RouteADf -- de-risk of the Provable-layer Th 13 lift (Route A).
+--
+-- Per NEXT-SESSION-BRA-GODELII.md, before scaling to the full Df
+-- combinator we prototype the single case  f = I :
+--
+--   (a) DfI : Term -> Term -> Term
+--   (b) DfICorrSelf : unconditional Deriv witness at the self-case  y = x
+--   (c) thm13AtI    : Provable-layer lift for  f = I
+--
+-- (a) and (b) go through cleanly from  encAxI + encAxICorr  in
+-- Guard.ProofEnc.  (c) — the critical step — hits an obstruction that
+-- parallels the abstract-X obstruction in Guard.ChainPrototype.agda:
+-- the Provable hypothesis  ap1 I x = y  cannot be transported to a
+-- Provable equation between  reify (code x)  and  reify (code y) ,
+-- because  reify ∘ code  is not a BRA Fun1 in our system (unlike
+-- Guard 1963's  num , which IS a BRA functor and closes Th 13 by
+--  axEqCong1 num  applied to the hypothesis).
+--
+-- See the "Implications for Route A" comment block at the bottom for
+-- what this means for the chain construction.  This file follows the
+-- de-risk instructions in the handoff:
+--
+--     "If (c) blows up in unexpected ways — especially around
+--      substOpCorrect interacting with the Provable-hypothesis's
+--      equality rewrite — STOP, document the obstruction in a
+--      comment block at the bottom of Guard/RouteADf.agda (in the
+--      spirit of Guard/ChainPrototype.agda's 'Implications' section),
+--      and report back before continuing."
+--
+-- Conventions: --safe --without-K --exact-split, no postulates, no
+-- holes.  Use ~/.cabal/bin/agda-2.9.0 to typecheck.
+
+module Guard.RouteADf where
+
+open import Guard.Base
+open import Guard.Term
+open import Guard.Step
+open import Guard.ThFun using (codeEqn)
+open import Guard.ThFunTForV3 using (thmT)
+open import Guard.SubstTForPrecompClassical using (trivCT)
+open import Guard.ProofEnc using (encAxI ; encAxICorr)
+
+------------------------------------------------------------------------
+-- (a)  DfI : Term -> Term -> Term
+--
+-- The simplest definition that makes DfICorrSelf typecheck: ignore y
+-- and re-use  encAxI (reify (code x)) , whose  thmT trivCT  image is
+-- exactly  reify (codeEqn (eqn (ap1 I x) x)) .  (Any definition that
+-- threaded  y  into the Term syntactically would still need to be
+-- bridged to  reify (codeEqn (eqn (ap1 I x) x))  in the self-case,
+-- since that is the form delivered by  encAxICorr ; no other encoder
+-- in Guard.ProofEnc produces an x-dependent RHS distinct from its
+-- LHS.)
+--
+-- The y-argument is consumed at the Provable layer (thm13AtI) via the
+-- hypothesis  ap1 I x = y , not at the Term layer.  See the
+-- Implications section for why this fails.
+
+DfI : Term -> Term -> Term
+DfI x _ = encAxI (reify (code x))
+
+------------------------------------------------------------------------
+-- (b)  DfICorrSelf : the unconditional Deriv witness at the self-case.
+--
+-- Claim:  thmT trivCT (DfI x x) = reify (codeEqn (eqn (ap1 I x) x)) .
+--
+-- Both sides evaluate (under the definitions in Guard.ProofEnc.encAxI
+-- and Guard.ThFun.codeEqn + Guard.Term.reify, code) to
+--
+--   Pair (Pair (reify tagAp1) (Pair (reify (codeF1 I)) (reify (code x))))
+--        (reify (code x))
+--
+-- The LHS obtains this by  encAxICorr trivCT (reify (code x)) ; the
+-- RHS is definitionally this Term (Agda reduces  reify  of a  nd  to
+--  ap2 Pair , and  code  of an  ap1 I x  to  nd tagAp1 (nd (codeF1 I)
+-- (code x)) ).
+
+DfICorrSelf : (x : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT trivCT) (DfI x x))
+                 (reify (codeEqn (eqn (ap1 I x) x))))
+DfICorrSelf x = encAxICorr trivCT (reify (code x))
+
+------------------------------------------------------------------------
+-- (c)  thm13AtI (Provable-layer lift, f = I) — BLOCKED.
+--
+-- The goal statement, spelled out so the obstruction is explicit:
+--
+--   thm13AtI : {hyp : Formula} (x y : Term) ->
+--              Provable hyp (atomic (eqn (ap1 I x) y)) ->
+--              Provable hyp (atomic
+--                (eqn (ap1 (thmT trivCT) (DfI x y))
+--                     (reify (codeEqn (eqn (ap1 I x) y)))))
+--
+-- Why (c) does not go through:  see the Implications block below.  A
+-- working  thm13AtI  would close the f = I case of the chain's step
+-- 1.  It is not provable from the currently delivered infrastructure.
+--
+-- (We deliberately do NOT produce a postulate or hole here — this
+-- file typechecks cleanly under --safe with only (a) + (b).)
+
+------------------------------------------------------------------------
+-- Implications for Route A of the BRA Gödel II chain
+-- =====================================================================
+--
+-- Restating the target (c):
+--
+--   thm13AtI :
+--     (x y : Term) {hyp : Formula} ->
+--     Provable hyp (atomic (eqn (ap1 I x) y)) ->
+--     Provable hyp (atomic
+--       (eqn (ap1 (thmT trivCT) (DfI x y))
+--            (reify (codeEqn (eqn (ap1 I x) y)))))
+--
+-- After  DfICorrSelf x  (lifted via  fromDeriv ), we have
+--
+--   Provable hyp (atomic
+--     (eqn (ap1 (thmT trivCT) (DfI x x))
+--          (reify (codeEqn (eqn (ap1 I x) x)))))
+--
+-- — a Provable statement at the self-case  y = x .  To move from
+-- (..., x) to (..., y) we need to propagate the hypothesis  ap1 I x = y
+-- through BOTH occurrences of  x  in the Pair on the RHS of the atomic
+-- equation.  The RHS expands to:
+--
+--   reify (codeEqn (eqn (ap1 I x) y))
+--     = ap2 Pair (reify (code (ap1 I x)))  (reify (code y))
+--
+-- and the  DfICorrSelf  output is
+--
+--   reify (codeEqn (eqn (ap1 I x) x))
+--     = ap2 Pair (reify (code (ap1 I x)))  (reify (code x))
+--
+-- — same first component, different second component.  Rewriting
+--  reify (code x) ~> reify (code y)  requires a Provable equation
+--
+--   Provable hyp (atomic (eqn (reify (code x)) (reify (code y))))
+--
+-- — i.e. equality of the Gödel-number-encodings of  x  and  y .
+-- That Provable equation is NOT obtainable from  ap1 I x = y  in our
+-- system.
+--
+-- ----------------------------------------------------------------------
+-- Why Guard 1963 does not have this obstruction
+-- ----------------------------------------------------------------------
+--
+-- Guard 1963 Th 13 (p. 16):
+--
+--     f(x) = y |- th(Df(x)) = 3J(3J("f", num x)+1, num(f(x))), by Th 12
+--                          = 3J(3J("f", numx )+1, num  y   ) = "fx = y"
+--
+-- The second equality uses  num(f(x)) = num y , obtained by applying
+-- the BRA congruence  a = b -> num(a) = num(b)  to the hypothesis.
+--
+-- Crucially,  num  in Guard 1963 is a BRA  Fun1  (a singulary p.r.
+-- functor): Def 10 item 4 gives  num(n) = "n" = s^n 0 , so  num  is
+-- defined by  num 0 = O ,  num (s n) = s (num n) , a plain Rec.
+-- Guard's axEqCong1 applied to num + the hypothesis closes Th 13.
+--
+-- In our tree system, the analog of "num t" is  reify (code t) .  But
+--  reify  and  code  are META-level functions on  Tree , not a BRA
+--  Fun1  operating on  Term . There is no  numF : Fun1  in our
+-- system satisfying  ap1 numF t = reify (code t)  polymorphically in
+-- terms  t  (in particular, for  t = var n ).
+--
+-- One might hope to use  Guard.CodeOfReify.cor : Fun1 .  cor satisfies
+--  ap1 cor (reify t) = reify (code (reify t))  only for t of the form
+--  reify t_0  (i.e. the image of the Gödel-number embedding).  For a
+-- variable  x , however,  x  is not of the form  reify t_0 , and
+--  corOfReify  does not apply — so  cor  does NOT give us the needed
+-- num-congruence at Term level.
+--
+-- ----------------------------------------------------------------------
+-- Redesign options
+-- ----------------------------------------------------------------------
+--
+--  (R1) Introduce a new BRA functor  numF : Fun1  (via a Rec) together
+--       with a new axiom  axEqNumF :
+--         {hyp : Equation} -> Deriv hyp (eqn (ap1 numF t) (reify (code t)))
+--       polymorphically in all  Term  t .  This bypasses the
+--       obstruction BUT is UNSOUND: it would make code-equality
+--       conflate distinct terms that happen to have equal Gödel
+--       numbers (impossible for strictly different syntactic terms,
+--       but when combined with the Provable hypothesis  x = y , we
+--       would effectively be lifting the hypothesis to the Gödel-
+--       code layer, which is exactly Guard's  axEqCong1 numF ).
+--
+--       Soundness analysis: axEqNumF + axEqCong1 numF gives
+--       "Provable  x = y  ==>  Provable  code x = code y " as
+--       Gödel numbers (reify thereof).  This IS sound: code is a
+--       meta-function and preserves provable equalities by the
+--       semantic interpretation of Deriv/Provable — if  x  and  y
+--       are provably equal then in every valuation they have equal
+--       values, hence equal  code  as meta-trees.  So  axEqNumF  is
+--       a sound extension.
+--
+--       Cost: one new Fun1 constructor + one Rec-style axiom + a
+--       correctness lemma  (ap1 numF t) = reify (code t) .  For
+--       variables, the axiom is stipulated.  For constructors, it
+--       follows from Rec-unfolding on the code tree.
+--
+--       Estimated effort: 1 session (~150 lines) to add  numF  +
+--       axioms + verify the live BRA Gödel II core still typechecks.
+--
+--  (R2) Restrict  thm13At  to  y  of the form  reify t_y  (closed
+--       reified tree).  For the chain's step 1 (y = reify cGSCR) this
+--       holds, so (c) goes through for that specific y.  The
+--       generality of Th 13 is sacrificed, but the chain-specific
+--       uses are preserved.
+--
+--       Concretely: use  Guard.CodeOfReify.cor  to internalize the
+--       reification of y, then apply axEqCong1 cor + the hypothesis.
+--       But cor requires  x  also of the form  reify t_x  (via
+--       corOfReify), which fails for the chain's  x = var zero .
+--
+--       So (R2) only closes:  x = reify t_x  AND  y = reify t_y
+--       both of reified-tree form.  Chain step 1 needs variable x,
+--       so (R2) is insufficient for the chain.
+--
+--  (R3) Lift the chain's hypothesis to the Gödel-code layer
+--       MANUALLY via a meta-lemma : given the Provable hypothesis
+--       ap1 I x = y , apply a  "numerical-cong" (meta-level Agda)
+--       that transforms the Provable-level equation into the
+--       required  reify (code x) = reify (code y)  Provable
+--       equation.  This amounts to a new Provable primitive:
+--
+--         provNumCong : {a b : Term} ->
+--                       Provable hyp (atomic (eqn a b)) ->
+--                       Provable hyp (atomic (eqn (reify (code a))
+--                                                 (reify (code b))))
+--
+--       Semantically sound (same justification as (R1)'s
+--        axEqNumF ), but makes Provable non-conservative over
+--       Deriv: the meta-equation  code a = code b  is NOT a BRA
+--       theorem deducible from  a = b  without the new primitive.
+--
+--       Implementation: add a new  Provable  constructor  axNumCong
+--       (or prove it via soundness + extraction), or add the
+--       corresponding Deriv-level axiom  axNumCong  such that
+--        Deriv hyp (eqn a b) -> Deriv hyp (eqn (reify (code a))
+--                                              (reify (code b))) .
+--       The Deriv form is the honest add, mirroring Guard's num.
+--
+--       Estimated effort: 1 session (~100 lines), but REQUIRES
+--       revalidation of the Provable → Deriv soundness bridge in
+--       Guard/ProvableSound.agda: the new primitive must have a
+--       semantic model showing it preserves validity.  For
+--       standard term-equality semantics (valuation-based), the
+--       primitive is sound.
+--
+--  (R4) Abandon the  Provable hyp (atomic (eqn (ap1 I x) y))  form
+--       entirely; state  thm13AtI  with a weaker-form hypothesis
+--       that already sits at the Gödel-code layer:
+--
+--         thm13AtI' : {hyp : Formula} (x y : Term) ->
+--           Provable hyp (atomic (eqn (reify (code (ap1 I x)))
+--                                     (reify (code y)))) ->
+--           Provable hyp (atomic
+--             (eqn (ap1 (thmT trivCT) (DfI x y))
+--                  (reify (codeEqn (eqn (ap1 I x) y)))))
+--
+--       This goes through cleanly via  axEqCongR Pair  on the
+--       hypothesis.  But the chain's step 1 would need to supply
+--       the hypothesis at the Gödel-code layer, which is a DIFFERENT
+--       statement than  th(x) = j  ; it would need  "num(th(x)) =
+--       num j"  which is again the obstruction of getting num-
+--       congruence for the self-referential  th  step.
+--
+--       So (R4) just defers the problem up one level in the chain;
+--       it does not actually resolve it.
+--
+-- ----------------------------------------------------------------------
+-- Recommendation
+-- ----------------------------------------------------------------------
+--
+-- Of the four options, (R1) is the cleanest: add a BRA Fun1  numF
+-- to Guard.Term / Guard.Step that internalizes  reify ∘ code  with
+-- one new axiom.  This is the honest transcription of Guard 1963's
+--  num  into our tree setting, and closes Th 13 uniformly for all
+--  f : Fun1 , all  Term  x  and  y .
+--
+-- If we wish to avoid expanding the Term / Step definitional layer,
+-- (R3) achieves the same effect at the Provable layer by adding a
+-- primitive Provable constructor  axNumCong  with the expected
+-- soundness witness.  This has the advantage of being localized to
+-- the Provable layer (Deriv stays unchanged), but the disadvantage
+-- of making Provable non-conservative over Deriv.
+--
+-- Either way, the sketch in the handoff's "Open pieces" item 1 —
+--  "encAxI (reify (code x))  wrapped via  encCongR "  — is
+-- insufficient on its own.  encCongR  g xC enc  wraps a sub-proof
+-- of  a = b  into a proof of  g(xC, a) = g(xC, b) ; this produces
+-- proofs ABOUT functor applications, not about raw terms, so it
+-- cannot supply the missing  num-congruence step.
+--
+-- ----------------------------------------------------------------------
+-- Status
+-- ----------------------------------------------------------------------
+--
+--  (a) DfI          : DELIVERED above.
+--  (b) DfICorrSelf  : DELIVERED above (one-liner).
+--  (c) thm13AtI     : BLOCKED pending a num-congruence primitive
+--                     (R1 or R3 above).  The obstruction is documented
+--                     in this comment block; report back before
+--                     scaling to the other Fun1 cases or writing any
+--                     chain steps.
+--
+-- Committing this file per the handoff's commit ladder:
+--
+--     "Commit after: (i) DfI + DfICorrSelf (pure Deriv), ..."
+--
+-- is the correct first commit for this session.
