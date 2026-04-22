@@ -118,12 +118,33 @@ We are committing to **Option A** — adding the side condition to
 refactor that makes the Gödel II chain (and any further Hilbert-
 Bernays sensitive work) implementable without lurking unsoundness.
 
+### On the precise side condition
+
+The condition `Eq (substEq x t hyp) hyp` is **weaker than** "x not free
+in hyp" but is still sound — and it is the *weakest* sound side
+condition for the given `(x, t)` pair.  Counterexample to the
+freshness reading: take `hyp = eqn (var 0) (var 0)`, `x = 0`,
+`t = var 0`; substitution is identity, side condition holds, yet
+`var 0` is free in `hyp`.
+
+Semantic justification: `Deriv hyp eq` interprets to "for every
+valuation v, hyp(v) ⇒ eq(v)".  `ruleInst x t` is sound when
+`hyp(v) = hyp(v[x ↦ t(v)])` for all v, i.e., the substitution doesn't
+observably change the hypothesis.  Syntactic equality
+`substEq x t hyp = hyp` implies exactly that semantic invariance.
+
+The textbook reading "x not free in hyp" implies the side condition
+for *every* `t`, but the condition itself only requires no-op for
+the *specific* `t` being substituted (so the trivial `t = var x` case
+— a harmless identity rule application — is admitted, which the strict
+freshness reading would reject).
+
 ### Plan
 
 1. Modify `Guard/Step.agda` `ruleInst`:
    ```agda
    ruleInst : (x : Nat) (t : Term) {eq : Equation} ->
-              Eq (substEq x t hyp) hyp ->
+              Eq (substEq x t hyp) hyp ->     -- substitution [t/x] is a no-op on hyp
               Deriv hyp eq -> Deriv hyp (substEq x t eq)
    ```
 2. Update pattern matches in DerivLift, Thm14EV3, RoseLemma1,
