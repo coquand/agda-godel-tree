@@ -1,33 +1,37 @@
 {-# OPTIONS --safe --without-K --exact-split #-}
 
--- Guard.RouteADf -- de-risk of the Provable-layer Th 13 lift (Route A).
+-- Guard.RouteADf -- Provable-layer Th 13 lift, case f = I (de-risk).
 --
--- Per NEXT-SESSION-BRA-GODELII.md, before scaling to the full Df
--- combinator we prototype the single case  f = I :
+-- Transcribes Guard 1963 Theorem 13 at the Provable layer for the
+-- singulary functor f = I.  The key conceptual correspondence:
 --
---   (a) DfI : Term -> Term -> Term
---   (b) DfICorrSelf : unconditional Deriv witness at the self-case  y = x
---   (c) thm13AtI    : Provable-layer lift for  f = I
+--   Guard's  num : Fun1   <->   our  cor : Fun1  (Guard.CodeOfReify)
 --
--- (a) and (b) go through cleanly from  encAxI + encAxICorr  in
--- Guard.ProofEnc.  (c) — the critical step — hits an obstruction that
--- parallels the abstract-X obstruction in Guard.ChainPrototype.agda:
--- the Provable hypothesis  ap1 I x = y  cannot be transported to a
--- Provable equation between  reify (code x)  and  reify (code y) ,
--- because  reify ∘ code  is not a BRA Fun1 in our system (unlike
--- Guard 1963's  num , which IS a BRA functor and closes Th 13 by
---  axEqCong1 num  applied to the hypothesis).
+-- In Guard 1963 (Def 12, p.16), an underlined variable x inside a
+-- Goedel-numbered term is interpreted as  num x , NOT as the constant
+-- Goedel number of the variable symbol.  Th 13's conclusion  "f_x = y"
+-- (with both x and y underlined) unfolds via Def 12 to
 --
--- See the "Implications for Route A" comment block at the bottom for
--- what this means for the chain construction.  This file follows the
--- de-risk instructions in the handoff:
+--   3J(3J("f", num x)+1, num y)
 --
---     "If (c) blows up in unexpected ways — especially around
---      substOpCorrect interacting with the Provable-hypothesis's
---      equality rewrite — STOP, document the obstruction in a
---      comment block at the bottom of Guard/RouteADf.agda (in the
---      spirit of Guard/ChainPrototype.agda's 'Implications' section),
---      and report back before continuing."
+-- a BRA term in the variables x, y — not a closed Goedel number.
+-- The proof of Th 13 combines Th 12 ( th(Df(x)) = "f_x = fx" ) with
+--  num-congruence  ax4Cong1 num  applied to the hypothesis  f(x) = y ,
+-- which yields  num(f(x)) = num y , and the RHS of Th 12 rewrites
+-- from  num(f(x))  to  num y .
+--
+-- In our tree setting, the analog of  num  is  cor  (Guard.CodeOfReify):
+-- a BRA  Fun1  defined by Rec on tree structure whose specification
+--  corOfReify : ap1 cor (reify t) = reify (code (reify t))
+-- is the analog of Guard's  num(sx) = "sx"  numeral identity.  And
+--  axEqCong1 cor  fires unconditionally (built-in Fun1 congruence).
+--
+-- So the target RHS of  thm13AtI  uses  ap1 cor x  and  ap1 cor y  in
+-- the slots that Guard writes as  num x  and  num y .  For any actual
+-- substitution  x := reify t_x ,  y := reify t_y  (which is what the
+-- chain supplies at closure time),  ap1 cor (reify t)  resolves to
+--  reify (code (reify t))  via  corOfReify , reducing to the closed
+-- Goedel-number-of-encoded-equation term that the reductio needs.
 --
 -- Conventions: --safe --without-K --exact-split, no postulates, no
 -- holes.  Use ~/.cabal/bin/agda-2.9.0 to typecheck.
@@ -37,277 +41,138 @@ module Guard.RouteADf where
 open import Guard.Base
 open import Guard.Term
 open import Guard.Step
-open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForV3 using (thmT)
 open import Guard.SubstTForPrecompClassical using (trivCT)
+open import Guard.CodeOfReify using (cor)
 open import Guard.ProofEnc using (encAxI ; encAxICorr)
+open import Guard.Formula
+open import Guard.Provable
+open import Guard.ProvableEqLifts
 
 ------------------------------------------------------------------------
--- (a)  DfI : Term -> Term -> Term
+-- DfI : Term -> Term -> Term
 --
--- The simplest definition that makes DfICorrSelf typecheck: ignore y
--- and re-use  encAxI (reify (code x)) , whose  thmT trivCT  image is
--- exactly  reify (codeEqn (eqn (ap1 I x) x)) .  (Any definition that
--- threaded  y  into the Term syntactically would still need to be
--- bridged to  reify (codeEqn (eqn (ap1 I x) x))  in the self-case,
--- since that is the form delivered by  encAxICorr ; no other encoder
--- in Guard.ProofEnc produces an x-dependent RHS distinct from its
--- LHS.)
---
--- The y-argument is consumed at the Provable layer (thm13AtI) via the
--- hypothesis  ap1 I x = y , not at the Term layer.  See the
--- Implications section for why this fails.
+-- DfI x y = encAxI (ap1 cor x) .  y is not used at the Term level;
+-- its role is played by the Provable-layer hypothesis  ap1 I x = y
+-- (consumed by thm13AtI below).  The same pattern as Guard 1963's
+-- Df(x): a singulary BRA functor whose argument is only  x .
 
 DfI : Term -> Term -> Term
-DfI x _ = encAxI (reify (code x))
+DfI x _ = encAxI (ap1 cor x)
 
 ------------------------------------------------------------------------
--- (b)  DfICorrSelf : the unconditional Deriv witness at the self-case.
+-- encEqForm x y : the encoded "f_x = _y" equation, with Guard's
+-- underlining  num = cor  in place.
 --
--- Claim:  thmT trivCT (DfI x x) = reify (codeEqn (eqn (ap1 I x) x)) .
+-- Shape: ap2 Pair (ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 I))
+-- (ap1 cor x))) (ap1 cor y) .  The first Pair slot is  "f_x"  (with x
+-- underlined via cor); the second is  "_y"  (with y underlined via
+-- cor).  Compare Guard 1963 Def 12's example:
+--  "fx = g(hx,0)" ~~> 3J(3J("f", num x)+1, num g(hx,0))  .
+
+encEqForm : Term -> Term -> Term
+encEqForm x y =
+  ap2 Pair
+    (ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 I)) (ap1 cor x)))
+    (ap1 cor y)
+
+------------------------------------------------------------------------
+-- DfICorrSelf : unconditional Deriv witness at the self-case (y = x).
 --
--- Both sides evaluate (under the definitions in Guard.ProofEnc.encAxI
--- and Guard.ThFun.codeEqn + Guard.Term.reify, code) to
+-- This is Guard's Th 12 specialized to  f = I :  th(Df(x)) = "f_x = fx" .
+-- Under the Def 12 equivalence  "fx" = num(fx)  (applicable since fx
+-- is a term that can be regarded either as the Goedel number of the
+-- syntactic term  f(x)  or as  num(fx)  with the whole expression
+-- underlined), the self-case gives
+--   thmT trivCT (DfI x x) = encEqForm x x  .
 --
---   Pair (Pair (reify tagAp1) (Pair (reify (codeF1 I)) (reify (code x))))
---        (reify (code x))
---
--- The LHS obtains this by  encAxICorr trivCT (reify (code x)) ; the
--- RHS is definitionally this Term (Agda reduces  reify  of a  nd  to
---  ap2 Pair , and  code  of an  ap1 I x  to  nd tagAp1 (nd (codeF1 I)
--- (code x)) ).
+-- One-liner via encAxICorr.
 
 DfICorrSelf : (x : Term) -> {hyp : Equation} ->
-  Deriv hyp (eqn (ap1 (thmT trivCT) (DfI x x))
-                 (reify (codeEqn (eqn (ap1 I x) x))))
-DfICorrSelf x = encAxICorr trivCT (reify (code x))
+  Deriv hyp (eqn (ap1 (thmT trivCT) (DfI x x)) (encEqForm x x))
+DfICorrSelf x = encAxICorr trivCT (ap1 cor x)
 
 ------------------------------------------------------------------------
--- (c)  thm13AtI (Provable-layer lift, f = I) — BLOCKED.
+-- thm13AtI : Guard 1963 Theorem 13, case f = I, at the Provable layer.
 --
--- The goal statement, spelled out so the obstruction is explicit:
+-- Direct transcription of the proof on guard15.pdf p.16:
 --
---   thm13AtI : {hyp : Formula} (x y : Term) ->
---              Provable hyp (atomic (eqn (ap1 I x) y)) ->
---              Provable hyp (atomic
---                (eqn (ap1 (thmT trivCT) (DfI x y))
---                     (reify (codeEqn (eqn (ap1 I x) y)))))
+--   f(x) = y  |-  th(Df(x))
+--            = 3J(3J("f", num x)+1, num(f(x)))     by Th 12
+--            = 3J(3J("f", num x)+1, num y         )  by ax4Cong1 num
+--            = "f_x = _y"                          by Def 12
 --
--- Why (c) does not go through:  see the Implications block below.  A
--- working  thm13AtI  would close the f = I case of the chain's step
--- 1.  It is not provable from the currently delivered infrastructure.
+-- Our transcription at f = I, in the order Guard uses:
 --
--- (We deliberately do NOT produce a postulate or hole here — this
--- file typechecks cleanly under --safe with only (a) + (b).)
+--  Step 1 : encAxICorr produces  thmT trivCT (DfI x y) = encEqForm x x
+--           -- "th(Df(x)) = 'f_x = fx'"  under the Def 12 equivalence
+--           -- (Guard's Th 12 specialized at f = I).
+--  Step 2 : From the hypothesis  ap1 I x = y ,  prCong1 cor  gives
+--             ap1 cor (ap1 I x) = ap1 cor y
+--           -- "num(f(x)) = num y"  (the axCong1 num move).
+--  Step 3 : From  axI  (ap1 I x = x),  prCong1 cor  gives
+--             ap1 cor (ap1 I x) = ap1 cor x
+--           -- a pure consequence of cor's congruence; composing with
+--           -- step 2 via  prSym + prTrans  yields
+--             ap1 cor x = ap1 cor y .
+--  Step 4 : prCongR Pair rewrites  ap1 cor x  to  ap1 cor y  in the
+--           second slot of the outer  ap2 Pair , moving
+--             encEqForm x x  ~>  encEqForm x y .
+--  Step 5 : prTrans glues steps 1 and 4.
+
+thm13AtI : {hyp : Formula} (x y : Term) ->
+  Provable hyp (atomic (eqn (ap1 I x) y)) ->
+  Provable hyp (atomic (eqn (ap1 (thmT trivCT) (DfI x y)) (encEqForm x y)))
+thm13AtI {hyp} x y dIxy =
+  prTrans (ap1 (thmT trivCT) (DfI x y)) (encEqForm x x) (encEqForm x y)
+    self pairRewrite
+  where
+  A : Term
+  A = ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 I)) (ap1 cor x))
+
+  -- Step 1: Guard's Th 12 specialized at f = I.
+  self : Provable hyp (atomic (eqn (ap1 (thmT trivCT) (DfI x y)) (encEqForm x x)))
+  self = fromDeriv (encAxICorr trivCT (ap1 cor x))
+
+  -- Step 2: num-cong on the hypothesis.
+  corIxy : Provable hyp (atomic (eqn (ap1 cor (ap1 I x)) (ap1 cor y)))
+  corIxy = prCong1 cor (ap1 I x) y dIxy
+
+  -- Step 3a: num-cong on axI (polymorphic in hyp, lifted via fromDeriv).
+  corIxx : Provable hyp (atomic (eqn (ap1 cor (ap1 I x)) (ap1 cor x)))
+  corIxx = prCong1 cor (ap1 I x) x (fromDeriv (axI x))
+
+  -- Step 3b: cor x = cor y , via prSym + prTrans on (3a), (2).
+  corxy : Provable hyp (atomic (eqn (ap1 cor x) (ap1 cor y)))
+  corxy = prTrans (ap1 cor x) (ap1 cor (ap1 I x)) (ap1 cor y)
+            (prSym (ap1 cor (ap1 I x)) (ap1 cor x) corIxx)
+            corIxy
+
+  -- Step 4: rewrite cor x ~> cor y inside the encoded equation's RHS
+  -- slot via axEqCongR Pair.
+  pairRewrite : Provable hyp (atomic
+                  (eqn (ap2 Pair A (ap1 cor x)) (ap2 Pair A (ap1 cor y))))
+  pairRewrite = prCongR Pair (ap1 cor x) (ap1 cor y) A corxy
 
 ------------------------------------------------------------------------
--- Implications for Route A of the BRA Gödel II chain
+-- Implications for Route A
 -- =====================================================================
 --
--- Restating the target (c):
+-- The f = I case is closed.  The other Fun1 cases (Fst, Snd, Comp f g,
+-- Comp2 h f g, Rec z s, KT t) are mechanical variants: for each we
+-- have an  encAx*  encoder in  Guard.ProofEnc , whose  encAx*Corr
+-- lemma plays the role of  encAxICorr  here.  The Provable-layer
+-- rewrite step (4) is shared: rewrite  cor (arg)  to  cor (target-value)
+-- via  prCongR Pair  on the rightmost slot, after applying the Fun1's
+-- defining axiom + num-cong to the hypothesis.
 --
---   thm13AtI :
---     (x y : Term) {hyp : Formula} ->
---     Provable hyp (atomic (eqn (ap1 I x) y)) ->
---     Provable hyp (atomic
---       (eqn (ap1 (thmT trivCT) (DfI x y))
---            (reify (codeEqn (eqn (ap1 I x) y)))))
+-- Binary analogue  DfF2 : Fun2 -> Term -> Term -> Term -> Term
+-- follows the same pattern using  encAxFst / encAxSnd / ... /
+-- encAxTreeEq*  encoders.
 --
--- After  DfICorrSelf x  (lifted via  fromDeriv ), we have
---
---   Provable hyp (atomic
---     (eqn (ap1 (thmT trivCT) (DfI x x))
---          (reify (codeEqn (eqn (ap1 I x) x)))))
---
--- — a Provable statement at the self-case  y = x .  To move from
--- (..., x) to (..., y) we need to propagate the hypothesis  ap1 I x = y
--- through BOTH occurrences of  x  in the Pair on the RHS of the atomic
--- equation.  The RHS expands to:
---
---   reify (codeEqn (eqn (ap1 I x) y))
---     = ap2 Pair (reify (code (ap1 I x)))  (reify (code y))
---
--- and the  DfICorrSelf  output is
---
---   reify (codeEqn (eqn (ap1 I x) x))
---     = ap2 Pair (reify (code (ap1 I x)))  (reify (code x))
---
--- — same first component, different second component.  Rewriting
---  reify (code x) ~> reify (code y)  requires a Provable equation
---
---   Provable hyp (atomic (eqn (reify (code x)) (reify (code y))))
---
--- — i.e. equality of the Gödel-number-encodings of  x  and  y .
--- That Provable equation is NOT obtainable from  ap1 I x = y  in our
--- system.
---
--- ----------------------------------------------------------------------
--- Why Guard 1963 does not have this obstruction
--- ----------------------------------------------------------------------
---
--- Guard 1963 Th 13 (p. 16):
---
---     f(x) = y |- th(Df(x)) = 3J(3J("f", num x)+1, num(f(x))), by Th 12
---                          = 3J(3J("f", numx )+1, num  y   ) = "fx = y"
---
--- The second equality uses  num(f(x)) = num y , obtained by applying
--- the BRA congruence  a = b -> num(a) = num(b)  to the hypothesis.
---
--- Crucially,  num  in Guard 1963 is a BRA  Fun1  (a singulary p.r.
--- functor): Def 10 item 4 gives  num(n) = "n" = s^n 0 , so  num  is
--- defined by  num 0 = O ,  num (s n) = s (num n) , a plain Rec.
--- Guard's axEqCong1 applied to num + the hypothesis closes Th 13.
---
--- In our tree system, the analog of "num t" is  reify (code t) .  But
---  reify  and  code  are META-level functions on  Tree , not a BRA
---  Fun1  operating on  Term . There is no  numF : Fun1  in our
--- system satisfying  ap1 numF t = reify (code t)  polymorphically in
--- terms  t  (in particular, for  t = var n ).
---
--- One might hope to use  Guard.CodeOfReify.cor : Fun1 .  cor satisfies
---  ap1 cor (reify t) = reify (code (reify t))  only for t of the form
---  reify t_0  (i.e. the image of the Gödel-number embedding).  For a
--- variable  x , however,  x  is not of the form  reify t_0 , and
---  corOfReify  does not apply — so  cor  does NOT give us the needed
--- num-congruence at Term level.
---
--- ----------------------------------------------------------------------
--- Redesign options
--- ----------------------------------------------------------------------
---
---  (R1) Introduce a new BRA functor  numF : Fun1  (via a Rec) together
---       with a new axiom  axEqNumF :
---         {hyp : Equation} -> Deriv hyp (eqn (ap1 numF t) (reify (code t)))
---       polymorphically in all  Term  t .  This bypasses the
---       obstruction BUT is UNSOUND: it would make code-equality
---       conflate distinct terms that happen to have equal Gödel
---       numbers (impossible for strictly different syntactic terms,
---       but when combined with the Provable hypothesis  x = y , we
---       would effectively be lifting the hypothesis to the Gödel-
---       code layer, which is exactly Guard's  axEqCong1 numF ).
---
---       Soundness analysis: axEqNumF + axEqCong1 numF gives
---       "Provable  x = y  ==>  Provable  code x = code y " as
---       Gödel numbers (reify thereof).  This IS sound: code is a
---       meta-function and preserves provable equalities by the
---       semantic interpretation of Deriv/Provable — if  x  and  y
---       are provably equal then in every valuation they have equal
---       values, hence equal  code  as meta-trees.  So  axEqNumF  is
---       a sound extension.
---
---       Cost: one new Fun1 constructor + one Rec-style axiom + a
---       correctness lemma  (ap1 numF t) = reify (code t) .  For
---       variables, the axiom is stipulated.  For constructors, it
---       follows from Rec-unfolding on the code tree.
---
---       Estimated effort: 1 session (~150 lines) to add  numF  +
---       axioms + verify the live BRA Gödel II core still typechecks.
---
---  (R2) Restrict  thm13At  to  y  of the form  reify t_y  (closed
---       reified tree).  For the chain's step 1 (y = reify cGSCR) this
---       holds, so (c) goes through for that specific y.  The
---       generality of Th 13 is sacrificed, but the chain-specific
---       uses are preserved.
---
---       Concretely: use  Guard.CodeOfReify.cor  to internalize the
---       reification of y, then apply axEqCong1 cor + the hypothesis.
---       But cor requires  x  also of the form  reify t_x  (via
---       corOfReify), which fails for the chain's  x = var zero .
---
---       So (R2) only closes:  x = reify t_x  AND  y = reify t_y
---       both of reified-tree form.  Chain step 1 needs variable x,
---       so (R2) is insufficient for the chain.
---
---  (R3) Lift the chain's hypothesis to the Gödel-code layer
---       MANUALLY via a meta-lemma : given the Provable hypothesis
---       ap1 I x = y , apply a  "numerical-cong" (meta-level Agda)
---       that transforms the Provable-level equation into the
---       required  reify (code x) = reify (code y)  Provable
---       equation.  This amounts to a new Provable primitive:
---
---         provNumCong : {a b : Term} ->
---                       Provable hyp (atomic (eqn a b)) ->
---                       Provable hyp (atomic (eqn (reify (code a))
---                                                 (reify (code b))))
---
---       Semantically sound (same justification as (R1)'s
---        axEqNumF ), but makes Provable non-conservative over
---       Deriv: the meta-equation  code a = code b  is NOT a BRA
---       theorem deducible from  a = b  without the new primitive.
---
---       Implementation: add a new  Provable  constructor  axNumCong
---       (or prove it via soundness + extraction), or add the
---       corresponding Deriv-level axiom  axNumCong  such that
---        Deriv hyp (eqn a b) -> Deriv hyp (eqn (reify (code a))
---                                              (reify (code b))) .
---       The Deriv form is the honest add, mirroring Guard's num.
---
---       Estimated effort: 1 session (~100 lines), but REQUIRES
---       revalidation of the Provable → Deriv soundness bridge in
---       Guard/ProvableSound.agda: the new primitive must have a
---       semantic model showing it preserves validity.  For
---       standard term-equality semantics (valuation-based), the
---       primitive is sound.
---
---  (R4) Abandon the  Provable hyp (atomic (eqn (ap1 I x) y))  form
---       entirely; state  thm13AtI  with a weaker-form hypothesis
---       that already sits at the Gödel-code layer:
---
---         thm13AtI' : {hyp : Formula} (x y : Term) ->
---           Provable hyp (atomic (eqn (reify (code (ap1 I x)))
---                                     (reify (code y)))) ->
---           Provable hyp (atomic
---             (eqn (ap1 (thmT trivCT) (DfI x y))
---                  (reify (codeEqn (eqn (ap1 I x) y)))))
---
---       This goes through cleanly via  axEqCongR Pair  on the
---       hypothesis.  But the chain's step 1 would need to supply
---       the hypothesis at the Gödel-code layer, which is a DIFFERENT
---       statement than  th(x) = j  ; it would need  "num(th(x)) =
---       num j"  which is again the obstruction of getting num-
---       congruence for the self-referential  th  step.
---
---       So (R4) just defers the problem up one level in the chain;
---       it does not actually resolve it.
---
--- ----------------------------------------------------------------------
--- Recommendation
--- ----------------------------------------------------------------------
---
--- Of the four options, (R1) is the cleanest: add a BRA Fun1  numF
--- to Guard.Term / Guard.Step that internalizes  reify ∘ code  with
--- one new axiom.  This is the honest transcription of Guard 1963's
---  num  into our tree setting, and closes Th 13 uniformly for all
---  f : Fun1 , all  Term  x  and  y .
---
--- If we wish to avoid expanding the Term / Step definitional layer,
--- (R3) achieves the same effect at the Provable layer by adding a
--- primitive Provable constructor  axNumCong  with the expected
--- soundness witness.  This has the advantage of being localized to
--- the Provable layer (Deriv stays unchanged), but the disadvantage
--- of making Provable non-conservative over Deriv.
---
--- Either way, the sketch in the handoff's "Open pieces" item 1 —
---  "encAxI (reify (code x))  wrapped via  encCongR "  — is
--- insufficient on its own.  encCongR  g xC enc  wraps a sub-proof
--- of  a = b  into a proof of  g(xC, a) = g(xC, b) ; this produces
--- proofs ABOUT functor applications, not about raw terms, so it
--- cannot supply the missing  num-congruence step.
---
--- ----------------------------------------------------------------------
--- Status
--- ----------------------------------------------------------------------
---
---  (a) DfI          : DELIVERED above.
---  (b) DfICorrSelf  : DELIVERED above (one-liner).
---  (c) thm13AtI     : BLOCKED pending a num-congruence primitive
---                     (R1 or R3 above).  The obstruction is documented
---                     in this comment block; report back before
---                     scaling to the other Fun1 cases or writing any
---                     chain steps.
---
--- Committing this file per the handoff's commit ladder:
---
---     "Commit after: (i) DfI + DfICorrSelf (pure Deriv), ..."
---
--- is the correct first commit for this session.
+-- After scaling Df through all Fun1 + Fun2 cases, chain steps 1-5 on
+-- guard15.pdf p.17 translate as documented in NEXT-SESSION-BRA-
+-- GODELII.md.  The closure step's  corOfReify  dissolves the abstract
+--  ap1 cor (var zero)  into  reify (code (encT pe))  upon substitution
+-- of a concrete encoded proof  encT pe  for  var zero  — handing
+-- Gödel I the closed reified-cGSCR term it already operates on.
