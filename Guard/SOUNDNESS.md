@@ -170,4 +170,47 @@ freshness reading would reject).
 
 - Audit: complete.
 - Documentation: this file.
-- Option A refactor: in progress (see commit prefix `[soundness-A]`).
+- Option A refactor: **complete** (see commit prefix `[soundness-A]`).
+- Live BRA Gödel II core (32 modules, transitively from `GodelIIBRA`)
+  typechecks under the new sound `ruleInst`.
+
+### Modules retired by Option A (typecheck failures are expected)
+
+These modules either (a) used `ruleInst` unsoundly per the original
+audit or (b) are scaffolding/alternative-path attempts not on the live
+Gödel II line.  They no longer typecheck, and that is correct: the
+type system is now correctly rejecting unsound or stale constructions.
+We do not maintain them.
+
+UNSOUND (per the original audit, abandoned):
+- `Guard/GodelIIRose.agda`
+- `Guard/GodelIIV3.agda`
+- `Guard/GodelIV3.agda`
+- `Guard/GodelIIClassicalSkel.agda`
+- `Guard/EncCorrPfAnalysis.agda`
+
+ABANDONED scaffolding (no live importer, alternative paths or analysis):
+- `Guard/GodelIIClassicalTriv.agda`
+- `Guard/GodelIIClassicalTrivStrong.agda`
+- `Guard/GodelITriv.agda`
+- `Guard/EncSelfEq.agda`
+- `Guard/RoseLemma1.agda`
+- `Guard/RoseLemma1T.agda`
+- `Guard/RoseDC2.agda`
+- `Guard/ImpTL1.agda`
+- `Guard/ImpTSchemaF.agda`
+- `Guard/Nelson/AutoProof.agda`
+- `Guard/Nelson/DoublerProof.agda`
+- `Guard/Nelson/GeneralQ.agda`
+- `Guard/Nelson/NelsonSchemaF.agda`
+- `Guard/Nelson/SwapProof.agda`
+
+### Live core verified to typecheck
+
+Step, Term, Base, StepReduce, SubstCorrect, SubstTForCorrect, SubstOp,
+CodeOfReify, ThFun, ThFunTForDefs, ThFunTForCorrectDefs,
+ThFunTForCases0/1/2/3, ThFunTForV3, ThFunTForV3Defs, ThFunTForV3Pass,
+ExtractorRed, ProofEnc, Thm14EV3, TreeEqSelf, Nelson/SubstReify,
+SubstTForPrecompClassical, ProvV3, GodelIClassical, Formula, Provable,
+ProvableLemmas, ProvableEqLifts, ProvableSound, ProvableTh13,
+ProvableGodelIBridge, ConBRA, GodelIIBRA.
