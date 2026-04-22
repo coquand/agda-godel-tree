@@ -43,6 +43,13 @@ open import Guard.Term
 open import Guard.Formula
 
 ------------------------------------------------------------------------
+-- Convenience abbreviation:  eqF t u  =  atomic (eqn t u) .  Used in
+-- port modules to keep equational conclusions readable.
+
+eqF : Term -> Term -> Formula
+eqF t u = atomic (eqn t u)
+
+------------------------------------------------------------------------
 -- Deriv P : P is a theorem of BRA (hyp-less, formula-level).
 
 data Deriv : Formula -> Set where
