@@ -29,6 +29,7 @@ open import Guard.ThFunTForCases1
 open import Guard.ThFunTForCases2
 open import Guard.ThFunTForCases3
 open import Guard.SubstOp using (substOp)
+open import Guard.Formula using (tagImp ; tagNeg)
 
 ------------------------------------------------------------------------
 -- Nat abbreviations (private)
@@ -98,6 +99,26 @@ private
 
   oCC : Term
   oCC = ap2 Pair O O   -- reify (code O) = reify (nd lf lf)
+
+  -- Reified formula-level tags (for codeFormula).
+  tagImpT : Term
+  tagImpT = reify tagImp
+
+  tagNegT : Term
+  tagNegT = reify tagNeg
+
+------------------------------------------------------------------------
+-- Formula-level builder combinators (mirror mkAp1F / mkAp2F).
+--
+-- mkImpF pF qF = Pair tagImpT (Pair pF qF) — code of implication.
+-- mkNegF pF    = Pair tagNegT pF            — code of negation.
+
+mkImpF : Fun2 -> Fun2 -> Fun2
+mkImpF pCodeF qCodeF =
+  Fan (kF2 tagImpT) (Fan pCodeF qCodeF Pair) Pair
+
+mkNegF : Fun2 -> Fun2
+mkNegF pCodeF = Fan (kF2 tagNegT) pCodeF Pair
 
 ------------------------------------------------------------------------
 -- case26: hypothesis-use case.
@@ -233,9 +254,117 @@ case29 =
 -- Here we insert a real tag-26 check in front of the fallthrough,
 -- renaming the old fallthrough to  ndT27V3 .
 
--- n30 is the new bottom of the chain after adding case29.
+------------------------------------------------------------------------
+-- case30: encoder for Ax 11 ( axK ) — P ⊃ (Q ⊃ P).
+--
+-- Encoding:  encAxK pC qC = nd (natCode n30) (nd pC qC)
+-- where pC = reify (codeFormula P), qC = reify (codeFormula Q).
+--
+-- Body layout:  orig = Pair (natCode n30 reified) (Pair pC qC) .
+--   origA = pC
+--   origB = qC
+--
+-- case30 produces the reified  codeFormula (P imp (Q imp P)) :
+--   mkImpF origA (mkImpF origB origA)
+-- = Pair tagImp (Pair pC (Pair tagImp (Pair qC pC))).
+
+case30 : Fun2
+case30 = mkImpF origA (mkImpF origB origA)
+
+------------------------------------------------------------------------
+-- case31: encoder for Ax 12 ( axS ) — (P ⊃ Q ⊃ R) ⊃ ((P ⊃ Q) ⊃ (P ⊃ R)).
+--
+-- Encoding:  encAxS pC qC rC = nd (natCode n31) (nd pC (nd qC rC))
+--   origA = pC, origB = Pair qC rC, origB1 = qC, origB2 = rC.
+
+case31 : Fun2
+case31 =
+  let pImp_qImpR = mkImpF origA (mkImpF origB1 origB2)
+      pImpQ      = mkImpF origA origB1
+      pImpR      = mkImpF origA origB2
+      pqr        = mkImpF pImpQ pImpR
+  in mkImpF pImp_qImpR pqr
+
+------------------------------------------------------------------------
+-- case32: encoder for Ax 13 ( axNeg ) — ~P ⊃ (~Q ⊃ (Q ⊃ P)).
+--
+-- Encoding:  encAxNeg pC qC = nd (natCode n32) (nd pC qC)
+--   origA = pC, origB = qC.
+
+case32 : Fun2
+case32 =
+  mkImpF (mkNegF origA)
+         (mkImpF (mkNegF origB)
+                 (mkImpF origB origA))
+
+------------------------------------------------------------------------
+-- case33: encoder for formula-level modus ponens (encMp).
+--
+-- Encoding:  encMp sub1 sub2 = nd (natCode n33) (nd sub1 sub2)
+--   where sub1 encodes a proof of  P ,
+--         sub2 encodes a proof of  P imp Q .
+--
+-- At the outer step:
+--   recs = Pair O (Pair (thmT sub1) (thmT sub2))
+--        = Pair O (Pair codeP (Pair tagImp (Pair codeP codeQ)))
+--
+--   recsA  = thmT sub1 = codeP
+--   recsB  = thmT sub2 = Pair tagImp (Pair codeP codeQ)
+--
+-- Let:
+--   rbFst     = Fst recsB = tagImp   (for valid imp encoding)
+--   rbSnd     = Snd recsB = Pair codeP codeQ
+--   rbSndFst  = Fst rbSnd = codeP    (antecedent)
+--   rbSndSnd  = Snd rbSnd = codeQ    (consequent — output if checks pass)
+--
+-- Checks:
+--   check1 : rbFst = tagImp                (sub2 is an implication-shape)
+--   check2 : rbSndFst = recsA              (antecedent matches sub1's conclusion)
+-- On both matches, output rbSndSnd.  Else sentinel O.
+
+private
+  rbFst : Fun2
+  rbFst = Post Fst recsB
+
+  rbSnd : Fun2
+  rbSnd = Post Snd recsB
+
+  rbSndFst : Fun2
+  rbSndFst = Post Fst rbSnd
+
+  rbSndSnd : Fun2
+  rbSndSnd = Post Snd rbSnd
+
+  check1mp : Fun2
+  check1mp = Fan rbFst (kF2 tagImpT) TreeEq
+
+  check2mp : Fun2
+  check2mp = Fan rbSndFst recsA TreeEq
+
+case33 : Fun2
+case33 =
+  branch check1mp
+    (branch check2mp rbSndSnd (kF2 O))
+    (kF2 O)
+
+------------------------------------------------------------------------
+-- Extended dispatch chain (formula-level cases n30..n33 added at end).
+
+-- n34 is the new bottom of the chain after adding case30-case33.
+ndT34V3 : Fun2
+ndT34V3 = sndArg2
+
+ndT33V3 : Fun2
+ndT33V3 = branch (tc n33) case33 ndT34V3
+
+ndT32V3 : Fun2
+ndT32V3 = branch (tc n32) case32 ndT33V3
+
+ndT31V3 : Fun2
+ndT31V3 = branch (tc n31) case31 ndT32V3
+
 ndT30V3 : Fun2
-ndT30V3 = sndArg2
+ndT30V3 = branch (tc n30) case30 ndT31V3
 
 ndT29V3 : Fun2
 ndT29V3 = branch (tc n29) case29 ndT30V3
