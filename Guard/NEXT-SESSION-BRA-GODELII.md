@@ -7,9 +7,15 @@ above our equational Deriv, following Guard 1963 BRA.
 
 The session of 2026-04-22 added the Provable→Deriv soundness bridge,
 the ConBRA formula, the meta-form Th 13 lift (provThm14E), and the
-reductio closure step (provableGodelIBridge).  What remains is the
-fully internal Th 13 + chain steps 1-5 producing
-`Provable hyp (atomic conBRAEqn imp atomic gsCR)`.
+reductio closure step (provableGodelIBridge), then **completed the
+Option A soundness refactor**: `ruleInst` now requires its
+Hilbert-Bernays side condition, the live BRA Gödel II core (32
+modules) typechecks under the new sound constructor, and 19
+abandoned/unsound modules are correctly type-rejected (see
+`SOUNDNESS.md`).
+
+What remains is the chain that produces a closed inhabitant of
+`ChainBRA = Provable (atomic Triv) (ConBRA imp atomic gsCR)`.
 
 ## What's delivered (committed)
 
@@ -318,22 +324,47 @@ reductio: assume ConBRA provable; by substitution + 5,
 ## Command for next session
 
 ```
-Read Guard/NEXT-SESSION-BRA-GODELII.md, Guard/GUARD-BRA-TEMPLATE.md,
-Guard/SOUNDNESS.md.  Also read guard15.pdf pages 13-17 for the
-Gödel I/II proof details.
+Read Guard/NEXT-SESSION-BRA-GODELII.md, Guard/SOUNDNESS.md, and the
+godelII_BRA framework in Guard/GodelIIBRA.agda.  Also read
+guard15.pdf pages 13-17 for the Gödel I/II proof details.
 
-Goal: transcribe Guard 1963 Theorem 14 (Gödel II) at our Provable
-layer, producing
-  godelII_BRA : Consistent Triv -> Provable hyp (atomic ConBRA) -> Empty
+Goal: produce a closed inhabitant of
+  ChainBRA = Provable (atomic Triv) (ConBRA imp atomic gsCR)
+which closes godelII_BRA via provableGodelIBridge.
 
-Use the delivered Provable infrastructure (Formula, Provable,
-ProvableLemmas, ProvableEqLifts).  Do NOT use GodelIIRose or
-GodelIIV3 (unsound per Guard/SOUNDNESS.md).  Use godelIClassical at
-its native type hyp = Triv.
+Approach: build the chain at the Deriv level (Route B), as
+  chainDeriv : Deriv Triv conBRAEqn -> Deriv Triv gsCR
+then derive ChainBRA via deductionThm + provExtractTriv + fromDeriv.
+
+Two pieces of construction work:
+
+  1. combined : Term -> Term
+     A Term combinator that, given a candidate encoded proof X (with
+     var 1 as the proof slot), produces an encoded proof of '0=1'.
+     Built from ProofEnc combinators (encTrans, encSym, encCongL,
+     encCongR, encInst, encRefl) wrapping the encoded godelIClassical
+     body, with X at the input-proof leaf.  Use var 1 as the proof
+     slot (NOT var 0) so treeEqSelf calls at the auxiliary hyp
+     remain sound.
+
+  2. combinedCorr : (X : Term) -> {h : Equation} ->
+     Deriv h (eqn (TreeEq (thmT trivCT (combined X)) codeBotT)
+                  (TreeEq (thmT trivCT X) (reify cGSCR)))
+     The polymorphic equation linking thmT-images.  Proof: case-by-
+     case reduction through thmT's validating cases (case19V3 trans,
+     case18 sym, case21 congL, case22 congR, case23V3 ruleInst,
+     case17 refl).  Each step uses pass-through lemmas in
+     Guard/ThFunTForV3Pass.agda and Guard/StepReduce.agda.
+
+Then:
+  chainDeriv dCon = ...                                      -- ~50 lines
+  godelII_BRA con dProv =
+    con (godelIClassical (chainDeriv (provExtractTriv dProv)))
 
 Conventions: --safe --without-K --exact-split, no postulates, no
-holes.  Use ~/.cabal/bin/agda-2.9.0.  Commit after each of: Th 12-13
-lift, chain steps 1-5, reductio closure.
+holes.  Use ~/.cabal/bin/agda-2.9.0.  Commit after each of:
+combined definition, combinedCorr proof, chainDeriv composition,
+godelII_BRA closure.
 
 Proceed autonomously.
 ```
@@ -352,8 +383,8 @@ Proceed autonomously.
 | 7c | Meta Th 13 lift (provThm14E) | ✅ | `[bra-th13-meta]` |
 | 7d | Reductio closure (provableGodelIBridge) | ✅ | `[bra-bridge]` |
 | 7e | Parameterised godelII_BRA (ChainBRA hyp) | ✅ | `[bra-godelII-frame]` |
-| 8a | Internal Th 13 with Df combinator | ⏳ | — |
-| 8b | Provable chain steps 1-5 producing ChainBRA witness | ⏳ | — |
+| 7f | Option A — sound ruleInst across the live core | ✅ | `[soundness-A]` x 5 |
+| 8 | combined + combinedCorr (chain core) producing ChainBRA witness | ⏳ | — |
 
 The 2026-04-21 session delivered the propositional layer and soundness
 audit in 6 commits.  The 2026-04-22 session added the Provable→Deriv
@@ -406,13 +437,21 @@ encoding machinery (thmT, ProofE3) is already at the Deriv level.
 Either route closes the proof.  Route B is more concrete; Route A is
 more faithful to Guard.
 
-### Soundness pitfall noted (2026-04-22)
+### Soundness pitfall RESOLVED (2026-04-22)
 
-Both routes need to apply `treeEqSelf` (or the diagonal collapse) at an
-auxiliary hypothesis  hypAux = eqn (thmT trivCT (var 0)) (reify cGSCR)
-that has `var 0` free.  `treeEqSelf` internally uses
-`ruleInst zero t treeEqSelfAll`, which is unsound when `var 0 ∈ free(hyp)`
-per Guard/SOUNDNESS.md.  Workaround: reformulate the chain using `var 1`
-as the proof slot throughout (ruleInst-bridge from gsCR's var 0 form to
-var 1 form is sound at hyp = Triv since Triv is closed).  This adds
-~40 lines of variable-renaming bookkeeping but keeps everything sound.
+Earlier note: both routes need to apply `treeEqSelf` (or the diagonal
+collapse) at an auxiliary hypothesis  hypAux = eqn (thmT trivCT (var 0))
+(reify cGSCR) that has `var 0` free.  `treeEqSelf` internally uses
+`ruleInst zero t treeEqSelfAll`, which is unsound when
+`var 0 ∈ free(hyp)`.
+
+**Now resolved by Option A**: `ruleInst` requires its side condition
+explicitly, so any unsound application of `treeEqSelf` (or downstream
+`combined`) at a hyp with var 0 free will fail to typecheck.  The
+type system forces use of the var-1-shifted formulation.  No more
+hand-tracking required.
+
+In addition, `treeEqSelfReify : (t : Tree) -> Deriv hyp (TreeEq (reify t)
+(reify t) = O)` (added during Option A) avoids `ruleInst` entirely for
+the typical reify-of-tree case, so most chain uses of self-equality
+discharge cleanly without any side condition at all.
