@@ -85,8 +85,36 @@ private
 treeEqSelfAll : {hyp : Equation} -> Deriv hyp (eqn (ap1 teI v0) (ap1 (KT O) v0))
 treeEqSelfAll = ruleF teI (KT O) O teSelf fBase fStep gBase gStep
 
+-- treeEqSelf carries the side condition for the inner ruleInst at
+-- variable 0.  Sound callsites (closed hyp like Triv) discharge with
+-- refl; unsound callsites (hyp with var 0 free) cannot construct the
+-- proof, which is the desired Hilbert-Bernays gating.
+
 treeEqSelf : (t : Term) -> {hyp : Equation} ->
+             Eq (substEq zero t hyp) hyp ->
              Deriv hyp (eqn (ap2 TreeEq t t) O)
-treeEqSelf t =
+treeEqSelf t prf =
   ruleTrans (ruleSym (teIRed t))
-    (ruleTrans (ruleInst zero t treeEqSelfAll) (axKT O t))
+    (ruleTrans (ruleInst zero t prf treeEqSelfAll) (axKT O t))
+
+------------------------------------------------------------------------
+-- treeEqSelfReify: structural variant for reified-tree arguments.
+--
+-- Avoids ruleInst entirely (proof is by induction on the metalevel
+-- Tree), so works at ANY hypothesis without a side condition.  Used by
+-- encoding-correctness lemmas (case26Match, encRuleHypCorr,
+-- diagContradict's typical input) where the term is reify (code _).
+
+treeEqSelfReify : (t : Tree) -> {hyp : Equation} ->
+                  Deriv hyp (eqn (ap2 TreeEq (reify t) (reify t)) O)
+treeEqSelfReify lf       = axTreeEqLL
+treeEqSelfReify (nd a b) =
+  let ra : Term ; ra = reify a
+      rb : Term ; rb = reify b
+      ihA : {hyp : Equation} -> Deriv hyp (eqn (ap2 TreeEq ra ra) O)
+      ihA = treeEqSelfReify a
+      ihB : {hyp : Equation} -> Deriv hyp (eqn (ap2 TreeEq rb rb) O)
+      ihB = treeEqSelfReify b
+  in ruleTrans (axTreeEqNN ra rb ra rb)
+     (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq rb rb) poo) ihA)
+     (ruleTrans (axIfLfL (ap2 TreeEq rb rb) poo) ihB))

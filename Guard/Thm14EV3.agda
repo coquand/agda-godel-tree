@@ -30,6 +30,7 @@ open import Guard.ThFunTForV3Pass
 open import Guard.ExtractorRed
 open import Guard.SubstOp using (substOp ; substOpCorrect)
 open import Guard.ProofEnc using (encAxGoodsteinCorr ; encAxGoodsteinPass)
+open import Guard.TreeEqSelf using (treeEqSelfReify)
 
 private
   n0 : Nat ; n0 = zero
@@ -326,7 +327,8 @@ thm14EV3Trans {H} {t} {u} {v} pe1 pe2 =
     (ruleTrans (congR (thmTStep hCode) enc recsExpand)
     (ruleTrans (guardNdV3 hCode tagR sp1R sp2R recs')
     (ruleTrans (ndDisp19V3 hCode dat recs')
-               (case19V3Match tagR dat (ap1 (thmT hCode) tagR) tC uC vC))))
+               (case19V3Match tagR dat (ap1 (thmT hCode) tagR) tC uC vC
+                              (treeEqSelfReify (code u))))))
 
 ------------------------------------------------------------------------
 -- Case 18: ruleSym.  One sub-proof.
@@ -641,7 +643,7 @@ thm14EV3Hyp (eqn l r) = mkProofE3 (natCode n26) (codeEqn (eqn l r)) correct pass
     ruleTrans (recNdRed O (thmTStep hCode) tagR hCode)
     (ruleTrans (guardNdV3 hCode tagR lC rC recs)
     (ruleTrans (ndDisp26V3 hCode hCode recs)
-               (case26Match hCode tagR recs)))
+               (case26Match hCode tagR recs (treeEqSelfReify (nd (code l) (code r))))))
 
   -- Passthrough: encoding's outer tag is natCode n26 = suc n25, so it
   -- has shape Pair O (reify (natCode n25)).  Matches the "natCode (suc n)"
@@ -2468,7 +2470,7 @@ thm14EV3 {H} (ruleTrans d1 d2)     = thm14EV3Trans (thm14EV3 d1) (thm14EV3 d2)
 thm14EV3 {H} (cong1 f d)           = thm14EV3Cong1 f (thm14EV3 d)
 thm14EV3 {H} (congL g x d)         = thm14EV3CongL g x (thm14EV3 d)
 thm14EV3 {H} (congR g x d)         = thm14EV3CongR g x (thm14EV3 d)
-thm14EV3 {H} (ruleInst x t {eqn l r'} d) = thm14EV3Inst x t (thm14EV3 d)
+thm14EV3 {H} (ruleInst x t {eqn l r'} prf d) = thm14EV3Inst x t (thm14EV3 d)
 thm14EV3 {H} ruleHyp               = thm14EV3Hyp H
 thm14EV3 {H} (ruleF f g z s bf sf bg sg) =
   thm14EV3F f g z s (thm14EV3 bf) (thm14EV3 sf) (thm14EV3 bg) (thm14EV3 sg)

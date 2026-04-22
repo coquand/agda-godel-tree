@@ -24,7 +24,7 @@ open import Guard.StepReduce
 open import Guard.ThFunTForDefs
 open import Guard.ExtractorRed
 open import Guard.ThFunTForV3
-open import Guard.TreeEqSelf using (treeEqSelf)
+open import Guard.TreeEqSelf using (treeEqSelf ; treeEqSelfReify)
 open import Guard.SubstOp using (substOp)
 
 ------------------------------------------------------------------------
@@ -117,9 +117,16 @@ guardLfV3 hCode tag recs =
 -- Input shape: orig = Pair tag hCode  (the body literally IS hCode).
 -- Expected output: hCode.
 
-case26Match : (hCode tag recs : Term) -> {hyp : Equation} ->
+-- case26Match takes the self-equality witness for hCode as a parameter.
+-- For typical callers, hCode is reify of a tree, and they pass the
+-- result of treeEqSelfReify (which avoids ruleInst).  This keeps
+-- case26Match polymorphic in hyp without threading a side condition.
+
+case26Match : (hCode tag recs : Term) ->
+  ({h : Equation} -> Deriv h (eqn (ap2 TreeEq hCode hCode) O)) ->
+  {hyp : Equation} ->
   Deriv hyp (eqn (ap2 (case26 hCode) (ap2 Pair tag hCode) recs) hCode)
-case26Match hCode tag recs =
+case26Match hCode tag recs hCodeSelf =
   let orig = ap2 Pair tag hCode
       -- branch's check-Fan part
       checkF = Fan (Lift Snd) (kF2 hCode) TreeEq
@@ -132,15 +139,11 @@ case26Match hCode tag recs =
                                (ruleTrans (liftRed Snd orig recs)
                                           (axSnd tag hCode)))
                   (ruleTrans (congR TreeEq hCode (constF2Red hCode orig recs))
-                             (treeEqSelfAtHCode hCode)))))
+                             hCodeSelf))))
      (ruleTrans (congR IfLf O (fanRed (kF2 hCode) (kF2 O) Pair orig recs))
                 (ruleTrans (axIfLfL (ap2 (kF2 hCode) orig recs)
                                     (ap2 (kF2 O) orig recs))
                            (constF2Red hCode orig recs))))
-  where
-  treeEqSelfAtHCode : (c : Term) -> {hyp : Equation} ->
-                      Deriv hyp (eqn (ap2 TreeEq c c) O)
-  treeEqSelfAtHCode c = treeEqSelf c
 
 ------------------------------------------------------------------------
 -- Intermediate passthrough (V3): when the data of a node has shape
@@ -183,12 +186,14 @@ intermediateGenericV3 hCode tagT datT sp2a sp2b dispMiss =
 -- Then case19V3 at (orig, recs) reduces to Pair tC vC.
 
 case19V3Match :
-  (tag dat recTag tC uC vC : Term) -> {hyp : Equation} ->
+  (tag dat recTag tC uC vC : Term) ->
+  ({h : Equation} -> Deriv h (eqn (ap2 TreeEq uC uC) O)) ->
+  {hyp : Equation} ->
   Deriv hyp (eqn (ap2 case19V3
                    (ap2 Pair tag dat)
                    (ap2 Pair recTag (ap2 Pair (ap2 Pair tC uC) (ap2 Pair uC vC))))
                  (ap2 Pair tC vC))
-case19V3Match tag dat recTag tC uC vC =
+case19V3Match tag dat recTag tC uC vC uCSelf =
   let orig = ap2 Pair tag dat
       recs = ap2 Pair recTag (ap2 Pair (ap2 Pair tC uC) (ap2 Pair uC vC))
       checkF  = Fan recsAR recsBL TreeEq
@@ -206,7 +211,7 @@ case19V3Match tag dat recTag tC uC vC =
          (ruleTrans
            (congR TreeEq uC
              (recsBLRed orig recTag (ap2 Pair tC uC) uC vC))
-           (treeEqSelf uC)))))
+           uCSelf))))
      -- branchF reduces to Pair (matchF result) (kF2 O result) = Pair (Pair tC vC) O
      (ruleTrans
        (congR IfLf O

@@ -211,15 +211,16 @@ encRuleTransCorr :
                      (ap2 Pair (ap2 Pair pa1R pb1R) x) rcs))) ->
   Deriv hyp (eqn (ap1 (thmT hCode) (ap2 Pair pa1R pb1R)) (ap2 Pair tC uC)) ->
   Deriv hyp (eqn (ap1 (thmT hCode) (ap2 Pair pa2R pb2R)) (ap2 Pair uC vC)) ->
+  ({h : Equation} -> Deriv h (eqn (ap2 TreeEq uC uC) O)) ->
   Deriv hyp (eqn (ap1 (thmT hCode)
                    (encRuleTrans (ap2 Pair pa1R pb1R) (ap2 Pair pa2R pb2R)))
                  (ap2 Pair tC vC))
-encRuleTransCorr hCode pa1R pb1R pa2R pb2R tC uC vC {hyp} pass1 subCorr1 subCorr2 =
+encRuleTransCorr hCode pa1R pb1R pa2R pb2R tC uC vC {hyp} pass1 subCorr1 subCorr2 uCSelf =
   ruleTrans (recNdRed O (thmTStep hCode) tagR dat)
   (ruleTrans (congR (thmTStep hCode) enc recsExpand)
   (ruleTrans (guardNdV3 hCode tagR sp1R sp2R recs')
   (ruleTrans (ndDisp19V3Pub hCode dat recs')
-             (case19V3Match tagR dat (ap1 (thmT hCode) tagR) tC uC vC))))
+             (case19V3Match tagR dat (ap1 (thmT hCode) tagR) tC uC vC uCSelf))))
   where
   tagR  : Term ; tagR  = reify (natCode n19)
   sp1R  : Term ; sp1R  = ap2 Pair pa1R pb1R
@@ -1461,14 +1462,17 @@ ndDisp26V3Pub hCode d r =
 encRuleHyp : Term -> Term -> Term
 encRuleHyp lC rC = ap2 Pair (reify (natCode n26)) (ap2 Pair lC rC)
 
-encRuleHypCorr : (lC rC : Term) {hyp : Equation} ->
+encRuleHypCorr : (lC rC : Term) ->
+  ({h : Equation} ->
+    Deriv h (eqn (ap2 TreeEq (ap2 Pair lC rC) (ap2 Pair lC rC)) O)) ->
+  {hyp : Equation} ->
   Deriv hyp (eqn (ap1 (thmT (ap2 Pair lC rC)) (encRuleHyp lC rC))
                  (ap2 Pair lC rC))
-encRuleHypCorr lC rC {hyp} =
+encRuleHypCorr lC rC hCodeSelf {hyp} =
   ruleTrans (recNdRed O (thmTStep hCode) tagR hCode)
   (ruleTrans (guardNdV3 hCode tagR lC rC recs)
   (ruleTrans (ndDisp26V3Pub hCode hCode recs)
-             (case26Match hCode tagR recs)))
+             (case26Match hCode tagR recs hCodeSelf)))
   where
   hCode : Term ; hCode = ap2 Pair lC rC
   tagR  : Term ; tagR  = reify (natCode n26)
