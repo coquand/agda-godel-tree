@@ -351,15 +351,30 @@ Proceed autonomously.
 | 7b | ConBRA formula + substEq form | ✅ | `[bra-conbra]` |
 | 7c | Meta Th 13 lift (provThm14E) | ✅ | `[bra-th13-meta]` |
 | 7d | Reductio closure (provableGodelIBridge) | ✅ | `[bra-bridge]` |
+| 7e | Parameterised godelII_BRA (ChainBRA hyp) | ✅ | `[bra-godelII-frame]` |
 | 8a | Internal Th 13 with Df combinator | ⏳ | — |
-| 8b | Provable chain steps 1-5 | ⏳ | — |
-| 9 | godelII_BRA glue | ⏳ | (1 line once 8a-8b done) |
+| 8b | Provable chain steps 1-5 producing ChainBRA witness | ⏳ | — |
 
 The 2026-04-21 session delivered the propositional layer and soundness
 audit in 6 commits.  The 2026-04-22 session added the Provable→Deriv
-bridge, ConBRA framing, meta-Th-13 lift, and reductio closure step in
-4 commits, ~415 lines of Agda + doc updates.  No postulates, no holes
-(one acknowledged exact-split warning in deductionThm carries over).
+bridge, ConBRA framing, meta-Th-13 lift, reductio closure step, and
+the parameterised godelII_BRA framework in 5 commits, ~495 lines of
+Agda + doc updates.  No postulates, no holes (one acknowledged
+exact-split warning in deductionThm carries over).
+
+The shape of the final theorem is now fully nailed down:
+
+```agda
+godelII_BRA :
+  ChainBRA ->                                          -- step 8a-8b output
+  Consistent Triv ->
+  Provable (atomic Triv) (atomic conBRAEqn) -> Empty
+godelII_BRA chain con dCon =
+  provableGodelIBridge con (mp chain dCon)
+```
+
+The remaining work is exactly: produce a closed inhabitant of
+`ChainBRA = Provable (atomic Triv) (ConBRA imp atomic gsCR)`.
 
 ## Strategy for the remaining chain
 
