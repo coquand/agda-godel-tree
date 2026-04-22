@@ -324,60 +324,62 @@ reductio: assume ConBRA provable; by substitution + 5,
 ## Command for next session
 
 ```
-Read Guard/NEXT-SESSION-BRA-GODELII.md, Guard/SOUNDNESS.md, and the
-godelII_BRA framework in Guard/GodelIIBRA.agda.  Also read
-guard15.pdf pages 13-17 for the Gödel I/II proof details.
+Read Guard/NEXT-SESSION-BRA-GODELII.md, Guard/SOUNDNESS.md, the
+godelII_BRA framework in Guard/GodelIIBRA.agda, and
+Guard/ChainPrototype.agda (which documents why Route B was shelved).
+Also read guard15.pdf pages 13-17 for the Gödel I/II proof details,
+paying particular attention to Th 12 / Th 13 / Th 14 on pages 16-17
+and Exercise 24 [2]-[4] on page 14 (the sbt / sbf / sb functors).
 
 Goal: produce a closed inhabitant of
   ChainBRA = Provable (atomic Triv) (ConBRA imp atomic gsCR)
 which closes godelII_BRA via provableGodelIBridge.
 
-Approach: build the chain at the Deriv level (Route B), as
-  chainDeriv : Deriv Triv conBRAEqn -> Deriv Triv gsCR
-then derive ChainBRA via deductionThm + provExtractTriv + fromDeriv.
+Approach: Route A — faithful Guard-1963 transcription at the
+Provable layer.  Route B is ruled out (see handoff).  The chain
+(guard15.pdf p.17, steps 1-5) is built step-by-step as Provable
+implications using mp + axEqCong* + deductionThm; `thmT` is only
+applied to concrete closed equations, never to an abstract
+candidate proof.
 
-**De-risk first** (~80 lines, before scaling).  Prototype the
-combinedCorr reduction strategy on the simplest non-trivial case:
-just the `encInst zero (cor X) X` fragment (the inner `ruleInst`
-step where `X` enters the proof tree).  Confirm
-  thmT trivCT (encInst zero (cor X) X)
-reduces to a clean Term-level expression involving thmT trivCT X via
-case23V3 + substOpCorrect.  If that prototype goes through, scale to
-the full `combined`.  If reduction gets stuck in IfLf-conditional
-thickets (because validators emit sentinel O on mismatched sub-
-proofs), redesign before scaling — do NOT spend a session building
-the full `combined` only to discover the reduction strategy doesn't
-factor.
+Construction work, in order (commit after each):
 
-Two pieces of construction work after the prototype:
+  1. Df : Fun1 -> Term -> Term -> Term   [Guard Th 12]
+     A Term combinator, case-on-f, that packages the encoded
+     substitution witness for "th(Df(x)) = codeEqn(f(x) = y)" given
+     a hypothetical f(x) = y.  Built from the existing encAx*
+     axiom encoders in Guard/ProofEnc.agda (start with f = I via
+     encAxI, generalise to Fst/Snd/Comp/Comp2/Rec/KT).  Correctness
+     of each case uses substOpCorrect to push y into the reified
+     codeEqn slot.
 
-  1. combined : Term -> Term
-     A Term combinator that, given a candidate encoded proof X (with
-     var 1 as the proof slot), produces an encoded proof of '0=1'.
-     Built from ProofEnc combinators (encTrans, encSym, encCongL,
-     encCongR, encInst, encRefl) wrapping the encoded godelIClassical
-     body, with X at the input-proof leaf.  Use var 1 as the proof
-     slot (NOT var 0) so treeEqSelf calls at the auxiliary hyp
-     remain sound.
+  2. thm13At : (f : Fun1) (x y : Term) {hyp : Formula} ->
+               Provable hyp (atomic (eqn (ap1 f x) y)) ->
+               Provable hyp (atomic
+                 (eqn (ap1 (thmT trivCT) (Df f x y))
+                      (reify (codeEqn (eqn (ap1 f x) y)))))
+     Use fromDeriv on the Df-case's correctness Deriv (proved at
+     the f(x)=f(x) level via axRefl), then rewrite via the
+     Provable hypothesis f(x)=y using axEqCongR on the reified
+     codeEqn slot.  Binary-functor analogue for f : Fun2 in the
+     same style.
 
-  2. combinedCorr : (X : Term) -> {h : Equation} ->
-     Deriv h (eqn (TreeEq (thmT trivCT (combined X)) codeBotT)
-                  (TreeEq (thmT trivCT X) (reify cGSCR)))
-     The polymorphic equation linking thmT-images.  Proof: case-by-
-     case reduction through thmT's validating cases (case19V3 trans,
-     case18 sym, case21 congL, case22 congR, case23V3 ruleInst,
-     case17 refl).  Each step uses pass-through lemmas in
-     Guard/ThFunTForV3Pass.agda and Guard/StepReduce.agda.
+  3. Chain steps 1-5 (guard15.pdf p.17) at the Provable layer.
+     Each step is a Provable implication; chain them via hypSyll'
+     (already proved), mp, and the equality axioms.  Discharge
+     the propositional context with deductionThm where needed.
 
-Then:
-  chainDeriv dCon = ...                                      -- ~50 lines
-  godelII_BRA con dProv =
-    con (godelIClassical (chainDeriv (provExtractTriv dProv)))
+  4. ChainBRA + closure.  Package step 5's output as a
+     Provable implication ConBRA imp atomic gsCR, matching the
+     already-defined ChainBRA type.  godelII_BRA then closes via
+     the existing provableGodelIBridge (no new work there).
 
 Conventions: --safe --without-K --exact-split, no postulates, no
-holes.  Use ~/.cabal/bin/agda-2.9.0.  Commit after each of:
-prototype encInst+combinedCorr fragment, full combined definition,
-full combinedCorr proof, chainDeriv composition, godelII_BRA closure.
+holes.  Use ~/.cabal/bin/agda-2.9.0.  Commit prefix: [bra-routeA].
+
+Estimate: ~400-600 lines across 1-2 sessions, dominated by Df's
+per-functor cases.  Start with f = I to shake out the pattern;
+other Fun1 cases are mechanical variants.
 
 Proceed autonomously.
 ```
@@ -397,8 +399,12 @@ Proceed autonomously.
 | 7d | Reductio closure (provableGodelIBridge) | ✅ | `[bra-bridge]` |
 | 7e | Parameterised godelII_BRA (ChainBRA hyp) | ✅ | `[bra-godelII-frame]` |
 | 7f | Option A — sound ruleInst across the live core | ✅ | `[soundness-A]` x 5 |
-| 7g | Prototype encInst reduction — obstruction documented | ✅ | `[bra-prototype]` |
-| 8 | combined + combinedCorr (chain core) producing ChainBRA witness | ⏳ | — |
+| 7g | Prototype encInst reduction — Route B ruled out | ✅ | `[bra-prototype]` |
+| 7h | Route A chosen, Route B shelved (handoff rewrite) | ✅ | `[bra-routeA-plan]` |
+| 8a | Df : Fun1 -> Term -> Term -> Term (Guard Th 12) | ⏳ | — |
+| 8b | thm13At lift at Provable layer | ⏳ | — |
+| 8c | Chain steps 1-5 transcription (guard15.pdf p.17) | ⏳ | — |
+| 8d | ChainBRA witness + godelII_BRA closure | ⏳ | — |
 
 The 2026-04-21 session delivered the propositional layer and soundness
 audit in 6 commits.  The 2026-04-22 session added the Provable→Deriv
@@ -423,95 +429,80 @@ The remaining work is exactly: produce a closed inhabitant of
 
 ## Strategy for the remaining chain
 
-Two viable routes:
+**Decision (2026-04-22): Route A — Guard-1963 Provable-layer
+transcription.**  Route B (Deriv-level chain via `chainDeriv`) has been
+ruled out after the `ChainPrototype` de-risk step exposed an
+unworkable obstruction on abstract sub-proofs (see
+"Prototype result" and "Why Route B was shelved" below).
 
-**Route A — Internal Provable chain (Guard 1963 transcription)**.
-Build a Term combinator `Df : Fun1 -> Term -> Term -> Term` such that
-`thmT(trivCT)(Df f x y) = reify(codeEqn(eqn (ap1 f x) y))` is provable
-in Deriv given `eqn (ap1 f x) y`.  The construction uses substOp to
-substitute `code y` for `code (ap1 f x)` inside the encoded axRefl
-proof of `f(x) = f(x)`.  Then transcribe Guard 1963 chain steps 1-5
-propositionally (using mp + axEqCong* + deductionThm).  Estimate:
-~400-600 lines, 1-2 sessions.  Faithful transcription.
+### Route A — Internal Provable chain (Guard 1963 transcription)
 
-**Route B — Meta-level chain via provExtract**.  Build the chain at
-the Deriv level as `chainDeriv : Deriv Triv conBRAEqn -> Deriv Triv gsCR`.
-At the Deriv level, propositional implication is not directly available,
-so the chain encodes `Pr(x, j) → Pr(combined x, '0=1')` via IfLf-
-conditional terms.  Then godelII_BRA is:
+Transcribes Guard 1963 Th 14 propositionally at our `Provable` layer:
 
-```agda
-godelII_BRA con dProv =
-  con (godelIClassical (chainDeriv (provExtractTriv dProv)))
+```
+1) th(x) = j  ⊃  th(Dth(x)) = "th(x) = j"            [Th 13]
+2) th(Dsub(i, i)) = "sub(i, i) = j"                   [Th 13]
+3) th(x) = j  ⊃  th(gx) = "th(x) = sub(i, i)"         [1, 2]
+4) th(x) = j  ⊃  th(Y...) = "th(x) ≠ sub(i, i)"       [defn of j]
+5) th(x) = j  ⊃  th(combined) = "0 = 1"               [3, 4]
+reductio: assume ConBRA provable; by substitution + 5,
+  th(x) ≠ sub(i, i) would be provable, contradicting Gödel I.
 ```
 
-Estimate: similar size, but no abstract Df construction needed since
-encoding machinery (thmT, ProofE3) is already at the Deriv level.
+At our Provable layer, `⊃` is the `imp` connective and each step is a
+`Provable hyp (... imp ...)` lemma chained via `mp`, the equality
+axioms (`axEqCongL/R/Trans`), and discharged via `deductionThm`.
 
-Either route closes the proof.  Route B is more concrete; Route A is
-more faithful to Guard.
+The "Open pieces" section below spells out the concrete Agda work
+(Df combinator, `thm13At` lift, chain steps 1-5).
 
-### Prototype result (2026-04-22): Route B obstruction on abstract X
+### Why Route A sidesteps the abstract-X obstruction
 
-Guard/ChainPrototype.agda — the de-risk prototype for the innermost
-`encInst` reduction — typechecks in its **Pair-structured** form:
+Route B's failure was that the thmT validator must reduce on an
+abstract sub-proof `X` (via `encRuleInstCorr` and friends) to close
+the chain at the Deriv level.  Validator reductions stall on abstract
+Terms — there is no syntactic shape for `guardNdV3` / `guardLfV3` to
+dispatch on.
+
+Route A never applies `thmT` to an abstract sub-proof.  The
+hypothetical "x encodes gsCR" lives as a **Provable hypothesis**
+`Provable hyp (atomic (th(x) = j))`, not as a Term needing
+validation.  Under this hypothesis, `axEqCongL/R` rewrites `th(x)` to
+`j` inside other equations — pure propositional reasoning, no
+validator unfolding.  Th 13 is only applied to concrete closed
+equations (axioms like `axRefl (ap1 f x)`), whose encodings are
+fully concrete and reduce cleanly — the regime that already works.
+
+### Why Route B was shelved
+
+`Guard/ChainPrototype.agda` typechecks its Pair-structured form
+(`protoInstRed`) via `encRuleInstCorr`:
 
 ```agda
 protoInstRed :
   (paR pbR lC r'C : Term) ->
   (subCorr : {h : Equation} ->
     Deriv h (eqn (ap1 (thmT trivCT) (ap2 Pair paR pbR)) (ap2 Pair lC r'C))) ->
-  ...
   Deriv hyp (eqn (ap1 (thmT trivCT) (encRuleInst aR (ap2 Pair paR pbR)))
                  (ap2 Pair (ap2 substOp aR lC) (ap2 substOp aR r'C)))
 ```
 
-(with a closed `aR` whose first component is a reified `nd`-tree, so
-`ndDispatchV3PairMiss` discharges the `dispMiss` obligation).
+but *not* for a fully abstract `X : Term`.  The inner Rec-unfolding of
+`thmT trivCT (Pair aR X)` reaches a `thmTStep` whose
+`IfLf(TreeEq (Snd orig) O, ..., ..)` guard does not reduce:
+`Snd (Pair aR X) = X` is abstract, so neither `guardNdV3` (needs
+`X = Pair x y`) nor `guardLfV3` (needs `X = O`) applies.
 
-It does **not** extend to a fully abstract `X : Term`.  The inner
-`thmT trivCT (Pair aR X)` Rec-unfolding reaches a `thmTStep` whose
-`IfLf(TreeEq (Snd orig) O, ..., ..)` guard does not reduce: `Snd (Pair aR X) = X`
-is abstract, so neither `guardNdV3` (needs `X = Pair x y` syntactically) nor
-`guardLfV3` (needs `X = O`) applies.  This is exactly the "IfLf-
-conditional thicket" anticipated above.
+Consequence: `combinedCorr`, stated polymorphically in an arbitrary
+`X`, is not provable via the godelIClassical-style encoded-proof
+chain.  The Route B redesigns R1/R2/R3 (variable-schema rework, raw
+`IfLf` `combined`, narrowed statement) would each introduce either
+speculative obstructions or structural churn in load-bearing code
+like `godelIClassical`.  Route A avoids all of this.
 
-**Consequence for combined / combinedCorr (Route B, as written):**  a
-combinator that wraps an abstract `X` inside `encRuleInst` cannot prove
-`combinedCorr` polymorphically in `X`, because the thmT-validator's
-lf/nd dispatch stalls on an abstract sub-proof.  Scaling the full
-`combined` without a redesign would waste a session.
-
-**Redesign options (pick one before scaling):**
-
-- (R1) Require the candidate-proof slot to be Pair-structured by
-  construction.  E.g., instantiate the chain at `X = Pair (var 0) O`
-  (or `Pair (var 0) (var 1)`) so every reduction has syntactic Pair
-  shape.  Cost: gsCR / conBRAEqn variable schema must be adjusted so
-  the free variable appears as a Pair component.  That rebuilds a
-  nontrivial amount of godelIClassical.
-
-- (R2) Abandon the encoded-proof-tree construction for `combined`;
-  build `combined X` as a raw `IfLf`-based Term whose `thmT` image
-  matches the target by direct equational reasoning (bypassing the
-  Thm-14 validator entirely).  Cost: loses the Guard-1963 Th 13 lift
-  story; needs a fresh derivation strategy.
-
-- (R3) Keep Route B but narrow combinedCorr to `X = Pair X1 X2`.  The
-  BRA theorem's statement then ranges over Pair-structured candidate
-  proofs only, which IS all real encoded proofs (every ProofE3 encoding
-  is a top-level Pair), so the implication to Gödel II still goes
-  through via an intermediate lemma.  Cost: extra bookkeeping at the
-  `ChainBRA` → `godelII_BRA` glue.
-
-R3 looks like the lowest-friction path and preserves the Guard 1963
-transcription.  R2 is the most aggressive redesign.  Either way, the
-`combined` definition must be paired with a `combinedCorr` statement
-whose X-slot assumptions match the reductions that are actually
-available at the Deriv level.
-
-See Guard/ChainPrototype.agda for the full analysis (~170 lines,
-no holes, no postulates).
+See `Guard/ChainPrototype.agda` for the full prototype (~170 lines,
+no holes, no postulates) and the explicit reduction trace that
+documents where the IfLf thicket appears.
 
 ### Soundness pitfall RESOLVED (2026-04-22)
 
