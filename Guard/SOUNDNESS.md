@@ -103,8 +103,50 @@ approaches not used in the current Gödel II path.
 
 3. **Option C** (current): audit + document. No code change. This file.
 
-## Status
+## Decision (2026-04-22): Option A chosen
+
+The Gödel II chain attempt of 2026-04-22 hit the predicted soundness
+pitfall: `treeEqSelf` (which internally uses `ruleInst zero t`
+treeEqSelfAll) cannot be applied at the auxiliary hypothesis
+`eqn (thmT trivCT (var 0)) (reify cGSCR)` because var 0 is free in
+the hypothesis.  The chain construction was viable but brittle —
+working around the unsoundness required hand-tracked variable
+renaming throughout, with no type-level help.
+
+We are committing to **Option A** — adding the side condition to
+`ruleInst` and cascading through all polymorphic wrappers — as the
+refactor that makes the Gödel II chain (and any further Hilbert-
+Bernays sensitive work) implementable without lurking unsoundness.
+
+### Plan
+
+1. Modify `Guard/Step.agda` `ruleInst`:
+   ```agda
+   ruleInst : (x : Nat) (t : Term) {eq : Equation} ->
+              Eq (substEq x t hyp) hyp ->
+              Deriv hyp eq -> Deriv hyp (substEq x t eq)
+   ```
+2. Update pattern matches in DerivLift, Thm14EV3, RoseLemma1,
+   RoseLemma1T to bind the new field.
+3. Sound callsites (closed hyp = Triv): pass `refl`.
+4. Polymorphic-wrapper callsites (treeEqSelf, impTSelf, etc.):
+   thread the side-condition proof through their signatures.
+5. **Retire** the unsound modules — they will fail to typecheck
+   under the new constructor signature, and that is correct:
+   - `Guard/GodelIIRose.agda`
+   - `Guard/GodelIIV3.agda`
+   - `Guard/GodelIIClassicalSkel.agda`
+   - `Guard/GodelIV3.agda`
+   - `Guard/EncCorrPfAnalysis.agda` (analysis scratch)
+   These modules are abandoned per earlier audit; their attempted
+   Gödel II constructions were unsound.  After Option A, they are
+   formally rejected by the type checker, which is the correct
+   long-term state.
+6. Once Step.agda + cascades are clean, re-attempt the Gödel II
+   chain using the var-1-shifted formulation (now type-safe).
+
+### Status
 
 - Audit: complete.
 - Documentation: this file.
-- Gödel II at meta level: proceeds using sound-hyp uses only.
+- Option A refactor: in progress (see commit prefix `[soundness-A]`).
