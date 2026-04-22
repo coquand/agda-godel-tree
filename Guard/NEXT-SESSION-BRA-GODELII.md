@@ -2,9 +2,14 @@
 
 ## Context
 
-This session (2026-04-21) established the propositional Provable layer
-above our equational Deriv, following Guard 1963 BRA. The layer is ready;
-the Gödel II chain transcription remains.
+The session of 2026-04-21 established the propositional Provable layer
+above our equational Deriv, following Guard 1963 BRA.
+
+The session of 2026-04-22 added the Provable→Deriv soundness bridge,
+the ConBRA formula, the meta-form Th 13 lift (provThm14E), and the
+reductio closure step (provableGodelIBridge).  What remains is the
+fully internal Th 13 + chain steps 1-5 producing
+`Provable hyp (atomic conBRAEqn imp atomic gsCR)`.
 
 ## What's delivered (committed)
 
@@ -63,6 +68,64 @@ side condition and will not be used for the new Gödel II chain.
 
 The original template for this refactor; steps 1-5 marked done; steps 6-8
 (Th 12-13, Th 11, Th 14) remain.
+
+### Guard/ProvableSound.agda (~145 lines)  [2026-04-22]
+
+```agda
+sem        : Formula -> Equation -> Set
+provSound  : sem hyp ambient -> Provable hyp Q -> sem Q ambient
+provExtract       : sem hyp ambient -> Provable hyp (atomic eq) -> Deriv ambient eq
+provExtractTriv   : Provable (atomic Triv) (atomic eq) -> Deriv Triv eq
+```
+
+Negation interpreted classically (axNeg via emptyElim).  All Provable
+constructors have natural Deriv-level meanings.  No postulates.
+
+### Guard/ConBRA.agda (~90 lines)  [2026-04-22]
+
+```agda
+conBRAEqn          : Equation
+ConBRA             : Formula
+conBRAEqnAt X      : closed form of conBRAEqn after substEq zero X
+conBRAEqnSubstZero : substEq zero X conBRAEqn  ≡  conBRAEqnAt X
+```
+
+The trivCT bridging via trivCTDef handles the abstract definition in
+SubstTForPrecompClassical.
+
+### Guard/ProvableTh13.agda (~105 lines)  [2026-04-22]
+
+```agda
+provNec        : ProofE3 Triv eq -> Provable hyp (atomic (thmT trivCT enc = code eq))
+provThm14E     : Deriv Triv eq    -> same conclusion (composes thm14EV3 + provNec)
+provThm14EFor  : convenience wrapper for callers with a polymorphic Deriv
+```
+
+This is META Th 13: from a meta-Deriv proof of an equation, lift the
+encoded-proof correctness into the Provable layer via fromDeriv.  The
+INTERNAL Th 13 (where f(x)=y is itself a Provable assumption, requiring
+a Df Term combinator) remains the substantial chain work — see below.
+
+### Guard/ProvableGodelIBridge.agda (~75 lines)  [2026-04-22]
+
+```agda
+provableGodelIBridge :
+  Consistent Triv ->
+  Provable (atomic Triv) (atomic gsCR) -> Empty
+
+provableGodelIBridgeAt : variant parameterised over hyp + sem witness.
+```
+
+This is the *closure step*: once the Th 13 + chain produces an implication
+`Provable hyp (atomic conBRAEqn imp atomic gsCR)`, godelII_BRA decomposes:
+
+```agda
+godelII_BRA con dProv =
+  provableGodelIBridge con (mp chainImpl dProv)
+```
+
+Sound per Guard/SOUNDNESS.md: godelIClassical operates at hyp = Triv
+(closed) so its internal ruleInst calls satisfy the side condition.
 
 ## Quick reference: using the delivered infrastructure
 
@@ -284,10 +347,46 @@ Proceed autonomously.
 | 3 | provI + deductionThm | ✅ | `[bra-step3]` |
 | 4-5 | Equality axioms + derived rules | ✅ | `[bra-step4-5]` |
 | 6 | Audit ruleInst; SOUNDNESS.md | ✅ | `[doc]` |
-| 7 | Th 12-13 at Provable | ⏳ | — |
-| 8 | Gödel II chain | ⏳ | — |
-| 9 | Gödel II closure | ⏳ | — |
+| 7a | Provable→Deriv soundness (sem + provSound) | ✅ | `[bra-step6]` |
+| 7b | ConBRA formula + substEq form | ✅ | `[bra-conbra]` |
+| 7c | Meta Th 13 lift (provThm14E) | ✅ | `[bra-th13-meta]` |
+| 7d | Reductio closure (provableGodelIBridge) | ✅ | `[bra-bridge]` |
+| 8a | Internal Th 13 with Df combinator | ⏳ | — |
+| 8b | Provable chain steps 1-5 | ⏳ | — |
+| 9 | godelII_BRA glue | ⏳ | (1 line once 8a-8b done) |
 
-This session delivered the propositional layer and the soundness audit
-in 6 commits, 345 lines of Agda + 110 lines of documentation. No
-postulates, no holes, one acknowledged exact-split warning.
+The 2026-04-21 session delivered the propositional layer and soundness
+audit in 6 commits.  The 2026-04-22 session added the Provable→Deriv
+bridge, ConBRA framing, meta-Th-13 lift, and reductio closure step in
+4 commits, ~415 lines of Agda + doc updates.  No postulates, no holes
+(one acknowledged exact-split warning in deductionThm carries over).
+
+## Strategy for the remaining chain
+
+Two viable routes:
+
+**Route A — Internal Provable chain (Guard 1963 transcription)**.
+Build a Term combinator `Df : Fun1 -> Term -> Term -> Term` such that
+`thmT(trivCT)(Df f x y) = reify(codeEqn(eqn (ap1 f x) y))` is provable
+in Deriv given `eqn (ap1 f x) y`.  The construction uses substOp to
+substitute `code y` for `code (ap1 f x)` inside the encoded axRefl
+proof of `f(x) = f(x)`.  Then transcribe Guard 1963 chain steps 1-5
+propositionally (using mp + axEqCong* + deductionThm).  Estimate:
+~400-600 lines, 1-2 sessions.  Faithful transcription.
+
+**Route B — Meta-level chain via provExtract**.  Build the chain at
+the Deriv level as `chainDeriv : Deriv Triv conBRAEqn -> Deriv Triv gsCR`.
+At the Deriv level, propositional implication is not directly available,
+so the chain encodes `Pr(x, j) → Pr(combined x, '0=1')` via IfLf-
+conditional terms.  Then godelII_BRA is:
+
+```agda
+godelII_BRA con dProv =
+  con (godelIClassical (chainDeriv (provExtractTriv dProv)))
+```
+
+Estimate: similar size, but no abstract Df construction needed since
+encoding machinery (thmT, ProofE3) is already at the Deriv level.
+
+Either route closes the proof.  Route B is more concrete; Route A is
+more faithful to Guard.
