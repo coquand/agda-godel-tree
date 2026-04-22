@@ -397,6 +397,7 @@ Proceed autonomously.
 | 7d | Reductio closure (provableGodelIBridge) | ✅ | `[bra-bridge]` |
 | 7e | Parameterised godelII_BRA (ChainBRA hyp) | ✅ | `[bra-godelII-frame]` |
 | 7f | Option A — sound ruleInst across the live core | ✅ | `[soundness-A]` x 5 |
+| 7g | Prototype encInst reduction — obstruction documented | ✅ | `[bra-prototype]` |
 | 8 | combined + combinedCorr (chain core) producing ChainBRA witness | ⏳ | — |
 
 The 2026-04-21 session delivered the propositional layer and soundness
@@ -449,6 +450,68 @@ encoding machinery (thmT, ProofE3) is already at the Deriv level.
 
 Either route closes the proof.  Route B is more concrete; Route A is
 more faithful to Guard.
+
+### Prototype result (2026-04-22): Route B obstruction on abstract X
+
+Guard/ChainPrototype.agda — the de-risk prototype for the innermost
+`encInst` reduction — typechecks in its **Pair-structured** form:
+
+```agda
+protoInstRed :
+  (paR pbR lC r'C : Term) ->
+  (subCorr : {h : Equation} ->
+    Deriv h (eqn (ap1 (thmT trivCT) (ap2 Pair paR pbR)) (ap2 Pair lC r'C))) ->
+  ...
+  Deriv hyp (eqn (ap1 (thmT trivCT) (encRuleInst aR (ap2 Pair paR pbR)))
+                 (ap2 Pair (ap2 substOp aR lC) (ap2 substOp aR r'C)))
+```
+
+(with a closed `aR` whose first component is a reified `nd`-tree, so
+`ndDispatchV3PairMiss` discharges the `dispMiss` obligation).
+
+It does **not** extend to a fully abstract `X : Term`.  The inner
+`thmT trivCT (Pair aR X)` Rec-unfolding reaches a `thmTStep` whose
+`IfLf(TreeEq (Snd orig) O, ..., ..)` guard does not reduce: `Snd (Pair aR X) = X`
+is abstract, so neither `guardNdV3` (needs `X = Pair x y` syntactically) nor
+`guardLfV3` (needs `X = O`) applies.  This is exactly the "IfLf-
+conditional thicket" anticipated above.
+
+**Consequence for combined / combinedCorr (Route B, as written):**  a
+combinator that wraps an abstract `X` inside `encRuleInst` cannot prove
+`combinedCorr` polymorphically in `X`, because the thmT-validator's
+lf/nd dispatch stalls on an abstract sub-proof.  Scaling the full
+`combined` without a redesign would waste a session.
+
+**Redesign options (pick one before scaling):**
+
+- (R1) Require the candidate-proof slot to be Pair-structured by
+  construction.  E.g., instantiate the chain at `X = Pair (var 0) O`
+  (or `Pair (var 0) (var 1)`) so every reduction has syntactic Pair
+  shape.  Cost: gsCR / conBRAEqn variable schema must be adjusted so
+  the free variable appears as a Pair component.  That rebuilds a
+  nontrivial amount of godelIClassical.
+
+- (R2) Abandon the encoded-proof-tree construction for `combined`;
+  build `combined X` as a raw `IfLf`-based Term whose `thmT` image
+  matches the target by direct equational reasoning (bypassing the
+  Thm-14 validator entirely).  Cost: loses the Guard-1963 Th 13 lift
+  story; needs a fresh derivation strategy.
+
+- (R3) Keep Route B but narrow combinedCorr to `X = Pair X1 X2`.  The
+  BRA theorem's statement then ranges over Pair-structured candidate
+  proofs only, which IS all real encoded proofs (every ProofE3 encoding
+  is a top-level Pair), so the implication to Gödel II still goes
+  through via an intermediate lemma.  Cost: extra bookkeeping at the
+  `ChainBRA` → `godelII_BRA` glue.
+
+R3 looks like the lowest-friction path and preserves the Guard 1963
+transcription.  R2 is the most aggressive redesign.  Either way, the
+`combined` definition must be paired with a `combinedCorr` statement
+whose X-slot assumptions match the reductions that are actually
+available at the Deriv level.
+
+See Guard/ChainPrototype.agda for the full analysis (~170 lines,
+no holes, no postulates).
 
 ### Soundness pitfall RESOLVED (2026-04-22)
 
