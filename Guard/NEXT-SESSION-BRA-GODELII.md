@@ -405,3 +405,14 @@ encoding machinery (thmT, ProofE3) is already at the Deriv level.
 
 Either route closes the proof.  Route B is more concrete; Route A is
 more faithful to Guard.
+
+### Soundness pitfall noted (2026-04-22)
+
+Both routes need to apply `treeEqSelf` (or the diagonal collapse) at an
+auxiliary hypothesis  hypAux = eqn (thmT trivCT (var 0)) (reify cGSCR)
+that has `var 0` free.  `treeEqSelf` internally uses
+`ruleInst zero t treeEqSelfAll`, which is unsound when `var 0 ∈ free(hyp)`
+per Guard/SOUNDNESS.md.  Workaround: reformulate the chain using `var 1`
+as the proof slot throughout (ruleInst-bridge from gsCR's var 0 form to
+var 1 form is sound at hyp = Triv since Triv is closed).  This adds
+~40 lines of variable-renaming bookkeeping but keeps everything sound.
