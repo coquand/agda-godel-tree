@@ -409,24 +409,176 @@ thm13AtIfLfN {hyp} x y a b z dIf =
   rewr = prCongR Pair (ap1 cor b) (ap1 cor z) A corbz
 
 ------------------------------------------------------------------------
+-- Closed-constant-RHS cases (TreeEq LL / LN / NL)
+-- =====================================================================
+--
+-- These Fun2 axioms have the shape  f(args) = closed-constant , where
+-- the closed constant is  O  (TreeEqLL) or  poo = Pair O O
+-- (TreeEqLN, TreeEqNL).  The simple pattern above doesn't apply
+-- directly: the encoder's RHS is the reified-code form  oCC / oneC ,
+-- which differs syntactically from  ap1 cor (rhs-term) .  We bridge
+-- via  corOfReify  applied to the reified tree underlying the rhs:
+--   cor O = poo                   (corOfReify lf)
+--   cor poo = oneC                (corOfReify (nd lf lf))
+-- So the proof has one extra prTrans step to re-align the self-case
+-- RHS before the usual num-cong rewrite.
+
+open import Guard.CodeOfReify using (corOfReify)
+
+private
+  poo : Term
+  poo = ap2 Pair O O
+
+  oneC : Term
+  oneC = ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair))
+           (ap2 Pair poo poo))
+
+------------------------------------------------------------------------
+-- Case g = TreeEq, lf/lf.  axTreeEqLL : TreeEq O O = O.
+------------------------------------------------------------------------
+
+DfTreeEqLL : Term -> Term
+DfTreeEqLL _ = encAxTreeEqLL
+
+encEqTreeEqLL : Term -> Term
+encEqTreeEqLL y =
+  ap2 Pair
+    (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 TreeEq))
+      (ap2 Pair poo poo)))
+    (ap1 cor y)
+
+thm13AtTreeEqLL : {hyp : Formula} (y : Term) ->
+  Provable hyp (atomic (eqn (ap2 TreeEq O O) y)) ->
+  Provable hyp (atomic
+    (eqn (ap1 (thmT trivCT) (DfTreeEqLL y)) (encEqTreeEqLL y)))
+thm13AtTreeEqLL {hyp} y dLL =
+  prTrans _ (ap2 Pair A (ap1 cor O)) (encEqTreeEqLL y)
+    (prTrans _ (ap2 Pair A poo) (ap2 Pair A (ap1 cor O)) self bridge)
+    rewr
+  where
+  A : Term
+  A = ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 TreeEq))
+        (ap2 Pair poo poo))
+  self = fromDeriv (encAxTreeEqLLCorr trivCT)
+  poo=corO : Provable hyp (atomic (eqn poo (ap1 cor O)))
+  poo=corO = prSym (ap1 cor O) poo (fromDeriv (corOfReify lf))
+  bridge = prCongR Pair poo (ap1 cor O) A poo=corO
+  lhs : Term
+  lhs = ap2 TreeEq O O
+  corAx : Provable hyp (atomic (eqn (ap1 cor lhs) (ap1 cor O)))
+  corAx = prCong1 cor lhs O (fromDeriv axTreeEqLL)
+  corHyp : Provable hyp (atomic (eqn (ap1 cor lhs) (ap1 cor y)))
+  corHyp = prCong1 cor lhs y dLL
+  corOy : Provable hyp (atomic (eqn (ap1 cor O) (ap1 cor y)))
+  corOy = prTrans (ap1 cor O) (ap1 cor lhs) (ap1 cor y)
+            (prSym (ap1 cor lhs) (ap1 cor O) corAx) corHyp
+  rewr = prCongR Pair (ap1 cor O) (ap1 cor y) A corOy
+
+------------------------------------------------------------------------
+-- Case g = TreeEq, lf/nd.  axTreeEqLN : TreeEq O (Pair a b) = poo.
+------------------------------------------------------------------------
+
+DfTreeEqLN : Term -> Term -> Term -> Term
+DfTreeEqLN a b _ = encAxTreeEqLN (ap1 cor a) (ap1 cor b)
+
+encEqTreeEqLN : Term -> Term -> Term -> Term
+encEqTreeEqLN a b y =
+  ap2 Pair
+    (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 TreeEq))
+      (ap2 Pair poo
+        (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair))
+          (ap2 Pair (ap1 cor a) (ap1 cor b)))))))
+    (ap1 cor y)
+
+thm13AtTreeEqLN : {hyp : Formula} (a b y : Term) ->
+  Provable hyp (atomic (eqn (ap2 TreeEq O (ap2 Pair a b)) y)) ->
+  Provable hyp (atomic
+    (eqn (ap1 (thmT trivCT) (DfTreeEqLN a b y)) (encEqTreeEqLN a b y)))
+thm13AtTreeEqLN {hyp} a b y dLN =
+  prTrans _ (ap2 Pair A (ap1 cor poo)) (encEqTreeEqLN a b y)
+    (prTrans _ (ap2 Pair A oneC) (ap2 Pair A (ap1 cor poo)) self bridge)
+    rewr
+  where
+  A : Term
+  A = ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 TreeEq))
+        (ap2 Pair poo
+          (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair))
+            (ap2 Pair (ap1 cor a) (ap1 cor b))))))
+  self = fromDeriv (encAxTreeEqLNCorr trivCT (ap1 cor a) (ap1 cor b))
+  oneC=corPoo : Provable hyp (atomic (eqn oneC (ap1 cor poo)))
+  oneC=corPoo = prSym (ap1 cor poo) oneC (fromDeriv (corOfReify (nd lf lf)))
+  bridge = prCongR Pair oneC (ap1 cor poo) A oneC=corPoo
+  lhs : Term
+  lhs = ap2 TreeEq O (ap2 Pair a b)
+  corAx : Provable hyp (atomic (eqn (ap1 cor lhs) (ap1 cor poo)))
+  corAx = prCong1 cor lhs poo (fromDeriv (axTreeEqLN a b))
+  corHyp : Provable hyp (atomic (eqn (ap1 cor lhs) (ap1 cor y)))
+  corHyp = prCong1 cor lhs y dLN
+  corPooy : Provable hyp (atomic (eqn (ap1 cor poo) (ap1 cor y)))
+  corPooy = prTrans (ap1 cor poo) (ap1 cor lhs) (ap1 cor y)
+              (prSym (ap1 cor lhs) (ap1 cor poo) corAx) corHyp
+  rewr = prCongR Pair (ap1 cor poo) (ap1 cor y) A corPooy
+
+------------------------------------------------------------------------
+-- Case g = TreeEq, nd/lf.  axTreeEqNL : TreeEq (Pair a b) O = poo.
+------------------------------------------------------------------------
+
+DfTreeEqNL : Term -> Term -> Term -> Term
+DfTreeEqNL a b _ = encAxTreeEqNL (ap1 cor a) (ap1 cor b)
+
+encEqTreeEqNL : Term -> Term -> Term -> Term
+encEqTreeEqNL a b y =
+  ap2 Pair
+    (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 TreeEq))
+      (ap2 Pair
+        (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair))
+          (ap2 Pair (ap1 cor a) (ap1 cor b))))
+        poo)))
+    (ap1 cor y)
+
+thm13AtTreeEqNL : {hyp : Formula} (a b y : Term) ->
+  Provable hyp (atomic (eqn (ap2 TreeEq (ap2 Pair a b) O) y)) ->
+  Provable hyp (atomic
+    (eqn (ap1 (thmT trivCT) (DfTreeEqNL a b y)) (encEqTreeEqNL a b y)))
+thm13AtTreeEqNL {hyp} a b y dNL =
+  prTrans _ (ap2 Pair A (ap1 cor poo)) (encEqTreeEqNL a b y)
+    (prTrans _ (ap2 Pair A oneC) (ap2 Pair A (ap1 cor poo)) self bridge)
+    rewr
+  where
+  A : Term
+  A = ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 TreeEq))
+        (ap2 Pair
+          (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair))
+            (ap2 Pair (ap1 cor a) (ap1 cor b))))
+          poo))
+  self = fromDeriv (encAxTreeEqNLCorr trivCT (ap1 cor a) (ap1 cor b))
+  oneC=corPoo : Provable hyp (atomic (eqn oneC (ap1 cor poo)))
+  oneC=corPoo = prSym (ap1 cor poo) oneC (fromDeriv (corOfReify (nd lf lf)))
+  bridge = prCongR Pair oneC (ap1 cor poo) A oneC=corPoo
+  lhs : Term
+  lhs = ap2 TreeEq (ap2 Pair a b) O
+  corAx : Provable hyp (atomic (eqn (ap1 cor lhs) (ap1 cor poo)))
+  corAx = prCong1 cor lhs poo (fromDeriv (axTreeEqNL a b))
+  corHyp : Provable hyp (atomic (eqn (ap1 cor lhs) (ap1 cor y)))
+  corHyp = prCong1 cor lhs y dNL
+  corPooy : Provable hyp (atomic (eqn (ap1 cor poo) (ap1 cor y)))
+  corPooy = prTrans (ap1 cor poo) (ap1 cor lhs) (ap1 cor y)
+              (prSym (ap1 cor lhs) (ap1 cor poo) corAx) corHyp
+  rewr = prCongR Pair (ap1 cor poo) (ap1 cor y) A corPooy
+
+------------------------------------------------------------------------
 -- Implications / what remains
 -- =====================================================================
 --
--- The 8 cases above (I, Fst, Snd, KT, Refl, Const, IfLfL, IfLfN) cover
--- every Fun1 + Fun2 whose axiom  f(args) = rhs  has  rhs  a single
--- variable from the argument list.  Each followed the 5-step schema
--- above mechanically; the only variation is the spelling of the
--- encoded-LHS  A .
+-- The 11 cases above cover every Fun1 + Fun2 whose axiom's RHS is
+-- either (a) a single argument variable (I, Fst, Snd, KT, Refl, Const,
+-- IfLfL, IfLfN) or (b) a closed constant  O  or  poo  (TreeEqLL,
+-- TreeEqLN, TreeEqNL).  All follow the num-cong schema; closed-constant
+-- cases add one  corOfReify  bridge step.
 --
 -- Remaining cases (deferred):
 --
---  * TreeEqLL / TreeEqLN / TreeEqNL : rhs is a closed constant ( O  or
---     poo  or  poo ).  The rewrite step requires one bridging prTrans
---    using  corOfReify : ap1 cor (reify t) = reify (code (reify t))
---    applied to the closed reified-tree rhs, then the usual  cor  cong
---    + rewrite.  ~30 lines per case.
---
---  * TreeEqNN, Goodstein : rhs is a compound expression (IfLf(...)).
+--  * TreeEqNN, Goodstein : rhs is a compound IfLf/Pair expression.
 --    Requires unfolding the compound-structure encoding to  cor  of
 --    the value.  Needs meta-induction on the structure.
 --
@@ -438,10 +590,8 @@ thm13AtIfLfN {hyp} x y a b z dIf =
 --    on functor definition length + structural encoding lemmas.
 --
 --  * RecLf, RecPLf : rhs is the base-case element ( z  resp.  O ).
---    Similar to KT but with the closed-constant bridging issue.
+--    Closed-constant bridging for the z-parameter case.
 --
--- Committing the simple cases as a first batch: 8 cases, ~320 lines
--- including this commentary, structured uniformly.  All typecheck under
--- --safe --without-K --exact-split with no postulates, no holes (one
--- pre-existing CoverageNoExactSplit warning on deductionThm carried
--- through from ProvableLemmas).
+-- Typechecks under --safe --without-K --exact-split with no postulates,
+-- no holes (one pre-existing CoverageNoExactSplit warning on
+-- deductionThm carried through from ProvableLemmas).
