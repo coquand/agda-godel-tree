@@ -58,7 +58,7 @@ open import Guard.SubstTForPrecompClassical
 open import Guard.GodelIClassical using (godelIClassical ; diagFTargetCR)
 open import Guard.ImpT using (impT ; trueT ; falseT)
 open import Guard.ProvV3 using (codeBotT)
-open import Guard.TreeEqSelf using (treeEqSelf)
+open import Guard.TreeEqSelf using (treeEqSelfReify)
 open import Guard.RoseLemma1T
 open import Guard.RoseEFun using (eT ; eTCorrect ; eTReduces)
 open import Guard.ThFunTForV3 using (ndDispatchV3)
@@ -175,7 +175,7 @@ dNegGsRoseUniv =
       (congL TreeEq diagBody (ruleHyp {H_encUniv}))
       (ruleTrans
         (congR TreeEq (reify cGSCR) diagFTargetCR)
-        (treeEqSelf (reify cGSCR)))
+        (treeEqSelfReify cGSCR))
 
 -- Generalised form: given a proof of H_encUniv under any hyp,
 -- derive B_negGsUniv under the same hyp.  This is the "lifted"
@@ -196,7 +196,7 @@ dNegGsRoseUnivGen {hyp} dHenc =
       (congL TreeEq diagBody dHenc)
       (ruleTrans
         (congR TreeEq (reify cGSCR) diagFTargetCR)
-        (treeEqSelf (reify cGSCR)))
+        (treeEqSelfReify cGSCR))
 
 -- Similarly for instantiated Z: given Deriv hyp "Z encodes gsCR",
 -- derive the instantiated B_negGsUniv.
@@ -218,7 +218,7 @@ dNegGsRoseInstGen Z {hyp} dHenc =
       (congL TreeEq diagBody dHenc)
       (ruleTrans
         (congR TreeEq (reify cGSCR) diagFTargetCR)
-        (treeEqSelf (reify cGSCR)))
+        (treeEqSelfReify cGSCR))
 
 -- Encoded form of dNegGsRoseUniv: applies roseLemma1T to produce a
 -- Lemma1T instance for H_encUniv and B_negGsUniv, parameterised by
