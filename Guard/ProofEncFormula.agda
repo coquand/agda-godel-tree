@@ -28,12 +28,13 @@ open import Guard.ThFunTForCases0
 open import Guard.ThFunTForCases1
 open import Guard.ThFunTForCases2
 open import Guard.ThFunTForCases3
-open import Guard.ThFunTForCorrectDefs using (ndBranchHit ; ndBranchMiss)
+open import Guard.ThFunTForCorrectDefs using (ndBranchHit ; ndBranchMiss ; branchHit)
 open import Guard.ThFunTForV3
 open import Guard.ThFunTForV3Defs
 open import Guard.ThFunTForV3Pass
 open import Guard.ExtractorRed
-open import Guard.Formula using (Formula ; tagImp ; tagNeg ; codeFormula)
+open import Guard.TreeEqSelf using (treeEqSelfReify)
+open import Guard.Formula using (Formula ; _imp_ ; tagImp ; tagNeg ; codeFormula)
 
 private
   n0  : Nat ; n0  = zero
@@ -475,3 +476,181 @@ encAxNegPass :
                    (ap2 Pair (encAxNeg (reify (codeFormula P)) (reify (codeFormula Q))) x) rcs))
 encAxNegPass hCode P Q x rcs =
   passthroughSucV3 hCode n31 (nd (codeFormula P) (codeFormula Q)) x rcs
+
+------------------------------------------------------------------------
+-- encMp: encoder for formula-level modus ponens (Ax rule mp).
+--
+-- Encoding:  encMp sub1 sub2 = Pair (natCode n33) (Pair sub1 sub2)
+-- where sub1 encodes a proof of  P  and sub2 encodes a proof of
+--  P imp Q .
+--
+-- The case33 dispatch at the validator  thmT  checks:
+--   (1) that  thmT sub2 's outer tag is  tagImp  (i.e., sub2 encodes
+--       an implication);
+--   (2) that  thmT sub2 's antecedent code equals  thmT sub1 .
+-- On both matches, the output is the consequent code — i.e.  codeQ .
+--
+-- In the chain setting, both checks are guaranteed to pass because
+-- sub1 and sub2 are constructed correctly (sub1 encodes  P , sub2
+-- encodes  P imp Q ).
+--
+-- Signature design choice: we take a single  bodyCorr  precondition
+-- witnessing that  thmT hCode (Pair sub1 sub2) = Pair codeP codePimpQ ,
+-- rather than separate  sub1Corr / sub2Corr / dispMiss1  lemmas and
+-- doing the  intermediateGenericV3  dance inside this module.  The
+-- caller composes their sub-correctness lemmas into  bodyCorr  using
+--  intermediateGenericV3  (when sub2 is a Pair) or a direct Rec
+-- unfolding.  This keeps encMpCorr agnostic to the shape of sub1/sub2
+-- and modular with the existing  passthroughSucV3  / dispMiss
+-- machinery.
+
+private
+  n33 : Nat ; n33 = suc n32
+
+encMp : Term -> Term -> Term
+encMp sub1 sub2 = ap2 Pair (reify (natCode n33)) (ap2 Pair sub1 sub2)
+
+encMpCorr :
+  (hCode sub1 sub2 : Term) (P Q : Formula) {hyp : Equation} ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (ap2 Pair sub1 sub2))
+                 (ap2 Pair (reify (codeFormula P))
+                           (reify (codeFormula (P imp Q))))) ->
+  Deriv hyp (eqn (ap1 (thmT hCode) (encMp sub1 sub2))
+                 (reify (codeFormula Q)))
+encMpCorr hCode sub1 sub2 P Q {hyp} bodyCorr =
+  ruleTrans (recNdRed O (thmTStep hCode) tagR body)
+  (ruleTrans (congR (thmTStep hCode) enc
+               (congR Pair (ap1 (thmT hCode) tagR) bodyCorr))
+  (ruleTrans (guardNdV3 hCode tagR sub1 sub2 recs')
+  (ruleTrans (ndBranchMiss n33 n0  case0  (ndT1V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n1  case1  (ndT2V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n2  case2  (ndT3V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n3  case3  (ndT4V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n4  case4  (ndT5V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n5  case5  (ndT6V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n6  case6  (ndT7V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n7  case7  (ndT8V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n8  case8  (ndT9V3  hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n9  case9  (ndT10V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n10 case10 (ndT11V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n11 case11 (ndT12V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n12 case12 (ndT13V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n13 case13 (ndT14V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n14 case14 (ndT15V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n15 case15 (ndT16V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n16 case16 (ndT17V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n17 case17 (ndT18V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n18 case18 (ndT19V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n19 case19V3 (ndT20V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n20 case20 (ndT21V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n21 case21 (ndT22V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n22 case22 (ndT23V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n23 case23V3 (ndT24V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n24 case24 (ndT25V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n25 case25 (ndT26V3 hCode) body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n26 (case26 hCode) ndT27V3 body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n27 case27 ndT28V3 body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n28 case28 ndT29V3 body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n29 case29 ndT30V3 body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n30 case30 ndT31V3 body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n31 case31 ndT32V3 body recs' refl)
+  (ruleTrans (ndBranchMiss n33 n32 case32 ndT33V3 body recs' refl)
+  (ruleTrans (ndBranchHit n33 case33 ndT34V3 body recs')
+   case33Red))))))))))))))))))))))))))))))))))))
+  where
+  codeP : Term ; codeP = reify (codeFormula P)
+  codeQ : Term ; codeQ = reify (codeFormula Q)
+  codePimpQ : Term
+  codePimpQ = ap2 Pair tagImpT (ap2 Pair codeP codeQ)
+
+  pqBody : Term
+  pqBody = ap2 Pair codeP codePimpQ
+
+  tagR : Term ; tagR = reify (natCode n33)
+  body : Term ; body = ap2 Pair sub1 sub2
+  enc  : Term ; enc  = ap2 Pair tagR body
+  recs' : Term
+  recs' = ap2 Pair (ap1 (thmT hCode) tagR) pqBody
+
+  -- recsB(enc, recs') = Snd(Snd(recs')) = codePimpQ.
+  recsBRedLocal : Deriv hyp (eqn (ap2 recsB enc recs') codePimpQ)
+  recsBRedLocal = recsBRed enc (ap1 (thmT hCode) tagR) codeP codePimpQ
+
+  -- recsA(enc, recs') = Fst(Snd(recs')) = codeP.
+  recsARedLocal : Deriv hyp (eqn (ap2 recsA enc recs') codeP)
+  recsARedLocal = recsARed enc (ap1 (thmT hCode) tagR) codeP codePimpQ
+
+  -- rbFst(enc, recs') = Fst(recsB(enc, recs')) = Fst(codePimpQ) = tagImpT.
+  rbFstRed : Deriv hyp (eqn (ap2 rbFst enc recs') tagImpT)
+  rbFstRed =
+    ruleTrans (postRed Fst recsB enc recs')
+    (ruleTrans (cong1 Fst recsBRedLocal)
+               (axFst tagImpT (ap2 Pair codeP codeQ)))
+
+  -- rbSnd(enc, recs') = Snd(codePimpQ) = Pair codeP codeQ.
+  rbSndRed : Deriv hyp (eqn (ap2 rbSnd enc recs') (ap2 Pair codeP codeQ))
+  rbSndRed =
+    ruleTrans (postRed Snd recsB enc recs')
+    (ruleTrans (cong1 Snd recsBRedLocal)
+               (axSnd tagImpT (ap2 Pair codeP codeQ)))
+
+  -- rbSndFst(enc, recs') = Fst(Pair codeP codeQ) = codeP.
+  rbSndFstRed : Deriv hyp (eqn (ap2 rbSndFst enc recs') codeP)
+  rbSndFstRed =
+    ruleTrans (postRed Fst rbSnd enc recs')
+    (ruleTrans (cong1 Fst rbSndRed)
+               (axFst codeP codeQ))
+
+  -- rbSndSnd(enc, recs') = Snd(Pair codeP codeQ) = codeQ.
+  rbSndSndRed : Deriv hyp (eqn (ap2 rbSndSnd enc recs') codeQ)
+  rbSndSndRed =
+    ruleTrans (postRed Snd rbSnd enc recs')
+    (ruleTrans (cong1 Snd rbSndRed)
+               (axSnd codeP codeQ))
+
+  -- check1mp(enc, recs') = TreeEq(rbFst, tagImpT) = TreeEq(tagImpT, tagImpT) = O.
+  check1mpRed : Deriv hyp (eqn (ap2 check1mp enc recs') O)
+  check1mpRed =
+    ruleTrans (fanRed rbFst (kF2 tagImpT) TreeEq enc recs')
+    (ruleTrans (congL TreeEq (ap2 (kF2 tagImpT) enc recs') rbFstRed)
+    (ruleTrans (congR TreeEq tagImpT (kF2Red tagImpT enc recs'))
+               (treeEqSelfReify tagImp)))
+
+  -- check2mp(enc, recs') = TreeEq(rbSndFst, recsA) = TreeEq(codeP, codeP) = O.
+  check2mpRed : Deriv hyp (eqn (ap2 check2mp enc recs') O)
+  check2mpRed =
+    ruleTrans (fanRed rbSndFst recsA TreeEq enc recs')
+    (ruleTrans (congL TreeEq (ap2 recsA enc recs') rbSndFstRed)
+    (ruleTrans (congR TreeEq codeP recsARedLocal)
+               (treeEqSelfReify (codeFormula P))))
+
+  -- Inner branch: branch check2mp rbSndSnd (kF2 O) at (enc, recs') → rbSndSnd(enc, recs') = codeQ.
+  innerBranchRed : Deriv hyp
+    (eqn (ap2 (branch check2mp rbSndSnd (kF2 O)) enc recs') codeQ)
+  innerBranchRed =
+    ruleTrans (branchHit check2mp rbSndSnd (kF2 O) enc recs' check2mpRed)
+              rbSndSndRed
+
+  -- Outer branch: branch check1mp (inner) (kF2 O) at (enc, recs') → inner(enc, recs') = codeQ.
+  case33Red : Deriv hyp (eqn (ap2 case33 enc recs') codeQ)
+  case33Red =
+    ruleTrans (branchHit check1mp
+                (branch check2mp rbSndSnd (kF2 O)) (kF2 O)
+                enc recs' check1mpRed)
+              innerBranchRed
+
+------------------------------------------------------------------------
+-- encMpPass: tag-opaque pass for using encMp as a sub-encoding.
+--
+-- Note: unlike encAxK/S/Neg, encMp's body is  Pair sub1 sub2  where
+-- sub1, sub2 are arbitrary Term constructions — not  reify (codeFormula _) .
+-- We parameterise over the raw  Pair sub1 sub2  body.
+
+encMpPass :
+  (hCode : Term) (sub1 sub2 : Term) (x rcs : Term) -> {hyp : Equation} ->
+  Deriv hyp (eqn (ap2 (ndDispatchV3 hCode)
+                   (ap2 Pair (encMp sub1 sub2) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encMp sub1 sub2) x) rcs))
+encMpPass hCode sub1 sub2 x rcs =
+  ndDispatchV3PairMiss hCode O (reify (natCode n32)) (ap2 Pair sub1 sub2) x rcs

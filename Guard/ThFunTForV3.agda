@@ -322,24 +322,27 @@ case32 =
 --   check2 : rbSndFst = recsA              (antecedent matches sub1's conclusion)
 -- On both matches, output rbSndSnd.  Else sentinel O.
 
-private
-  rbFst : Fun2
-  rbFst = Post Fst recsB
+-- Sub-extractors over  recsB  (the thmT-result of the second sub-proof).
+-- Exposed (not private) so ProofEncFormula.encMpCorr can reason about
+-- case33's reductions without redefining them.
 
-  rbSnd : Fun2
-  rbSnd = Post Snd recsB
+rbFst : Fun2
+rbFst = Post Fst recsB
 
-  rbSndFst : Fun2
-  rbSndFst = Post Fst rbSnd
+rbSnd : Fun2
+rbSnd = Post Snd recsB
 
-  rbSndSnd : Fun2
-  rbSndSnd = Post Snd rbSnd
+rbSndFst : Fun2
+rbSndFst = Post Fst rbSnd
 
-  check1mp : Fun2
-  check1mp = Fan rbFst (kF2 tagImpT) TreeEq
+rbSndSnd : Fun2
+rbSndSnd = Post Snd rbSnd
 
-  check2mp : Fun2
-  check2mp = Fan rbSndFst recsA TreeEq
+check1mp : Fun2
+check1mp = Fan rbFst (kF2 tagImpT) TreeEq
+
+check2mp : Fun2
+check2mp = Fan rbSndFst recsA TreeEq
 
 case33 : Fun2
 case33 =
