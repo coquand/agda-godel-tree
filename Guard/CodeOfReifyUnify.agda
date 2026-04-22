@@ -37,7 +37,7 @@ stepCor = Fan (Lift (KT tagAp2T))
               Pair
 
 cor : Fun1
-cor = Rec poo stepCor
+cor = Rec falseT stepCor
 
 ------------------------------------------------------------------------
 -- stepCorRed: reduction of stepCor at generic (orig, recs).
@@ -66,7 +66,7 @@ stepCorRed orig recs =
 
 corOfReify : (t : Tree) ->
   Deriv (atomic (eqn (ap1 cor (reify t)) (reify (code (reify t)))))
-corOfReify lf = axRecLf poo stepCor
+corOfReify lf = axRecLf falseT stepCor
 corOfReify (nd a b) =
   let reifyA = reify a
       reifyB = reify b
@@ -81,7 +81,7 @@ corOfReify (nd a b) =
       ihB    : Deriv (atomic (eqn corB rB))
       ihB    = corOfReify b
       s1     : Deriv (atomic (eqn (ap1 cor orig) (ap2 stepCor orig recs)))
-      s1     = axRecNd poo stepCor reifyA reifyB
+      s1     = axRecNd falseT stepCor reifyA reifyB
       s2     : Deriv (atomic (eqn (ap2 stepCor orig recs)
                                    (ap2 Pair tagAp2T (ap2 Pair pairCodeF2T recs))))
       s2     = stepCorRed orig recs

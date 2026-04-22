@@ -33,7 +33,7 @@ private
 
   teSelf : Fun2
   teSelf = Fan (Post Fst (Post Snd Pair))
-               (Fan (Post Snd (Post Snd Pair)) (Lift (KT poo)) Pair)
+               (Fan (Post Snd (Post Snd Pair)) (Lift (KT falseT)) Pair)
                IfLf
 
   teIRed : (t : Term) ->
@@ -43,22 +43,22 @@ private
     (ruleTrans (congL TreeEq (ap1 I t) (axI t)) (congR TreeEq t (axI t)))
 
   teSelfRed : (ab fa fb : Term) ->
-    Deriv (atomic (eqn (ap2 teSelf ab (ap2 Pair fa fb)) (ap2 IfLf fa (ap2 Pair fb poo))))
+    Deriv (atomic (eqn (ap2 teSelf ab (ap2 Pair fa fb)) (ap2 IfLf fa (ap2 Pair fb falseT))))
   teSelfRed ab fa fb =
     let recs = ap2 Pair fa fb
     in ruleTrans (fanRed (Post Fst (Post Snd Pair))
-                  (Fan (Post Snd (Post Snd Pair)) (Lift (KT poo)) Pair) IfLf ab recs)
-       (ruleTrans (congL IfLf (ap2 (Fan (Post Snd (Post Snd Pair)) (Lift (KT poo)) Pair) ab recs)
+                  (Fan (Post Snd (Post Snd Pair)) (Lift (KT falseT)) Pair) IfLf ab recs)
+       (ruleTrans (congL IfLf (ap2 (Fan (Post Snd (Post Snd Pair)) (Lift (KT falseT)) Pair) ab recs)
          (ruleTrans (postRed Fst (Post Snd Pair) ab recs)
          (ruleTrans (cong1 Fst (postRed Snd Pair ab recs))
          (ruleTrans (cong1 Fst (axSnd ab recs)) (axFst fa fb)))))
        (congR IfLf fa
-         (ruleTrans (fanRed (Post Snd (Post Snd Pair)) (Lift (KT poo)) Pair ab recs)
-         (ruleTrans (congL Pair (ap2 (Lift (KT poo)) ab recs)
+         (ruleTrans (fanRed (Post Snd (Post Snd Pair)) (Lift (KT falseT)) Pair ab recs)
+         (ruleTrans (congL Pair (ap2 (Lift (KT falseT)) ab recs)
            (ruleTrans (postRed Snd (Post Snd Pair) ab recs)
            (ruleTrans (cong1 Snd (postRed Snd Pair ab recs))
            (ruleTrans (cong1 Snd (axSnd ab recs)) (axSnd fa fb)))))
-         (congR Pair fb (ruleTrans (liftRed (KT poo) ab recs) (axKT poo ab)))))))
+         (congR Pair fb (ruleTrans (liftRed (KT falseT) ab recs) (axKT falseT ab)))))))
 
   fBase : Deriv (atomic (eqn (ap1 teI O) O))
   fBase = ruleTrans (teIRed O) axTreeEqLL
@@ -70,8 +70,8 @@ private
     let ab = ap2 Pair v0 v1T ; fa = ap1 teI v0 ; fb = ap1 teI v1T
     in ruleTrans (ruleTrans (teIRed ab) (axTreeEqNN v0 v1T v0 v1T))
        (ruleSym (ruleTrans (teSelfRed ab fa fb)
-                (ruleTrans (congL IfLf (ap2 Pair fb poo) (teIRed v0))
-                (congR IfLf (ap2 TreeEq v0 v0) (congL Pair poo (teIRed v1T))))))
+                (ruleTrans (congL IfLf (ap2 Pair fb falseT) (teIRed v0))
+                (congR IfLf (ap2 TreeEq v0 v0) (congL Pair falseT (teIRed v1T))))))
 
   gBase : Deriv (atomic (eqn (ap1 (KT O) O) O))
   gBase = axKT O O
@@ -83,8 +83,8 @@ private
     let ab = ap2 Pair v0 v1T ; ga = ap1 (KT O) v0 ; gb = ap1 (KT O) v1T
     in ruleTrans (axKT O ab)
        (ruleSym (ruleTrans (teSelfRed ab ga gb)
-                (ruleTrans (congL IfLf (ap2 Pair gb poo) (axKT O v0))
-                (ruleTrans (axIfLfL gb poo) (axKT O v1T)))))
+                (ruleTrans (congL IfLf (ap2 Pair gb falseT) (axKT O v0))
+                (ruleTrans (axIfLfL gb falseT) (axKT O v1T)))))
 
 treeEqSelfAll : Deriv (atomic (eqn (ap1 teI v0) (ap1 (KT O) v0)))
 treeEqSelfAll = ruleF teI (KT O) O teSelf fBase fStep gBase gStep
@@ -111,5 +111,5 @@ treeEqSelfReify (nd a b) =
       ihB : Deriv (atomic (eqn (ap2 TreeEq rb rb) O))
       ihB = treeEqSelfReify b
   in ruleTrans (axTreeEqNN ra rb ra rb)
-     (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq rb rb) poo) ihA)
-     (ruleTrans (axIfLfL (ap2 TreeEq rb rb) poo) ihB))
+     (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq rb rb) falseT) ihA)
+     (ruleTrans (axIfLfL (ap2 TreeEq rb rb) falseT) ihB))

@@ -246,11 +246,14 @@ data Deriv : Formula -> Set where
 -- Consistency (hyp-less form).
 --
 -- "BRA is consistent" means:  0 = 1  is not a theorem.  In our tree
--- encoding,  trueT = O  and  falseT = poo ,  so this is  not (Deriv
--- (atomic (eqn O poo)))  — i.e., no derivation of  O = poo  exists.
+-- encoding,  trueT = O  and  falseT = ap2 Pair O O ,  so this is
+-- not (Deriv (atomic (eqn O falseT))) .
 
-poo : Term
-poo = ap2 Pair O O
+trueT : Term
+trueT = O
+
+falseT : Term
+falseT = ap2 Pair O O
 
 Consistent : Set
-Consistent = Deriv (atomic (eqn O poo)) -> Empty
+Consistent = Deriv (atomic (eqn trueT falseT)) -> Empty

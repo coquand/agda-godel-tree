@@ -31,37 +31,37 @@ private
 tEqOO : Deriv (eqF (ap2 TreeEq O O) O)
 tEqOO = axTreeEqLL
 
-tEqPairOO : Deriv (eqF (ap2 TreeEq poo poo) O)
-tEqPairOO = ruleTrans (axTreeEqNN O O O O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) poo) tEqOO) (ruleTrans (axIfLfL (ap2 TreeEq O O) poo) tEqOO))
+tEqPairOO : Deriv (eqF (ap2 TreeEq falseT falseT) O)
+tEqPairOO = ruleTrans (axTreeEqNN O O O O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) falseT) tEqOO) (ruleTrans (axIfLfL (ap2 TreeEq O O) falseT) tEqOO))
 
 tagVarSelfEq : Deriv (eqF (ap2 TreeEq tagVarT tagVarT) O)
 tagVarSelfEq =
-  let tEqI : Deriv (eqF (ap2 TreeEq (ap2 Pair poo O) (ap2 Pair poo O)) O)
-      tEqI = ruleTrans (axTreeEqNN poo O poo O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) poo) tEqPairOO) (ruleTrans (axIfLfL (ap2 TreeEq O O) poo) tEqOO))
-  in ruleTrans (axTreeEqNN (ap2 Pair poo O) O (ap2 Pair poo O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) poo) tEqI) (ruleTrans (axIfLfL (ap2 TreeEq O O) poo) tEqOO))
+  let tEqI : Deriv (eqF (ap2 TreeEq (ap2 Pair falseT O) (ap2 Pair falseT O)) O)
+      tEqI = ruleTrans (axTreeEqNN falseT O falseT O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) falseT) tEqPairOO) (ruleTrans (axIfLfL (ap2 TreeEq O O) falseT) tEqOO))
+  in ruleTrans (axTreeEqNN (ap2 Pair falseT O) O (ap2 Pair falseT O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) falseT) tEqI) (ruleTrans (axIfLfL (ap2 TreeEq O O) falseT) tEqOO))
 
-oNeqTagVar : Deriv (eqF (ap2 TreeEq O tagVarT) poo)
+oNeqTagVar : Deriv (eqF (ap2 TreeEq O tagVarT) falseT)
 oNeqTagVar = axTreeEqLN (ap2 Pair (ap2 Pair O O) O) O
 
-tagAp1NeqTagVar : Deriv (eqF (ap2 TreeEq (reify tagAp1) tagVarT) poo)
-tagAp1NeqTagVar = ruleTrans (axTreeEqNN O (ap2 Pair O O) (ap2 Pair (ap2 Pair O O) O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (ap2 Pair O O) O) poo) (axTreeEqLN (ap2 Pair O O) O)) (axIfLfN O O (ap2 TreeEq (ap2 Pair O O) O) poo))
+tagAp1NeqTagVar : Deriv (eqF (ap2 TreeEq (reify tagAp1) tagVarT) falseT)
+tagAp1NeqTagVar = ruleTrans (axTreeEqNN O (ap2 Pair O O) (ap2 Pair (ap2 Pair O O) O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (ap2 Pair O O) O) falseT) (axTreeEqLN (ap2 Pair O O) O)) (axIfLfN O O (ap2 TreeEq (ap2 Pair O O) O) falseT))
 
-tagAp2NeqTagVar : Deriv (eqF (ap2 TreeEq (reify tagAp2) tagVarT) poo)
-tagAp2NeqTagVar = ruleTrans (axTreeEqNN O (ap2 Pair O (ap2 Pair O O)) (ap2 Pair (ap2 Pair O O) O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (ap2 Pair O (ap2 Pair O O)) O) poo) (axTreeEqLN (ap2 Pair O O) O)) (axIfLfN O O (ap2 TreeEq (ap2 Pair O (ap2 Pair O O)) O) poo))
+tagAp2NeqTagVar : Deriv (eqF (ap2 TreeEq (reify tagAp2) tagVarT) falseT)
+tagAp2NeqTagVar = ruleTrans (axTreeEqNN O (ap2 Pair O (ap2 Pair O O)) (ap2 Pair (ap2 Pair O O) O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (ap2 Pair O (ap2 Pair O O)) O) falseT) (axTreeEqLN (ap2 Pair O O) O)) (axIfLfN O O (ap2 TreeEq (ap2 Pair O (ap2 Pair O O)) O) falseT))
 
 -- reify(codeF1 f) always starts with Pair(Pair(O, X), Y) — inner pair starts with O
--- TreeEq(Pair(Pair(O,X),Y), tagVarT) = poo via two levels of comparison
+-- TreeEq(Pair(Pair(O,X),Y), tagVarT) = falseT via two levels of comparison
 f1f2NeqTagVar : (a2 b : Term) ->
-  Deriv (eqF (ap2 TreeEq (ap2 Pair (ap2 Pair O a2) b) tagVarT) poo)
+  Deriv (eqF (ap2 TreeEq (ap2 Pair (ap2 Pair O a2) b) tagVarT) falseT)
 f1f2NeqTagVar a2 b =
   ruleTrans (axTreeEqNN (ap2 Pair O a2) b (ap2 Pair (ap2 Pair O O) O) O)
-  (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq b O) poo)
+  (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq b O) falseT)
     (ruleTrans (axTreeEqNN O a2 (ap2 Pair O O) O)
-    (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq a2 O) poo) (axTreeEqLN O O))
-               (axIfLfN O O (ap2 TreeEq a2 O) poo))))
-  (axIfLfN O O (ap2 TreeEq b O) poo))
+    (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq a2 O) falseT) (axTreeEqLN O O))
+               (axIfLfN O O (ap2 TreeEq a2 O) falseT))))
+  (axIfLfN O O (ap2 TreeEq b O) falseT))
 
-codeF1NeqTagVar : (f : Fun1) -> Deriv (eqF (ap2 TreeEq (reify (codeF1 f)) tagVarT) poo)
+codeF1NeqTagVar : (f : Fun1) -> Deriv (eqF (ap2 TreeEq (reify (codeF1 f)) tagVarT) falseT)
 codeF1NeqTagVar I = f1f2NeqTagVar _ O
 codeF1NeqTagVar Fst = f1f2NeqTagVar _ O
 codeF1NeqTagVar Snd = f1f2NeqTagVar _ O
@@ -70,7 +70,7 @@ codeF1NeqTagVar (Comp2 h f g) = f1f2NeqTagVar _ _
 codeF1NeqTagVar (Rec z s) = f1f2NeqTagVar _ _
 codeF1NeqTagVar (KT t) = f1f2NeqTagVar _ _
 
-codeF2NeqTagVar : (g : Fun2) -> Deriv (eqF (ap2 TreeEq (reify (codeF2 g)) tagVarT) poo)
+codeF2NeqTagVar : (g : Fun2) -> Deriv (eqF (ap2 TreeEq (reify (codeF2 g)) tagVarT) falseT)
 codeF2NeqTagVar Pair = f1f2NeqTagVar _ O
 codeF2NeqTagVar Const = f1f2NeqTagVar _ O
 codeF2NeqTagVar (Lift f) = f1f2NeqTagVar _ _
@@ -80,30 +80,30 @@ codeF2NeqTagVar IfLf = f1f2NeqTagVar _ O
 codeF2NeqTagVar TreeEq = f1f2NeqTagVar _ O
 codeF2NeqTagVar (RecP s) = f1f2NeqTagVar _ _
 
-codeNeqTagVarGen : (t : Term) -> Deriv (eqF (ap2 TreeEq (reify (code t)) tagVarT) poo)
+codeNeqTagVarGen : (t : Term) -> Deriv (eqF (ap2 TreeEq (reify (code t)) tagVarT) falseT)
 codeNeqTagVarGen O =
   ruleTrans (axTreeEqNN O O (ap2 Pair (ap2 Pair O O) O) O)
-  (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) poo) (axTreeEqLN (ap2 Pair O O) O))
-             (axIfLfN O O (ap2 TreeEq O O) poo))
+  (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) falseT) (axTreeEqLN (ap2 Pair O O) O))
+             (axIfLfN O O (ap2 TreeEq O O) falseT))
 codeNeqTagVarGen (var _) =
-  let inner : Deriv (eqF (ap2 TreeEq tagVarT (ap2 Pair poo O)) poo)
-      inner = ruleTrans (axTreeEqNN (ap2 Pair poo O) O poo O)
-              (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) poo)
-                (ruleTrans (axTreeEqNN poo O O O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) poo) (axTreeEqNL O O)) (axIfLfN O O (ap2 TreeEq O O) poo))))
-              (axIfLfN O O (ap2 TreeEq O O) poo))
-  in ruleTrans (axTreeEqNN tagVarT _ (ap2 Pair poo O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq _ O) poo) inner) (axIfLfN O O (ap2 TreeEq _ O) poo))
+  let inner : Deriv (eqF (ap2 TreeEq tagVarT (ap2 Pair falseT O)) falseT)
+      inner = ruleTrans (axTreeEqNN (ap2 Pair falseT O) O falseT O)
+              (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) falseT)
+                (ruleTrans (axTreeEqNN falseT O O O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq O O) falseT) (axTreeEqNL O O)) (axIfLfN O O (ap2 TreeEq O O) falseT))))
+              (axIfLfN O O (ap2 TreeEq O O) falseT))
+  in ruleTrans (axTreeEqNN tagVarT _ (ap2 Pair falseT O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq _ O) falseT) inner) (axIfLfN O O (ap2 TreeEq _ O) falseT))
 codeNeqTagVarGen (ap1 f t) = f1f2NeqTagVar _ _
 codeNeqTagVarGen (ap2 g a b) = f1f2NeqTagVar _ _
 
-natCodeNeqTagVar : (n : Nat) -> Deriv (eqF (ap2 TreeEq (reify (natCode n)) tagVarT) poo)
+natCodeNeqTagVar : (n : Nat) -> Deriv (eqF (ap2 TreeEq (reify (natCode n)) tagVarT) falseT)
 natCodeNeqTagVar zero = oNeqTagVar
-natCodeNeqTagVar (suc n) = ruleTrans (axTreeEqNN O (reify (natCode n)) (ap2 Pair (ap2 Pair O O) O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (reify (natCode n)) O) poo) (axTreeEqLN (ap2 Pair O O) O)) (axIfLfN O O (ap2 TreeEq (reify (natCode n)) O) poo))
+natCodeNeqTagVar (suc n) = ruleTrans (axTreeEqNN O (reify (natCode n)) (ap2 Pair (ap2 Pair O O) O) O) (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (reify (natCode n)) O) falseT) (axTreeEqLN (ap2 Pair O O) O)) (axIfLfN O O (ap2 TreeEq (reify (natCode n)) O) falseT))
 
 ------------------------------------------------------------------------
 -- Step evaluation: when tag ≠ tagVar, step returns recs
 
 stepNotVar : (repl tgt reifyA reifyB : Term) ->
-  Deriv (eqF (ap2 TreeEq reifyA tagVarT) poo) ->
+  Deriv (eqF (ap2 TreeEq reifyA tagVarT) falseT) ->
   let cstf = closedSubstTFor repl tgt ; orig = ap2 Pair reifyA reifyB
       recT = ap2 Pair (ap1 cstf reifyA) (ap1 cstf reifyB)
   in Deriv (eqF (ap1 cstf (ap2 Pair reifyA reifyB)) recT)
@@ -121,7 +121,7 @@ stepNotVar repl tgt reifyA reifyB neqPf =
   in ruleTrans (recNdRed O cStepF reifyA reifyB)
      (ruleTrans (fanRed isVarF outerF IfLf orig recT)
      (ruleTrans (congL IfLf (ap2 outerF orig recT) (ruleTrans isVarEval neqPf))
-     (ruleTrans (congR IfLf poo (fanRed innerF sndArgF Pair orig recT))
+     (ruleTrans (congR IfLf falseT (fanRed innerF sndArgF Pair orig recT))
      (ruleTrans (axIfLfN O O (ap2 innerF orig recT) (ap2 sndArgF orig recT))
      (ruleTrans (postRed Snd Pair orig recT) (axSnd orig recT))))))
 
@@ -129,7 +129,7 @@ stepNotVar repl tgt reifyA reifyB neqPf =
 -- closedSTFNd: when treeEq a tagVar = false, recurse. Uses codedSubstNd.
 
 closedSTFNd : (replT tgtT a b : Tree) ->
-  Deriv (eqF (ap2 TreeEq (reify a) tagVarT) poo) ->
+  Deriv (eqF (ap2 TreeEq (reify a) tagVarT) falseT) ->
   Eq (treeEq a tagVar) false ->
   Deriv (eqF (ap1 (closedSubstTFor (reify replT) (reify tgtT)) (reify a)) (reify (codedSubst replT tgtT a))) ->
   Deriv (eqF (ap1 (closedSubstTFor (reify replT) (reify tgtT)) (reify b)) (reify (codedSubst replT tgtT b))) ->
@@ -193,22 +193,22 @@ treeEqReify (nd a1 a2) (nd b1 b2) =
   -- treeEq(nd a1 a2)(nd b1 b2) = boolAnd (treeEq a1 b1) (treeEq a2 b2)
   -- Need to relate IfLf-chain with boolAnd-chain
   ruleTrans (axTreeEqNN (reify a1) (reify a2) (reify b1) (reify b2))
-  (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (reify a2) (reify b2)) poo) (treeEqReify a1 b1))
+  (ruleTrans (congL IfLf (ap2 Pair (ap2 TreeEq (reify a2) (reify b2)) falseT) (treeEqReify a1 b1))
   (treeEqReifyInner (treeEq a1 b1) (treeEq a2 b2) (reify a2) (reify b2) (treeEqReify a2 b2)))
   where
   treeEqReifyInner : (v1 v2 : Bool) (rA2 rB2 : Term) ->
     Deriv (eqF (ap2 TreeEq rA2 rB2) (reify (boolCase v2 lf (nd lf lf)))) ->
-    Deriv (eqF (ap2 IfLf (reify (boolCase v1 lf (nd lf lf))) (ap2 Pair (ap2 TreeEq rA2 rB2) poo))
+    Deriv (eqF (ap2 IfLf (reify (boolCase v1 lf (nd lf lf))) (ap2 Pair (ap2 TreeEq rA2 rB2) falseT))
                    (reify (boolCase (boolAnd v1 v2) lf (nd lf lf))))
   treeEqReifyInner true v2 rA2 rB2 ih2 =
-    -- IfLf(O, Pair(TreeEq(rA2,rB2), poo)) = TreeEq(rA2,rB2) [by axIfLfL]
+    -- IfLf(O, Pair(TreeEq(rA2,rB2), falseT)) = TreeEq(rA2,rB2) [by axIfLfL]
     -- boolAnd true v2 = v2
-    ruleTrans (axIfLfL (ap2 TreeEq rA2 rB2) poo) ih2
+    ruleTrans (axIfLfL (ap2 TreeEq rA2 rB2) falseT) ih2
   treeEqReifyInner false v2 rA2 rB2 ih2 =
-    -- IfLf(Pair(O,O), Pair(TreeEq(rA2,rB2), poo)) = poo [by axIfLfN]
+    -- IfLf(Pair(O,O), Pair(TreeEq(rA2,rB2), falseT)) = falseT [by axIfLfN]
     -- boolAnd false v2 = false
-    -- reify(boolCase false lf (nd lf lf)) = Pair(O,O) = poo
-    axIfLfN O O (ap2 TreeEq rA2 rB2) poo
+    -- reify(boolCase false lf (nd lf lf)) = Pair(O,O) = falseT
+    axIfLfN O O (ap2 TreeEq rA2 rB2) falseT
 
 -- Step evaluation when isVar matches (tag = tagVar).
 -- Result: IfLf(TreeEq(reifyB, tgt), Pair(repl, orig))
