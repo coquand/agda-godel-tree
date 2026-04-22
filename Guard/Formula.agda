@@ -12,7 +12,8 @@
 module Guard.Formula where
 
 open import Guard.Base
-open import Guard.Term using (Equation ; Term ; substEq)
+open import Guard.Term using (Equation ; Term ; substEq ; code ; reify)
+open import Guard.ThFun using (codeEqn)
 
 ------------------------------------------------------------------------
 -- Formula: propositional combination of atomic equations.
@@ -39,3 +40,33 @@ substF : Nat -> Term -> Formula -> Formula
 substF x t (atomic eq) = atomic (substEq x t eq)
 substF x t (not P)     = not (substF x t P)
 substF x t (P imp Q)   = (substF x t P) imp (substF x t Q)
+
+------------------------------------------------------------------------
+-- Gödel-encoding of formulas (Guard 1963 Def 11, tree form).
+--
+-- Guard 1963 numbering:
+--   "A = B"   = 3J("A", "B")       -- atomic equation
+--   "P ⊃ Q"   = 3J("P", "Q") + 1   -- implication
+--   "~P"      = 3("P") + 2          -- negation
+--
+-- Tree form: atomic reuses  codeEqn  (two-child  nd ).  Implication
+-- and negation use new distinguishing tags  tagImp  and  tagNeg ,
+-- both chosen to be structurally disjoint from the term-encoding
+-- tags  tagO / tagVar / tagAp1 / tagAp2  of  Guard.Term .
+--
+-- Shape inspection at the outermost  nd :
+--   atomic  ->  first-child = code of LHS (starts with tagO/Var/Ap1/Ap2)
+--   impF    ->  first-child = tagImp  (nd (nd lf lf) (nd lf lf))
+--   negF    ->  first-child = tagNeg  (nd (nd lf lf) lf)
+-- These three are pairwise disjoint as tree shapes.
+
+tagImp : Tree
+tagImp = nd (nd lf lf) (nd lf lf)
+
+tagNeg : Tree
+tagNeg = nd (nd lf lf) lf
+
+codeFormula : Formula -> Tree
+codeFormula (atomic eq) = codeEqn eq
+codeFormula (not P)     = nd tagNeg (codeFormula P)
+codeFormula (P imp Q)   = nd tagImp (nd (codeFormula P) (codeFormula Q))
