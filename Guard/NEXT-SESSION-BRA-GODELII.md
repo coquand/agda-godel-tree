@@ -64,24 +64,121 @@ side condition and will not be used for the new Gödel II chain.
 The original template for this refactor; steps 1-5 marked done; steps 6-8
 (Th 12-13, Th 11, Th 14) remain.
 
+## Quick reference: using the delivered infrastructure
+
+### Pattern: lifting a polymorphic Deriv fact as a Provable axiom
+
+```agda
+-- Given: d : {h : Equation} -> Deriv h (eqn A B)
+-- Goal:  Provable hyp (atomic (eqn A B))
+-- Use:   fromDeriv d
+
+-- Given: d : {h : Equation} -> Deriv h (eqn A B)
+-- Goal:  Provable hyp (P imp atomic (eqn A B))   (any P)
+-- Use:   mp (axK (atomic (eqn A B)) P) (fromDeriv d)
+```
+
+### Pattern: chaining via axS (the deduction theorem's mp case)
+
+Given `dPRQ : Provable hyp (P imp (R imp Q))` and `dPR : Provable hyp (P imp R)`:
+
+```agda
+mp (mp (axS P R Q) dPRQ) dPR   : Provable hyp (P imp Q)
+```
+
+### Pattern: using hypSyll' for transitive implication
+
+```agda
+-- Given: dPQ : Provable hyp (P imp Q), dQR : Provable hyp (Q imp R)
+-- Goal:  Provable hyp (P imp R)
+hypSyll' P Q R dPQ dQR
+```
+
+### Worked example: impT-form equality rewrite
+
+Suppose we have `d : Deriv Triv (eqn (ap1 F x) y)` and want to derive, as
+a Provable, that `Provable Triv (atomic (eqn (ap1 F x) y))`.
+
+```agda
+-- d is NOT polymorphic in hyp (it's specifically at Triv).
+-- We cannot use fromDeriv directly.
+--
+-- Option 1: if d is unconditionally derivable (via only polymorphic
+-- rules), it IS polymorphic; fromDeriv works.
+--
+-- Option 2: if d uses ruleHyp{Triv} but no other hyp dependence,
+-- manually construct a polymorphic variant.  Typically one rewrites
+-- d's ruleHyp{Triv} with axRefl O (since Triv = eqn O O, the trivial
+-- axiom).  This is what Guard.DerivLift does.
+
+-- See e.g. GodelIClassical.agda's use of lift.
+```
+
+### Minimal next-session imports
+
+For Gödel II at the Provable layer:
+
+```agda
+open import Guard.Base
+open import Guard.Term
+open import Guard.Step using (Deriv ; Consistent)
+open import Guard.ThFunTForV3 using (thmT)
+open import Guard.SubstTForPrecompClassical using (trivCT ; gsCR)
+open import Guard.GodelIClassical using (godelIClassical)
+open import Guard.ProvV3 using (codeBotT)
+open import Guard.ThFun using (codeEqn)
+open import Guard.Thm14EV3 using (thm14EV3 ; ProofE3 ; encT ; corr)
+open import Guard.ProofEnc                          -- encoders for Th 13
+
+open import Guard.Formula
+open import Guard.Provable
+open import Guard.ProvableLemmas
+open import Guard.ProvableEqLifts
+```
+
+### Known quirk: `CoverageNoExactSplit` warning
+
+`deductionThm`'s mp case produces ONE such warning. It is intrinsic to
+pattern matching on `Provable`'s index-unified conclusion; the function
+is correct, case-tree reduction may not be definitional for this case,
+and downstream uses don't depend on such reduction. **Do not spend time
+trying to eliminate it.**
+
 ## What remains: Gödel II chain transcription
 
 ### The target
 
 Guard 1963 Th 14: `th(y) ≠ '0 = 1'` is valid but unprovable in BRA.
 
-In our system, stated at the Provable layer:
+In our system, `th(y) ≠ '0 = 1'` corresponds (under the tree encoding)
+to the equation `TreeEq(thmT trivCT (var 0), codeBotT) = falseT`.
+The formula-level version is:
 
 ```agda
-ConBRA : Formula
-ConBRA = atomic (eqn (ap2 TreeEq (ap1 (thmT trivCT) (var zero)) codeBotT)
-                     falseT)
+conBRAEqn : Equation
+conBRAEqn = eqn (ap2 TreeEq (ap1 (thmT trivCT) (var zero)) codeBotT)
+                falseT
 
+ConBRA : Formula
+ConBRA = atomic conBRAEqn
+```
+
+Note: `conBRAEqn` has the same shape as our existing `conSentenceV3`
+(Guard/ProvV3.agda / GodelIIV3.agda) but with `thmT trivCT` instead of
+`thmT (reify cGSV3)`. This is deliberate — we work at the `Triv`-ambient
+theory (sound per SOUNDNESS.md) rather than at the Gödel sentence's
+own-theory (unsound per SOUNDNESS.md).
+
+```agda
 godelII_BRA :
   Consistent Triv ->
-  Provable hyp_BRA (atomic ConBRA) ->        -- "ConBRA is provable"
+  Provable hyp_BRA (atomic conBRAEqn) ->        -- "ConBRA is provable"
   Empty
 ```
+
+Here `hyp_BRA` is the Provable-level hypothesis. The most natural choice
+is `hyp_BRA = atomic (eqn O O)` (the trivial Formula, atomic Triv), so
+no actual extra Provable-level assumptions.
 
 ### The chain (from guard15.pdf page 17)
 
@@ -99,12 +196,34 @@ reductio: assume ConBRA provable; by substitution + 5,
 
 1. **Th 12-13 lift at Provable level**. Given a Provable equation
    `f(x) = y`, encode as `th(Df(x)) = "f(x) = y"`. Requires:
-   - `Df : Fun1 -> Term -> Term` combinator (exists in Guard/ProofEnc).
-   - A helper that takes a `Provable hyp (atomic (eqn (ap1 f x) y))` and
-     produces `Provable hyp (atomic (eqn (ap1 (thmT trivCT) (Df f x y))
-     (reify (codeEqn (eqn (ap1 f x) y)))))`.
-   - Internally uses thm14EV3 (axRefl + substitution) + fromDeriv at
-     specific instances.
+   - A `Df : Fun1 -> Term -> Term` combinator. Note: our existing
+     `Guard/ProofEnc.agda` provides `encAxI`, `encAxFst`, ...,
+     `encAxGoodstein` for each Deriv axiom. For a general functor `f`,
+     the combinator is built case-by-case. Start with `f = I` (easy).
+   - A helper
+     ```
+     thm13At : (f : Fun1) (x y : Term) {hyp : Formula} ->
+               Provable hyp (atomic (eqn (ap1 f x) y)) ->
+               Provable hyp (atomic (eqn (ap1 (thmT trivCT)
+                                              (Df f x y))
+                                         (reify (codeEqn
+                                                   (eqn (ap1 f x) y)))))
+     ```
+   - Approach: use `thm14EV3 (axRefl (ap1 f x))` to get a Deriv, lift
+     via `fromDeriv`, then rewrite using the input Provable + equality
+     axioms (axEqCongL/R) to substitute y.
+   - Key insight: the substitution "f(x) = y in codeEqn (eqn (ap1 f x)
+     (ap1 f x))" is NOT a substitution at the term level — it's at the
+     *encoded tree* level. The codeEqn's second slot is `reify (code
+     (ap1 f x))`, a specific Term computed from f and x. We need
+     `reify (code (ap1 f x)) ≡ reify (code y)` under the assumption
+     `ap1 f x = y`.  This requires either:
+       (a) A separate polymorphic-in-hyp lemma showing that codeEqn's
+           second slot computes from f and x, so under the equation
+           we can rewrite.
+       (b) Using substOp (see Guard/SubstOp.agda) which handles coded
+           substitution in the Deriv system.
+     Recommend route (b): familiar pattern from our existing work.
    ~150-200 lines.
 
 2. **Chain steps 1-5** at the Provable level, using Th 13 applications
