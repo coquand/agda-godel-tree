@@ -132,8 +132,20 @@ data Deriv (hyp : Equation) : Equation -> Set where
           Deriv hyp (eqn (ap2 g x t) (ap2 g x u))
 
   -- Variable instantiation
+  --
+  -- Side condition (Hilbert-Bernays):  the substitution [t/x] is a
+  -- no-op on hyp, i.e. substEq x t hyp = hyp.  This is the weakest
+  -- sound condition for the given (x, t) pair: it is implied by the
+  -- textbook reading "x not free in hyp" (which would imply no-op
+  -- for every t), but the side condition itself only requires no-op
+  -- for the specific t being substituted (so the trivial t = var x
+  -- case — a harmless identity rule application — is admitted).
+  --
+  -- Closed hypotheses (e.g. Triv = eqn O O) discharge the side
+  -- condition with refl regardless of x and t.
 
   ruleInst : (x : Nat) (t : Term) {eq : Equation} ->
+             Eq (substEq x t hyp) hyp ->
              Deriv hyp eq -> Deriv hyp (substEq x t eq)
 
   -- Hypothesis
