@@ -39,6 +39,7 @@ open import Guard.ThFunTForV3Pass using (ndDispatchV3PairMiss)
 open import Guard.SubstTForPrecompClassical using (trivCT)
 open import Guard.ProofEnc
 open import Guard.SubstOp using (substOp ; substOpCorrect)
+open import Guard.TreeEqSelf using (treeEqSelfReify)
 
 ------------------------------------------------------------------------
 -- Nat abbreviations (private, mirroring RoseLemma1.agda).
@@ -442,7 +443,8 @@ roseL1T_Trans H t u v sub1 sub2 = mkL1T vPa' vPb'
     encRuleTransCorr trivCT (vPa sub1) (vPb sub1) (vPa sub2) (vPb sub2)
                      (reify (code t)) (reify (code u)) (reify (code v))
                      (\x rcs {hyp'} -> vPass sub1 x rcs {hyp'})
-                     (vCorr sub1) (vCorr sub2))
+                     (vCorr sub1) (vCorr sub2)
+                     (treeEqSelfReify (code u)))
   (\x rcs -> encRuleTransPass trivCT (vPa sub1) (vPb sub1)
                                (vPa sub2) (vPb sub2) x rcs)
   where
@@ -614,7 +616,7 @@ roseLemma1T {H} (congL g {t} {u} x d)     tPa tPb tCorr tPass =
   roseL1T_CongL H t u g x (roseLemma1T d tPa tPb tCorr tPass)
 roseLemma1T {H} (congR g x {t} {u} d)     tPa tPb tCorr tPass =
   roseL1T_CongR H t u g x (roseLemma1T d tPa tPb tCorr tPass)
-roseLemma1T {H} (ruleInst x t {eqn l r'} d) tPa tPb tCorr tPass =
+roseLemma1T {H} (ruleInst x t {eqn l r'} sideCond d) tPa tPb tCorr tPass =
   roseL1T_Inst H l r' x t (roseLemma1T d tPa tPb tCorr tPass)
 roseLemma1T {H} (ruleF f g z s d1 d2 d3 d4) tPa tPb tCorr tPass =
   roseL1T_F H f g z s

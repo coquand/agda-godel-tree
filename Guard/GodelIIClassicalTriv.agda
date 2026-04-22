@@ -54,7 +54,7 @@ open import Guard.SubstTForPrecompClassical
 open import Guard.GodelIClassical using (godelIClassical ; diagFTargetCR)
 open import Guard.ImpT using (impT ; trueT ; falseT)
 open import Guard.ProvV3 using (codeBotT)
-open import Guard.TreeEqSelf using (treeEqSelf)
+open import Guard.TreeEqSelf using (treeEqSelfReify)
 open import Guard.RoseLemma1T
 open import Guard.ThFunTForV3 using (ndDispatchV3)
 open import Guard.ThFunTForDefs using (sndArg2)
@@ -406,8 +406,8 @@ dAux =
     --   TreeEq (reify cGSCR) diagBody
     --     = TreeEq (reify cGSCR) (reify cGSCR)
     (congR TreeEq (reify cGSCR) diagFTargetCR)
-    -- treeEqSelf: TreeEq (reify cGSCR) (reify cGSCR) = O
-    (treeEqSelf (reify cGSCR)))
+    -- treeEqSelfReify: TreeEq (reify cGSCR) (reify cGSCR) = O
+    (treeEqSelfReify cGSCR))
 
 -- Applying  roseLemma1T  to  dAux  gives a proof-encoder whose
 -- vCorr asserts:
