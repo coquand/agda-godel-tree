@@ -261,65 +261,143 @@ reductio: assume ConBRA provable; by substitution + 5,
   th(x) ≠ sub(i, i) would be provable, contradicting Gödel I.
 ```
 
-### Open pieces
+### Conventions for the Route A chain
 
-1. **Th 12-13 lift at Provable level**. Given a Provable equation
-   `f(x) = y`, encode as `th(Df(x)) = "f(x) = y"`. Requires:
-   - A `Df : Fun1 -> Term -> Term` combinator. Note: our existing
-     `Guard/ProofEnc.agda` provides `encAxI`, `encAxFst`, ...,
-     `encAxGoodstein` for each Deriv axiom. For a general functor `f`,
-     the combinator is built case-by-case. Start with `f = I` (easy).
-   - A helper
-     ```
-     thm13At : (f : Fun1) (x y : Term) {hyp : Formula} ->
-               Provable hyp (atomic (eqn (ap1 f x) y)) ->
-               Provable hyp (atomic (eqn (ap1 (thmT trivCT)
-                                              (Df f x y))
-                                         (reify (codeEqn
-                                                   (eqn (ap1 f x) y)))))
-     ```
-   - Approach: use `thm14EV3 (axRefl (ap1 f x))` to get a Deriv, lift
-     via `fromDeriv`, then rewrite using the input Provable + equality
-     axioms (axEqCongL/R) to substitute y.
-   - Key insight: the substitution "f(x) = y in codeEqn (eqn (ap1 f x)
-     (ap1 f x))" is NOT a substitution at the term level — it's at the
-     *encoded tree* level. The codeEqn's second slot is `reify (code
-     (ap1 f x))`, a specific Term computed from f and x. We need
-     `reify (code (ap1 f x)) ≡ reify (code y)` under the assumption
-     `ap1 f x = y`.  This requires either:
-       (a) A separate polymorphic-in-hyp lemma showing that codeEqn's
-           second slot computes from f and x, so under the equation
-           we can rewrite.
-       (b) Using substOp (see Guard/SubstOp.agda) which handles coded
-           substitution in the Deriv system.
-     Recommend route (b): familiar pattern from our existing work.
+- **Proof slot** — the candidate-proof variable in both `conBRAEqn`
+  and `gsCR` is `var zero` (= `x_0` in Guard's notation).  Every
+  chain step's Provable hypothesis mentions `thmT trivCT (var zero)`
+  in the LHS of its `atomic` equation.  There is no var-1 shift
+  (that was a Route B workaround, now obsolete).
+
+- **`j` = reified Gödel number of the sentence** — in our notation
+  `j = reify cGSCR` (a closed Term).  Guard's "th(x) = j" is our
+  `atomic (eqn (ap1 (thmT trivCT) (var zero)) (reify cGSCR))`.
+
+- **`sub(i, i)` = the diagonal target** — in our notation, the Term
+  `rhsT = ap2 substOp (ap2 Pair (ap1 cor (reify templateCodeCR))
+                                (reify (natCode v1)))
+                      (reify templateCodeCR)` that reduces to
+  `reify cGSCR` via `diagFTargetCR`.  (So `j` and `sub(i, i)` are
+  provably equal as closed Terms, matching Guard's step 1'.)
+
+### Open pieces (Route A work items)
+
+1. **`Df : Fun1 -> Term -> Term -> Term`** — Guard's Th 12.
+   For each `f : Fun1`, `Df f x y` is a closed Term representing an
+   encoded proof tree that validates the equation `ap1 f x = y` once
+   given the hypothesis `ap1 f x = y` at the Provable level.
+
+   Sketch for `f = I`:
+   ```
+   Df I x y = encCongR I (reify (code (ap1 I x))) (encAxI (reify (code x)))
+              -- or similar; spell out concretely during implementation.
+   ```
+   Rationale: `encAxI (reify (code x))` is the encoded proof of
+   `I x = x` (always valid under any hyp).  Wrapping it via a congR
+   step inside the target codeEqn's RHS slot lets us, under the
+   extra Provable hypothesis `I x = y`, rewrite the encoded RHS to
+   reach `codeEqn (eqn (I x) y)`.
+
+   Other Fun1 cases (`Fst`, `Snd`, `Comp f g`, `Comp2 h f g`, `Rec z s`,
+   `KT t`) are mechanical variants, each using its matching
+   `encAx*` encoder from `Guard/ProofEnc.agda`.  The binary-functor
+   analogue `DfF2 : Fun2 -> Term -> Term -> Term -> Term` follows
+   the same pattern on `encAxFst`, `encAxSnd`, ..., `encAxTreeEq*`.
+
    ~150-200 lines.
 
-2. **Chain steps 1-5** at the Provable level, using Th 13 applications
-   chained via `mp` and `deductionThm`. ~100-200 lines.
+2. **`thm13At`** — the Provable-level Th 13 lift.
+   ```agda
+   thm13At : (f : Fun1) (x y : Term) {hyp : Formula} ->
+             Provable hyp (atomic (eqn (ap1 f x) y)) ->
+             Provable hyp (atomic
+               (eqn (ap1 (thmT trivCT) (Df f x y))
+                    (reify (codeEqn (eqn (ap1 f x) y)))))
+   ```
+   Proof: `fromDeriv` on `Df f x y`'s unconditional Deriv witness at
+   the `f(x) = f(x)` level (built via `thm14EV3 (axRefl (ap1 f x))`
+   + encCongR), then rewrite the encoded-RHS slot using the Provable
+   hypothesis `ap1 f x = y` via `axEqCongR` on the reified codeEqn.
+   The coded substitution is handled by `substOpCorrect`
+   (Guard/SubstOp.agda), which is the familiar pattern from
+   GodelIClassical's `diagFTargetCR`.
 
-3. **Gödel II reductio**: bridge the Provable chain result to Gödel I
-   via `godelIClassical`. The key meta-step is extracting a
-   `Deriv Triv gsCR` from the Provable chain's conclusion, which
-   requires either:
-   - A `fromDerivImp` / `derivToProv` utility (see this session's
-     earlier design discussions).
-   - OR a direct meta-level pattern match on the specific Provable
-     structure.
-   ~80-150 lines.
+   ~80 lines.
 
-**Total estimate: 400-600 lines, 1-2 sessions.**
+3. **Chain steps 1-5 at the Provable layer** (guard15.pdf p.17).
 
-### Design decisions to be revisited
+   - **Step 1**: `th(x) = j ⊃ th(Dth(x)) = "th(x) = j"`.
+     Apply `thm13At` with `f = thmT trivCT`, `x = var zero`, `y = reify cGSCR`;
+     discharge the hypothesis via `deductionThm` to get a Provable
+     implication.
 
-- Whether to add `fromDerivImp` as a primitive Provable constructor
-  (option i) or build `derivToProv` via `ruleSubP` + `ruleFP`
-  (option ii). This session: deferred. See discussion in
-  SOUNDNESS.md context and GUARD-BRA-TEMPLATE.md.
+   - **Step 2**: `th(Dsub(i, i)) = "sub(i, i) = j"`.
+     Closed-form application of `thm13At` — no hypothesis to
+     discharge since `sub(i, i) = reify cGSCR = j` is provable as a
+     closed Deriv (use `diagFTargetCR`).
 
-- Whether to formalize `ruleInst`'s side condition (Options A/B in
-  SOUNDNESS.md) as a precursor or leave as audit-only. Cascading
-  refactor if A; additive if B; C (current) ships current work.
+   - **Step 3**: combine 1 and 2 via `axEqCongR` (rewrite `j` for
+     `th(x)` inside step 2's RHS) + `hypSyll'` to chain
+     implications.  Produces
+     `th(x) = j ⊃ th(gx) = "th(x) = sub(i, i)"`.
+
+   - **Step 4**: from the definition of `j`, derive
+     `th(x) = j ⊃ th(Y...) = "th(x) ≠ sub(i, i)"` — purely
+     equational (`j`'s structure as a reified codeEqn is known), no
+     new Df applications needed.
+
+   - **Step 5**: `th(x) = j ⊃ th(combined) = "0 = 1"` — compose
+     step 3 and step 4 using the encoded `mp` encoder in ProofEnc
+     (`encMp` if present, else built from `encTrans` + `encCong*`).
+     `combined` is the Term corresponding to Guard's
+     `4J[4J(J(num x,1),x)+1, 4J(gx,hx)+2]+2` — i.e., a specific
+     ProofEnc-built encoded proof term; its exact form is pinned
+     down by step 5's Provable-level derivation.
+
+   ~100-150 lines.
+
+4. **Closure to ChainBRA**.
+
+   Given step 5:
+   ```agda
+   step5 : {hyp : Formula} ->
+     Provable hyp (atomic (eqn (ap1 (thmT trivCT) (var zero))
+                               (reify cGSCR))
+                   imp
+                   atomic (eqn (ap1 (thmT trivCT) combined) codeBotT))
+   ```
+
+   From `dCon : Provable (atomic Triv) (atomic conBRAEqn)`, instantiate
+   `conBRAEqn`'s `var zero` slot at `combined` using (formula-level)
+   `substF zero combined` to get
+   `Provable (atomic Triv) (atomic (eqn (ap2 TreeEq (ap1 (thmT trivCT) combined) codeBotT) falseT))`.
+   This is `combined is not a proof of 0=1`.
+
+   Step 5's contrapositive (using `axNeg`, `mp`) on the negation of
+   `th(combined) = 0=1` yields the negation of `th(x) = j`, which —
+   after the `rhsT = reify cGSCR` rewrite via `diagFTargetCR` and
+   some `axEq*` massage to arrive at `gsCR`'s shape — gives
+   ```agda
+   chainBRAClosure : Provable (atomic Triv) (ConBRA imp atomic gsCR)
+   ```
+   i.e., the target `ChainBRA`.
+
+   `godelII_BRA chainBRAClosure` is then the completed Gödel II.
+
+   ~80 lines.
+
+**Total estimate: 400-550 lines, 1-2 sessions.  Dominated by Df's
+per-functor cases in step 1.**
+
+### Design decision (retired)
+
+Earlier drafts of this handoff kept an open question about whether
+`fromDerivImp` / `derivToProv` needed to be added as a primitive
+Provable constructor or derived.  **Route A does not need either**:
+the closure feeds `mp chain dCon : Provable (atomic Triv) (atomic gsCR)`
+directly into the already-built `provableGodelIBridge`, which
+extracts a `Deriv Triv gsCR` via the existing `provExtract`
+machinery.  No new primitive is required.
 
 ## Command for next session
 
@@ -342,44 +420,42 @@ implications using mp + axEqCong* + deductionThm; `thmT` is only
 applied to concrete closed equations, never to an abstract
 candidate proof.
 
-Construction work, in order (commit after each):
+Concrete work breakdown is in the "Open pieces (Route A work
+items)" section of this handoff — read it first.  TL;DR, in order
+(commit after each):
 
-  1. Df : Fun1 -> Term -> Term -> Term   [Guard Th 12]
-     A Term combinator, case-on-f, that packages the encoded
-     substitution witness for "th(Df(x)) = codeEqn(f(x) = y)" given
-     a hypothetical f(x) = y.  Built from the existing encAx*
-     axiom encoders in Guard/ProofEnc.agda (start with f = I via
-     encAxI, generalise to Fst/Snd/Comp/Comp2/Rec/KT).  Correctness
-     of each case uses substOpCorrect to push y into the reified
-     codeEqn slot.
+  1. Df combinator (f = I first, then Fst/Snd/Comp/Comp2/Rec/KT;
+     binary analogue DfF2 on Fun2 in parallel).  ~150-200 lines.
 
-  2. thm13At : (f : Fun1) (x y : Term) {hyp : Formula} ->
-               Provable hyp (atomic (eqn (ap1 f x) y)) ->
-               Provable hyp (atomic
-                 (eqn (ap1 (thmT trivCT) (Df f x y))
-                      (reify (codeEqn (eqn (ap1 f x) y)))))
-     Use fromDeriv on the Df-case's correctness Deriv (proved at
-     the f(x)=f(x) level via axRefl), then rewrite via the
-     Provable hypothesis f(x)=y using axEqCongR on the reified
-     codeEqn slot.  Binary-functor analogue for f : Fun2 in the
-     same style.
+  2. thm13At (Provable-layer Th 13 lift).  ~80 lines.
 
-  3. Chain steps 1-5 (guard15.pdf p.17) at the Provable layer.
-     Each step is a Provable implication; chain them via hypSyll'
-     (already proved), mp, and the equality axioms.  Discharge
-     the propositional context with deductionThm where needed.
+  3. Chain steps 1-5 (guard15.pdf p.17), each as a Provable
+     implication chained via hypSyll' + mp + axEqCong* +
+     deductionThm.  ~100-150 lines.
 
-  4. ChainBRA + closure.  Package step 5's output as a
-     Provable implication ConBRA imp atomic gsCR, matching the
-     already-defined ChainBRA type.  godelII_BRA then closes via
-     the existing provableGodelIBridge (no new work there).
+  4. ChainBRA closure: contrapositive-and-substitute into dCon,
+     reshape to match gsCR via diagFTargetCR + axEq*, feed into
+     the already-complete provableGodelIBridge.  ~80 lines.
 
-Conventions: --safe --without-K --exact-split, no postulates, no
-holes.  Use ~/.cabal/bin/agda-2.9.0.  Commit prefix: [bra-routeA].
+Conventions already established:
+  - Proof slot = var zero (NOT var 1).  The var-1 shift was a Route
+    B workaround; it is obsolete under Route A because no
+    treeEqSelf side-condition is at risk.
+  - j = reify cGSCR.
+  - sub(i, i) = rhsT (the substOp diagonal from GodelIClassical).
+  - trivCT, codeBotT, trivClosed, diagFTargetCR, treeEqSelfReify
+    are all in scope and reusable.
 
-Estimate: ~400-600 lines across 1-2 sessions, dominated by Df's
-per-functor cases.  Start with f = I to shake out the pattern;
-other Fun1 cases are mechanical variants.
+--safe --without-K --exact-split, no postulates, no holes.  Use
+~/.cabal/bin/agda-2.9.0.  Commit prefix: [bra-routeA].  Estimated
+total: 400-550 lines, 1-2 sessions.
+
+Starting pointer: begin with Df I in a new Guard/RouteADf.agda.
+Draft the signature exactly as in "Open pieces" item 1.  Build
+Df I x y from encAxI + encCongR and verify its thmT-reduces-to-
+codeEqn lemma polymorphically in hyp (pure Deriv, no Provable yet).
+That shakes out the pattern for the other Fun1 cases before any
+Provable layer is touched.
 
 Proceed autonomously.
 ```
