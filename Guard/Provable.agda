@@ -71,13 +71,19 @@ data Provable (hyp : Formula) : Formula -> Set where
        Provable hyp P ->
        Provable hyp Q
 
-  ------------------------------------------------------------------
-  -- Substitution rule (Guard's substitution of terms for numerical
-  -- variables, applied uniformly to a formula).
-  --
-  -- Note: substitution applies to the CONCLUSION; the hypothesis is
-  -- not substituted (mirroring Deriv's ruleInst).
-
-  ruleSubP : (x : Nat) (t : Term) {P : Formula} ->
-             Provable hyp P ->
-             Provable hyp (substF x t P)
+------------------------------------------------------------------------
+-- Note on the substitution rule.
+--
+-- Guard 1963 lists "substitution of terms for numerical variables" as
+-- an inference rule (page 10).  In our hypothesis-bearing form, a
+-- substitution rule  Provable hyp P -> Provable hyp (substF x t P)
+-- carries the standard side condition  "x not free in hyp"  (else
+-- the deduction theorem case for substitution does not match the
+-- expected type).
+--
+-- For simplicity, we OMIT a substitution rule from the Provable
+-- constructor list.  Substitution is provided as a META-level Agda
+-- function (substProv) acting on Provable derivation trees, defined
+-- in Guard.ProvableSubst (TODO).  Each use site that requires
+-- substitution invokes substProv directly, with the side condition
+-- (when needed) discharged by the caller's choice of hyp.
