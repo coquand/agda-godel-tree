@@ -336,7 +336,20 @@ Approach: build the chain at the Deriv level (Route B), as
   chainDeriv : Deriv Triv conBRAEqn -> Deriv Triv gsCR
 then derive ChainBRA via deductionThm + provExtractTriv + fromDeriv.
 
-Two pieces of construction work:
+**De-risk first** (~80 lines, before scaling).  Prototype the
+combinedCorr reduction strategy on the simplest non-trivial case:
+just the `encInst zero (cor X) X` fragment (the inner `ruleInst`
+step where `X` enters the proof tree).  Confirm
+  thmT trivCT (encInst zero (cor X) X)
+reduces to a clean Term-level expression involving thmT trivCT X via
+case23V3 + substOpCorrect.  If that prototype goes through, scale to
+the full `combined`.  If reduction gets stuck in IfLf-conditional
+thickets (because validators emit sentinel O on mismatched sub-
+proofs), redesign before scaling — do NOT spend a session building
+the full `combined` only to discover the reduction strategy doesn't
+factor.
+
+Two pieces of construction work after the prototype:
 
   1. combined : Term -> Term
      A Term combinator that, given a candidate encoded proof X (with
@@ -363,8 +376,8 @@ Then:
 
 Conventions: --safe --without-K --exact-split, no postulates, no
 holes.  Use ~/.cabal/bin/agda-2.9.0.  Commit after each of:
-combined definition, combinedCorr proof, chainDeriv composition,
-godelII_BRA closure.
+prototype encInst+combinedCorr fragment, full combined definition,
+full combinedCorr proof, chainDeriv composition, godelII_BRA closure.
 
 Proceed autonomously.
 ```
