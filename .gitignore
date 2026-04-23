@@ -4,9 +4,10 @@
 *.out
 *~
 
-# Only Guard/ directory is tracked
+# Only Guard/ and BRA/ directories are tracked
 /*
 !/Guard/
+!/BRA/
 !/.gitignore
 
 # Hide tex/pdf in Guard, except guard-godelII and nelson-boundary
