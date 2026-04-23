@@ -347,6 +347,101 @@ Each step typechecks independently.  No postulates, no holes.
   hypothesis: `Consistent = ~Prov botEq`, so the contrapositive
   `Consistent -> ~Prov conHFEq` follows directly.
 
+## Revised Gödel II plan (session F re-read of guard15 pages 15-17)
+
+The original §(1)-§(4) plan above envisioned a Prov-level reconstruction
+of the entire Gödel II chain, including a Prov-encoded `diagFTargetCR`
+and a Prov bridge from Deriv-level `thmT e_G = reify cGSCR` to a Prov.
+A closer reading of guard15 Theorems 11-14 shows this is not what Guard
+does and it is not necessary for our target either.
+
+### What Guard actually does
+
+- **Theorem 12** (page 16, unconditional):
+  `th(D_f(x)) = "f(num x) = f(x)"` as a BRA theorem schema.
+- **Theorem 13** (corollary, conditional):
+  `f(x) = y ⊃ th(D_f(x)) = "f(num x) = y"`, derived from Thm 12 by
+  the congruence of `num` (`a = b ⊢ num(a) = num(b)`).
+- **Theorem 14** (Gödel II, pages 16-17): a Deriv-level chain
+  (steps 1-5) that builds a BRA-provable implication
+    `th(x) = j ⊃ th(<bigExpr>(x)) = "0 = 1"`
+  using Thm 13 at several functors, encoded propositional axioms
+  (ax(4)-style transitivity `t`, a negation axiom `t'`), and
+  p.r. term-builders (`f(x)`, `g(x)`, `h(x)`) that paste encoded
+  proofs together via encoded MP.
+
+At the meta level, Guard then argues:  if `th(y) ≠ "0 = 1"` were
+provable, substitute into step 5 to derive `th(x) ≠ sub(i,i)` provable,
+contradicting Thm 11.
+
+### What this means for our Agda port
+
+Our strict-form `thm13Fun1*` / `thm13Fun2*` in `Guard.Thm13` correspond
+to **Guard's Thm 12**, not Thm 13.  The naming is inherited from the
+original spec and should be understood accordingly.
+
+The Gödel II chain is a Deriv-level construction; it does not need
+Prov-level encodings of `cor` or `diagFTargetCR`.  The Prov level only
+appears at the input (unwrap `Prov gsCR`) and output (wrap as
+`Prov botEq`).  Pipeline:
+
+```
+godelI : Prov (atomic gsCR) -> Prov (atomic botEq)
+godelI pG =
+  let e_G = provTerm pG
+      d_G = provCorr pG                       -- Deriv (thmT e_G = reify cGSCR)
+      chain : Deriv ((atomic (eqn (ap1 thmT (var 0)) (reify cGSCR))) imp
+                     (atomic (eqn (ap1 thmT <bigExpr (var 0)>) (reify codeBotT))))
+      chain = ...                             -- Thm 14 steps 1-5
+      inst  = ruleInst 0 e_G chain
+      out   : Deriv (atomic (eqn (ap1 thmT <bigExpr e_G>) (reify codeBotT)))
+      out   = mp inst d_G
+  in mkProv <prov1 of bigExpr e_G> <prov2 ...> out <pass>
+```
+
+### Gaps before godelI can be built
+
+1. **Thm 13 IMP form** — corollary of Thm 12 that accepts an arbitrary
+   `y` on the RHS.  Requires an object-level analog of Guard's
+   `num`-congruence (`a = b ⊃ num(a) = num(b)`).  Our `cor : Fun1` does
+   this for reified trees; for general Terms we need either (a) a new
+   total functor that computes `reify ∘ code` for arbitrary inputs,
+   or (b) restriction to inputs already in reified form.  Open.
+
+2. **Encoded propositional axioms** — Guard's `t` and `t'`.  We have
+   `axEqTrans` / `axEqCong1` / `axEqCongL` / `axEqCongR` as
+   `Guard.DerivF` primitives, and `axK` / `axS` / `axNeg` for K/S/Neg.
+   But we **do not** have matching encoder lemmas
+   `encAxEqTrans` / `encAxEqCong*`.  These must be added to
+   `Guard.ProofEncUnify` (each ~30 lines mirroring `encAxK`).
+
+3. **Term-builders `f(x)`, `g(x)`, `h(x)`** — specific Fun1 expressions
+   that paste encoded proofs via `encMp` and sub-encodings.
+   Mechanical once Thm 13 and the encoded axioms are in hand.
+
+4. **Chain assembly** — transcribe guard15 p.17 steps 1-5 at Deriv
+   level using ruleInst + mp.
+
+### What can be retired from the original plan
+
+- Prov-encoded `diagFTargetCR` — not needed (use Deriv-level
+  `diagFTargetCR` directly inside the chain's Thm 13 step for `substOp`).
+- `provTreeEqSelfReify` — the Gödel II chain closes via the encoded
+  negation axiom `t'` and ax(4)-style transitivity, not via
+  TreeEq-self-reflexivity.  Shipped in [unify-5c-prov-treeeqself]
+  but unused by the chain.
+- `provCong1` — may still be useful for future Prov-level reasoning
+  but not required for godelI in this revised plan.
+
+### Estimated cost
+
+- Thm 13 IMP form (once the num-analog is chosen): ~50-100 lines.
+- encAxEqTrans / encAxEqCong* (4 encoders): ~120 lines.
+- Term-builders: ~80 lines.
+- Chain + assembly: ~100-200 lines.
+- **Total**: ~400 lines, significantly less than the 300-500 I flagged
+  in session E.
+
 ## Open questions to resolve during implementation
 
 1. **codeEqn vs codeFormula:** our `cGSCR = codeEqn gsCR` codes an

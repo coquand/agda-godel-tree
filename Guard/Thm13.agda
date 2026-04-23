@@ -2,22 +2,30 @@
 
 -- Guard.Thm13 -- encoder functors D1/D2 and correctness lemmas.
 --
--- Per UNIFIED-DESIGN-REV2-5C.md §(1).  For each primitive functor
--- constructor  f , we build a closed Fun1/Fun2 expression  D1 f  /
---  D2 g  such that, when applied to code arguments, it produces the
--- encoded proof of the corresponding defining equation.  The
--- correctness lemma  thm13Fun1 f / thm13Fun2 g  then states that
---  thmT  on this encoded proof yields the Gödel code of the
--- equation.
+-- NOTE ON NAMING.  Despite the module name  Thm13 , the lemmas
+-- shipped here match guard15.pdf's THEOREM 12 (page 16), not
+-- Theorem 13.  Guard's Thm 12 is the unconditional form
 --
--- Base cases land first ([unify-5c-thm13-fun1-I], -Fst, -Snd, -KT).
--- Inductive / mutual cases follow in later commits.
+--     th(D_f(x)) = "f(num x) = f(x)"
 --
--- Signature choice.  We take Guard's Thm 13 in its strict form: the
--- target equation is  f(x) = x  for I,  Fst(Pair a b) = a  for Fst,
--- etc. -- i.e.  y  is fixed by the constructor.  This matches every
--- existing  encAx*Corr  lemma without needing a hypothetical  Deriv
--- recursor to bridge  y  to  f(x) .
+-- which we translate (without the num wrapping -- our trees don't
+-- have a numeral/term split) as
+--
+--     thm12Fun1* : thmT (D1_f (reify (code x))) = reify (codeFormula
+--                  (atomic (eqn (ap1 f x) x)))     -- strict, y = f(x)
+--
+-- Guard's THEOREM 13 is a corollary:  f(x) = y ⊃ th(D_f(x)) = "fx_=y"
+-- obtained from Thm 12 by congruence of  num .  Our Agda analog is
+-- an IMP-form that is NOT shipped here yet; see
+-- UNIFIED-DESIGN-REV2-5C.md §"Revised Gödel II plan" for how it
+-- fits into the Thm 14 chain.
+--
+-- For each primitive functor constructor  f , we build a closed
+-- Fun1/Fun2 expression  D1 f  /  D2 g  such that, when applied to
+-- code arguments, it produces the encoded proof of the corresponding
+-- defining equation.  The correctness lemma  thm13Fun1 f /
+-- thm13Fun2 g  states that  thmT  on this encoded proof yields the
+-- Gödel code of the equation -- in Guard's Thm 12 form  f(x) = f(x) .
 
 module Guard.Thm13 where
 
