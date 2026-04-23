@@ -28,12 +28,13 @@ open import Guard.DerivF
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForHF using (thmT)
 open import Guard.ProofEncUnify using
-  ( encAxI      ; encAxICorr
-  ; encAxFst    ; encAxFstCorr
-  ; encAxSnd    ; encAxSndCorr
-  ; encAxKT     ; encAxKTCorr
-  ; encAxConst  ; encAxConstCorr
-  ; encAxIfLfL  ; encAxIfLfLCorr
+  ( encAxI        ; encAxICorr
+  ; encAxFst      ; encAxFstCorr
+  ; encAxSnd      ; encAxSndCorr
+  ; encAxKT       ; encAxKTCorr
+  ; encAxConst    ; encAxConstCorr
+  ; encAxIfLfL    ; encAxIfLfLCorr
+  ; encAxTreeEqLL ; encAxTreeEqLLCorr
   )
 
 private
@@ -42,6 +43,8 @@ private
   n3  : Nat ; n3  = suc n2
   n11 : Nat
   n11 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))
+  n13 : Nat
+  n13 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))
   n25 : Nat
   n25 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
       (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
@@ -374,3 +377,42 @@ thm13Fun2IfLfL a b =
   let aC : Term ; aC = reify (code a)
       bC : Term ; bC = reify (code b)
   in ruleTrans (cong1 thmT (d2IfLfLRed a b)) (encAxIfLfLCorr aC bC)
+
+------------------------------------------------------------------------
+-- Fun2 base case:  TreeEqLL .
+--
+-- axTreeEqLL : ap2 TreeEq O O = O .  Zero-arg axiom: the canonical
+-- inputs are both O, and the encoded proof  encAxTreeEqLL  is
+--  Pair (natCode n13) O  with no parameters.  D2TreeEqLL is thus a
+-- constant Fun2 that ignores its inputs.
+
+D2TreeEqLL : Fun2
+D2TreeEqLL = Fan (Lift (KT (reify (natCode n13))))
+                 (Lift (KT O))
+                 Pair
+
+d2TreeEqLLRed :
+  Deriv (atomic (eqn (ap2 D2TreeEqLL (reify (code O)) (reify (code O)))
+                     encAxTreeEqLL))
+d2TreeEqLLRed =
+  let x1C : Term ; x1C = reify (code O)
+      x2C : Term ; x2C = reify (code O)
+      tagR : Term ; tagR = reify (natCode n13)
+      s0 : Deriv (atomic (eqn (ap2 D2TreeEqLL x1C x2C)
+                              (ap2 Pair (ap2 (Lift (KT tagR)) x1C x2C)
+                                        (ap2 (Lift (KT O))   x1C x2C))))
+      s0 = axFan (Lift (KT tagR)) (Lift (KT O)) Pair x1C x2C
+      s1 : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) x1C x2C) tagR))
+      s1 = ruleTrans (axLift (KT tagR) x1C x2C) (axKT tagR x1C)
+      s2 : Deriv (atomic (eqn (ap2 (Lift (KT O)) x1C x2C) O))
+      s2 = ruleTrans (axLift (KT O) x1C x2C) (axKT O x1C)
+  in ruleTrans s0
+       (ruleTrans (congL Pair (ap2 (Lift (KT O)) x1C x2C) s1)
+                  (congR Pair tagR s2))
+
+thm13Fun2TreeEqLL :
+  Deriv (atomic (eqn (ap1 thmT (ap2 D2TreeEqLL (reify (code O)) (reify (code O))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 TreeEq O O) O))))))
+thm13Fun2TreeEqLL =
+  ruleTrans (cong1 thmT d2TreeEqLLRed) encAxTreeEqLLCorr
