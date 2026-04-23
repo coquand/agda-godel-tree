@@ -32,23 +32,35 @@ open import Guard.ProofEncUnify using
   ; encAxFst      ; encAxFstCorr
   ; encAxSnd      ; encAxSndCorr
   ; encAxKT       ; encAxKTCorr
+  ; encAxComp     ; encAxCompCorr
+  ; encAxComp2    ; encAxComp2Corr
   ; encAxConst    ; encAxConstCorr
+  ; encAxLift     ; encAxLiftCorr
+  ; encAxPost     ; encAxPostCorr
+  ; encAxFan      ; encAxFanCorr
   ; encAxIfLfL    ; encAxIfLfLCorr
   ; encAxIfLfN    ; encAxIfLfNCorr
   ; encAxTreeEqLL ; encAxTreeEqLLCorr
   ; encAxTreeEqLN ; encAxTreeEqLNCorr
   ; encAxTreeEqNL ; encAxTreeEqNLCorr
   ; encAxTreeEqNN ; encAxTreeEqNNCorr
+  ; encAxRecLf    ; encAxRecLfCorr
+  ; encAxRecNd    ; encAxRecNdCorr
   )
 
 private
   n1  : Nat ; n1  = suc zero
   n2  : Nat ; n2  = suc n1
   n3  : Nat ; n3  = suc n2
-  n11 : Nat
-  n11 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))
-  n12 : Nat
-  n12 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))
+  n4  : Nat ; n4  = suc n3
+  n5  : Nat ; n5  = suc n4
+  n6  : Nat ; n6  = suc n5
+  n7  : Nat ; n7  = suc n6
+  n8  : Nat ; n8  = suc n7
+  n9  : Nat ; n9  = suc n8
+  n10 : Nat ; n10 = suc n9
+  n11 : Nat ; n11 = suc n10
+  n12 : Nat ; n12 = suc n11
   n13 : Nat ; n13 = suc n12
   n14 : Nat ; n14 = suc n13
   n15 : Nat ; n15 = suc n14
@@ -263,6 +275,112 @@ thm13Fun1KT t x =
   let tC : Term ; tC = reify (code t)
       xC : Term ; xC = reify (code x)
   in ruleTrans (cong1 thmT (d1KTRed t x)) (encAxKTCorr tC xC)
+
+------------------------------------------------------------------------
+-- Fun1 case:  Comp f g .
+--
+-- Strict form: at meta-level  y = ap1 (Comp f g) x = ap1 f (ap1 g x) ,
+-- so the target encoding is  encAxComp (codeF1 f) (codeF1 g) xC
+-- and  encAxCompCorr  closes directly.
+--
+--   ap1 (D1Comp f g) xC
+--     = Pair (natCode n4) (Pair (codeF1 f)R (Pair (codeF1 g)R xC))
+--     = encAxComp (codeF1 f)R (codeF1 g)R xC
+
+D1Comp : Fun1 -> Fun1 -> Fun1
+D1Comp f g = Comp2 Pair (KT (reify (natCode n4)))
+               (Comp2 Pair (KT (reify (codeF1 f)))
+                 (Comp2 Pair (KT (reify (codeF1 g))) I))
+
+d1CompRed : (f g : Fun1) (x : Term) ->
+  Deriv (atomic (eqn (ap1 (D1Comp f g) (reify (code x)))
+                     (encAxComp (reify (codeF1 f)) (reify (codeF1 g))
+                                (reify (code x)))))
+d1CompRed f g x =
+  let xC : Term ; xC = reify (code x)
+      fCR : Term ; fCR = reify (codeF1 f)
+      gCR : Term ; gCR = reify (codeF1 g)
+      tagR : Term ; tagR = reify (natCode n4)
+      level3 : Fun1 ; level3 = Comp2 Pair (KT gCR) I
+      level2 : Fun1 ; level2 = Comp2 Pair (KT fCR) level3
+      inner3 : Deriv (atomic (eqn (ap1 level3 xC)
+                                   (ap2 Pair gCR xC)))
+      inner3 = ruleTrans (axComp2 Pair (KT gCR) I xC)
+                 (ruleTrans (congL Pair (ap1 I xC) (axKT gCR xC))
+                            (congR Pair gCR (axI xC)))
+      inner2 : Deriv (atomic (eqn (ap1 level2 xC)
+                                   (ap2 Pair fCR (ap2 Pair gCR xC))))
+      inner2 = ruleTrans (axComp2 Pair (KT fCR) level3 xC)
+                 (ruleTrans (congL Pair (ap1 level3 xC) (axKT fCR xC))
+                            (congR Pair fCR inner3))
+  in ruleTrans (axComp2 Pair (KT tagR) level2 xC)
+       (ruleTrans (congL Pair (ap1 level2 xC) (axKT tagR xC))
+                  (congR Pair tagR inner2))
+
+thm13Fun1Comp : (f g : Fun1) (x : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap1 (D1Comp f g) (reify (code x))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap1 (Comp f g) x) (ap1 f (ap1 g x))))))))
+thm13Fun1Comp f g x =
+  let xC : Term ; xC = reify (code x)
+      fCR : Term ; fCR = reify (codeF1 f)
+      gCR : Term ; gCR = reify (codeF1 g)
+  in ruleTrans (cong1 thmT (d1CompRed f g x)) (encAxCompCorr fCR gCR xC)
+
+------------------------------------------------------------------------
+-- Fun1 case:  Comp2 h f g .
+--
+-- Strict form: y = ap1 (Comp2 h f g) x = ap2 h (ap1 f x) (ap1 g x).
+-- Target encoding: encAxComp2 hhC fC gC xC.
+
+D1Comp2 : Fun2 -> Fun1 -> Fun1 -> Fun1
+D1Comp2 h f g = Comp2 Pair (KT (reify (natCode n5)))
+                 (Comp2 Pair (KT (reify (codeF2 h)))
+                   (Comp2 Pair (KT (reify (codeF1 f)))
+                     (Comp2 Pair (KT (reify (codeF1 g))) I)))
+
+d1Comp2Red : (h : Fun2) (f g : Fun1) (x : Term) ->
+  Deriv (atomic (eqn (ap1 (D1Comp2 h f g) (reify (code x)))
+                     (encAxComp2 (reify (codeF2 h)) (reify (codeF1 f))
+                                 (reify (codeF1 g)) (reify (code x)))))
+d1Comp2Red h f g x =
+  let xC : Term ; xC = reify (code x)
+      hCR : Term ; hCR = reify (codeF2 h)
+      fCR : Term ; fCR = reify (codeF1 f)
+      gCR : Term ; gCR = reify (codeF1 g)
+      tagR : Term ; tagR = reify (natCode n5)
+      l4 : Fun1 ; l4 = Comp2 Pair (KT gCR) I
+      l3 : Fun1 ; l3 = Comp2 Pair (KT fCR) l4
+      l2 : Fun1 ; l2 = Comp2 Pair (KT hCR) l3
+      i4 : Deriv (atomic (eqn (ap1 l4 xC) (ap2 Pair gCR xC)))
+      i4 = ruleTrans (axComp2 Pair (KT gCR) I xC)
+             (ruleTrans (congL Pair (ap1 I xC) (axKT gCR xC))
+                        (congR Pair gCR (axI xC)))
+      i3 : Deriv (atomic (eqn (ap1 l3 xC) (ap2 Pair fCR (ap2 Pair gCR xC))))
+      i3 = ruleTrans (axComp2 Pair (KT fCR) l4 xC)
+             (ruleTrans (congL Pair (ap1 l4 xC) (axKT fCR xC))
+                        (congR Pair fCR i4))
+      i2 : Deriv (atomic (eqn (ap1 l2 xC)
+                              (ap2 Pair hCR (ap2 Pair fCR (ap2 Pair gCR xC)))))
+      i2 = ruleTrans (axComp2 Pair (KT hCR) l3 xC)
+             (ruleTrans (congL Pair (ap1 l3 xC) (axKT hCR xC))
+                        (congR Pair hCR i3))
+  in ruleTrans (axComp2 Pair (KT tagR) l2 xC)
+       (ruleTrans (congL Pair (ap1 l2 xC) (axKT tagR xC))
+                  (congR Pair tagR i2))
+
+thm13Fun1Comp2 : (h : Fun2) (f g : Fun1) (x : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap1 (D1Comp2 h f g) (reify (code x))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap1 (Comp2 h f g) x)
+                                     (ap2 h (ap1 f x) (ap1 g x))))))))
+thm13Fun1Comp2 h f g x =
+  let xC : Term ; xC = reify (code x)
+      hCR : Term ; hCR = reify (codeF2 h)
+      fCR : Term ; fCR = reify (codeF1 f)
+      gCR : Term ; gCR = reify (codeF1 g)
+  in ruleTrans (cong1 thmT (d1Comp2Red h f g x))
+               (encAxComp2Corr hCR fCR gCR xC)
 
 ------------------------------------------------------------------------
 -- Fun2 base case:  Const .
