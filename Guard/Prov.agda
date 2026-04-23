@@ -37,12 +37,14 @@ open import Guard.ThFunTForDefs using (sndArg2)
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForV3DefsUnify using (intermediateGenericV3)
 open import Guard.ThFunTForV3PassUnify using (ndDispatchV3PairMiss)
+open import Guard.SubstOpUnify using (substOp ; substOpCorrect)
 open import Guard.ProofEncUnify using
   ( encAxRefl ; encAxReflCorr ; encAxReflPass
   ; encRuleSym ; encRuleSymCorr ; encRuleSymPass
   ; encRuleTrans ; encRuleTransCorr ; encRuleTransPass
   ; encCongL ; encCongLCorr ; encCongLPass
   ; encCongR ; encCongRCorr ; encCongRPass
+  ; encRuleInst ; encRuleInstCorr ; encRuleInstPass
   )
 open import Guard.ProofEncFormula using
   ( encMp ; encMpCorr ; encMpPass
@@ -337,3 +339,71 @@ provCongR g x {t} {u} p =
        (ap2 Pair (ap2 Pair (reify (codeF2 g)) xC) (ap2 Pair paR pbR))
        (encCongRCorr g xC paR pbR tC uC (f2xDispMiss g xC) (provCorr p))
        (\ x' rcs -> encCongRPass g xC paR pbR x' rcs)
+
+------------------------------------------------------------------------
+-- dispMiss for tag  Pair (reify (code t)) (reify (natCode x))  used
+-- inside encRuleInst.  Case analysis on t: code t is always of shape
+-- nd tag_t body_t, so reify(code t) = Pair (reify tag_t) (reify body_t)
+-- and the full tag has shape  Pair (Pair _ _) _ .
+
+aRDispMiss : (t : Term) (x : Nat) (x' rc' : Term) ->
+  Deriv (eqF (ap2 ndDispatchV3
+                   (ap2 Pair
+                     (ap2 Pair (reify (code t)) (reify (natCode x))) x') rc')
+             (ap2 sndArg2
+                   (ap2 Pair
+                     (ap2 Pair (reify (code t)) (reify (natCode x))) x') rc'))
+aRDispMiss O          x x' rc' =
+  ndDispatchV3PairMiss O O (reify (natCode x)) x' rc'
+aRDispMiss (var n)    x x' rc' =
+  ndDispatchV3PairMiss (reify tagVar) (reify (natCode n))
+                                (reify (natCode x)) x' rc'
+aRDispMiss (ap1 f t)  x x' rc' =
+  ndDispatchV3PairMiss (reify tagAp1)
+    (ap2 Pair (reify (codeF1 f)) (reify (code t)))
+    (reify (natCode x)) x' rc'
+aRDispMiss (ap2 g a b) x x' rc' =
+  ndDispatchV3PairMiss (reify tagAp2)
+    (ap2 Pair (reify (codeF2 g)) (ap2 Pair (reify (code a)) (reify (code b))))
+    (reify (natCode x)) x' rc'
+
+------------------------------------------------------------------------
+-- provInst: substitution (Guard's rule (i)) for atomic equations.
+--
+-- From  l = r'  conclude  subst x t l = subst x t r' .
+--
+-- Wraps encRuleInst / encRuleInstCorr.  Inner aR is
+-- Pair (reify (code t)) (reify (natCode x)) ; aRDispMiss discharges
+-- its tag-opacity.  The Term-level  substOp  output is bridged to
+--  reify (code (subst x t _))  via substOpCorrect.
+
+provInst : (x : Nat) (t : Term) {l r' : Term} ->
+           Prov (atomic (eqn l r')) ->
+           Prov (atomic (eqn (subst x t l) (subst x t r')))
+provInst x t {l} {r'} p =
+  let paR : Term ; paR = prov1 p
+      pbR : Term ; pbR = prov2 p
+      lC  : Term ; lC  = reify (code l)
+      r'C : Term ; r'C = reify (code r')
+      aR  : Term ; aR  = ap2 Pair (reify (code t)) (reify (natCode x))
+      step1 :
+        Deriv (eqF (ap1 thmT (encRuleInst aR (ap2 Pair paR pbR)))
+                   (ap2 Pair (ap2 substOp aR lC)
+                             (ap2 substOp aR r'C)))
+      step1 = encRuleInstCorr aR paR pbR lC r'C
+                (aRDispMiss t x) (provCorr p)
+      step2 :
+        Deriv (atomic (eqn (ap2 Pair (ap2 substOp aR lC)
+                                     (ap2 substOp aR r'C))
+                           (ap2 Pair (reify (code (subst x t l)))
+                                     (reify (code (subst x t r'))))))
+      step2 =
+        ruleTrans
+          (congL Pair (ap2 substOp aR r'C) (substOpCorrect t x l))
+          (congR Pair (reify (code (subst x t l)))
+                 (substOpCorrect t x r'))
+  in mkProv
+       (reify (natCode n23))
+       (ap2 Pair aR (ap2 Pair paR pbR))
+       (ruleTrans step1 step2)
+       (\ x' rcs -> encRuleInstPass aR paR pbR x' rcs)
