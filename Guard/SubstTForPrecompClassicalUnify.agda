@@ -22,9 +22,11 @@ open import Guard.DerivF
 open import Guard.SubstCorrect
 open import Guard.SubstTForCorrectUnify
 open import Guard.SubstOpUnify using (substOp ; substOpEquiv)
+open import Guard.SubstTForCorrectUnify using (closedSTFNd)
+open import Guard.SubstCorrect using (codedSubstNd)
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForHF using (thmT)
-open import Guard.CodeOfReify using (cor)
+open import Guard.CodeOfReifyUnify using (cor ; corOfReify)
 
 private
   v1 : Nat ; v1 = suc zero
@@ -150,3 +152,98 @@ abstract
                           (reify templateCodeCR)))
             falseT)
   subst0GSCR X0 = refl
+
+------------------------------------------------------------------------
+-- diagFTargetCR port: seven named top-level lemmas, each stated
+-- only in terms of the abstract interface above (templateCodeCR,
+-- crTCCR, codeLhsTCR, codePoo, cGSCR).
+--
+-- The hyp-bearing original lives in Guard.GodelIClassical; this is
+-- the hyp-free port targeted by [unify-5c].
+
+-- (1) corOfReify bridged through the abstract name  crTCCR .
+corOfReifyTC :
+  Deriv (eqF (ap1 cor (reify templateCodeCR)) (reify crTCCR))
+corOfReifyTC =
+  eqSubst (\c -> Deriv (eqF (ap1 cor (reify templateCodeCR)) (reify c)))
+          (eqSym crTCCRDef) (corOfReify templateCodeCR)
+
+-- (2) Rewrite the first Pair arg of substOp from  ap1 cor (reify templateCodeCR)
+--     to  reify crTCCR .
+rewriteCor :
+  Deriv (eqF (ap2 substOp (ap2 Pair (ap1 cor (reify templateCodeCR))
+                                    (reify (natCode v1)))
+                          (reify templateCodeCR))
+             (ap2 substOp (ap2 Pair (reify crTCCR)
+                                    (reify (natCode v1)))
+                          (reify templateCodeCR)))
+rewriteCor = congL substOp (reify templateCodeCR)
+               (congL Pair (reify (natCode v1)) corOfReifyTC)
+
+-- (3) V3-style diagonal: closedSubstTFor pushed through the outer
+--     Pair  (reify codeLhsTCR) (reify codePoo) .
+combinedNdCR :
+  Deriv (eqF (ap1 (closedSubstTFor (reify crTCCR) (reify tgtT))
+                  (ap2 Pair (reify codeLhsTCR) (reify codePoo)))
+             (reify (codedSubst crTCCR tgtT (nd codeLhsTCR codePoo))))
+combinedNdCR = closedSTFNd crTCCR tgtT codeLhsTCR codePoo
+                 codeLhsTCRNeqTagVar codeLhsTCRNotVar
+                 (lhsTCRSTF crTCCR) (falseTSTF crTCCR)
+
+-- (4) Transport (3) along  templateCodeCRForm  so the target tree is
+--      templateCodeCR  rather than  nd codeLhsTCR codePoo .
+combinedTC :
+  Deriv (eqF (ap1 (closedSubstTFor (reify crTCCR) (reify tgtT))
+                  (reify templateCodeCR))
+             (reify (codedSubst crTCCR tgtT templateCodeCR)))
+combinedTC =
+  eqSubst (\tc -> Deriv (eqF (ap1 (closedSubstTFor (reify crTCCR) (reify tgtT))
+                                  (reify tc))
+                             (reify (codedSubst crTCCR tgtT tc))))
+          (eqSym templateCodeCRForm) combinedNdCR
+
+-- (5) Metalevel:  codedSubst crTCCR tgtT templateCodeCR  =  cGSCR .
+fpCGS : Eq (codedSubst crTCCR tgtT templateCodeCR) cGSCR
+fpCGS =
+  eqTrans
+    (eqSubst (\tc -> Eq (codedSubst crTCCR tgtT tc)
+                        (codedSubst crTCCR tgtT (nd codeLhsTCR codePoo)))
+             (eqSym templateCodeCRForm) refl)
+    (eqTrans
+      (codedSubstNd crTCCR tgtT codeLhsTCR codePoo codeLhsTCRNotVar)
+      (eqSym cGSisCSCR))
+
+-- (6) Transport (4) along (5) so the RHS is  reify cGSCR .
+combinedCGS :
+  Deriv (eqF (ap1 (closedSubstTFor (reify crTCCR) (reify tgtT))
+                  (reify templateCodeCR))
+             (reify cGSCR))
+combinedCGS =
+  eqSubst (\c -> Deriv (eqF (ap1 (closedSubstTFor (reify crTCCR) (reify tgtT))
+                                 (reify templateCodeCR))
+                            (reify c)))
+          fpCGS combinedTC
+
+-- (7) substOp reduces to closedSubstTFor on reified trees.
+substOpStepCR :
+  Deriv (eqF (ap2 substOp (ap2 Pair (reify crTCCR) (reify (natCode v1)))
+                          (reify templateCodeCR))
+             (ap1 (closedSubstTFor (reify crTCCR) (reify (natCode v1)))
+                  (reify templateCodeCR)))
+substOpStepCR = substOpEquiv (reify crTCCR) (reify (natCode v1)) templateCodeCR
+
+------------------------------------------------------------------------
+-- Diagonal identity for the classical template.
+--
+--   substOp (Pair (ap1 cor (reify templateCodeCR)) (reify (natCode v1)))
+--           (reify templateCodeCR)
+--     = reify cGSCR .
+--
+-- Composes rewriteCor, substOpStepCR, combinedCGS.
+
+diagFTargetCR :
+  Deriv (eqF (ap2 substOp (ap2 Pair (ap1 cor (reify templateCodeCR))
+                                    (reify (natCode v1)))
+                          (reify templateCodeCR))
+             (reify cGSCR))
+diagFTargetCR = ruleTrans rewriteCor (ruleTrans substOpStepCR combinedCGS)
