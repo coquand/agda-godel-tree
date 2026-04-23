@@ -27,7 +27,13 @@ open import Guard.Formula
 open import Guard.DerivF
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForHF using (thmT)
-open import Guard.ProofEncUnify using (encAxI ; encAxICorr)
+open import Guard.ProofEncUnify using
+  ( encAxI   ; encAxICorr
+  ; encAxFst ; encAxFstCorr
+  )
+
+private
+  n1 : Nat ; n1 = suc zero
 
 ------------------------------------------------------------------------
 -- Base case:  I .
@@ -69,3 +75,68 @@ thm13Fun1I : (x : Term) ->
 thm13Fun1I x =
   let xC : Term ; xC = reify (code x)
   in ruleTrans (cong1 thmT (d1IRed xC)) (encAxICorr xC)
+
+------------------------------------------------------------------------
+-- Base case:  Fst .
+--
+--  xC = reify (code (ap2 Pair a b))
+--     = ap2 Pair (reify tagAp2)
+--                (ap2 Pair (reify (codeF2 Pair))
+--                          (ap2 Pair (reify (code a)) (reify (code b)))) .
+--
+--  D1Fst  extracts the innermost pair  (ap2 Pair aC bC)  via  Snd . Snd
+-- and prepends the tag  reify (natCode n1) :
+--
+--   ap1 D1Fst xC
+--     = ap2 Pair (ap1 (KT (reify (natCode n1))) xC) (ap1 (Comp Snd Snd) xC)
+--                                                                  [axComp2]
+--     = ap2 Pair (reify (natCode n1))              (ap1 Snd (ap1 Snd xC))
+--                                                                  [axKT, axComp]
+--     = ap2 Pair (reify (natCode n1)) (ap2 Pair aC bC)             [axSnd x 2]
+--     = encAxFst aC bC .
+--
+-- Then  encAxFstCorr aC bC  delivers the thmT correctness.
+
+D1Fst : Fun1
+D1Fst = Comp2 Pair (KT (reify (natCode n1))) (Comp Snd Snd)
+
+d1FstRed : (a b : Term) ->
+  Deriv (atomic (eqn (ap1 D1Fst (reify (code (ap2 Pair a b))))
+                     (encAxFst (reify (code a)) (reify (code b)))))
+d1FstRed a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      xC : Term ; xC = reify (code (ap2 Pair a b))
+      tagR : Term ; tagR = reify (natCode n1)
+      inner : Term ; inner = ap2 Pair (reify (codeF2 Pair)) (ap2 Pair aC bC)
+      -- ap1 D1Fst xC = Pair (KT(tagR) xC) (Comp Snd Snd xC)
+      s1 : Deriv (atomic (eqn (ap1 D1Fst xC)
+                              (ap2 Pair (ap1 (KT tagR) xC)
+                                        (ap1 (Comp Snd Snd) xC))))
+      s1 = axComp2 Pair (KT tagR) (Comp Snd Snd) xC
+      -- Left: KT tagR xC = tagR.
+      s2 : Deriv (atomic (eqn (ap1 (KT tagR) xC) tagR))
+      s2 = axKT tagR xC
+      -- Right: Comp Snd Snd xC = Snd (Snd xC).
+      s3 : Deriv (atomic (eqn (ap1 (Comp Snd Snd) xC) (ap1 Snd (ap1 Snd xC))))
+      s3 = axComp Snd Snd xC
+      -- Snd xC = inner.
+      s4 : Deriv (atomic (eqn (ap1 Snd xC) inner))
+      s4 = axSnd (reify tagAp2) inner
+      -- Snd inner = Pair aC bC.
+      s5 : Deriv (atomic (eqn (ap1 Snd inner) (ap2 Pair aC bC)))
+      s5 = axSnd (reify (codeF2 Pair)) (ap2 Pair aC bC)
+  in ruleTrans s1
+       (ruleTrans (congL Pair (ap1 (Comp Snd Snd) xC) s2)
+                  (congR Pair tagR
+                    (ruleTrans s3
+                      (ruleTrans (cong1 Snd s4) s5))))
+
+thm13Fun1Fst : (a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap1 D1Fst (reify (code (ap2 Pair a b)))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap1 Fst (ap2 Pair a b)) a))))))
+thm13Fun1Fst a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+  in ruleTrans (cong1 thmT (d1FstRed a b)) (encAxFstCorr aC bC)
