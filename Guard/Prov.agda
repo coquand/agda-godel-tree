@@ -36,7 +36,7 @@ open import Guard.ThFunTForHF using (thmT ; ndDispatchV3)
 open import Guard.ThFunTForDefs using (sndArg2)
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForV3DefsUnify using (intermediateGenericV3)
-open import Guard.ThFunTForV3PassUnify using (ndDispatchV3PairMiss)
+open import Guard.ThFunTForV3PassUnify using (ndDispatchV3PairMiss ; passthroughSucV3)
 open import Guard.SubstOpUnify using (substOp ; substOpCorrect)
 open import Guard.ProofEncUnify using
   ( encAxRefl ; encAxReflCorr ; encAxReflPass
@@ -44,6 +44,7 @@ open import Guard.ProofEncUnify using
   ; encRuleTrans ; encRuleTransCorr ; encRuleTransPass
   ; encCongL ; encCongLCorr ; encCongLPass
   ; encCongR ; encCongRCorr ; encCongRPass
+  ; encRuleCong1 ; encRuleCong1Corr ; encRuleCong1Pass
   ; encRuleInst ; encRuleInstCorr ; encRuleInstPass
   )
 open import Guard.ProofEncFormula using
@@ -339,6 +340,49 @@ provCongR g x {t} {u} p =
        (ap2 Pair (ap2 Pair (reify (codeF2 g)) xC) (ap2 Pair paR pbR))
        (encCongRCorr g xC paR pbR tC uC (f2xDispMiss g xC) (provCorr p))
        (\ x' rcs -> encCongRPass g xC paR pbR x' rcs)
+
+------------------------------------------------------------------------
+-- dispMiss for tag  reify (codeF1 f)  used inside encRuleCong1.
+-- For every Fun1 constructor, codeF1 f = nd (natCode N_f) body_f
+-- with  N_f > 0  (tags start at n26), so reify(codeF1 f) has outer
+-- shape  Pair O (reify (natCode (N_f - 1)))  paired with reify body_f,
+-- matching  passthroughSucV3 .
+
+f1DispMiss : (f : Fun1) (x' rc' : Term) ->
+  Deriv (eqF (ap2 ndDispatchV3 (ap2 Pair (reify (codeF1 f)) x') rc')
+             (ap2 sndArg2     (ap2 Pair (reify (codeF1 f)) x') rc'))
+f1DispMiss I              x' rc' =
+  passthroughSucV3 n25 lf x' rc'
+f1DispMiss Fst            x' rc' =
+  passthroughSucV3 n26 lf x' rc'
+f1DispMiss Snd            x' rc' =
+  passthroughSucV3 n27 lf x' rc'
+f1DispMiss (Comp f g)     x' rc' =
+  passthroughSucV3 n28 (nd (codeF1 f) (codeF1 g)) x' rc'
+f1DispMiss (Comp2 h f g)  x' rc' =
+  passthroughSucV3 n29 (nd (codeF2 h) (nd (codeF1 f) (codeF1 g))) x' rc'
+f1DispMiss (Rec z s)      x' rc' =
+  passthroughSucV3 n30 (nd (code z) (codeF2 s)) x' rc'
+f1DispMiss (KT t)         x' rc' =
+  passthroughSucV3 n31 (code t) x' rc'
+
+------------------------------------------------------------------------
+-- provCong1: unary-functor congruence.  From  t = u  conclude
+--  f t = f u  for any Fun1  f .
+
+provCong1 : (f : Fun1) {t u : Term} ->
+            Prov (atomic (eqn t u)) ->
+            Prov (atomic (eqn (ap1 f t) (ap1 f u)))
+provCong1 f {t} {u} p =
+  let paR : Term ; paR = prov1 p
+      pbR : Term ; pbR = prov2 p
+      tC  : Term ; tC  = reify (code t)
+      uC  : Term ; uC  = reify (code u)
+  in mkProv
+       (reify (natCode n20))
+       (ap2 Pair (reify (codeF1 f)) (ap2 Pair paR pbR))
+       (encRuleCong1Corr f paR pbR tC uC (f1DispMiss f) (provCorr p))
+       (\ x' rcs -> encRuleCong1Pass f paR pbR x' rcs)
 
 ------------------------------------------------------------------------
 -- dispMiss for tag  Pair (reify (code t)) (reify (natCode x))  used
