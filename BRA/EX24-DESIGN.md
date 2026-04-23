@@ -36,6 +36,27 @@ with a DerivF constructor**.  `mp` clashes → `mpF`; `ind` doesn't
 (rule is `ruleIndBT`) → `indF` still for parallel naming; `ax`
 doesn't → `ax`; `subT`, `sub`, `cor` are unique.
 
+## File convention: definition + `*Def` correctness lemma per file
+
+Each `BRA/<Name>.agda` file carries **both** the Ex 24 functor and
+its defining-equation lemma:
+
+| File | Functor | Correctness lemma |
+|---|---|---|
+| `BRA/Cor.agda` | `cor` | `corOfReify` |
+| `BRA/Mp.agda`  | `mpF` | `mpFDef` |
+| `BRA/Ind.agda` (planned) | `indF` | `indFDef` |
+| `BRA/SubT.agda` (planned) | `subT` | `subTDef` |
+| `BRA/Sub.agda` (planned) | `sub` | `subDef` |
+| `BRA/Ax.agda` (planned) | `ax` | `axDef*` (likely one per schema) |
+
+The `*Def` lemma is what downstream Thm 12 / Thm 13 / Gödel II work
+*actually consumes*.  `mpF` the Fun2 value is just a combinator;
+`mpFDef : (P Q : Formula) -> Deriv (atomic (eqn (ap2 mpF …) (reify
+(codeFormula Q))))` is the load-bearing theorem that lets a proof
+*use* `mpF` to reduce `ap2 mpF (…) (…imp…)` to the code of `Q`.
+Same pattern for every Ex 24 functor.
+
 ## Remaining functors — sketches
 
 Each sketch gives the Guard spec, the intended Fun1/Fun2 expression,
@@ -44,30 +65,56 @@ and a very rough size estimate.  Definitions and derivations are
 
 ### indF (Ex 24 [5])
 
-**Spec.** `ind("P(0)", "P(x₀) ⊃ P(sx₀)") = "P(x₀)"`.
+**Guard spec (p.14).** `ind("P(0)", "P(x₀) ⊃ P(sx₀)") = "P(x₀)"`.
+One variable `x₀` throughout, because Guard's successor is unary.
 
-In tree form (Guard's `s(x₀)` is our `Pair a b`, but the specific
-induction format uses only `sx₀` as a node):
+**User's rephrasing.**
+`ind(code (substF v0 0 P), code (imp P (substF v0 (S v0) P))) = code P`.
 
-    indF (reify (codeFormula P0)) (reify (codeFormula pxImpPsx))
-      = reify (codeFormula Px₀)
+**Tree analog — and the new question.** Our tree induction (see
+`ruleIndBT` in `BRA/Deriv.agda`) needs TWO subtree variables `v1`,
+`v2` because `Pair` is binary.  The step code has the shape
 
-where `pxImpPsx = P(x₀) imp P(Pair a b)` in our naming.  The
-extraction is **structural** exactly like `mpF`: pull apart the
-second argument's imp-encoding and return its first half (the
-hypothesis `P(x₀)`), i.e. `Fst (Snd b)`.  So:
+    codeFormula ((substF 0 (var v1) P) imp
+                 ((substF 0 (var v2) P) imp
+                  (substF 0 (ap2 Pair (var v1) (var v2)) P)))
+
+The question Guard doesn't face: what is `v1` here?  Four options:
+
+**Option A — fix `v1 = zero` by convention.**  `substF 0 (var 0) P`
+is the identity on `P` (substituting `v₀` for itself).  The
+outer-imp LHS is `codeFormula P` directly, so `indF` is a pure
+projection parallel to `mpF`:
 
     indF = Post (Comp Fst Snd) (Post Snd Pair)
 
-Same shape as `mpF`, same style of derivation.  ~20 lines each of
-def + proof.
+~40 lines total (def + def-equation).  BRA proofs that use
+induction must pick `v1 = zero` when they hand a step to the
+`th(4y+3)` slot.  Renaming is always available via `ruleInst`, so
+this is a convention on the *enumeration*, not a weakness of BRA.
 
-*(Flag: the Guard spec delivers "P(x₀)" as the *conclusion* of the
-inference, not a projection of one of the inputs.  If actually
-`ind` is meant to build the code of P(x₀) from the code of P(0)
-alone (not the induction step), the combinator is just
-`Lift (something)` stripping the leading `s…` marker from arg 1.
-Verify the exact spec against p.14 before coding.)*
+**Option B — pass `v1` explicitly as part of the argument.**
+`indF` takes a packed triple `Pair (Pair base step) v1_code` or
+similar.  `th(4y+3)`'s encoding of `y` then has to embed `v1`
+somewhere (probably via `K`/`L`-style projections).  ~80 lines
+for indF + more for th-integration.  More faithful to "any
+induction step works"; costs complexity in `th`.
+
+**Option C — recover `v1` via `subT`.**  Accept the step in fully
+general shape and use `subT` to rename `v1` back to `v₀` in
+whatever `Fst (Snd step)` returns.  Maximally general; depends on
+`subT` existing first; ~150 lines.
+
+**Option D — diagonal step `P(v₀) imp P(Pair v₀ v₀)`.**  One
+variable but the induction hypothesis is weaker: you don't get IHs
+for both subtrees independently.  **Dead** — insufficient for
+Thm 11's diagonal construction.
+
+**Pending user decision.** Leaning toward Option A as a starting
+point (matches `mpF`'s clean projection style; convention cost is
+cheap; renaming via `ruleInst` recovers generality).  Upgrade to C
+only if some Thm 12 case forces it.  User is thinking about which
+way `v'` should work.  **Do not code `indF` until this is resolved.**
 
 ### ax (Ex 24 [6])
 
@@ -156,44 +203,62 @@ numerals (= reified trees).  ~30 lines.
 
 ## Thm 12 — target signature
 
+**See `BRA/THM12-NOTES.md` for the full interpretation** (Def 12 as
+meta-level `codeT`/`codeFT`, `cor` appearing symbolically on both
+sides of the equation, base-cases-per-primitive proof structure).
+This section states only the target signature and the downstream
+consumers of each `*Def` lemma.
+
 Guard Thm 12 (p.16): for every 1-ary BRA functor `f`, there exists
 `D_f` such that
 
-    th(D_f(x)) = "f(_x_) = f(_x_)"
+    th(D_f(x)) = "f(x) = f(x)"    (underlined, per Def 12)
 
-where `_x_` is the underlined notation meaning "in the code, `x` is
-replaced by `num(x)`" (Guard Def 12, p.16).  Similarly for binary
-functors.
+In BRA form, with `codeFT` the underlined-code function from
+`BRA/THM12-NOTES.md`:
 
-In BRA form:
+    thm12Sing : (f : Fun1) ->
+      Sigma Fun1 (\ Df ->
+        Deriv (atomic (eqn (ap1 th (ap1 Df (var zero)))
+                           (codeFT (atomic (eqn (ap1 f (var zero))
+                                                (ap1 f (var zero))))))))
 
-    thm12 : (f : Fun1) -> Sigma (Fun1) (\ Df ->
-      (x : Term) ->
-        Deriv (atomic
-          (eqn (ap1 th (ap1 Df (reify (code x))))
-               (reify (codeFormula
-                 (atomic (eqn (ap1 f (<underlined x>))
-                              (ap1 f (<underlined x>)))))))))
+**Downstream consumers of `mpFDef` / `indFDef` / `subTDef` / `axDef`
+inside the Thm 12 proof:**
 
-The precise meaning of "<underlined x>" is: `reify (codedSubst
-(ap1 cor x) (code (var 0)) (code (f (var 0))))`, i.e. the code
-obtained by substituting `cor(x)` for `x₀` inside the code of
-`f(x₀)`.  This is exactly where `subT` earns its keep.
+- Primitive base cases (`f = I`, `Fst`, `Snd`, `KT t`): close by
+  `axDef` at the matching axRefl schema index.  `mpFDef` /
+  `indFDef` / `subTDef` not used.
+- Step case `Comp p q`: given IH for `p` and `q`, produce `D_{Comp
+  p q}` such that `th(D_{Comp p q}(x))` reduces through th's
+  dispatch to the code of "Comp p q (x) = Comp p q (x)".  Uses
+  `mpFDef` to splice the two sub-proofs (each coded as a `"f(x) =
+  f(x)"` in implication form) and `axDef` for `axComp`.
+- Step case `Comp2 h p q`: same shape with the binary `axComp2`
+  schema.
+- Step case `Rec z s`: uses `indFDef` to close a tree-induction
+  step (requires the `v1 = zero` convention from the indF
+  decision) and `subTDef` to substitute the recursive result for
+  the Rec argument.
 
-Proof is by **meta-induction on the definition of `f`** (Guard
-proves this by induction on functor length).  Base cases for each
-primitive Fun1 (`I`, `Fst`, `Snd`, `KT t`); step cases for `Comp`,
-`Comp2`, `Rec`.  Each base case gives a specific `D_I`, `D_Fst`,
-etc., mostly built from `axRefl`-style functors + subT/sub
-plumbing.
+Proof by **meta-induction on the definition of `f`** (Guard p.16:
+"a meta-induction on the length of the definition of a functor").
 
-Estimate ~400-600 lines.
+Estimate ~400-600 lines total, ~100 of which is `*Def`-consumption
+plumbing in the step cases.
 
 ## Thm 13 — corollary
 
-Given `f(x) = y`, derive `th(D_f(x)) = "f(_x_) = y"`.  Transport
-Thm 12's RHS via `axEqCong1 cor + mp` on the hypothesis.  ~50-100
-lines once Thm 12 exists.
+Given `f(x) = y`, derive `th(D_f(x)) = "f(_x_) = y"` (Guard p.16).
+Transport Thm 12's RHS via `axEqCong1 cor + mpF` on the hypothesis.
+
+**`mpFDef` consumed here** to close the transport: after
+`axEqCong1 cor` gives `cor(f(x)) = cor(y)` in implication form
+and we have the hypothesis, `mpF`'s defining equation is invoked
+to reduce `ap2 mpF (hypothesis-code) (implication-code)` to the
+conclusion code.
+
+~50-100 lines once Thm 12 exists.
 
 ## Thm 14 and Gödel II — closing
 
@@ -202,6 +267,18 @@ sub(x₀, x₀)"` and prove `j = sub(j, j)` is valid but unprovable.
 
 Thm 14 (Gödel II, p.16): formalise Thm 11's proof inside BRA.
 Uses Thm 13 at both `th` and `sub`.
+
+**Downstream consumers in the Thm 14 chain:**
+
+- `subDef` (the Ex 24 [8] lemma) is used to evaluate
+  `sub(j, j)` inside the coded chain — specifically where the
+  diagonal step requires substituting the numeral of `j` for `x₀`
+  in `j` itself.
+- `mpFDef` is used repeatedly to splice the multiple `"a ⊃ b"`
+  codes produced by Thm 13 into a single chain of coded modus
+  ponens applications.
+- Thm 13 at `th` handles the `th(j) = …` half of the diagonal.
+- Thm 13 at `sub` handles the `sub(j, j) = …` half.
 
 Estimate ~300-500 lines for Gödel II once Thm 12/13 are in place.
 
@@ -247,15 +324,18 @@ file typecheck < 10s.  Consistent with Session G's estimate.
 
 ## Open questions to resolve before coding
 
-1. **indF's exact spec.** Is it a projection (extracting P(x₀) from
-   `P(x₀) imp P(sx₀)`) or a construction (building P(x₀) from
-   P(0) + induction hypothesis)?  Read guard15 p.14 item [5] again
-   with fresh eyes.
+1. **indF's `v'` convention.** Options A / B / C / D above.  Leaning
+   A (fix `v1 = zero`, pure projection parallel to `mpF`), but user
+   is thinking.  Blocks indF.
 2. **ax's encoding.** Option A (one indexed Fun1) vs. Option B
-   (per-schema bundle).  Depends on how th uses ax in the mod-4
+   (per-schema bundle).  Depends on how `th` uses `ax` in the mod-4
    dispatch and whether the parametric axioms matter at Thm 12.
+   Blocks ax.
 3. **Gödel pairing encoding.**  `th` uses `K`/`L` to decompose its
    input index.  In trees these are `Fst`/`Snd`.  Confirm that
    Guard's `J(KKy, LKy)` style composes cleanly to `Fst (Fst y)`,
    `Snd (Fst y)`, etc.  If yes, no extra work; if no, we need a
-   tree-level J/K/L wrapper.
+   tree-level J/K/L wrapper.  Blocks `th`.
+4. **Def 12 / Thm 12 interpretation** (from `BRA/THM12-NOTES.md`).
+   Four sub-questions listed there for user review before any Thm
+   12 code is written.
