@@ -23,7 +23,7 @@ open import Guard.SubstCorrect
 open import Guard.SubstTForCorrectUnify
 open import Guard.SubstOpUnify using (substOp ; substOpEquiv)
 open import Guard.ThFun using (codeEqn)
-open import Guard.ThFunTForV3Unify using (thmT)
+open import Guard.ThFunTForHF using (thmT)
 open import Guard.CodeOfReify using (cor)
 
 private
@@ -52,7 +52,7 @@ abstract
 
   -- The NEW template LHS: substOp's first Pair arg is  (ap1 cor (var v_1)) .
   lhsTermCR : Term
-  lhsTermCR = ap2 TreeEq (ap1 (thmT trivCT) (var zero))
+  lhsTermCR = ap2 TreeEq (ap1 (thmT) (var zero))
                          (ap2 substOp
                            (ap2 Pair (ap1 cor (var v1)) (reify (natCode v1)))
                            (var v1))
@@ -122,7 +122,7 @@ abstract
   -- Expanded form of gsCR (v_1 substituted).  Note the  ap1 cor (reify templateCodeCR)
   -- slot where the free  var v_1  used to be.
   gsCRForm : Eq gsCR
-    (eqn (ap2 TreeEq (ap1 (thmT trivCT) (var zero))
+    (eqn (ap2 TreeEq (ap1 (thmT) (var zero))
                      (ap2 substOp
                        (ap2 Pair (ap1 cor (reify templateCodeCR)) (reify (natCode v1)))
                        (reify templateCodeCR)))
@@ -130,7 +130,7 @@ abstract
   gsCRForm = refl
 
   substThmTCRFact : (x : Nat) (r : Term) ->
-    Eq (substF1 x r (thmT trivCT)) (thmT trivCT)
+    Eq (substF1 x r (thmT)) (thmT)
   substThmTCRFact x r = refl
 
   substCorFact : (x : Nat) (r : Term) ->
@@ -143,7 +143,7 @@ abstract
   -- free v_1).  So this is just  substEq zero X  on the closed form.
   subst0GSCR : (X0 : Term) ->
     Eq (substEq zero X0 gsCR)
-       (eqn (ap2 TreeEq (ap1 (thmT trivCT) X0)
+       (eqn (ap2 TreeEq (ap1 (thmT) X0)
                         (ap2 substOp
                           (ap2 Pair (ap1 cor (reify templateCodeCR))
                                     (reify (natCode v1)))
