@@ -46,6 +46,8 @@ open import Guard.ProofEncUnify using
   ; encAxTreeEqNN ; encAxTreeEqNNCorr
   ; encAxRecLf    ; encAxRecLfCorr
   ; encAxRecNd    ; encAxRecNdCorr
+  ; encAxRecPLf   ; encAxRecPLfCorr
+  ; encAxRecPNd   ; encAxRecPNdCorr
   )
 
 private
@@ -65,6 +67,12 @@ private
   n14 : Nat ; n14 = suc n13
   n15 : Nat ; n15 = suc n14
   n16 : Nat ; n16 = suc n15
+  n26 : Nat
+  n26 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
+      (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
+      (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))
+  n27 : Nat ; n27 = suc n26
+  n28 : Nat ; n28 = suc n27
   n25 : Nat
   n25 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
       (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
@@ -1142,3 +1150,117 @@ thm13Fun2Fan h1 h2 h a b =
       hCR  : Term ; hCR  = reify (codeF2 h)
   in ruleTrans (cong1 thmT (d2FanRed h1 h2 h a b))
                (encAxFanCorr h1CR h2CR hCR aC bC)
+
+------------------------------------------------------------------------
+-- Fun2 cases:  RecP s  at input (p , O)  (axRecPLf)  and
+--              RecP s  at input (p , Pair a b)  (axRecPNd).
+--
+-- Unlike Rec, RecP takes its payload  p  as the first argument, so
+-- the payload  pC  is passed through by  Lift I  rather than being
+-- baked in as a KT constant.
+
+D2RecPLf : Fun2 -> Fun2
+D2RecPLf s = Fan (Lift (KT (reify (natCode n27))))
+                 (Fan (Lift (KT (reify (codeF2 s))))
+                      (Lift I)
+                      Pair)
+                 Pair
+
+d2RecPLfRed : (s : Fun2) (p : Term) ->
+  Deriv (atomic (eqn (ap2 (D2RecPLf s) (reify (code p)) (reify (code O)))
+                     (encAxRecPLf (reify (codeF2 s)) (reify (code p)))))
+d2RecPLfRed s p =
+  let pC : Term ; pC = reify (code p)
+      x2C : Term ; x2C = reify (code O)
+      sCR : Term ; sCR = reify (codeF2 s)
+      tagR : Term ; tagR = reify (natCode n27)
+      iFan : Deriv (atomic (eqn (ap2 (Fan (Lift (KT sCR)) (Lift I) Pair) pC x2C)
+                                 (ap2 Pair sCR pC)))
+      iFan = ruleTrans (axFan (Lift (KT sCR)) (Lift I) Pair pC x2C)
+               (ruleTrans (congL Pair (ap2 (Lift I) pC x2C)
+                             (ruleTrans (axLift (KT sCR) pC x2C) (axKT sCR pC)))
+                          (congR Pair sCR
+                             (ruleTrans (axLift I pC x2C) (axI pC))))
+      oLeft : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) pC x2C) tagR))
+      oLeft = ruleTrans (axLift (KT tagR) pC x2C) (axKT tagR pC)
+      oFan : Deriv (atomic (eqn (ap2 (D2RecPLf s) pC x2C)
+                                 (ap2 Pair (ap2 (Lift (KT tagR)) pC x2C)
+                                           (ap2 (Fan (Lift (KT sCR)) (Lift I) Pair) pC x2C))))
+      oFan = axFan (Lift (KT tagR)) (Fan (Lift (KT sCR)) (Lift I) Pair) Pair pC x2C
+  in ruleTrans oFan
+       (ruleTrans (congL Pair (ap2 (Fan (Lift (KT sCR)) (Lift I) Pair) pC x2C) oLeft)
+                  (congR Pair tagR iFan))
+
+thm13Fun2RecPLf : (s : Fun2) (p : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 (D2RecPLf s) (reify (code p)) (reify (code O))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 (RecP s) p O) O))))))
+thm13Fun2RecPLf s p =
+  let pC  : Term ; pC  = reify (code p)
+      sCR : Term ; sCR = reify (codeF2 s)
+  in ruleTrans (cong1 thmT (d2RecPLfRed s p)) (encAxRecPLfCorr sCR pC)
+
+------------------------------------------------------------------------
+
+D2RecPNd : Fun2 -> Fun2
+D2RecPNd s = Fan (Lift (KT (reify (natCode n28))))
+                 (Fan (Lift (KT (reify (codeF2 s))))
+                      (Fan (Lift I) snd2X2 Pair)
+                      Pair)
+                 Pair
+
+d2RecPNdRed : (s : Fun2) (p a b : Term) ->
+  Deriv (atomic (eqn (ap2 (D2RecPNd s) (reify (code p)) (reify (code (ap2 Pair a b))))
+                     (encAxRecPNd (reify (codeF2 s)) (reify (code p))
+                                  (reify (code a)) (reify (code b)))))
+d2RecPNdRed s p a b =
+  let pC : Term ; pC = reify (code p)
+      aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      x2C : Term ; x2C = reify (code (ap2 Pair a b))
+      sCR : Term ; sCR = reify (codeF2 s)
+      tagR : Term ; tagR = reify (natCode n28)
+      -- Innermost  Fan (Lift I) snd2X2 Pair  at (pC, x2C) gives
+      --   Pair pC (Pair aC bC) .
+      kFan : Deriv (atomic (eqn (ap2 (Fan (Lift I) snd2X2 Pair) pC x2C)
+                                 (ap2 Pair pC (ap2 Pair aC bC))))
+      kFan = ruleTrans (axFan (Lift I) snd2X2 Pair pC x2C)
+               (ruleTrans (congL Pair (ap2 snd2X2 pC x2C)
+                             (ruleTrans (axLift I pC x2C) (axI pC)))
+                          (congR Pair pC (snd2X2Red pC aC bC)))
+      -- Middle layer: Fan (Lift (KT sCR)) kFan-wrapper Pair gives
+      --   Pair sCR (Pair pC (Pair aC bC)) .
+      mFan : Deriv (atomic (eqn (ap2 (Fan (Lift (KT sCR)) (Fan (Lift I) snd2X2 Pair) Pair) pC x2C)
+                                 (ap2 Pair sCR (ap2 Pair pC (ap2 Pair aC bC)))))
+      mFan = ruleTrans (axFan (Lift (KT sCR)) (Fan (Lift I) snd2X2 Pair) Pair pC x2C)
+               (ruleTrans (congL Pair (ap2 (Fan (Lift I) snd2X2 Pair) pC x2C)
+                             (ruleTrans (axLift (KT sCR) pC x2C) (axKT sCR pC)))
+                          (congR Pair sCR kFan))
+      -- Outer Fan.
+      oLeft : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) pC x2C) tagR))
+      oLeft = ruleTrans (axLift (KT tagR) pC x2C) (axKT tagR pC)
+      oFan : Deriv (atomic (eqn (ap2 (D2RecPNd s) pC x2C)
+                                 (ap2 Pair (ap2 (Lift (KT tagR)) pC x2C)
+                                           (ap2 (Fan (Lift (KT sCR)) (Fan (Lift I) snd2X2 Pair) Pair) pC x2C))))
+      oFan = axFan (Lift (KT tagR))
+                   (Fan (Lift (KT sCR)) (Fan (Lift I) snd2X2 Pair) Pair)
+                   Pair pC x2C
+  in ruleTrans oFan
+       (ruleTrans (congL Pair (ap2 (Fan (Lift (KT sCR)) (Fan (Lift I) snd2X2 Pair) Pair) pC x2C) oLeft)
+                  (congR Pair tagR mFan))
+
+thm13Fun2RecPNd : (s : Fun2) (p a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 (D2RecPNd s) (reify (code p))
+                                                 (reify (code (ap2 Pair a b)))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 (RecP s) p (ap2 Pair a b))
+                                     (ap2 s (ap2 Pair p (ap2 Pair a b))
+                                            (ap2 Pair (ap2 (RecP s) p a)
+                                                      (ap2 (RecP s) p b)))))))))
+thm13Fun2RecPNd s p a b =
+  let pC  : Term ; pC  = reify (code p)
+      aC  : Term ; aC  = reify (code a)
+      bC  : Term ; bC  = reify (code b)
+      sCR : Term ; sCR = reify (codeF2 s)
+  in ruleTrans (cong1 thmT (d2RecPNdRed s p a b))
+               (encAxRecPNdCorr sCR pC aC bC)
