@@ -61,6 +61,7 @@ private
   n32 : Nat ; n32 = suc n31
   n33 : Nat ; n33 = suc n32
   n34 : Nat ; n34 = suc n33
+  n35 : Nat ; n35 = suc n34
 
 ------------------------------------------------------------------------
 -- Miss chain for tags of shape Pair(Pair(a1,a2), b).
@@ -109,7 +110,8 @@ ndDispatchV3PairMiss a1 a2 b x recs =
   (ruleTrans (p n31 case31 ndT32V3 recs)
   (ruleTrans (p n32 case32 ndT33V3 recs)
   (ruleTrans (p n33 case33 ndT34V3 recs)
-             (p n34 case34 ndT35V3 recs)))))))))))))))))))))))))))))))))
+  (ruleTrans (p n34 case34 ndT35V3 recs)
+             (p n35 case35 ndT36V3 recs))))))))))))))))))))))))))))))))))
 
 ------------------------------------------------------------------------
 -- Miss chain for tags of shape Pair(O, Pair(Pair(c1,c2), d)).
@@ -152,7 +154,8 @@ ndDispatchV3OPairMiss c1 c2 d x recs =
   (ruleTrans (o n31 case31 ndT32V3 recs)
   (ruleTrans (o n32 case32 ndT33V3 recs)
   (ruleTrans (o n33 case33 ndT34V3 recs)
-             (o n34 case34 ndT35V3 recs)))))))))))))))))))))))))))))))))
+  (ruleTrans (o n34 case34 ndT35V3 recs)
+             (o n35 case35 ndT36V3 recs))))))))))))))))))))))))))))))))))
 
 ------------------------------------------------------------------------
 -- passthroughSucV3: convenience wrapper around ndDispatchV3PairMiss

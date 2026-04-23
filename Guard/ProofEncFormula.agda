@@ -799,3 +799,140 @@ encAxEqTransPass :
 encAxEqTransPass aC bC cC x rcs =
   ndDispatchV3PairMiss O (reify (natCode n33))
     (ap2 Pair aC (ap2 Pair bC cC)) x rcs
+
+------------------------------------------------------------------------
+-- encAxExFalso: encoder for the classical tautology  P ⊃ (~ P ⊃ Q) .
+--
+-- Although ex falso is not a Guard axiom (it is derivable from
+-- axK / axS / axNeg / mp ), we expose it here via a dedicated thmT
+-- dispatch tag n35 to keep the encoded Term short and the typecheck
+-- time predictable.  The DerivF -level proof is supplied separately
+-- by  Guard.Thm14TPrime  as a Hilbert derivation in Agda, not as an
+-- encoded Term.
+--
+-- Encoding shape:  Pair (natCode n35) (Pair pC qC) .
+-- Correctness target — codeFormula of  P ⊃ ((~ P) ⊃ Q) :
+--   Pair tagImpT (Pair pC
+--                 (Pair tagImpT (Pair (Pair tagNegT pC) qC)))
+
+private
+  n35 : Nat ; n35 = suc n34
+
+encAxExFalso : Term -> Term -> Term
+encAxExFalso pC qC =
+  ap2 Pair (reify (natCode n35)) (ap2 Pair pC qC)
+
+encAxExFalsoCorr : (pC qC : Term) ->
+  Deriv (eqF (ap1 thmT (encAxExFalso pC qC))
+    (ap2 Pair tagImpT (ap2 Pair pC
+      (ap2 Pair tagImpT (ap2 Pair
+        (ap2 Pair tagNegT pC)
+        qC)))))
+encAxExFalsoCorr pC qC =
+  ruleTrans (recNdRed O thmTStep tagR body)
+  (ruleTrans (guardNdV3 tagR pC qC recs)
+  (ruleTrans (ndBranchMiss n35 n0  case0  ndT1V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n1  case1  ndT2V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n2  case2  ndT3V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n3  case3  ndT4V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n4  case4  ndT5V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n5  case5  ndT6V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n6  case6  ndT7V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n7  case7  ndT8V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n8  case8  ndT9V3  body recs refl)
+  (ruleTrans (ndBranchMiss n35 n9  case9  ndT10V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n10 case10 ndT11V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n11 case11 ndT12V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n12 case12 ndT13V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n13 case13 ndT14V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n14 case14 ndT15V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n15 case15 ndT16V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n16 case16 ndT17V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n17 case17 ndT18V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n18 case18 ndT19V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n19 case19V3 ndT20V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n20 case20 ndT21V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n21 case21 ndT22V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n22 case22 ndT23V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n23 case23V3 ndT24V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n24 case24 ndT25V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n25 case25 ndT26V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n27 case27 ndT28V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n28 case28 ndT29V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n29 case29 ndT30V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n30 case30 ndT31V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n31 case31 ndT32V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n32 case32 ndT33V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n33 case33 ndT34V3 body recs refl)
+  (ruleTrans (ndBranchMiss n35 n34 case34 ndT35V3 body recs refl)
+  (ruleTrans (ndBranchHit  n35       case35 ndT36V3 body recs)
+             case35Red))))))))))))))))))))))))))))))))))))
+  where
+  tagR : Term ; tagR = reify (natCode n35)
+  body : Term ; body = ap2 Pair pC qC
+  enc  : Term ; enc  = ap2 Pair tagR body
+  recs : Term
+  recs = ap2 Pair (ap1 thmT tagR) (ap1 thmT body)
+
+  -- Sub-terms of the target.
+  notP : Term
+  notP = ap2 Pair tagNegT pC
+
+  notPImpQ : Term
+  notPImpQ = ap2 Pair tagImpT (ap2 Pair notP qC)
+
+  outerTarget : Term
+  outerTarget = ap2 Pair tagImpT (ap2 Pair pC notPImpQ)
+
+  -- orig-selector reductions at (enc, recs).
+  origARed' : Deriv (eqF (ap2 origA enc recs) pC)
+  origARed' = origARed tagR pC qC recs
+
+  origBRed' : Deriv (eqF (ap2 origB enc recs) qC)
+  origBRed' = origBRed tagR pC qC recs
+
+  -- mkNegF reduction.
+  mkNegFRed : (pF : Fun2) (pT : Term) ->
+              Deriv (eqF (ap2 pF enc recs) pT) ->
+              Deriv (eqF (ap2 (mkNegF pF) enc recs)
+                             (ap2 Pair tagNegT pT))
+  mkNegFRed pF pT dP =
+    ruleTrans (fanRed (kF2 tagNegT) pF Pair enc recs)
+    (ruleTrans (congL Pair (ap2 pF enc recs) (kF2Red tagNegT enc recs))
+               (congR Pair tagNegT dP))
+
+  -- mkImpF reduction.
+  mkImpFRedL : (aF bF : Fun2) (aT bT : Term) ->
+               Deriv (eqF (ap2 aF enc recs) aT) ->
+               Deriv (eqF (ap2 bF enc recs) bT) ->
+               Deriv (eqF (ap2 (mkImpF aF bF) enc recs)
+                              (ap2 Pair tagImpT (ap2 Pair aT bT)))
+  mkImpFRedL aF bF aT bT dA dB =
+    ruleTrans (fanRed (kF2 tagImpT) (Fan aF bF Pair) Pair enc recs)
+    (ruleTrans (congL Pair (ap2 (Fan aF bF Pair) enc recs)
+                 (kF2Red tagImpT enc recs))
+               (congR Pair tagImpT
+                 (ruleTrans (fanRed aF bF Pair enc recs)
+                 (ruleTrans (congL Pair (ap2 bF enc recs) dA)
+                            (congR Pair aT dB)))))
+
+  notPRed : Deriv (eqF (ap2 (mkNegF origA) enc recs) notP)
+  notPRed = mkNegFRed origA pC origARed'
+
+  notPImpQRed :
+    Deriv (eqF (ap2 (mkImpF (mkNegF origA) origB) enc recs) notPImpQ)
+  notPImpQRed = mkImpFRedL (mkNegF origA) origB notP qC notPRed origBRed'
+
+  case35Red : Deriv (eqF (ap2 case35 enc recs) outerTarget)
+  case35Red = mkImpFRedL origA (mkImpF (mkNegF origA) origB)
+                pC notPImpQ origARed' notPImpQRed
+
+encAxExFalsoPass :
+  (pC qC : Term) (x rcs : Term) ->
+  Deriv (eqF (ap2 ndDispatchV3
+                   (ap2 Pair (encAxExFalso pC qC) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encAxExFalso pC qC) x) rcs))
+encAxExFalsoPass pC qC x rcs =
+  ndDispatchV3PairMiss O (reify (natCode n34))
+    (ap2 Pair pC qC) x rcs

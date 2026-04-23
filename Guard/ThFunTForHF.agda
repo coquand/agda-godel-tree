@@ -71,6 +71,7 @@ private
   n32 : Nat ; n32 = suc n31
   n33 : Nat ; n33 = suc n32
   n34 : Nat ; n34 = suc n33
+  n35 : Nat ; n35 = suc n34
 
   tc : Nat -> Fun2
   tc = tagCheck
@@ -256,6 +257,22 @@ case34 =
   in mkImpF eqABF (mkImpF eqACF eqBCF)
 
 ------------------------------------------------------------------------
+-- case35: ex falso quodlibet,  P ⊃ (~ P ⊃ Q) .
+--
+-- Input shape:  enc = Pair (natCode n35) (Pair pT qT) .
+-- Target: codeFormula of  P ⊃ ((~ P) ⊃ Q) , i.e.
+--   Pair tagImpT (Pair pT
+--                 (Pair tagImpT (Pair (Pair tagNegT pT) qT)))
+-- where  pT / qT  are the reified codes of formulas P, Q.
+--
+-- The DerivF proof of this schema is supplied separately by
+-- Guard.Thm14TPrime; case35 only needs to emit the right code.
+
+case35 : Fun2
+case35 =
+  mkImpF origA (mkImpF (mkNegF origA) origB)
+
+------------------------------------------------------------------------
 -- Extended dispatch chain.
 --
 -- Compared to ThFunTForV3's chain: no hCode parameter.  Tag 26 is
@@ -269,8 +286,11 @@ case34 =
 -- chain.  Since our encoders never emit n26 in hyp-free mode,
 -- this gap doesn't cause issues.
 
+ndT36V3 : Fun2
+ndT36V3 = sndArg2
+
 ndT35V3 : Fun2
-ndT35V3 = sndArg2
+ndT35V3 = branch (tc n35) case35 ndT36V3
 
 ndT34V3 : Fun2
 ndT34V3 = branch (tc n34) case34 ndT35V3
