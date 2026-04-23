@@ -17,7 +17,10 @@ unification plan.  See UNIFIED-DESIGN-REV2.md for background and
 - `Guard.ProofEncFormula`          — formula-level encoders
                                      (encAxK/S/Neg/Mp) without hCode.
 - `Guard.SubstTForPrecompClassicalUnify` — gsCR, cGSCR, templateCodeCR,
-                                     crTCCR, diagFTargetCR ready to use.
+                                     crTCCR ready to use.  Note:
+                                     `diagFTargetCR` is NOT yet ported
+                                     to the hyp-free Unify stack; see
+                                     STEP 1 of the current handoff.
 
 ## Goal
 
