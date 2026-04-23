@@ -28,15 +28,17 @@ open import Guard.DerivF
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForHF using (thmT)
 open import Guard.ProofEncUnify using
-  ( encAxI   ; encAxICorr
-  ; encAxFst ; encAxFstCorr
-  ; encAxSnd ; encAxSndCorr
-  ; encAxKT  ; encAxKTCorr
+  ( encAxI     ; encAxICorr
+  ; encAxFst   ; encAxFstCorr
+  ; encAxSnd   ; encAxSndCorr
+  ; encAxKT    ; encAxKTCorr
+  ; encAxConst ; encAxConstCorr
   )
 
 private
   n1  : Nat ; n1  = suc zero
   n2  : Nat ; n2  = suc n1
+  n3  : Nat ; n3  = suc n2
   n25 : Nat
   n25 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
       (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
@@ -247,3 +249,39 @@ thm13Fun1KT t x =
   let tC : Term ; tC = reify (code t)
       xC : Term ; xC = reify (code x)
   in ruleTrans (cong1 thmT (d1KTRed t x)) (encAxKTCorr tC xC)
+
+------------------------------------------------------------------------
+-- Fun2 base case:  Const .
+--
+--   ap2 D2Const aC bC
+--     = ap2 Pair (ap2 (Lift (KT (reify (natCode n3)))) aC bC)
+--                (ap2 Pair aC bC)                             [axFan]
+--     = ap2 Pair (reify (natCode n3)) (ap2 Pair aC bC)        [axLift, axKT]
+--     = encAxConst aC bC .
+
+D2Const : Fun2
+D2Const = Fan (Lift (KT (reify (natCode n3)))) Pair Pair
+
+d2ConstRed : (a b : Term) ->
+  Deriv (atomic (eqn (ap2 D2Const (reify (code a)) (reify (code b)))
+                     (encAxConst (reify (code a)) (reify (code b)))))
+d2ConstRed a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      tagR : Term ; tagR = reify (natCode n3)
+      s1 : Deriv (atomic (eqn (ap2 D2Const aC bC)
+                              (ap2 Pair (ap2 (Lift (KT tagR)) aC bC)
+                                        (ap2 Pair aC bC))))
+      s1 = axFan (Lift (KT tagR)) Pair Pair aC bC
+      s2 : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) aC bC) tagR))
+      s2 = ruleTrans (axLift (KT tagR) aC bC) (axKT tagR aC)
+  in ruleTrans s1 (congL Pair (ap2 Pair aC bC) s2)
+
+thm13Fun2Const : (a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 D2Const (reify (code a)) (reify (code b))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 Const a b) a))))))
+thm13Fun2Const a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+  in ruleTrans (cong1 thmT (d2ConstRed a b)) (encAxConstCorr aC bC)
