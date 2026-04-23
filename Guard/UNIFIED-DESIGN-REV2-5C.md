@@ -522,77 +522,163 @@ like encAxI, encMp), not as object-level BRA Fun1/Fun2 functors.
 
 ### Implication for Thm 12
 
-Guard's Thm 12 proof BUILDS Df(x) from these BRA functors.  In our
-setting, Guard's meta-induction has two possible analogs:
+Guard's Thm 12 proof is a meta-induction that BUILDS Df(x) at the
+BRA object level using the Exercise 24 functors — `mp`, `ax`, `ind`,
+`num`, `sub` applied to Gödel numbers of sub-components.  Key
+property exploited throughout: these functors are TOTAL on BRA
+terms, including free variables.  `num(x_i)` is a meaningful
+functor application, and `axEqCong1 num` gives num-congruence
+internally.
 
-**(A) BRA-level path** — introduce `mp`, `ind`, `ax` as actual
-Fun1/Fun2 values (primitive-recursive functor definitions).  Substantial
-new machinery: each functor needs a Fun1/Fun2 definition, a defining
-equation captured as an `axiom` in DerivF or thmT dispatch case, and
-correctness lemmas.  Estimate: ~500-1000 lines.  Follows Guard's
-structure most literally.
+### The only viable path: actually do Exercise 24 (Path A)
 
-**(B) Meta-level path** — compose our existing per-primitive-constructor
-`D1I, D1Fst, ..., D1RecLf, D1RecNd` (already in Thm13.agda) via
-Agda-meta-level recursion on the structure of a specific compound
-functor f.  For f = thmT = Rec O thmTStep, manually unfold Rec into
-its two defining equations and combine per-case.  Recursively unfold
-thmTStep = Fan dataIsLfV3 (Fan lfDispatchV3 ndDispatchV3 Pair) IfLf
-similarly.  Estimate: ~200-500 lines.
+A superficial Agda construction
+    D_f x := encAxRefl (ap1 cor (ap1 f x))
+compiles but has the wrong target (term-level Pair instead of
+`reify(codeFormula ...)`) and does not compose with encMp's case33
+dispatch.
 
-A *superficial uniform* construction `D_f x := encAxRefl (ap1 cor (ap1 f x))`
-was tried and rejected: it produces `thmT(D_f x) = Pair (cor fx) (cor fx)`
-at the TERM level, but encMp's case33 dispatch expects inputs whose
-thmT output is `reify(codeFormula of ...)` at the CODE level.  The
-superficial construction doesn't compose through the chain — it
-trivializes Thm 12's content and the downstream encMp steps don't type.
+A meta-level alternative — composing our existing per-primitive-case
+`D1I, D1Fst, ..., D1RecLf, D1RecNd` at the Agda level — was
+considered and REJECTED: those lemmas each cover a specific input
+shape (`D1RecLf` at `x = O`, `D1RecNd` at `x = Pair a b`, etc.).
+The Thm 14 chain needs Thm 12 at `x = var 0`, and no per-primitive
+lemma covers variables.  Variables aren't a Rec-dispatchable shape,
+so there's no way to extend the per-primitive lemmas to cover the
+case that matters.
 
-### Recommendation
+Guard avoids this because `num` is a total BRA functor that handles
+variables uniformly via its primitive-recursive definition, and
+`axEqCong1 num` extends to all BRA terms.  We inherit none of this
+unless we actually introduce BRA analogs of `num`, `mp`, `ax`, `ind`
+at the Fun1/Fun2 level.
 
-Path (B) — Agda-meta-level composition — is the right direction
-following Guard without adding new BRA functors.  Work breakdown:
+**The only viable path** is Path A: do Exercise 24 properly.  Until
+we have the BRA-level Exercise 24 functors, Thm 12 in our system
+cannot be proved in a form usable for the Thm 14 chain.
 
-1. Build D_thmT as the Agda-meta-level composition of D1 applied to
-   thmT's recursive structure.  Specifically:
-   - D_thmT at input x = O: use thm13Fun1RecLf with z = O, s = thmTStep.
-   - D_thmT at input x = Pair a b: use thm13Fun1RecNd + recursively D_thmT(a), D_thmT(b).
-   - Combine via Rec / IfLf at the Fun1 level producing a dispatching Fun1.
+### Exercise 24 in concrete Agda terms
 
-2. Build D_substOp analogously for substOp = RecP stepSubstP.
+1. **num as a TOTAL Fun1**.  Our current `cor : Fun1 = Rec falseT
+   stepCor` only reduces on reified-tree inputs.  Either extend it
+   or add DerivF axioms so that:
+       ap1 cor (var n) = reify (code (var n))       -- variable case
+       ap1 cor (ap1 f t) = reify (code (ap1 f t))   -- Fun1-app case
+       ap1 cor (ap2 g a b) = reify (code (ap2 g a b)) -- Fun2-app case
+   These are primitive-recursive defining equations matching Guard's
+   Def 10 rules 2-4.  For BRA, they're axioms; for us, axioms in
+   DerivF.  Once present, `cong1 cor` + `axEqCong1 cor + mp` give
+   num-congruence uniformly.
 
-3. Thm 13 (conditional corollary): transport Thm 12's output by the
-   hypothesis using axEqCong1 cor + mp or cong1 cor.  ~30 lines on
-   top of Thm 12.
+2. **ax as a Fun1**.  Takes an axiom index (a Nat-code) and produces
+   the Gödel number of the axiom.  Can be implemented by Rec-style
+   dispatch on the index; each branch emits a specific axiom's code.
+   Equivalent to what thmT case0..case32 dispatch already does on
+   encoded axioms, but factored out as a separate Fun1 operating on
+   indices.
 
-4. Chain steps 1-5 + godelI + godelII: once D_thmT and D_substOp exist,
-   standard encMp + encRuleInst + encAxEqTrans + encAxExFalso
-   compositions.  ~300 lines.
+3. **mp as a Fun2**.  Takes `"P"` and `"P ⊃ Q"` (two Gödel numbers)
+   and emits `"Q"`.  Decompose the second argument's code to extract
+   Q's code and check P-prefix matches.  Equivalent to thmT case33's
+   logic, but exposed as a Fun2 so it's callable inside other
+   encoded proofs.
 
-### What was shipped in session G
+4. **ind as a Fun2**.  Takes `"P(0)"` and `"P(x) ⊃ P(sx)"` and emits
+   `"P(x)"` (the induction conclusion's code).  Analog of ruleIndBT
+   + thmT case28.
 
-Before the discovery:
-- `[unify-5c-enc-eq-axioms]`  n34 tag + encAxEqTrans encoder ✓
-- `[unify-5c-enc-t]`          encoded axiom  t                 ✓
-- `[unify-5c-enc-exfalso]`    n35 tag + encAxExFalso encoder   ✓
-- `[unify-5c-enc-tprime]`     axExFalso DerivF primitive + encoded t'  ✓
-- `[unify-5c-thm12-thm13-uniform]`  superficial Thm 12 / Thm 13 uniform
+5. **sb / sbt / sbf** — substitution functors.  Our existing
+   `substOp : Fun2` already covers the basic case (substitution of a
+   numeral for x_0 in a formula code).  Generalizations may be
+   needed for Thm 14's multiple-variable instantiation steps.
 
-The last commit (uniform Thm 12 / Thm 13) is NOT USEFUL for the chain
-per this discovery.  It compiles correctly but its target is at the
-wrong level (term-level Pair instead of reify(codeFormula ...) ).
-Keep as a reference for the "what went wrong" exploration, or revert.
+Each functor's definition needs a DerivF axiom (or derived lemma)
+asserting its defining equation.  The axioms follow directly from
+Exercise 24's specifications [1]-[8].
+
+### Building D_f using Exercise 24 functors
+
+With the BRA functors in hand, Guard's meta-induction on functor
+structure becomes constructive Agda code.  For f = Cgh:
+    D_{Cgh}(x)  :=  mp (D_h(x)) (... composition involving D_g ...)
+Each step is a Fun1/Fun2 application (not a Term-level encoder
+composition).  The inductive construction terminates on primitive
+functors (s, u, v, θ in Guard; our analogs) whose Df is a closed
+numeral — which we CAN construct using encAxRefl at a specific
+reified tree.
+
+For our target functor `thmT = Rec O thmTStep`:
+- Build D_thmT by meta-induction on thmT's structure.
+- Base cases: thmTStep decomposes into specific Fan / IfLf / kF2
+  expressions.  Each sub-component has a Df.
+- Inductive case (Rec): D_{Rec z s} combines D_z and D_s.
+- Final D_thmT is a specific Fun1 built from the above.
+
+Similarly for substOp = RecP stepSubstP.
+
+### Scale estimate
+
+Exercise 24 functors + their correctness axioms: ~500-800 lines
+(5 new Fun1/Fun2 definitions + their DerivF axiomatizations +
+sanity-check lemmas).
+
+D_thmT + D_substOp via meta-induction using Ex 24 functors:
+~500-800 lines (recursive construction following Guard's proof
+structure).
+
+Thm 13 (conditional corollary) given D_f: ~50 lines.
+
+Thm 14 chain + godelI + godelII: ~300-500 lines (encoder composition
+once Thm 12/13 are in hand).
+
+Total: ~1500-2000 lines.  This is genuinely the size of Guard's
+Exercise 24 + Theorems 11-14.  Large but unavoidable for a faithful
+formalisation.
+
+### What was shipped in session G (retained, on critical path)
+
+- `[unify-5c-enc-eq-axioms]`  n34 tag + encAxEqTrans encoder
+- `[unify-5c-enc-t]`          encoded axiom  t
+- `[unify-5c-enc-exfalso]`    n35 tag + encAxExFalso encoder
+- `[unify-5c-enc-tprime]`     axExFalso DerivF primitive + encoded t'
+
+All useful — `t` and `t'` will be used inside Thm 14 step 4/5 chain
+once D_thmT / D_substOp exist.
+
+### What was shipped in session G (NOT on critical path; retained for reference)
+
+- `[unify-5c-thm12-thm13-uniform]`  superficial Thm 12/13 (commit ed4727d).
+  Files `Guard/Thm12Uniform.agda` and `Guard/Thm13Uniform.agda`.
+  Compiles but trivializes Thm 12 at the wrong level.  Does not
+  compose with the chain.  Kept as a reference for "what went wrong"
+  during session G's back-and-forth.  A fresh session should replace
+  these with the Exercise 24 / Path A approach and can safely delete
+  these files once Path A reaches parity.
 
 ### Recommended next-session handoff
 
 A fresh session should:
 
-1. Re-read guard15 pp. 13-17 (Def 9-11, Ex 24, Thm 11-14).
-2. Read this "Session G discovery" section.
-3. Read `Guard/Thm13.agda` completely — understand the 19 per-primitive
-   D1/D2 lemmas already present.
-4. Start writing `Guard/Thm12ThmT.agda` as the Agda-meta-level
-   composition for f = thmT = Rec O thmTStep.  This will dispatch on
-   input x's shape at the object level via a Fun1 built from IfLf
-   and recursion into D1RecLf / D1RecNd.
-5. Once D_thmT is shipped, mirror for D_substOp.
-6. Then the chain + godelI + godelII can proceed per the original plan.
+1. Re-read guard15 pp. 13-17 (Def 9-11, Ex 24, Thm 11-14).  These
+   pages give the exact specifications needed.
+2. Read this "Session G discovery" section for context on why the
+   previous superficial approach failed and why Exercise 24 is the
+   only viable path.
+3. Read `Guard/Thm13.agda` — understand the 19 per-primitive D1/D2
+   lemmas already present.  These are useful as BASE CASES for Df
+   construction at primitive functors, but do not by themselves
+   suffice for compound functors like thmT / substOp.
+4. Start by implementing Exercise 24 functors:
+    a. Extend `cor` (or add DerivF axioms) so that it's total on
+       Terms — covering `var n`, `ap1 f t`, `ap2 g a b` shapes.
+       Match Guard's Def 10 rules 2-4 exactly.
+    b. Define `mp : Fun2` per Ex 24 [1] + its defining-equation
+       axiom.
+    c. Define `ax : Fun1` per Ex 24 [6] + its defining-equation
+       axioms (one per axiom index).
+    d. Define `ind : Fun2` per Ex 24 [5] + defining equation.
+5. Build D_thmT and D_substOp via meta-induction using these
+   functors, following Guard's proof of Thm 12.
+6. Thm 13 (conditional) as a ~50 line wrapper.
+7. Thm 14 chain + godelI + godelII — mostly mechanical encoder
+   composition once Thm 12/13 are done.
