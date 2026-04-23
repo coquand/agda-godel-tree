@@ -36,10 +36,13 @@ open import Guard.ThFunTForHF using (thmT ; ndDispatchV3)
 open import Guard.ThFunTForDefs using (sndArg2)
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForV3DefsUnify using (intermediateGenericV3)
+open import Guard.ThFunTForV3PassUnify using (ndDispatchV3PairMiss)
 open import Guard.ProofEncUnify using
   ( encAxRefl ; encAxReflCorr ; encAxReflPass
   ; encRuleSym ; encRuleSymCorr ; encRuleSymPass
   ; encRuleTrans ; encRuleTransCorr ; encRuleTransPass
+  ; encCongL ; encCongLCorr ; encCongLPass
+  ; encCongR ; encCongRCorr ; encCongRPass
   )
 open import Guard.ProofEncFormula using
   ( encMp ; encMpCorr ; encMpPass
@@ -256,3 +259,81 @@ provTrans t u v p q =
        (encRuleTransCorr pa1R pb1R pa2R pb2R tC uC vC
           (provPass p) (provCorr p) (provCorr q) (treeEqSelf uC))
        (\ x rcs -> encRuleTransPass pa1R pb1R pa2R pb2R x rcs)
+
+------------------------------------------------------------------------
+-- dispMiss for tag  Pair (reify (codeF2 g)) xC  used inside
+-- encCongL / encCongR.  ndDispatchV3 does not match any branch
+-- because the outer head is itself a Pair (the reified codeF2 g).
+--
+-- Case analysis on g: codeF2 g = nd (natCode N_g) body_g , so
+-- reify(codeF2 g) = Pair (reify (natCode N_g)) (reify body_g) , and
+-- ndDispatchV3PairMiss applies with a1 = reify (natCode N_g),
+-- a2 = reify body_g , b = xC.
+
+f2xDispMiss : (g : Fun2) (xC x' rc' : Term) ->
+  Deriv (eqF (ap2 ndDispatchV3
+                   (ap2 Pair (ap2 Pair (reify (codeF2 g)) xC) x') rc')
+             (ap2 sndArg2
+                   (ap2 Pair (ap2 Pair (reify (codeF2 g)) xC) x') rc'))
+f2xDispMiss Pair          xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n26)) O xC x' rc'
+f2xDispMiss Const         xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n27)) O xC x' rc'
+f2xDispMiss (Lift f)      xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n28)) (reify (codeF1 f)) xC x' rc'
+f2xDispMiss (Post f h)    xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n29))
+    (ap2 Pair (reify (codeF1 f)) (reify (codeF2 h))) xC x' rc'
+f2xDispMiss (Fan h1 h2 h) xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n30))
+    (ap2 Pair (reify (codeF2 h1))
+              (ap2 Pair (reify (codeF2 h2)) (reify (codeF2 h))))
+    xC x' rc'
+f2xDispMiss IfLf          xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n31)) O xC x' rc'
+f2xDispMiss TreeEq        xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n32)) O xC x' rc'
+f2xDispMiss (RecP s)      xC x' rc' =
+  ndDispatchV3PairMiss (reify (natCode n33))
+    (reify (codeF2 s)) xC x' rc'
+
+------------------------------------------------------------------------
+-- provCongL: left-argument congruence for a binary functor.  From
+--  t = u  conclude  g t x = g u x .
+--
+-- Wraps encCongL / encCongLCorr.  f2xDispMiss supplies the inner-tag
+-- tag-opacity for  Pair (reify (codeF2 g)) xC .
+
+provCongL : (g : Fun2) (x : Term) {t u : Term} ->
+            Prov (atomic (eqn t u)) ->
+            Prov (atomic (eqn (ap2 g t x) (ap2 g u x)))
+provCongL g x {t} {u} p =
+  let paR : Term ; paR = prov1 p
+      pbR : Term ; pbR = prov2 p
+      xC  : Term ; xC  = reify (code x)
+      tC  : Term ; tC  = reify (code t)
+      uC  : Term ; uC  = reify (code u)
+  in mkProv
+       (reify (natCode n21))
+       (ap2 Pair (ap2 Pair (reify (codeF2 g)) xC) (ap2 Pair paR pbR))
+       (encCongLCorr g xC paR pbR tC uC (f2xDispMiss g xC) (provCorr p))
+       (\ x' rcs -> encCongLPass g xC paR pbR x' rcs)
+
+------------------------------------------------------------------------
+-- provCongR: right-argument congruence for a binary functor.  From
+--  t = u  conclude  g x t = g x u .
+
+provCongR : (g : Fun2) (x : Term) {t u : Term} ->
+            Prov (atomic (eqn t u)) ->
+            Prov (atomic (eqn (ap2 g x t) (ap2 g x u)))
+provCongR g x {t} {u} p =
+  let paR : Term ; paR = prov1 p
+      pbR : Term ; pbR = prov2 p
+      xC  : Term ; xC  = reify (code x)
+      tC  : Term ; tC  = reify (code t)
+      uC  : Term ; uC  = reify (code u)
+  in mkProv
+       (reify (natCode n22))
+       (ap2 Pair (ap2 Pair (reify (codeF2 g)) xC) (ap2 Pair paR pbR))
+       (encCongRCorr g xC paR pbR tC uC (f2xDispMiss g xC) (provCorr p))
+       (\ x' rcs -> encCongRPass g xC paR pbR x' rcs)
