@@ -651,3 +651,151 @@ encMpPass :
                    (ap2 Pair (encMp sub1 sub2) x) rcs))
 encMpPass sub1 sub2 x rcs =
   ndDispatchV3PairMiss O (reify (natCode n32)) (ap2 Pair sub1 sub2) x rcs
+
+------------------------------------------------------------------------
+-- encAxEqTrans: encoder for Ax 4 (equality transitivity, Guard 1963).
+--
+-- Formula:  (a = b) ⊃ ((a = c) ⊃ (b = c)) .
+-- DerivF primitive:  axEqTrans a b c .
+--
+-- Encoding shape:  Pair (natCode n34) (Pair aC (Pair bC cC))  where
+-- aC, bC, cC are reified codes of the Term arguments.
+--
+-- Correctness target — codeFormula of the above implication:
+--   Pair tagImpT (Pair (Pair aC bC)
+--                      (Pair tagImpT (Pair (Pair aC cC) (Pair bC cC))))
+
+private
+  n34 : Nat ; n34 = suc n33
+
+encAxEqTrans : Term -> Term -> Term -> Term
+encAxEqTrans aC bC cC =
+  ap2 Pair (reify (natCode n34)) (ap2 Pair aC (ap2 Pair bC cC))
+
+encAxEqTransCorr : (aC bC cC : Term) ->
+  Deriv (eqF (ap1 thmT (encAxEqTrans aC bC cC))
+    (ap2 Pair tagImpT (ap2 Pair
+      (ap2 Pair aC bC)
+      (ap2 Pair tagImpT (ap2 Pair
+        (ap2 Pair aC cC)
+        (ap2 Pair bC cC))))))
+encAxEqTransCorr aC bC cC =
+  ruleTrans (recNdRed O thmTStep tagR body)
+  (ruleTrans (guardNdV3 tagR aC (ap2 Pair bC cC) recs)
+  (ruleTrans (ndBranchMiss n34 n0  case0  ndT1V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n1  case1  ndT2V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n2  case2  ndT3V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n3  case3  ndT4V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n4  case4  ndT5V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n5  case5  ndT6V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n6  case6  ndT7V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n7  case7  ndT8V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n8  case8  ndT9V3  body recs refl)
+  (ruleTrans (ndBranchMiss n34 n9  case9  ndT10V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n10 case10 ndT11V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n11 case11 ndT12V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n12 case12 ndT13V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n13 case13 ndT14V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n14 case14 ndT15V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n15 case15 ndT16V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n16 case16 ndT17V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n17 case17 ndT18V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n18 case18 ndT19V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n19 case19V3 ndT20V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n20 case20 ndT21V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n21 case21 ndT22V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n22 case22 ndT23V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n23 case23V3 ndT24V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n24 case24 ndT25V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n25 case25 ndT26V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n27 case27 ndT28V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n28 case28 ndT29V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n29 case29 ndT30V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n30 case30 ndT31V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n31 case31 ndT32V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n32 case32 ndT33V3 body recs refl)
+  (ruleTrans (ndBranchMiss n34 n33 case33 ndT34V3 body recs refl)
+  (ruleTrans (ndBranchHit  n34       case34 ndT35V3 body recs)
+             case34Red)))))))))))))))))))))))))))))))))))
+  where
+  tagR : Term ; tagR = reify (natCode n34)
+  body : Term ; body = ap2 Pair aC (ap2 Pair bC cC)
+  enc  : Term ; enc  = ap2 Pair tagR body
+  recs : Term
+  recs = ap2 Pair (ap1 thmT tagR) (ap1 thmT body)
+
+  -- Target sub-terms.
+  eqAB : Term ; eqAB = ap2 Pair aC bC
+  eqAC : Term ; eqAC = ap2 Pair aC cC
+  eqBC : Term ; eqBC = ap2 Pair bC cC
+
+  acImpBc : Term
+  acImpBc = ap2 Pair tagImpT (ap2 Pair eqAC eqBC)
+
+  outerTarget : Term
+  outerTarget = ap2 Pair tagImpT (ap2 Pair eqAB acImpBc)
+
+  -- orig-selector reductions at (enc, recs).
+  origARed' : Deriv (eqF (ap2 origA enc recs) aC)
+  origARed' = origARed tagR aC (ap2 Pair bC cC) recs
+
+  origB1Red' : Deriv (eqF (ap2 origB1 enc recs) bC)
+  origB1Red' = origB1Red tagR aC bC cC recs
+
+  origB2Red' : Deriv (eqF (ap2 origB2 enc recs) cC)
+  origB2Red' = origB2Red tagR aC bC cC recs
+
+  -- mkEqF reduction: Fan lF rF Pair at (enc, recs) = Pair (lF result) (rF result).
+  mkEqFRedL : (lF rF : Fun2) (lT rT : Term) ->
+              Deriv (eqF (ap2 lF enc recs) lT) ->
+              Deriv (eqF (ap2 rF enc recs) rT) ->
+              Deriv (eqF (ap2 (mkEqF lF rF) enc recs) (ap2 Pair lT rT))
+  mkEqFRedL lF rF lT rT dL dR =
+    ruleTrans (fanRed lF rF Pair enc recs)
+    (ruleTrans (congL Pair (ap2 rF enc recs) dL)
+               (congR Pair lT dR))
+
+  -- mkImpF reduction, mirrors the local helper in encAxSCorr.
+  mkImpFRedL : (aF bF : Fun2) (aT bT : Term) ->
+               Deriv (eqF (ap2 aF enc recs) aT) ->
+               Deriv (eqF (ap2 bF enc recs) bT) ->
+               Deriv (eqF (ap2 (mkImpF aF bF) enc recs)
+                              (ap2 Pair tagImpT (ap2 Pair aT bT)))
+  mkImpFRedL aF bF aT bT dA dB =
+    ruleTrans (fanRed (kF2 tagImpT) (Fan aF bF Pair) Pair enc recs)
+    (ruleTrans (congL Pair (ap2 (Fan aF bF Pair) enc recs)
+                 (kF2Red tagImpT enc recs))
+               (congR Pair tagImpT
+                 (ruleTrans (fanRed aF bF Pair enc recs)
+                 (ruleTrans (congL Pair (ap2 bF enc recs) dA)
+                            (congR Pair aT dB)))))
+
+  eqABRed : Deriv (eqF (ap2 (mkEqF origA origB1) enc recs) eqAB)
+  eqABRed = mkEqFRedL origA origB1 aC bC origARed' origB1Red'
+
+  eqACRed : Deriv (eqF (ap2 (mkEqF origA origB2) enc recs) eqAC)
+  eqACRed = mkEqFRedL origA origB2 aC cC origARed' origB2Red'
+
+  eqBCRed : Deriv (eqF (ap2 (mkEqF origB1 origB2) enc recs) eqBC)
+  eqBCRed = mkEqFRedL origB1 origB2 bC cC origB1Red' origB2Red'
+
+  acImpBcRed :
+    Deriv (eqF (ap2 (mkImpF (mkEqF origA origB2) (mkEqF origB1 origB2)) enc recs)
+                   acImpBc)
+  acImpBcRed = mkImpFRedL (mkEqF origA origB2) (mkEqF origB1 origB2)
+                 eqAC eqBC eqACRed eqBCRed
+
+  case34Red : Deriv (eqF (ap2 case34 enc recs) outerTarget)
+  case34Red = mkImpFRedL (mkEqF origA origB1)
+                (mkImpF (mkEqF origA origB2) (mkEqF origB1 origB2))
+                eqAB acImpBc eqABRed acImpBcRed
+
+encAxEqTransPass :
+  (aC bC cC : Term) (x rcs : Term) ->
+  Deriv (eqF (ap2 ndDispatchV3
+                   (ap2 Pair (encAxEqTrans aC bC cC) x) rcs)
+                 (ap2 sndArg2
+                   (ap2 Pair (encAxEqTrans aC bC cC) x) rcs))
+encAxEqTransPass aC bC cC x rcs =
+  ndDispatchV3PairMiss O (reify (natCode n33))
+    (ap2 Pair aC (ap2 Pair bC cC)) x rcs

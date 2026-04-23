@@ -70,6 +70,7 @@ private
   n31 : Nat ; n31 = suc n30
   n32 : Nat ; n32 = suc n31
   n33 : Nat ; n33 = suc n32
+  n34 : Nat ; n34 = suc n33
 
   tc : Nat -> Fun2
   tc = tagCheck
@@ -239,6 +240,22 @@ case33 =
     (kF2 codeTrueT)
 
 ------------------------------------------------------------------------
+-- case34: axEqTrans (Guard Ax 4).
+--
+-- Input shape:  enc = Pair (natCode n34) (Pair aT (Pair bT cT)) .
+-- Target: codeFormula of  (a = b) imp ((a = c) imp (b = c)) , i.e.
+--   Pair tagImpT (Pair (Pair aT bT)
+--                      (Pair tagImpT (Pair (Pair aT cT) (Pair bT cT))))
+-- where  aT / bT / cT  are the reified codes of the term arguments.
+
+case34 : Fun2
+case34 =
+  let eqABF = mkEqF origA  origB1   -- Pair aT bT
+      eqACF = mkEqF origA  origB2   -- Pair aT cT
+      eqBCF = mkEqF origB1 origB2   -- Pair bT cT
+  in mkImpF eqABF (mkImpF eqACF eqBCF)
+
+------------------------------------------------------------------------
 -- Extended dispatch chain.
 --
 -- Compared to ThFunTForV3's chain: no hCode parameter.  Tag 26 is
@@ -252,8 +269,11 @@ case33 =
 -- chain.  Since our encoders never emit n26 in hyp-free mode,
 -- this gap doesn't cause issues.
 
+ndT35V3 : Fun2
+ndT35V3 = sndArg2
+
 ndT34V3 : Fun2
-ndT34V3 = sndArg2
+ndT34V3 = branch (tc n34) case34 ndT35V3
 
 ndT33V3 : Fun2
 ndT33V3 = branch (tc n33) case33 ndT34V3
