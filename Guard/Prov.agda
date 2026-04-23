@@ -39,7 +39,12 @@ open import Guard.ThFunTForV3DefsUnify using (intermediateGenericV3)
 open import Guard.ProofEncUnify using
   ( encAxRefl ; encAxReflCorr ; encAxReflPass
   ; encRuleSym ; encRuleSymCorr ; encRuleSymPass
+  ; encRuleTrans ; encRuleTransCorr ; encRuleTransPass
   )
+open import Guard.ProofEncFormula using
+  ( encMp ; encMpCorr ; encMpPass
+  )
+open import Guard.TreeEqSelfUnify using (treeEqSelf)
 
 ------------------------------------------------------------------------
 -- The provability predicate (rich form).
@@ -68,6 +73,45 @@ record Prov (P : Formula) : Set where
                  (ap2 sndArg2
                        (ap2 Pair (ap2 Pair prov1 prov2) x) rcs))
 open Prov public
+
+------------------------------------------------------------------------
+-- Tag-number aliases for the encoders we reference below.
+
+private
+  n0  : Nat ; n0  = zero
+  n1  : Nat ; n1  = suc n0
+  n2  : Nat ; n2  = suc n1
+  n3  : Nat ; n3  = suc n2
+  n4  : Nat ; n4  = suc n3
+  n5  : Nat ; n5  = suc n4
+  n6  : Nat ; n6  = suc n5
+  n7  : Nat ; n7  = suc n6
+  n8  : Nat ; n8  = suc n7
+  n9  : Nat ; n9  = suc n8
+  n10 : Nat ; n10 = suc n9
+  n11 : Nat ; n11 = suc n10
+  n12 : Nat ; n12 = suc n11
+  n13 : Nat ; n13 = suc n12
+  n14 : Nat ; n14 = suc n13
+  n15 : Nat ; n15 = suc n14
+  n16 : Nat ; n16 = suc n15
+  n17 : Nat ; n17 = suc n16
+  n18 : Nat ; n18 = suc n17
+  n19 : Nat ; n19 = suc n18
+  n20 : Nat ; n20 = suc n19
+  n21 : Nat ; n21 = suc n20
+  n22 : Nat ; n22 = suc n21
+  n23 : Nat ; n23 = suc n22
+  n24 : Nat ; n24 = suc n23
+  n25 : Nat ; n25 = suc n24
+  n26 : Nat ; n26 = suc n25
+  n27 : Nat ; n27 = suc n26
+  n28 : Nat ; n28 = suc n27
+  n29 : Nat ; n29 = suc n28
+  n30 : Nat ; n30 = suc n29
+  n31 : Nat ; n31 = suc n30
+  n32 : Nat ; n32 = suc n31
+  n33 : Nat ; n33 = suc n32
 
 ------------------------------------------------------------------------
 -- Full encoded Term of a proof.
@@ -100,8 +144,7 @@ provRefl : (t : Term) -> Prov (atomic (eqn t t))
 provRefl t =
   let tC : Term ; tC = reify (code t) in
   mkProv
-    (reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc
-      (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))
+    (reify (natCode n17))
     (ap2 Pair tC O)
     (encAxReflCorr tC)
     (\ x rcs -> encAxReflPass t x rcs)
@@ -128,8 +171,88 @@ provSym t u p =
       tC  : Term ; tC  = reify (code t)
       uC  : Term ; uC  = reify (code u)
   in mkProv
-       (reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc
-         (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))
+       (reify (natCode n18))
        (ap2 Pair (reify tagVar) (ap2 Pair paR pbR))
        (encRuleSymCorr paR pbR tC uC (provCorr p))
        (\ x rcs -> encRuleSymPass paR pbR x rcs)
+
+------------------------------------------------------------------------
+-- thmT-over-Pair adapter.
+--
+-- Given Prov witnesses for P and Q, build the "thmT of the Pair
+-- of the two encoded proofs" equation that combinators like
+-- encMpCorr / encRuleTransCorr expect as their bodyCorr.
+--
+-- The key step is  intermediateGenericV3 : thmT unfolds through a
+-- Pair whose outer tag is tag-opaque (which every encoded proof is,
+-- via its  Pass  lemma).  Here the outer tag is the first proof's
+-- Term, playing the role of  tagT  in intermediateGenericV3.
+
+thmTOverPair :
+  {P Q : Formula} (p : Prov P) (q : Prov Q) ->
+  Deriv (eqF (ap1 thmT (ap2 Pair (provTerm p) (provTerm q)))
+             (ap2 Pair (reify (codeFormula P)) (reify (codeFormula Q))))
+thmTOverPair {P} {Q} p q =
+  let pT : Term ; pT = provTerm p
+      qT : Term ; qT = provTerm q
+      codeP : Term ; codeP = reify (codeFormula P)
+      step1 :
+        Deriv (eqF (ap1 thmT (ap2 Pair pT (ap2 Pair (prov1 q) (prov2 q))))
+                   (ap2 Pair (ap1 thmT pT)
+                             (ap1 thmT (ap2 Pair (prov1 q) (prov2 q)))))
+      step1 = intermediateGenericV3 pT qT (prov1 q) (prov2 q) (provPass p)
+      step2 :
+        Deriv (atomic (eqn (ap2 Pair (ap1 thmT pT) (ap1 thmT qT))
+                           (ap2 Pair codeP (ap1 thmT qT))))
+      step2 = congL Pair (ap1 thmT qT) (provCorr p)
+      step3 :
+        Deriv (atomic (eqn (ap2 Pair codeP (ap1 thmT qT))
+                           (ap2 Pair codeP (reify (codeFormula Q)))))
+      step3 = congR Pair codeP (provCorr q)
+  in ruleTrans step1 (ruleTrans step2 step3)
+
+------------------------------------------------------------------------
+-- provMp: formula-level modus ponens.
+--
+-- From Prov P and Prov (P imp Q) conclude Prov Q.  Wraps encMp /
+-- encMpCorr with bodyCorr supplied by thmTOverPair.
+
+provMp : {P Q : Formula} -> Prov P -> Prov (P imp Q) -> Prov Q
+provMp {P} {Q} pP pPQ =
+  let sub1 : Term ; sub1 = provTerm pP
+      sub2 : Term ; sub2 = provTerm pPQ
+      body : Deriv (eqF (ap1 thmT (ap2 Pair sub1 sub2))
+                        (ap2 Pair (reify (codeFormula P))
+                                  (reify (codeFormula (P imp Q)))))
+      body = thmTOverPair {P} {P imp Q} pP pPQ
+  in mkProv
+       (reify (natCode n33))
+       (ap2 Pair sub1 sub2)
+       (encMpCorr sub1 sub2 P Q body)
+       (\ x rcs -> encMpPass sub1 sub2 x rcs)
+
+------------------------------------------------------------------------
+-- provTrans: equational transitivity.  From  t = u  and  u = v ,
+-- conclude  t = v .
+--
+-- Wraps encRuleTrans / encRuleTransCorr.  Supplies  pass1  from the
+-- first Prov's provPass and  uCSelf  from treeEqSelf.
+
+provTrans : (t u v : Term) ->
+            Prov (atomic (eqn t u)) ->
+            Prov (atomic (eqn u v)) ->
+            Prov (atomic (eqn t v))
+provTrans t u v p q =
+  let pa1R : Term ; pa1R = prov1 p
+      pb1R : Term ; pb1R = prov2 p
+      pa2R : Term ; pa2R = prov1 q
+      pb2R : Term ; pb2R = prov2 q
+      tC   : Term ; tC   = reify (code t)
+      uC   : Term ; uC   = reify (code u)
+      vC   : Term ; vC   = reify (code v)
+  in mkProv
+       (reify (natCode n19))
+       (ap2 Pair (ap2 Pair pa1R pb1R) (ap2 Pair pa2R pb2R))
+       (encRuleTransCorr pa1R pb1R pa2R pb2R tC uC vC
+          (provPass p) (provCorr p) (provCorr q) (treeEqSelf uC))
+       (\ x rcs -> encRuleTransPass pa1R pb1R pa2R pb2R x rcs)
