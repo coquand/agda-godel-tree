@@ -34,9 +34,11 @@ open import Guard.ProofEncUnify using
   ; encAxKT       ; encAxKTCorr
   ; encAxConst    ; encAxConstCorr
   ; encAxIfLfL    ; encAxIfLfLCorr
+  ; encAxIfLfN    ; encAxIfLfNCorr
   ; encAxTreeEqLL ; encAxTreeEqLLCorr
   ; encAxTreeEqLN ; encAxTreeEqLNCorr
   ; encAxTreeEqNL ; encAxTreeEqNLCorr
+  ; encAxTreeEqNN ; encAxTreeEqNNCorr
   )
 
 private
@@ -45,10 +47,12 @@ private
   n3  : Nat ; n3  = suc n2
   n11 : Nat
   n11 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))
-  n13 : Nat
-  n13 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))
+  n12 : Nat
+  n12 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))
+  n13 : Nat ; n13 = suc n12
   n14 : Nat ; n14 = suc n13
   n15 : Nat ; n15 = suc n14
+  n16 : Nat ; n16 = suc n15
   n25 : Nat
   n25 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
       (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
@@ -523,3 +527,241 @@ thm13Fun2TreeEqNL a b =
   let aC : Term ; aC = reify (code a)
       bC : Term ; bC = reify (code b)
   in ruleTrans (cong1 thmT (d2TreeEqNLRed a b)) (encAxTreeEqNLCorr aC bC)
+
+------------------------------------------------------------------------
+-- Shared extractor: a Fun2 that ignores its first argument and
+-- returns  Snd (Snd x2) .  Used in both IfLfN and TreeEqNN below
+-- to pull  Pair aC bC  / Pair b1C b2C  out of the second coded input.
+
+private
+  snd2X2 : Fun2
+  snd2X2 = Post (Comp (Comp Snd Snd) Snd) Pair
+
+  -- Reduction lemma for snd2X2 when the second argument is of the
+  -- canonical 3-deep Pair shape  Pair tagAp2T (Pair pairCF (Pair uC vC)) .
+  snd2X2Red : (x1 uC vC : Term) ->
+    Deriv (atomic (eqn
+      (ap2 snd2X2 x1
+        (ap2 Pair (reify tagAp2)
+          (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC))))
+      (ap2 Pair uC vC)))
+  snd2X2Red x1 uC vC =
+    let x2C : Term
+        x2C = ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC))
+        mid : Term
+        mid = ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC)
+    in ruleTrans (axPost (Comp (Comp Snd Snd) Snd) Pair x1 x2C)
+         (ruleTrans (axComp (Comp Snd Snd) Snd (ap2 Pair x1 x2C))
+           (ruleTrans (cong1 (Comp Snd Snd) (axSnd x1 x2C))
+             (ruleTrans (axComp Snd Snd x2C)
+               (ruleTrans (cong1 Snd (axSnd (reify tagAp2) mid))
+                          (axSnd (reify (codeF2 Pair)) (ap2 Pair uC vC))))))
+
+------------------------------------------------------------------------
+-- Fun2 base case:  IfLfN .
+--
+-- axIfLfN x y a b : ap2 IfLf (ap2 Pair x y) (ap2 Pair a b) = b .
+-- Both inputs are 3-deep Pairs; we must pluck  xC  and  yC  out of
+--  x1 = Pair tagAp2T (Pair pairCF (Pair xC yC))  and  Pair aC bC
+-- out of  x2 , then reassemble in the order  (xC, yC, aC, bC) .
+--
+-- The Fun2 layout:
+--   D2IfLfN = Fan tag (Fan fstInner1 (Fan sndInner1 extractPair2 Pair) Pair) Pair
+-- where  fstInner1 = Lift (Comp Fst (Comp Snd Snd))  -- Fst (Snd (Snd x1))
+--        sndInner1 = Lift (Comp Snd (Comp Snd Snd))  -- Snd (Snd (Snd x1))
+--        extractPair2 = snd2X2                       -- Snd (Snd x2)
+
+private
+  fstInner1 : Fun2
+  fstInner1 = Lift (Comp Fst (Comp Snd Snd))
+
+  sndInner1 : Fun2
+  sndInner1 = Lift (Comp Snd (Comp Snd Snd))
+
+  -- Reduction lemma for fstInner1 / sndInner1 at a canonical 3-deep
+  -- Pair first argument.
+  fstInner1Red : (uC vC x2 : Term) ->
+    Deriv (atomic (eqn
+      (ap2 fstInner1
+        (ap2 Pair (reify tagAp2)
+          (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC))) x2)
+      uC))
+  fstInner1Red uC vC x2 =
+    let x1C : Term
+        x1C = ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC))
+        mid : Term
+        mid = ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC)
+    in ruleTrans (axLift (Comp Fst (Comp Snd Snd)) x1C x2)
+         (ruleTrans (axComp Fst (Comp Snd Snd) x1C)
+           (ruleTrans (cong1 Fst (axComp Snd Snd x1C))
+             (ruleTrans (cong1 Fst (cong1 Snd (axSnd (reify tagAp2) mid)))
+               (ruleTrans (cong1 Fst (axSnd (reify (codeF2 Pair)) (ap2 Pair uC vC)))
+                          (axFst uC vC)))))
+
+  sndInner1Red : (uC vC x2 : Term) ->
+    Deriv (atomic (eqn
+      (ap2 sndInner1
+        (ap2 Pair (reify tagAp2)
+          (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC))) x2)
+      vC))
+  sndInner1Red uC vC x2 =
+    let x1C : Term
+        x1C = ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC))
+        mid : Term
+        mid = ap2 Pair (reify (codeF2 Pair)) (ap2 Pair uC vC)
+    in ruleTrans (axLift (Comp Snd (Comp Snd Snd)) x1C x2)
+         (ruleTrans (axComp Snd (Comp Snd Snd) x1C)
+           (ruleTrans (cong1 Snd (axComp Snd Snd x1C))
+             (ruleTrans (cong1 Snd (cong1 Snd (axSnd (reify tagAp2) mid)))
+               (ruleTrans (cong1 Snd (axSnd (reify (codeF2 Pair)) (ap2 Pair uC vC)))
+                          (axSnd uC vC)))))
+
+D2IfLfN : Fun2
+D2IfLfN = Fan (Lift (KT (reify (natCode n12))))
+              (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair)
+              Pair
+
+d2IfLfNRed : (x y a b : Term) ->
+  Deriv (atomic (eqn (ap2 D2IfLfN (reify (code (ap2 Pair x y)))
+                                   (reify (code (ap2 Pair a b))))
+                     (encAxIfLfN (reify (code x)) (reify (code y))
+                                 (reify (code a)) (reify (code b)))))
+d2IfLfNRed x y a b =
+  let xC : Term ; xC = reify (code x)
+      yC : Term ; yC = reify (code y)
+      aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      x1C : Term ; x1C = reify (code (ap2 Pair x y))
+      x2C : Term ; x2C = reify (code (ap2 Pair a b))
+      tagR : Term ; tagR = reify (natCode n12)
+      -- Tag side.
+      s1 : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) x1C x2C) tagR))
+      s1 = ruleTrans (axLift (KT tagR) x1C x2C) (axKT tagR x1C)
+      -- Innermost Pair (sndInner1, snd2X2) — extract yC and Pair aC bC.
+      s2a : Deriv (atomic (eqn (ap2 sndInner1 x1C x2C) yC))
+      s2a = sndInner1Red xC yC x2C
+      s2b : Deriv (atomic (eqn (ap2 snd2X2 x1C x2C) (ap2 Pair aC bC)))
+      s2b = snd2X2Red x1C aC bC
+      s2Fan : Deriv (atomic (eqn (ap2 (Fan sndInner1 snd2X2 Pair) x1C x2C)
+                                  (ap2 Pair (ap2 sndInner1 x1C x2C)
+                                            (ap2 snd2X2 x1C x2C))))
+      s2Fan = axFan sndInner1 snd2X2 Pair x1C x2C
+      s2 : Deriv (atomic (eqn (ap2 (Fan sndInner1 snd2X2 Pair) x1C x2C)
+                              (ap2 Pair yC (ap2 Pair aC bC))))
+      s2 = ruleTrans s2Fan
+             (ruleTrans (congL Pair (ap2 snd2X2 x1C x2C) s2a)
+                        (congR Pair yC s2b))
+      -- Outer Pair (fstInner1, above) — extract xC and inner pair.
+      s3a : Deriv (atomic (eqn (ap2 fstInner1 x1C x2C) xC))
+      s3a = fstInner1Red xC yC x2C
+      s3Fan : Deriv (atomic (eqn (ap2 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair) x1C x2C)
+                                  (ap2 Pair (ap2 fstInner1 x1C x2C)
+                                            (ap2 (Fan sndInner1 snd2X2 Pair) x1C x2C))))
+      s3Fan = axFan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair x1C x2C
+      s3 : Deriv (atomic (eqn (ap2 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair) x1C x2C)
+                              (ap2 Pair xC (ap2 Pair yC (ap2 Pair aC bC)))))
+      s3 = ruleTrans s3Fan
+             (ruleTrans (congL Pair (ap2 (Fan sndInner1 snd2X2 Pair) x1C x2C) s3a)
+                        (congR Pair xC s2))
+      -- Outermost Fan.
+      s0 : Deriv (atomic (eqn (ap2 D2IfLfN x1C x2C)
+                              (ap2 Pair
+                                (ap2 (Lift (KT tagR)) x1C x2C)
+                                (ap2 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair)
+                                     x1C x2C))))
+      s0 = axFan (Lift (KT tagR))
+                 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair)
+                 Pair x1C x2C
+  in ruleTrans s0
+       (ruleTrans (congL Pair (ap2 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair) x1C x2C) s1)
+                  (congR Pair tagR s3))
+
+thm13Fun2IfLfN : (x y a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 D2IfLfN (reify (code (ap2 Pair x y)))
+                                             (reify (code (ap2 Pair a b)))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 IfLf (ap2 Pair x y) (ap2 Pair a b)) b))))))
+thm13Fun2IfLfN x y a b =
+  let xC : Term ; xC = reify (code x)
+      yC : Term ; yC = reify (code y)
+      aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+  in ruleTrans (cong1 thmT (d2IfLfNRed x y a b)) (encAxIfLfNCorr xC yC aC bC)
+
+------------------------------------------------------------------------
+-- Fun2 base case:  TreeEqNN .
+--
+-- axTreeEqNN a1 a2 b1 b2 :
+--   ap2 TreeEq (Pair a1 a2) (Pair b1 b2)
+--     = ap2 IfLf (ap2 TreeEq a1 b1) (ap2 Pair (ap2 TreeEq a2 b2) (ap2 Pair O O)) .
+-- Same extraction structure as IfLfN -- only the tag differs (n16
+-- versus n12) and the encoded body orders the pulled-out pieces as
+--  (a1C, a2C, b1C, b2C) .  We reuse fstInner1 / sndInner1 / snd2X2 .
+
+D2TreeEqNN : Fun2
+D2TreeEqNN = Fan (Lift (KT (reify (natCode n16))))
+                 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair)
+                 Pair
+
+d2TreeEqNNRed : (a1 a2 b1 b2 : Term) ->
+  Deriv (atomic (eqn (ap2 D2TreeEqNN (reify (code (ap2 Pair a1 a2)))
+                                      (reify (code (ap2 Pair b1 b2))))
+                     (encAxTreeEqNN (reify (code a1)) (reify (code a2))
+                                    (reify (code b1)) (reify (code b2)))))
+d2TreeEqNNRed a1 a2 b1 b2 =
+  let a1C : Term ; a1C = reify (code a1)
+      a2C : Term ; a2C = reify (code a2)
+      b1C : Term ; b1C = reify (code b1)
+      b2C : Term ; b2C = reify (code b2)
+      x1C : Term ; x1C = reify (code (ap2 Pair a1 a2))
+      x2C : Term ; x2C = reify (code (ap2 Pair b1 b2))
+      tagR : Term ; tagR = reify (natCode n16)
+      s1 : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) x1C x2C) tagR))
+      s1 = ruleTrans (axLift (KT tagR) x1C x2C) (axKT tagR x1C)
+      s2a : Deriv (atomic (eqn (ap2 sndInner1 x1C x2C) a2C))
+      s2a = sndInner1Red a1C a2C x2C
+      s2b : Deriv (atomic (eqn (ap2 snd2X2 x1C x2C) (ap2 Pair b1C b2C)))
+      s2b = snd2X2Red x1C b1C b2C
+      s2 : Deriv (atomic (eqn (ap2 (Fan sndInner1 snd2X2 Pair) x1C x2C)
+                              (ap2 Pair a2C (ap2 Pair b1C b2C))))
+      s2 = ruleTrans (axFan sndInner1 snd2X2 Pair x1C x2C)
+             (ruleTrans (congL Pair (ap2 snd2X2 x1C x2C) s2a)
+                        (congR Pair a2C s2b))
+      s3a : Deriv (atomic (eqn (ap2 fstInner1 x1C x2C) a1C))
+      s3a = fstInner1Red a1C a2C x2C
+      s3 : Deriv (atomic (eqn (ap2 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair) x1C x2C)
+                              (ap2 Pair a1C (ap2 Pair a2C (ap2 Pair b1C b2C)))))
+      s3 = ruleTrans (axFan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair x1C x2C)
+             (ruleTrans (congL Pair (ap2 (Fan sndInner1 snd2X2 Pair) x1C x2C) s3a)
+                        (congR Pair a1C s2))
+      s0 : Deriv (atomic (eqn (ap2 D2TreeEqNN x1C x2C)
+                              (ap2 Pair
+                                (ap2 (Lift (KT tagR)) x1C x2C)
+                                (ap2 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair)
+                                     x1C x2C))))
+      s0 = axFan (Lift (KT tagR))
+                 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair)
+                 Pair x1C x2C
+  in ruleTrans s0
+       (ruleTrans (congL Pair (ap2 (Fan fstInner1 (Fan sndInner1 snd2X2 Pair) Pair) x1C x2C) s1)
+                  (congR Pair tagR s3))
+
+thm13Fun2TreeEqNN : (a1 a2 b1 b2 : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 D2TreeEqNN (reify (code (ap2 Pair a1 a2)))
+                                                (reify (code (ap2 Pair b1 b2)))))
+                     (reify (codeFormula
+                       (atomic (eqn
+                         (ap2 TreeEq (ap2 Pair a1 a2) (ap2 Pair b1 b2))
+                         (ap2 IfLf (ap2 TreeEq a1 b1)
+                                   (ap2 Pair (ap2 TreeEq a2 b2)
+                                             (ap2 Pair O O)))))))))
+thm13Fun2TreeEqNN a1 a2 b1 b2 =
+  let a1C : Term ; a1C = reify (code a1)
+      a2C : Term ; a2C = reify (code a2)
+      b1C : Term ; b1C = reify (code b1)
+      b2C : Term ; b2C = reify (code b2)
+  in ruleTrans (cong1 thmT (d2TreeEqNNRed a1 a2 b1 b2))
+               (encAxTreeEqNNCorr a1C a2C b1C b2C)
