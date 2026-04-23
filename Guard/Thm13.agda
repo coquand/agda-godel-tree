@@ -28,17 +28,20 @@ open import Guard.DerivF
 open import Guard.ThFun using (codeEqn)
 open import Guard.ThFunTForHF using (thmT)
 open import Guard.ProofEncUnify using
-  ( encAxI     ; encAxICorr
-  ; encAxFst   ; encAxFstCorr
-  ; encAxSnd   ; encAxSndCorr
-  ; encAxKT    ; encAxKTCorr
-  ; encAxConst ; encAxConstCorr
+  ( encAxI      ; encAxICorr
+  ; encAxFst    ; encAxFstCorr
+  ; encAxSnd    ; encAxSndCorr
+  ; encAxKT     ; encAxKTCorr
+  ; encAxConst  ; encAxConstCorr
+  ; encAxIfLfL  ; encAxIfLfLCorr
   )
 
 private
   n1  : Nat ; n1  = suc zero
   n2  : Nat ; n2  = suc n1
   n3  : Nat ; n3  = suc n2
+  n11 : Nat
+  n11 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))
   n25 : Nat
   n25 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
       (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
@@ -285,3 +288,89 @@ thm13Fun2Const a b =
   let aC : Term ; aC = reify (code a)
       bC : Term ; bC = reify (code b)
   in ruleTrans (cong1 thmT (d2ConstRed a b)) (encAxConstCorr aC bC)
+
+------------------------------------------------------------------------
+-- Fun2 base case:  IfLfL .
+--
+-- The axiom is  axIfLfL a b : ap2 IfLf O (ap2 Pair a b) = a .  Its
+-- canonical inputs are (O, ap2 Pair a b); coded these become
+--
+--   x1C = reify (code O)             = ap2 Pair O O                 (trivial).
+--   x2C = reify (code (ap2 Pair a b))
+--       = ap2 Pair (reify tagAp2)
+--                  (ap2 Pair (reify (codeF2 Pair))
+--                            (ap2 Pair aC bC))
+--
+-- The target encoding  encAxIfLfL aC bC  = Pair (natCode n11) (Pair aC bC)
+-- requires extracting the innermost pair  (Pair aC bC)  from  x2C :
+-- a  Snd . Snd  applied to  x2C  does this.  We use
+--  Post (Comp (Comp Snd Snd) Snd) Pair  to build a Fun2 that ignores
+--  x1  and returns  Snd (Snd x2) .
+
+D2IfLfL : Fun2
+D2IfLfL = Fan (Lift (KT (reify (natCode n11))))
+              (Post (Comp (Comp Snd Snd) Snd) Pair)
+              Pair
+
+d2IfLfLRed : (a b : Term) ->
+  Deriv (atomic (eqn (ap2 D2IfLfL (reify (code O))
+                                  (reify (code (ap2 Pair a b))))
+                     (encAxIfLfL (reify (code a)) (reify (code b)))))
+d2IfLfLRed a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      x1C : Term ; x1C = reify (code O)
+      x2C : Term ; x2C = reify (code (ap2 Pair a b))
+      tagR : Term ; tagR = reify (natCode n11)
+      mid : Term ; mid = ap2 Pair (reify (codeF2 Pair)) (ap2 Pair aC bC)
+      -- H1 = Lift (KT tagR): applied to (x1C, x2C) gives tagR.
+      s1 : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) x1C x2C) tagR))
+      s1 = ruleTrans (axLift (KT tagR) x1C x2C) (axKT tagR x1C)
+      -- H2 = Post (Comp (Comp Snd Snd) Snd) Pair:
+      --   applied to (x1C, x2C) reduces via axPost to
+      --   ap1 (Comp (Comp Snd Snd) Snd) (ap2 Pair x1C x2C) ,
+      --   and then by axComp / axSnd chains to  Snd (Snd x2C) .
+      s2a : Deriv (atomic (eqn (ap2 (Post (Comp (Comp Snd Snd) Snd) Pair) x1C x2C)
+                               (ap1 (Comp (Comp Snd Snd) Snd)
+                                    (ap2 Pair x1C x2C))))
+      s2a = axPost (Comp (Comp Snd Snd) Snd) Pair x1C x2C
+      s2b : Deriv (atomic (eqn (ap1 (Comp (Comp Snd Snd) Snd)
+                                    (ap2 Pair x1C x2C))
+                               (ap1 (Comp Snd Snd)
+                                    (ap1 Snd (ap2 Pair x1C x2C)))))
+      s2b = axComp (Comp Snd Snd) Snd (ap2 Pair x1C x2C)
+      s2c : Deriv (atomic (eqn (ap1 Snd (ap2 Pair x1C x2C)) x2C))
+      s2c = axSnd x1C x2C
+      s2d : Deriv (atomic (eqn (ap1 (Comp Snd Snd) x2C)
+                               (ap1 Snd (ap1 Snd x2C))))
+      s2d = axComp Snd Snd x2C
+      s2e : Deriv (atomic (eqn (ap1 Snd x2C) mid))
+      s2e = axSnd (reify tagAp2) mid
+      s2f : Deriv (atomic (eqn (ap1 Snd mid) (ap2 Pair aC bC)))
+      s2f = axSnd (reify (codeF2 Pair)) (ap2 Pair aC bC)
+      s2 : Deriv (atomic (eqn (ap2 (Post (Comp (Comp Snd Snd) Snd) Pair) x1C x2C)
+                              (ap2 Pair aC bC)))
+      s2 = ruleTrans s2a
+             (ruleTrans s2b
+               (ruleTrans (cong1 (Comp Snd Snd) s2c)
+                 (ruleTrans s2d
+                   (ruleTrans (cong1 Snd s2e) s2f))))
+      -- Outer Fan reduction.
+      s0 : Deriv (atomic (eqn (ap2 D2IfLfL x1C x2C)
+                              (ap2 Pair
+                                (ap2 (Lift (KT tagR)) x1C x2C)
+                                (ap2 (Post (Comp (Comp Snd Snd) Snd) Pair) x1C x2C))))
+      s0 = axFan (Lift (KT tagR)) (Post (Comp (Comp Snd Snd) Snd) Pair) Pair x1C x2C
+  in ruleTrans s0
+       (ruleTrans (congL Pair (ap2 (Post (Comp (Comp Snd Snd) Snd) Pair) x1C x2C) s1)
+                  (congR Pair tagR s2))
+
+thm13Fun2IfLfL : (a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 D2IfLfL (reify (code O))
+                                             (reify (code (ap2 Pair a b)))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 IfLf O (ap2 Pair a b)) a))))))
+thm13Fun2IfLfL a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+  in ruleTrans (cong1 thmT (d2IfLfLRed a b)) (encAxIfLfLCorr aC bC)
