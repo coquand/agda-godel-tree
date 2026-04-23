@@ -383,6 +383,92 @@ thm13Fun1Comp2 h f g x =
                (encAxComp2Corr hCR fCR gCR xC)
 
 ------------------------------------------------------------------------
+-- Fun1 case:  Rec z s  at input  O  (axRecLf).
+--
+-- Rec z s O = z .  The canonical input is literally  O ; its code
+--  reify (code O) = ap2 Pair O O  is ignored by D1RecLf which is a
+-- pure constant (a KT on the full encAxRecLf body).
+
+D1RecLf : Term -> Fun2 -> Fun1
+D1RecLf z s = KT (encAxRecLf (reify (code z)) (reify (codeF2 s)))
+
+d1RecLfRed : (z : Term) (s : Fun2) ->
+  Deriv (atomic (eqn (ap1 (D1RecLf z s) (reify (code O)))
+                     (encAxRecLf (reify (code z)) (reify (codeF2 s)))))
+d1RecLfRed z s =
+  axKT (encAxRecLf (reify (code z)) (reify (codeF2 s))) (reify (code O))
+
+thm13Fun1RecLf : (z : Term) (s : Fun2) ->
+  Deriv (atomic (eqn (ap1 thmT (ap1 (D1RecLf z s) (reify (code O))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap1 (Rec z s) O) z))))))
+thm13Fun1RecLf z s =
+  let zC : Term ; zC = reify (code z)
+      sC : Term ; sC = reify (codeF2 s)
+  in ruleTrans (cong1 thmT (d1RecLfRed z s)) (encAxRecLfCorr zC sC)
+
+------------------------------------------------------------------------
+-- Fun1 case:  Rec z s  at input  Pair a b  (axRecNd).
+--
+-- Rec z s (Pair a b) = ap2 s (Pair a b) (Pair (Rec z s a) (Rec z s b)).
+-- Input:  xC = reify (code (Pair a b)) = Pair tagAp2 (Pair pairCF (Pair aC bC))
+-- Output: encAxRecNd zC sC aC bC = Pair (natCode n10) (Pair zC (Pair sC (Pair aC bC))).
+-- Extraction: Pair aC bC = Snd (Snd xC) , i.e.  Comp Snd Snd  applied to xC.
+
+D1RecNd : Term -> Fun2 -> Fun1
+D1RecNd z s = Comp2 Pair (KT (reify (natCode n10)))
+                (Comp2 Pair (KT (reify (code z)))
+                  (Comp2 Pair (KT (reify (codeF2 s))) (Comp Snd Snd)))
+
+d1RecNdRed : (z : Term) (s : Fun2) (a b : Term) ->
+  Deriv (atomic (eqn (ap1 (D1RecNd z s) (reify (code (ap2 Pair a b))))
+                     (encAxRecNd (reify (code z)) (reify (codeF2 s))
+                                 (reify (code a)) (reify (code b)))))
+d1RecNdRed z s a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      zCR : Term ; zCR = reify (code z)
+      sCR : Term ; sCR = reify (codeF2 s)
+      tagR : Term ; tagR = reify (natCode n10)
+      xC : Term ; xC = reify (code (ap2 Pair a b))
+      mid : Term ; mid = ap2 Pair (reify (codeF2 Pair)) (ap2 Pair aC bC)
+      -- Extract Pair aC bC from xC via Snd . Snd.
+      ext : Deriv (atomic (eqn (ap1 (Comp Snd Snd) xC) (ap2 Pair aC bC)))
+      ext = ruleTrans (axComp Snd Snd xC)
+              (ruleTrans (cong1 Snd (axSnd (reify tagAp2) mid))
+                         (axSnd (reify (codeF2 Pair)) (ap2 Pair aC bC)))
+      -- Inner Comp2 chains.
+      l3 : Fun1 ; l3 = Comp2 Pair (KT sCR) (Comp Snd Snd)
+      l2 : Fun1 ; l2 = Comp2 Pair (KT zCR) l3
+      i3 : Deriv (atomic (eqn (ap1 l3 xC) (ap2 Pair sCR (ap2 Pair aC bC))))
+      i3 = ruleTrans (axComp2 Pair (KT sCR) (Comp Snd Snd) xC)
+             (ruleTrans (congL Pair (ap1 (Comp Snd Snd) xC) (axKT sCR xC))
+                        (congR Pair sCR ext))
+      i2 : Deriv (atomic (eqn (ap1 l2 xC)
+                              (ap2 Pair zCR (ap2 Pair sCR (ap2 Pair aC bC)))))
+      i2 = ruleTrans (axComp2 Pair (KT zCR) l3 xC)
+             (ruleTrans (congL Pair (ap1 l3 xC) (axKT zCR xC))
+                        (congR Pair zCR i3))
+  in ruleTrans (axComp2 Pair (KT tagR) l2 xC)
+       (ruleTrans (congL Pair (ap1 l2 xC) (axKT tagR xC))
+                  (congR Pair tagR i2))
+
+thm13Fun1RecNd : (z : Term) (s : Fun2) (a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap1 (D1RecNd z s) (reify (code (ap2 Pair a b)))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap1 (Rec z s) (ap2 Pair a b))
+                                     (ap2 s (ap2 Pair a b)
+                                            (ap2 Pair (ap1 (Rec z s) a)
+                                                      (ap1 (Rec z s) b)))))))))
+thm13Fun1RecNd z s a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      zCR : Term ; zCR = reify (code z)
+      sCR : Term ; sCR = reify (codeF2 s)
+  in ruleTrans (cong1 thmT (d1RecNdRed z s a b))
+               (encAxRecNdCorr zCR sCR aC bC)
+
+------------------------------------------------------------------------
 -- Fun2 base case:  Const .
 --
 --   ap2 D2Const aC bC
