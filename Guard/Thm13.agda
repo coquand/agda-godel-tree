@@ -31,11 +31,16 @@ open import Guard.ProofEncUnify using
   ( encAxI   ; encAxICorr
   ; encAxFst ; encAxFstCorr
   ; encAxSnd ; encAxSndCorr
+  ; encAxKT  ; encAxKTCorr
   )
 
 private
-  n1 : Nat ; n1 = suc zero
-  n2 : Nat ; n2 = suc n1
+  n1  : Nat ; n1  = suc zero
+  n2  : Nat ; n2  = suc n1
+  n25 : Nat
+  n25 = suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
+      (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc
+      (suc (suc (suc (suc (suc zero))))))))))))))))))))))))
 
 ------------------------------------------------------------------------
 -- Base case:  I .
@@ -184,3 +189,61 @@ thm13Fun1Snd a b =
   let aC : Term ; aC = reify (code a)
       bC : Term ; bC = reify (code b)
   in ruleTrans (cong1 thmT (d1SndRed a b)) (encAxSndCorr aC bC)
+
+------------------------------------------------------------------------
+-- Base case:  KT .
+--
+--  KT  is parameterized by a closed term  t .  For each  t  we build
+--   D1KT t : Fun1  such that, applied to  xC = reify (code x) , it
+-- reduces to  encAxKT (reify (code t)) xC .
+--
+--   ap1 (D1KT t) xC
+--     = ap2 Pair (ap1 (KT (reify (natCode n25))) xC)
+--                (ap1 (Comp2 Pair (KT (reify (code t))) I) xC)     [axComp2]
+--     = ap2 Pair (reify (natCode n25))
+--                (ap2 Pair (ap1 (KT (reify (code t))) xC) (ap1 I xC))
+--                                                                  [axKT, axComp2]
+--     = ap2 Pair (reify (natCode n25)) (ap2 Pair (reify (code t)) xC)
+--                                                                  [axKT, axI]
+--     = encAxKT (reify (code t)) xC .
+
+D1KT : Term -> Fun1
+D1KT t = Comp2 Pair (KT (reify (natCode n25)))
+                    (Comp2 Pair (KT (reify (code t))) I)
+
+d1KTRed : (t x : Term) ->
+  Deriv (atomic (eqn (ap1 (D1KT t) (reify (code x)))
+                     (encAxKT (reify (code t)) (reify (code x)))))
+d1KTRed t x =
+  let xC : Term ; xC = reify (code x)
+      tC : Term ; tC = reify (code t)
+      tagR : Term ; tagR = reify (natCode n25)
+      inner : Fun1 ; inner = Comp2 Pair (KT tC) I
+      s1 : Deriv (atomic (eqn (ap1 (D1KT t) xC)
+                              (ap2 Pair (ap1 (KT tagR) xC)
+                                        (ap1 inner xC))))
+      s1 = axComp2 Pair (KT tagR) inner xC
+      s2 : Deriv (atomic (eqn (ap1 (KT tagR) xC) tagR))
+      s2 = axKT tagR xC
+      s3 : Deriv (atomic (eqn (ap1 inner xC)
+                              (ap2 Pair (ap1 (KT tC) xC) (ap1 I xC))))
+      s3 = axComp2 Pair (KT tC) I xC
+      s4 : Deriv (atomic (eqn (ap1 (KT tC) xC) tC))
+      s4 = axKT tC xC
+      s5 : Deriv (atomic (eqn (ap1 I xC) xC))
+      s5 = axI xC
+  in ruleTrans s1
+       (ruleTrans (congL Pair (ap1 inner xC) s2)
+                  (congR Pair tagR
+                    (ruleTrans s3
+                      (ruleTrans (congL Pair (ap1 I xC) s4)
+                                 (congR Pair tC s5)))))
+
+thm13Fun1KT : (t x : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap1 (D1KT t) (reify (code x))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap1 (KT t) x) t))))))
+thm13Fun1KT t x =
+  let tC : Term ; tC = reify (code t)
+      xC : Term ; xC = reify (code x)
+  in ruleTrans (cong1 thmT (d1KTRed t x)) (encAxKTCorr tC xC)
