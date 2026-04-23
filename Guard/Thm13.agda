@@ -969,3 +969,176 @@ thm13Fun2TreeEqNN a1 a2 b1 b2 =
       b2C : Term ; b2C = reify (code b2)
   in ruleTrans (cong1 thmT (d2TreeEqNNRed a1 a2 b1 b2))
                (encAxTreeEqNNCorr a1C a2C b1C b2C)
+
+------------------------------------------------------------------------
+-- Fun2 cases:  Lift f ,  Post f h ,  Fan h1 h2 h .
+--
+-- Strict form; each D2 is a nested Fan of  Lift (KT _) tag and meta
+-- constants followed by  Pair  at the innermost level that pairs the
+-- two inputs  aC , bC  through.
+
+D2Lift : Fun1 -> Fun2
+D2Lift f = Fan (Lift (KT (reify (natCode n6))))
+               (Fan (Lift (KT (reify (codeF1 f))))
+                    Pair
+                    Pair)
+               Pair
+
+d2LiftRed : (f : Fun1) (a b : Term) ->
+  Deriv (atomic (eqn (ap2 (D2Lift f) (reify (code a)) (reify (code b)))
+                     (encAxLift (reify (codeF1 f)) (reify (code a)) (reify (code b)))))
+d2LiftRed f a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      fCR : Term ; fCR = reify (codeF1 f)
+      tagR : Term ; tagR = reify (natCode n6)
+      -- Inner Fan: Pair (ap2 (Lift (KT fCR)) aC bC) (ap2 Pair aC bC)
+      iFan : Deriv (atomic (eqn (ap2 (Fan (Lift (KT fCR)) Pair Pair) aC bC)
+                                 (ap2 Pair fCR (ap2 Pair aC bC))))
+      iFan = ruleTrans (axFan (Lift (KT fCR)) Pair Pair aC bC)
+               (congL Pair (ap2 Pair aC bC)
+                  (ruleTrans (axLift (KT fCR) aC bC) (axKT fCR aC)))
+      -- Outer Fan.
+      oFan : Deriv (atomic (eqn (ap2 (D2Lift f) aC bC)
+                                 (ap2 Pair (ap2 (Lift (KT tagR)) aC bC)
+                                           (ap2 (Fan (Lift (KT fCR)) Pair Pair) aC bC))))
+      oFan = axFan (Lift (KT tagR)) (Fan (Lift (KT fCR)) Pair Pair) Pair aC bC
+      oLeft : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) aC bC) tagR))
+      oLeft = ruleTrans (axLift (KT tagR) aC bC) (axKT tagR aC)
+  in ruleTrans oFan
+       (ruleTrans (congL Pair (ap2 (Fan (Lift (KT fCR)) Pair Pair) aC bC) oLeft)
+                  (congR Pair tagR iFan))
+
+thm13Fun2Lift : (f : Fun1) (a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 (D2Lift f) (reify (code a)) (reify (code b))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 (Lift f) a b) (ap1 f a)))))))
+thm13Fun2Lift f a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      fCR : Term ; fCR = reify (codeF1 f)
+  in ruleTrans (cong1 thmT (d2LiftRed f a b)) (encAxLiftCorr fCR aC bC)
+
+------------------------------------------------------------------------
+
+D2Post : Fun1 -> Fun2 -> Fun2
+D2Post f h = Fan (Lift (KT (reify (natCode n7))))
+                 (Fan (Lift (KT (reify (codeF1 f))))
+                      (Fan (Lift (KT (reify (codeF2 h))))
+                           Pair
+                           Pair)
+                      Pair)
+                 Pair
+
+d2PostRed : (f : Fun1) (h : Fun2) (a b : Term) ->
+  Deriv (atomic (eqn (ap2 (D2Post f h) (reify (code a)) (reify (code b)))
+                     (encAxPost (reify (codeF1 f)) (reify (codeF2 h))
+                                (reify (code a)) (reify (code b)))))
+d2PostRed f h a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      fCR : Term ; fCR = reify (codeF1 f)
+      hCR : Term ; hCR = reify (codeF2 h)
+      tagR : Term ; tagR = reify (natCode n7)
+      ii : Fun2 ; ii = Fan (Lift (KT hCR)) Pair Pair
+      iFan : Deriv (atomic (eqn (ap2 ii aC bC) (ap2 Pair hCR (ap2 Pair aC bC))))
+      iFan = ruleTrans (axFan (Lift (KT hCR)) Pair Pair aC bC)
+               (congL Pair (ap2 Pair aC bC)
+                  (ruleTrans (axLift (KT hCR) aC bC) (axKT hCR aC)))
+      jj : Fun2 ; jj = Fan (Lift (KT fCR)) ii Pair
+      jFan : Deriv (atomic (eqn (ap2 jj aC bC)
+                                 (ap2 Pair fCR (ap2 Pair hCR (ap2 Pair aC bC)))))
+      jFan = ruleTrans (axFan (Lift (KT fCR)) ii Pair aC bC)
+               (ruleTrans (congL Pair (ap2 ii aC bC)
+                             (ruleTrans (axLift (KT fCR) aC bC) (axKT fCR aC)))
+                          (congR Pair fCR iFan))
+      oFan : Deriv (atomic (eqn (ap2 (D2Post f h) aC bC)
+                                 (ap2 Pair (ap2 (Lift (KT tagR)) aC bC)
+                                           (ap2 jj aC bC))))
+      oFan = axFan (Lift (KT tagR)) jj Pair aC bC
+      oLeft : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) aC bC) tagR))
+      oLeft = ruleTrans (axLift (KT tagR) aC bC) (axKT tagR aC)
+  in ruleTrans oFan
+       (ruleTrans (congL Pair (ap2 jj aC bC) oLeft)
+                  (congR Pair tagR jFan))
+
+thm13Fun2Post : (f : Fun1) (h : Fun2) (a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 (D2Post f h) (reify (code a)) (reify (code b))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 (Post f h) a b) (ap1 f (ap2 h a b))))))))
+thm13Fun2Post f h a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      fCR : Term ; fCR = reify (codeF1 f)
+      hCR : Term ; hCR = reify (codeF2 h)
+  in ruleTrans (cong1 thmT (d2PostRed f h a b))
+               (encAxPostCorr fCR hCR aC bC)
+
+------------------------------------------------------------------------
+
+D2Fan : Fun2 -> Fun2 -> Fun2 -> Fun2
+D2Fan h1 h2 h = Fan (Lift (KT (reify (natCode n8))))
+                    (Fan (Lift (KT (reify (codeF2 h1))))
+                         (Fan (Lift (KT (reify (codeF2 h2))))
+                              (Fan (Lift (KT (reify (codeF2 h))))
+                                   Pair
+                                   Pair)
+                              Pair)
+                         Pair)
+                    Pair
+
+d2FanRed : (h1 h2 h : Fun2) (a b : Term) ->
+  Deriv (atomic (eqn (ap2 (D2Fan h1 h2 h) (reify (code a)) (reify (code b)))
+                     (encAxFan (reify (codeF2 h1)) (reify (codeF2 h2))
+                               (reify (codeF2 h))
+                               (reify (code a)) (reify (code b)))))
+d2FanRed h1 h2 h a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      h1CR : Term ; h1CR = reify (codeF2 h1)
+      h2CR : Term ; h2CR = reify (codeF2 h2)
+      hCR  : Term ; hCR  = reify (codeF2 h)
+      tagR : Term ; tagR = reify (natCode n8)
+      k  : Fun2 ; k  = Fan (Lift (KT hCR)) Pair Pair
+      kFan : Deriv (atomic (eqn (ap2 k aC bC) (ap2 Pair hCR (ap2 Pair aC bC))))
+      kFan = ruleTrans (axFan (Lift (KT hCR)) Pair Pair aC bC)
+               (congL Pair (ap2 Pair aC bC)
+                  (ruleTrans (axLift (KT hCR) aC bC) (axKT hCR aC)))
+      j  : Fun2 ; j  = Fan (Lift (KT h2CR)) k Pair
+      jFan : Deriv (atomic (eqn (ap2 j aC bC)
+                                 (ap2 Pair h2CR (ap2 Pair hCR (ap2 Pair aC bC)))))
+      jFan = ruleTrans (axFan (Lift (KT h2CR)) k Pair aC bC)
+               (ruleTrans (congL Pair (ap2 k aC bC)
+                             (ruleTrans (axLift (KT h2CR) aC bC) (axKT h2CR aC)))
+                          (congR Pair h2CR kFan))
+      i : Fun2 ; i = Fan (Lift (KT h1CR)) j Pair
+      iFan : Deriv (atomic (eqn (ap2 i aC bC)
+                                 (ap2 Pair h1CR (ap2 Pair h2CR
+                                   (ap2 Pair hCR (ap2 Pair aC bC))))))
+      iFan = ruleTrans (axFan (Lift (KT h1CR)) j Pair aC bC)
+               (ruleTrans (congL Pair (ap2 j aC bC)
+                             (ruleTrans (axLift (KT h1CR) aC bC) (axKT h1CR aC)))
+                          (congR Pair h1CR jFan))
+      oFan : Deriv (atomic (eqn (ap2 (D2Fan h1 h2 h) aC bC)
+                                 (ap2 Pair (ap2 (Lift (KT tagR)) aC bC)
+                                           (ap2 i aC bC))))
+      oFan = axFan (Lift (KT tagR)) i Pair aC bC
+      oLeft : Deriv (atomic (eqn (ap2 (Lift (KT tagR)) aC bC) tagR))
+      oLeft = ruleTrans (axLift (KT tagR) aC bC) (axKT tagR aC)
+  in ruleTrans oFan
+       (ruleTrans (congL Pair (ap2 i aC bC) oLeft)
+                  (congR Pair tagR iFan))
+
+thm13Fun2Fan : (h1 h2 h : Fun2) (a b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 (D2Fan h1 h2 h) (reify (code a)) (reify (code b))))
+                     (reify (codeFormula
+                       (atomic (eqn (ap2 (Fan h1 h2 h) a b)
+                                     (ap2 h (ap2 h1 a b) (ap2 h2 a b))))))))
+thm13Fun2Fan h1 h2 h a b =
+  let aC : Term ; aC = reify (code a)
+      bC : Term ; bC = reify (code b)
+      h1CR : Term ; h1CR = reify (codeF2 h1)
+      h2CR : Term ; h2CR = reify (codeF2 h2)
+      hCR  : Term ; hCR  = reify (codeF2 h)
+  in ruleTrans (cong1 thmT (d2FanRed h1 h2 h a b))
+               (encAxFanCorr h1CR h2CR hCR aC bC)
