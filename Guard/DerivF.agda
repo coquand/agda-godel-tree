@@ -193,6 +193,16 @@ data Deriv : Formula -> Set where
   axNeg      : (P Q : Formula) ->
                Deriv ((not P) imp ((not Q) imp (Q imp P)))
 
+  -- Ex falso quodlibet:  P ⊃ ~P ⊃ Q .
+  --
+  -- CLASSICALLY DERIVABLE from axK / axS / axNeg / mp (~20 Hilbert
+  -- steps through double-negation).  Added as a primitive so that
+  --  Guard.Thm14TPrime.tPrimeDeriv  is a one-line axiom instance
+  -- rather than an inline classical derivation.  Philosophically
+  -- redundant but not unsound.
+  axExFalso  : (P Q : Formula) ->
+               Deriv (P imp ((not P) imp Q))
+
   ------------------------------------------------------------------
   -- Rules of inference (no side conditions).
 
