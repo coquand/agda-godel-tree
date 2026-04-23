@@ -41,6 +41,7 @@ module Guard.DerivF where
 open import Guard.Base
 open import Guard.Term
 open import Guard.Formula
+open import Guard.CorDef using (cor)
 
 ------------------------------------------------------------------------
 -- Convenience abbreviation:  eqF t u  =  atomic (eqn t u) .  Used in
@@ -124,6 +125,36 @@ data Deriv : Formula -> Set where
   axGoodstein : (a b : Term) ->
                 Deriv (atomic (eqn (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair a O))
                                     (ap2 IfLf (ap2 TreeEq a b) (ap2 Pair b O))))
+
+  ------------------------------------------------------------------
+  -- Defining equations of  cor  on non-reifyable term shapes.
+  --
+  -- Guard Def 10 (guard15.pdf p.13) specifies  num  by four clauses:
+  --   (1)  num(O)         = "O"
+  --   (2)  num(x_i)       = "x_i"
+  --   (3)  num(f(t))      = "f(t)"
+  --   (4)  num(g(a,b))    = "g(a,b)"
+  --
+  -- Our  cor = Rec falseT stepCor  (see  Guard.CorDef ) handles clause
+  -- (1) and the reified-tree special case of (4) by computation.  Our
+  -- Rec cannot dispatch on  var ,  ap1  or  ap2  shapes in general,
+  -- so clauses (2)-(4) are stipulated here as Deriv constructors.
+  --
+  -- These are primitive-recursive defining equations, not
+  -- universally-quantified reflection principles; they fall under the
+  -- "ground defining equations are OK" precedent (see
+  -- feedback_ground_axioms_ok and
+  -- Guard/NEXT-SESSION-EX24.md Path A step 1).
+
+  axCorVar : (n : Nat) ->
+             Deriv (atomic (eqn (ap1 cor (var n))
+                                 (reify (code (var n)))))
+  axCorAp1 : (f : Fun1) (t : Term) ->
+             Deriv (atomic (eqn (ap1 cor (ap1 f t))
+                                 (reify (code (ap1 f t)))))
+  axCorAp2 : (g : Fun2) (a b : Term) ->
+             Deriv (atomic (eqn (ap1 cor (ap2 g a b))
+                                 (reify (code (ap2 g a b)))))
 
   ------------------------------------------------------------------
   -- Structural rules on atomic equations.

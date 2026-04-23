@@ -13,31 +13,10 @@ module Guard.CodeOfReifyUnify where
 open import Guard.Base
 open import Guard.Term
 open import Guard.Formula
+open import Guard.CorDef public
+  using (tagAp2T ; pairCodeF2T ; stepCor ; cor)
 open import Guard.DerivF
 open import Guard.StepReduceUnify
-
-------------------------------------------------------------------------
--- Constants used by the step function.
-
-private
-  tagAp2T : Term
-  tagAp2T = reify tagAp2
-
-  pairCodeF2T : Term
-  pairCodeF2T = reify (codeF2 Pair)
-
-------------------------------------------------------------------------
--- step_cor and cor.
-
-stepCor : Fun2
-stepCor = Fan (Lift (KT tagAp2T))
-              (Fan (Lift (KT pairCodeF2T))
-                   (Post Snd Pair)
-                   Pair)
-              Pair
-
-cor : Fun1
-cor = Rec falseT stepCor
 
 ------------------------------------------------------------------------
 -- stepCorRed: reduction of stepCor at generic (orig, recs).
