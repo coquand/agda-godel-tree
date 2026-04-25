@@ -165,42 +165,72 @@ sb / mp-clause internalisation. Per-file budget ~250 LoC.
 
 ## Recommended FIRST step for next session
 
-**Investigation, not implementation.** Spend ~30 min reading
-`BRA/Thm/ThmT.agda`'s structure to determine whether `thmT`'s defining
-clauses already contain Definition 12's `mp` and `sb` cases (Guard's
-`4y+1` and `4y+2` clauses) as accessible axioms.
+**Build `BRA/Sb.agda`** -- a small, focused file defining the
+primitive-recursive `sb` operation on coded formulas (per Guard
+p.14-15 Definition 11 + p.15 Definition 12 line 2) and its
+defining-equation axiom `axSb` .  Target: ~150-250 LoC, <2s cold
+typecheck.
 
-Possible outcomes:
+**Why not "investigate for a shortcut" first**: a shortcut is
+**unlikely**.  `thmT` is a single combinator (a big `Rec`-based
+dispatch in `BRA/Thm/ThmT.agda`); its defining clauses for Guard's
+`4y+1` (sb) and `4y+2` (mp) are NOT exposed as named axioms.  And
+the substitution clause `th(4y+1) = sb(KKy, IKy, th(Iy))` needs an
+actual `sb` operation, which BRA does not currently have ( `subT` is
+substitution on Terms, `codedSubst` is on coded Trees -- neither is
+the th-substitution `sb` ).  ~30 min of reading would just confirm
+this.  Skip the investigation; start the substantive work directly.
 
-  1. **Shortcut exists**: `axThmTSub` and `axThmTMp` can be extracted
-     as specialisations of existing `BRA/Deriv.agda` axioms applied
-     to `thmT`'s structure. 1-2 session win.
-  2. **No shortcut**: must build sb / mp internalisation as new
-     infrastructure (multi-file subproject).
+If, when starting on `BRA/Sb.agda`, an unexpected reuse opportunity
+appears, fold it in then -- but don't BLOCK the work on a
+"investigate first" gate that's likely to come back negative.
 
-Output of the investigation: `BRA/THM14-NEXT-INVESTIGATION.md` (new
-file, ~100 LoC of analysis, 0 LoC of code) with findings + concrete
-plan for the substantive work.
-
-Do this investigation BEFORE committing to either path. The full
-substantive work spans multiple sessions either way; one focused
-investigation session de-risks the rest.
-
-## Strategic options (after the investigation)
+## Strategic options
 
 In order of methodological alignment with the small-files / fast-
 typecheck principle:
 
-  1. **Find a shortcut** (investigation outcome 1). Highest payoff.
-  2. **Build sb + mp as ground axioms over thmT** if outcome 2 but
-     the axioms can be added at the `BRA/Deriv.agda` level (per
+  1. **Build `sb` + `mp_enc` ground axioms over `thmT`**: per
      `feedback_ground_axioms_ok.md`, ground defining-equation axioms
-     are fine). ~500 LoC subproject.
-  3. **Build full sb / Definition 12 mechanisation as a subproject**
-     (BRA/Sb.agda + computational lemmas + axiom). ~1500 LoC.
-  4. **Ship the abstract chain as-is**. The current state ("Goedel
-     II in BRA reduces to filling this single contract, parametric in
-     constr5 + step5") is itself a valid deliverable.
+     are fine to add at the `BRA/Deriv.agda` level if/when the sb /
+     mp operations are PR functions on closed Term-level data.  The
+     axiom is just the defining equation:
+       `axThmTSub : Deriv (atomic (eqn (ap1 thmT (subEnc x k a))
+                                       (ap3 sb x k (ap1 thmT a))))`
+     for PR-defined `subEnc` and `sb`.  Likely path; ~500-800 LoC
+     across `BRA/Sb.agda`, `BRA/SbAxiom.agda`, `BRA/MpEnc.agda`.
+
+  2. **Full sb mechanisation including closed-form computational
+     lemmas** (e.g., `sb (numLit n) k (codeOf P) = codeOf (substF k
+     (numLit n) P)` ).  ~1500 LoC.  The closed-form lemma is what
+     reduces "th(constr5(x)) = code G[x_1 := num x]" to
+     "th(constr5(x)) = code(negSubF x)" in step 4.
+
+  3. **Ship the abstract chain as-is**.  The current state ("Goedel
+     II in BRA reduces to filling this single contract, parametric
+     in `constr5` + `step5` ") is itself a valid deliverable.  Worth
+     considering if calendar time is short.
+
+**A shortcut is NOT a likely option.**  Earlier sessions occasionally
+hoped for one and it never materialised.  Plan multi-session.
+
+## Why "no shortcut" is not a big problem
+
+  * **Math is clear.**  Each piece is a faithful port of Guard's
+    Def 11 + Def 12 clauses.  No design questions, just careful
+    mechanisation.
+  * **Decomposes into small files.**  Each Guard step = one Agda
+    lemma in its own file under 250 LoC.  The small-files / fast-
+    typecheck methodology actually fits this style well.
+  * **Skeleton already done.**  Goedel I unconditional; closure done;
+    Goedel II reduces to one contract.  Remaining work is purely
+    "fill the contract" -- incremental, with clear progress markers.
+  * **Partial deliverables ship.**  After each session: sb infra
+    done, then step 1, then step 2, ...  Each is a topical commit.
+
+The cost is **calendar time** (multi-session, 3-5 sessions estimated)
+more than **complexity**.  Treat it as routine porting work, not a
+research project.
 
 ## Pre-flight verification (mandatory first action)
 
@@ -245,26 +275,29 @@ document depends on these readings being correct.
      `Deriv (not P)` for open P or Sigma form or closed Con. Stop
      and re-read Lessons 1-4 above.
 
-## Files this session writes (estimate)
+## Files this and subsequent sessions write
 
-  * `BRA/THM14-NEXT-INVESTIGATION.md` (new) -- investigation report.
+Per the small-files methodology, each piece in its own file ~150-250
+LoC, <2s cold typecheck. If any exceeds budget, STOP and refactor.
 
-If outcome 2 (no shortcut), subsequent sessions write:
-
-  * `BRA/Sb.agda` (new) -- `sb` PR function on coded formulas.
-  * `BRA/SbAxiom.agda` (new) -- `axThmTSub` axiom + computational lemma.
-  * `BRA/MpEnc.agda` (new) -- `mp_enc` PR function + `axThmTMp`.
-  * `BRA/Thm14Step1.agda` -- internal Thm 13 specialised.
-  * `BRA/Thm14Step2.agda` -- internal Thm 13 closed instance.
-  * `BRA/Thm14Step3Int.agda` -- internal-implication step 3 (replaces
-    Sigma `Thm14Step3.agda`).
+  * `BRA/Sb.agda` -- `sb` PR function on coded formulas (Guard Def
+    12 line 2 substituent).  THIS SESSION's first deliverable.
+  * `BRA/SbAxiom.agda` -- `axThmTSub` ground axiom + computational
+    lemma (`sb` reduces correctly on closed coded data).
+  * `BRA/MpEnc.agda` -- `mp_enc` PR function + `axThmTMp` ground
+    axiom (Guard Def 12 line 3, mp clause).
+  * `BRA/Thm14Step1.agda` -- internal-implication Thm 13 specialised
+    to th: from `Deriv (PrAtX x imp ...)` etc.
+  * `BRA/Thm14Step2.agda` -- closed Thm 13 instance for sub.
+  * `BRA/Thm14Step3Int.agda` -- internal-implication step 3
+    (replaces Sigma `Thm14Step3.agda` for the contract surface).
   * `BRA/Thm14Step4.agda` -- internal step 4 using sb.
-  * `BRA/Thm14Step5.agda` -- internal step 5 combining + mp_enc.
-  * `BRA/Thm14ConstructStep5.agda` -- `constr5` + the chained Deriv,
-    plugging into `BRA.GoedelII.Compose`.
+  * `BRA/Thm14Step5.agda` -- internal step 5 combining steps 3+4 +
+    mp_enc.
+  * `BRA/Thm14ConstructStep5.agda` -- assembles `constr5 : Fun1` +
+    the chained Deriv, plugging into `BRA.GoedelII.Compose`.
 
-Each ~150-250 LoC, <2s cold typecheck. If any exceeds budget, STOP
-and refactor.
+Estimated total: ~1500 LoC across 9 files, ~3-5 sessions.
 
 ## Files this session does NOT write or modify
 
@@ -281,24 +314,31 @@ and refactor.
 
 ## Recommended commit messages
 
-  * `[BRA-godelII-investigate]` -- investigation report.
-  * `[BRA-godelII-sb-infra]` -- sb function + axThmTSub.
+  * `[BRA-godelII-sb]` -- sb PR function.
+  * `[BRA-godelII-sb-axiom]` -- axThmTSub + computational lemma.
   * `[BRA-godelII-mp-enc]` -- mp_enc + axThmTMp.
   * `[BRA-godelII-step-N]` -- per Guard step.
   * `[BRA-godelII-constr5]` -- final plug-in.
 
 ## What success looks like
 
-  * Realistic (multi-session): investigation done, sb + mp infrastructure
-    built, steps 1-3 done as internal implications. ~1500 LoC, 3-4
-    sessions. Goedel II still parametric over the final step5
-    plug-in.
+Per-session deliverables are SMALL and SHIP individually:
 
-  * Aspirational (full mechanisation): all infrastructure + all steps,
-    `constr5` + `step5` filled, `godelII` unconditional. ~5 sessions
-    if no shortcut, ~2 if shortcut found.
+  * Session 1: `BRA/Sb.agda` + `BRA/SbAxiom.agda` done, ~500 LoC,
+    one or two topical commits.  Goedel II still has `constr5` /
+    `step5` open.
+  * Session 2: `BRA/MpEnc.agda` + Thm14Step1/Step2 done.
+  * Session 3: Step3Int + Step4 done.
+  * Session 4: Step5 + ConstructStep5 done; `godelII` unconditional.
 
-The session's primary deliverable: **either concrete progress or a
-crisp investigation report**. Both are valuable; per the methodology
-principle, the investigation alone (if it lands at outcome 2) is
-worth more than a hasty start on outcome 3 work.
+Each session's commit set is a partial deliverable, fully reviewable
+on its own.  No "big bang" landing.
+
+If a session drifts past 2 hours of work without a topical commit,
+that's a signal something is wrong -- either the small-files
+methodology is being violated or a hidden architectural mismatch is
+showing up.  STOP, commit what works, and document the obstruction.
+
+The architectural skeleton is in place; the remaining work is
+**routine porting of Guard's argument step by step**, not research.
+Treat it as such.
