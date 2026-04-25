@@ -124,9 +124,23 @@ encCong1 f p = ap2 Pair (cong1_codeF f (ap1 thmT p))
 encMp : Term -> Term -> Term
 encMp pAnt pImp = ap2 Pair (ap2 mp_codeF2 (ap1 thmT pAnt) (ap1 thmT pImp))
                            (ap2 Pair tagMpT (ap2 Pair pAnt pImp))
-   where mp_codeF2 = Post (Comp Snd Snd) (Post Snd Pair)
-         -- ap2 mp_codeF2 a b = Snd (Snd b) -- extracts Q from code(P imp Q)
 ```
+
+**`mp_codeF2` MUST have safe defaults** (this was a bug in an
+earlier version of this doc — see "Safe-default obligation" below).
+Naive `Post (Comp Snd Snd) (Post Snd Pair)` makes Con refutable.
+Correct definition:
+```
+mp_codeF2 a b
+  =  if (Fst b == tagImp  AND  Snd (Fst (Snd b)) == a)
+     then Snd (Snd b)        -- extract Q from a valid code(a ⊃ Q)
+     else code(0=0)          -- safe default on malformed input
+```
+Both checks are TreeEq on closed structural data; reduce on closed
+inputs and on the specific parametric-in-x codes that step 5's chain
+produces (where outer tagImp is closed and the antecedent matches by
+construction); only stay stuck on entirely-open Term variables that
+don't arise in the chain anyway.
 
 **ruleInst** (1 sub-proof + var index n + substituent t):
 ```
@@ -276,6 +290,47 @@ structure.  ✓
 
 **Goedel II survives.** ✓
 
+## Safe-default obligation on auxiliaries
+
+Guard's `mp(P, P⊃Q) = Q` (Exercise 24 [1]) is a **partial**
+specification.  It tells us what mp does on *valid* `(P, P⊃Q)`
+inputs, and is silent on malformed cases.  The same holds for `sb`,
+`ind`, `ax` — Exercise 24's specifications are partial.
+
+A naive implementation of `mp_codeF2` as `Snd ∘ Snd` of the second
+argument refutes Con immediately: for the closed junk tree
+```
+y_bad = Pair (mp_codeF2 anything (encode-of-(anything imp 0=1)))
+             (Pair tagMpT garbage)
+       = Pair code(0=1) (Pair tagMpT garbage)
+```
+shapeCheck passes (closed tagMpT recognised), thmT routes to `Fst
+y_bad = code(0=1)`, BRA proves `thmT(y_bad) = code(bot)` via
+`axFst`, contradicting Con.  Goedel II becomes vacuous.
+
+**Fix:** every code-level auxiliary (`mp_codeF2`, `sb`, `sym_codeF1`,
+`trans_codeF2`, `cong*_codeF`, `indBT_codeF`, `ax_codeF1`) MUST route
+malformed inputs to a safe theorem code (e.g., `code(0=0)`).
+Concretely:
+
+* `mp_codeF2 a b`: check `Fst b = tagImp` AND `Snd(Fst(Snd b)) = a`;
+  on success return `Snd(Snd b)`, else `code(0=0)`.
+* `sb a b P`: check `P` has formula-code outer shape (tagAtom /
+  tagNeg / tagImp); on success do codedSubst, else `code(0=0)`.
+* Similarly for the other auxiliaries.
+
+This is **a design constraint Guard implicitly assumes** but does
+not spell out.  Any honest formalisation has to make it explicit;
+implementation cost is small (an `IfLf`-on-closed-tag wrapper around
+each auxiliary's body).
+
+The safe-default check on `mp_codeF2` does not break parametric step 5
+reasoning, because in the actual chain the codes flowing in have
+**closed outer structure** (parametric-in-x codes whose outermost
+tag is `tagImp` — a closed value) and **antecedents that match by
+construction**, so both checks reduce parametrically (TreeEq on
+syntactically-equal parametric-in-x codes is reflexive, parametric).
+
 ## thmT enumerates exactly the theorems
 
 Guard's stated property — *"th(0), th(1), … enumerates the Gödel
@@ -287,21 +342,48 @@ numbers of all and only the theorems of BRA"* — re-checked:
 * **Only theorems**: every value of thmT is a theorem code.
   Verified by cases:
   * Outer-shape mismatch ⟹ thmT returns `code(0=0)` — a theorem. ✓
-  * Outer-shape match ⟹ thmT returns `Fst y`.  This is what the
-    encoding constructor stored.  Each constructor's stored
-    conclusion is a theorem code, by the rule's soundness:
-    - axiom constructors store closed Term that codes a BRA axiom. ✓
-    - rule constructors store the conclusion computed from sub-proofs'
-      stored conclusions via the rule's code-level operation
-      (`mp_codeF2` for mp, `sb` for sub, etc.).  If sub-proofs' stored
-      conclusions are theorem codes (by induction), the rule's
-      operation produces a theorem code — provided the rule's
-      code-level operation is sound.  Each is, on theorem-code inputs:
-      `mp_codeF2` is `Snd ∘ Snd` of an implication-code (gives the
-      consequent); `sb` substitutes a closed numeral for a variable
-      (preserves theoremhood by ruleInst's soundness).
+  * Outer-shape match ⟹ thmT returns `Fst y`.  Provided every
+    auxiliary has safe defaults (above), the stored `Fst` slot
+    can only be a theorem code: each constructor produces either
+    a real theorem code (when sub-proofs are valid) or `code(0=0)`
+    (when an auxiliary's safety check fires on malformed sub-proof
+    output).  By induction over encoding construction.  ✓
 
-So thmT's range = theorem codes.  **Guard's property holds.** ✓
+So thmT's range = theorem codes.  **Guard's property holds**, given
+the safe-default obligation.  Without it, Con is refutable and
+Goedel II vacuous — for both Guard's BRA and any faithful port.
+
+## On "Agda meta-equality vs BRA-internal Deriv"
+
+A clarifying note on a subtle framing question.
+
+The parametric defining equations have the shape
+
+  `Deriv (atomic (eqn (ap1 thmT (constr5 x)) (ap2 sb (...) (ap1 thmT x))))`
+
+— a BRA-internal `Deriv`, parametric in `x : Term`.  This is **not**
+the same as an Agda propositional equality `Eq (ap1 thmT (constr5 x))
+(ap2 sb (...) (ap1 thmT x))`: Agda Eq between two `ap1` Term
+expressions does not hold definitionally, since `ap1` is a Term
+constructor and `thmT` is a Fun1 constant — neither reduces in
+Agda's term language.
+
+What the corrected design buys is that the BRA-internal Deriv is
+provable from **standard primitive axioms already in
+`BRA/Deriv.agda`** (`axFst` + `axIfLfL`/`axIfLfN` + `axTreeEq*`),
+parametric in `x`.  No new BRA axioms needed; no Definition 12
+extension.  In contrast, the existing `Rec O stepProto` thmT only
+admits the parametric Deriv via dispatch lemmas that fail on open
+Term variables — hence the obstruction.
+
+So the substantive insight stands: **no foundation extension is
+required**.  The framing should be "the parametric defining
+equations follow trivially from `axFst` once the encoding stores
+the conclusion", not "the equations live at Agda meta-level".
+
+Agda-level `eqSubst` does help glue Deriv chains together (e.g.,
+when transporting along `thClosed` in the closure step), but the
+parametric defining equations themselves are BRA-Deriv objects.
 
 (Caveat: the soundness of code-level operations on theorem-code
 inputs is itself meta-level reasoning, not a BRA-internal claim.
@@ -444,10 +526,23 @@ correctly:
   default on outer-shape mismatch and the soundness of code-level
   operations on theorem-code inputs (by induction).
 
-The implementation cost is moderate (~1000–1500 LoC total replacement
-for the 9000 LoC current `BRA/Thm/ThmT.agda`), the foundation
-unchanged, and the existing Sb / Thm14Abstract / GoedelII /
-Thm11Diagonal infrastructure all preserved.
+The implementation cost is moderate.  Realistic breakdown:
+
+  * New thmT definition + shapeCheck combinator: ~100 LoC, 1 short
+    session.
+  * 40 encoding constructors with stored conclusions: ~50–100 LoC
+    each, totaling 2000–4000 LoC, ~2–3 sessions of mechanical work.
+  * Safe-default auxiliaries (`mp_codeF2`, `sb` augmented, `ax`,
+    `ind`, structural rules' code-level operations): ~300–500 LoC,
+    1 session.
+  * Re-derive `encode` + `thm11` (Goedel I): ~500–1000 LoC, 1 session.
+  * Build `step4`, `step5`, `closureToG` instantiation (Goedel II):
+    ~500–1000 LoC, 1–2 sessions.
+
+Total: **~3000–5000 LoC**, **5–7 sessions** for a thorough job.
+Replaces the 9000 LoC current `BRA/Thm/ThmT.agda` with cleaner code.
+Foundation unchanged; existing `Sb` / `SbAxiom` / `Thm14Abstract` /
+`GoedelII` / `Thm11Diagonal` infrastructure all preserved.
 
 Worth proceeding once the four "remaining check" items above are
 informally satisfied.
