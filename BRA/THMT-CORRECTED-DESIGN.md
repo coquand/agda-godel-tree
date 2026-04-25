@@ -1,5 +1,25 @@
 # thmT corrected design: outer-shape check + stored conclusion
 
+> **STATUS (2026-04-26): UNDER REVIEW.**  The architectural thesis of
+> this document — that thmT should be redesigned as outer-shape
+> check + stored conclusion to admit Term-parametric defining
+> equations — is being reconsidered after the realisation that
+> `constr5` should likely be `Tree → Tree` (matching Guard's actual
+> meta-construction parametric in numerals), not `Fun1` or
+> `Term → Term`.  If the closure can be reformulated at the Tree
+> level (meta-Pi over Tree, or meta-existential via `encode`), the
+> Term-parametric machinery this document proposes may be
+> unnecessary, and the original Rec-based thmT plus its closed-input
+> dispatch lemmas (`BRA/Thm/ThmT.agda`) may suffice.
+>
+> The **safe-default obligation on auxiliaries** documented in the
+> "Safe-default obligation" section below is **independently valid**
+> and does **not** depend on this document's main thesis.  See
+> `BRA/AUX-SAFE-DEFAULTS.md` for the standalone version.
+>
+> Re-reading of Guard's Theorems 12–14 to determine the correct
+> formulation is the next-session task.
+
 **This document supersedes `BRA/THMT-EQUATIONS.md` and the obstruction
 reports** (`BRA/THM14-STEP4-OBSTRUCTION.md`, the V3 plan's Option-A
 discussion).  It captures the user-proposed design after the
