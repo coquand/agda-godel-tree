@@ -1,12 +1,60 @@
 # Next session: fresh derivation of Goedel II from Guard's argument
 
-**Recommended for a fresh session.**  This session (2026-04-26)
-ended with the user observing that prior reasoning had been
-misled by Hilbert-Bernays-Löb-shaped framings, while Guard's
-actual argument lives in quantifier-free BRA with universal-
-closure semantics throughout.  Continuation in the same session
-risks re-anchoring on those framings; a fresh session has a
-better chance of producing a clean re-derivation.
+## THE LOAD-BEARING USER INSIGHT (read first)
+
+> **"Guard's argument is different since the formulation is with
+> formula with free variables implicitly universally quantified."**
+>                                                  — user, 2026-04-26
+
+In Guard's quantifier-free BRA:
+
+  * **Free variables are implicitly universally quantified.**
+    `Deriv P` for P with x free *means* "BRA proves the universal
+    closure of P".  No internalised ∀ exists.
+  * **`ruleInst` instantiates** at any specific Term: from
+    `Deriv P` with x free, derive `Deriv (P[x:=t])` for any t.
+  * **Step 5's "implication"** in Guard is just a BRA implication-
+    formula with x free.  It is not a `Deriv (A imp B)` arising
+    from internalising a meta-arrow `Deriv A → Deriv B`.  Guard
+    has only the universally-closed Deriv of an implication-
+    shaped formula.
+
+This is **structurally different** from Hilbert-Bernays-Löb-style
+provability logic, which builds an internalised `Pr` predicate
+with three derivability conditions and reasons via internalised
+implications and meta-Pi.  Guard does **none** of that machinery.
+
+## Why this matters
+
+Prior sessions (including the immediately preceding one,
+2026-04-26) drifted into HBL-shaped framings:
+
+  * Treating step 5 as a `Deriv (A imp B)` parametric in `var 1`,
+    requiring a thmT defining equation parametric in open Term
+    variables.
+  * Building a corrected-thmT redesign (`BRA/THMT-CORRECTED-DESIGN.md`)
+    to make those parametric defining equations derivable via `axFst`.
+  * Documenting "obstructions" (`BRA/THM14-STEP4-OBSTRUCTION.md`)
+    that exist only because of this framing.
+
+If Guard's argument doesn't actually require thmT to admit
+parametric defining equations on open Term variables — and if
+universally-closed Derivs + ruleInst at closed witnesses suffice
+— then **the obstruction is artificial and the rebuild plan is
+unnecessary**.
+
+A fresh session, started without anchoring on the corrected-thmT
+framing, has the best chance of producing a clean re-derivation
+that confirms or refutes this.
+
+## Status (preserved across the session boundary)
+
+This session (2026-04-26) ended with the user observing that
+prior reasoning had been misled by Hilbert-Bernays-Löb-shaped
+framings, while Guard's actual argument lives in quantifier-free
+BRA with universal-closure semantics throughout.  Continuation in
+the same session risks re-anchoring on those framings; a fresh
+session has a better chance of producing a clean re-derivation.
 
 ## The prompt
 
@@ -46,6 +94,36 @@ better chance of producing a clean re-derivation.
 > with each step annotated by which BRA-internal mechanism justifies
 > it.  No code first.  Identify exactly where (if anywhere) thmT
 > needs to be reasoned about parametrically in an open Term variable.
+>
+> **Stopping criteria for the session**:
+>
+>  1. Derivation goes through using only the listed mechanisms ⟹
+>     write up the derivation as a `BRA/GUARD-T14-DERIVATION.md`
+>     document.  Conclude that the corrected-thmT rebuild is
+>     unnecessary; only safe-default auxiliaries are needed.
+>     Recommend next-session implementation plan.
+>
+>  2. Derivation gets stuck at a specific step that genuinely
+>     needs a parametric defining equation of thmT on open Term
+>     variables ⟹ document the precise step and what's missing.
+>     Compare to the existing corrected-thmT design and confirm
+>     or refute that it solves the gap.
+>
+>  3. Derivation gets stuck for a different reason ⟹ document
+>     where, what would be needed, and whether that's a foundation
+>     question or an implementation question.
+>
+> **Length**: ~1-3 hours of focused thinking, written up.  This is
+> a research-and-writing session, not a coding session.  Stop
+> writing when the derivation is complete *or* when a clear stuck-
+> point is documented.
+
+> **Be actively skeptical of the prior session's framings.** When
+> you find yourself reaching for "internalised implication",
+> "Sigma form witness", "meta-Pi over Term", "parametric defining
+> equation of thmT on open variables" — pause and ask whether
+> Guard actually uses that, or whether it's a HBL-shaped artifact
+> from prior reasoning.
 
 ## Why this framing
 
