@@ -773,8 +773,57 @@ module Th12RecUnivCase
       eqSubst (\ z -> Deriv (P imp Property z)) eq D
 
     --------------------------------------------------------------------
-    -- Step G to be continued: G4 (lifted toIH1Rec), G5 (lifted dispCongL/R)
-    -- — the crux —, G6 (lifted parDispRuleTrans), G7 (lifted basePair).
+    -- Step G4: toIH1Rec_lifted.
+    --
+    -- Lifted version of toIH1Rec: takes a Deriv (P imp substF...) and
+    -- produces a lifted IH1Rec record where .image field is in the
+    -- implication form Deriv (P imp eqn ...).
+    --
+    -- The .Df/.fstL/.fstR/.shape fields are constant (don't depend on
+    -- the IH-Deriv), so they're identical to toIH1Rec's.
+
+    record IH1Rec_lifted (P : Formula) (f : Fun1) (x : Term) : Set where
+      field
+        Df    : Term
+        fstL  : Term
+        fstR  : Term
+        shape : Deriv (atomic (eqn (ap1 Fst Df) (ap2 Pair fstL fstR)))
+        image : Deriv (P imp atomic (eqn (ap1 thmT Df) (codeFTeq1Asym f x)))
+
+    -- Lifted image: 3 nested liftedEqSubst mirroring toIH1Rec's image_proof.
+    toIH1Rec_lifted_image : (P : Formula) (v : Nat) ->
+      Deriv (P imp substF zero (var v) P_Th12_Rec_zs) ->
+      Deriv (P imp atomic (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))
+                                (codeFTeq1Asym recF (var v))))
+    toIH1Rec_lifted_image P v lifted_ihD =
+      liftedEqSubst P (\ rhs -> atomic (eqn
+          (ap1 thmT (ap1 Df_F1_Rec_zs (var v))) rhs))
+        (codeFTeq1Asym_subst_eq_var v)
+        (liftedEqSubst P (\ Df' -> atomic (eqn
+            (ap1 thmT (ap1 Df' (var v)))
+            (subst zero (var v) (codeFTeq1Asym recF (var zero)))))
+          (Df_F1_Rec_zs_closed zero (var v))
+          (liftedEqSubst P (\ thT' -> atomic (eqn
+              (ap1 thT' (ap1 (substF1 zero (var v) Df_F1_Rec_zs)(var v)))
+              (subst zero (var v) (codeFTeq1Asym recF (var zero)))))
+            (thClosed zero (var v))
+            lifted_ihD))
+
+    toIH1Rec_lifted : (P : Formula) (v : Nat) ->
+                      Deriv (P imp substF zero (var v) P_Th12_Rec_zs) ->
+                      IH1Rec_lifted P recF (var v)
+    toIH1Rec_lifted P v lifted_ihD =
+      record
+        { Df    = ap1 Df_F1_Rec_zs (var v)
+        ; fstL  = _
+        ; fstR  = _
+        ; shape = shape_at (var v)
+        ; image = toIH1Rec_lifted_image P v lifted_ihD
+        }
+
+    --------------------------------------------------------------------
+    -- Step G to be continued: G5 (lifted dispCongL/R) — the crux —,
+    -- G6 (lifted parDispRuleTrans), G7 (lifted basePair).
 
     basePair v1 v2 ihD_v1 ihD_v2 =
       let
