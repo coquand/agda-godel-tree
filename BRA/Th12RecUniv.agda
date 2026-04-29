@@ -822,8 +822,35 @@ module Th12RecUnivCase
         }
 
     --------------------------------------------------------------------
-    -- Step G to be continued: G5 (lifted dispCongL/R) — the crux —,
-    -- G6 (lifted parDispRuleTrans), G7 (lifted basePair).
+    -- Step G5-G7 path: the lifted basePair is taken as a sub-module
+    -- parameter.  Caller discharges via either:
+    --   (a) Adding uniformity lemmas to ThmT.agda's abstract block for
+    --       thmTDispCongL_param / CongR_param / RuleTrans_param, then
+    --       composing via B_combinator + liftAxiom.
+    --   (b) Re-deriving E_v1, E_v2, chain1, chain12 inline using the
+    --       implication-form axioms (axEqCongL, axEqCongR, axEqTrans)
+    --       + axS + axK + mp directly, bypassing the dispatchers.
+    --
+    -- The basePair_param signature is what ruleIndBT's step expects
+    -- after substituting v1, v2 with concrete fresh vars.
+
+    module WithBasePairParam
+      (basePair_param : (v1 v2 : Nat) ->
+         Deriv ((substF zero (var v1) P_Th12_Rec_zs) imp
+                ((substF zero (var v2) P_Th12_Rec_zs) imp
+                 (substF zero (ap2 Pair (var v1) (var v2)) P_Th12_Rec_zs))))
+      where
+
+      ------------------------------------------------------------------
+      -- Step H: Th12_F1_Rec_zs : Deriv P_Th12_Rec_zs via ruleIndBT.
+
+      Th12_F1_Rec_zs : Deriv P_Th12_Rec_zs
+      Th12_F1_Rec_zs = ruleIndBT P_Th12_Rec_zs
+                                  (suc (suc zero))
+                                  (suc (suc (suc zero)))
+                                  Th12_at_lf_substF
+                                  (basePair_param (suc (suc zero))
+                                                  (suc (suc (suc zero))))
 
     basePair v1 v2 ihD_v1 ihD_v2 =
       let
