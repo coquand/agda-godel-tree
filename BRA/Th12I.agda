@@ -248,3 +248,18 @@ Th12_F1_I_at_var0 =
     step4 = congR Pair (mkAp1T (reify (codeF1 I)) (ap1 cor x)) bridgeR
 
   in ruleTrans step1 (ruleTrans step2 (ruleTrans step3 step4))
+
+------------------------------------------------------------------------
+-- Schematic Theorem 12 for I, in the form used by Theorem 14.
+--
+-- Df_F1_I doesn't dispatch on input shape (I works at any input via
+-- axI), so the schematic Deriv P with var 0 free is direct: the
+-- existing Th12_F1_I_at_var0 IS already this form.  Aliased here
+-- for uniformity with Th12_F1_Fst, Th12_F1_Snd.
+
+P_Th12_I : Formula
+P_Th12_I = atomic (eqn (ap1 thmT (ap1 Df_F1_I (var zero)))
+                        (codeFTeq1Asym I (var zero)))
+
+Th12_F1_I : Deriv P_Th12_I
+Th12_F1_I = Th12_F1_I_at_var0

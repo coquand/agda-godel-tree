@@ -237,3 +237,14 @@ Th12_F1_Z_at_var0 =
     step4 = congR Pair (mkAp1T (reify (codeF1 Z)) (ap1 cor x)) bridgeR
 
   in ruleTrans step1 (ruleTrans step2 (ruleTrans step3 step4))
+
+------------------------------------------------------------------------
+-- Schematic Theorem 12 for Z, in the form used by Theorem 14.
+-- Aliased for uniformity with Th12_F1_Fst, Th12_F1_Snd, Th12_F1_I.
+
+P_Th12_Z : Formula
+P_Th12_Z = atomic (eqn (ap1 thmT (ap1 Df_F1_Z (var zero)))
+                        (codeFTeq1Asym Z (var zero)))
+
+Th12_F1_Z : Deriv P_Th12_Z
+Th12_F1_Z = Th12_F1_Z_at_var0
