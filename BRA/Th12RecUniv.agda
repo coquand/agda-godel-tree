@@ -260,7 +260,49 @@ module Th12RecUnivCase
     in ruleTrans s1 (ruleTrans step_LHS step_RHS)
 
   ----------------------------------------------------------------------
-  -- Step A and B1 complete.  Steps B-H to follow:
+  -- Step C: shape proof at any input x.
+  --
+  --   Fst (ap1 Df_F1_Rec_zs x)  =BRA  tagCode_ruleTrans.
+  --
+  -- And tagCode_ruleTrans = reify (natCode tagRuleTrans) = Pair O <rest>
+  -- (since natCode of any non-zero tag is nd lf <rest>, and reify of
+  -- nd a b = ap2 Pair (reify a)(reify b)).  So tagCode_ruleTrans IS
+  -- a Pair-Term, satisfying IH1Rec.shape's requirement.
+  --
+  -- Proof: axComp2 + axKT for the Pair structure, then axFst + cong1.
+
+  shape_at : (x : Term) ->
+    Deriv (atomic (eqn (ap1 Fst (ap1 Df_F1_Rec_zs x)) tagCode_ruleTrans))
+  shape_at x =
+    let
+      s1 : Deriv (atomic (eqn (ap1 Df_F1_Rec_zs x)
+                              (ap2 Pair (ap1 (KT tagCode_ruleTrans) x)
+                                        (ap1 inner_Rec x))))
+      s1 = axComp2 Pair (KT tagCode_ruleTrans) inner_Rec x
+
+      s2 : Deriv (atomic (eqn (ap1 (KT tagCode_ruleTrans) x) tagCode_ruleTrans))
+      s2 = axKT (natCode tagRuleTrans) x
+
+      step_LHS : Deriv (atomic (eqn
+                  (ap2 Pair (ap1 (KT tagCode_ruleTrans) x)(ap1 inner_Rec x))
+                  (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec x))))
+      step_LHS = congL Pair (ap1 inner_Rec x) s2
+
+      reduce_Df : Deriv (atomic (eqn (ap1 Df_F1_Rec_zs x)
+                                     (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec x))))
+      reduce_Df = ruleTrans s1 step_LHS
+
+      cong_Fst : Deriv (atomic (eqn (ap1 Fst (ap1 Df_F1_Rec_zs x))
+                                    (ap1 Fst (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec x)))))
+      cong_Fst = cong1 Fst reduce_Df
+
+      fst_proj : Deriv (atomic (eqn (ap1 Fst (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec x)))
+                                    tagCode_ruleTrans))
+      fst_proj = axFst tagCode_ruleTrans (ap1 inner_Rec x)
+    in ruleTrans cong_Fst fst_proj
+
+  ----------------------------------------------------------------------
+  -- Step A, B1, C complete.  Steps B-H to follow:
   --   B (~80 LoC):  Df_F1_Rec_zs_at_O  : Deriv (eqn (ap1 Df_F1_Rec_zs O) lf_inner_form).
   --                Df_F1_Rec_zs_at_Pair : Deriv (eqn (ap1 Df_F1_Rec_zs (Pair v1 v2))
   --                                              (concrete chain Term)).
