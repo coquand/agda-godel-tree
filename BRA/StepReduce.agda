@@ -33,15 +33,15 @@ postRed : (f : Fun1) (h : Fun2) (a b : Term) ->
   Deriv (atomic (eqn (ap2 (Post f h) a b) (ap1 f (ap2 h a b))))
 postRed f h a b = axPost f h a b
 
--- KT reduction
-ktRed : (t x : Term) ->
-  Deriv (atomic (eqn (ap1 (KT t) x) t))
-ktRed t x = axKT t x
+-- KT reduction (Tree-indexed; canonical input).
+ktRed : (v : Tree) (x : Term) ->
+  Deriv (atomic (eqn (ap1 (KT (reify v)) x) (reify v)))
+ktRed v x = axKT v x
 
--- constF2 reduction: ap2 (Lift (KT t)) a b = t
-constF2Red : (t a b : Term) ->
-  Deriv (atomic (eqn (ap2 (Lift (KT t)) a b) t))
-constF2Red t a b = ruleTrans (liftRed (KT t) a b) (ktRed t a)
+-- constF2 reduction: ap2 (Lift (KT (reify v))) a b = reify v .
+constF2Red : (v : Tree) (a b : Term) ->
+  Deriv (atomic (eqn (ap2 (Lift (KT (reify v))) a b) (reify v)))
+constF2Red v a b = ruleTrans (liftRed (KT (reify v)) a b) (ktRed v a)
 
 -- Comp reduction
 compRed : (f g : Fun1) (t : Term) ->

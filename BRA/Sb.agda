@@ -113,7 +113,7 @@ buildVarCodeSbAt p q b =
       r1 = axFan (Lift (KT tagVarT)) (Lift Snd) Pair arg1 b
 
       r2 : Deriv (atomic (eqn (ap2 (Lift (KT tagVarT)) arg1 b) tagVarT))
-      r2 = constF2Red tagVarT arg1 b
+      r2 = constF2Red tagVar arg1 b
 
       r3 : Deriv (atomic (eqn (ap2 (Lift Snd) arg1 b) q))
       r3 = ruleTrans (axLift Snd arg1 b) (axSnd p q)

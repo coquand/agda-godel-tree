@@ -56,6 +56,11 @@ data Deriv : Formula -> Set where
   axI      : (t : Term) -> Deriv (atomic (eqn (ap1 I t) t))
   axFst    : (a b : Term) -> Deriv (atomic (eqn (ap1 Fst (ap2 Pair a b)) a))
   axSnd    : (a b : Term) -> Deriv (atomic (eqn (ap1 Snd (ap2 Pair a b)) b))
+  -- Safe-default totality on leaf input.  Combined with axFst / axSnd,
+  -- Fst and Snd are total on canonical trees (O and Pair _ _).  Required
+  -- for Theorem 12 base cases at x = O.  See feedback_thm12_totality...
+  axFstLf  : Deriv (atomic (eqn (ap1 Fst O) O))
+  axSndLf  : Deriv (atomic (eqn (ap1 Snd O) O))
   axConst  : (a b : Term) -> Deriv (atomic (eqn (ap2 Const a b) a))
   axComp   : (f g : Fun1) (t : Term) ->
              Deriv (atomic (eqn (ap1 (Comp f g) t) (ap1 f (ap1 g t))))
@@ -68,7 +73,7 @@ data Deriv : Formula -> Set where
   axFan    : (h1 h2 h : Fun2) (a b : Term) ->
              Deriv (atomic (eqn (ap2 (Fan h1 h2 h) a b)
                                  (ap2 h (ap2 h1 a b) (ap2 h2 a b))))
-  axKT     : (t x : Term) -> Deriv (atomic (eqn (ap1 (KT t) x) t))
+  axZ      : (x : Term) -> Deriv (atomic (eqn (ap1 Z x) O))
 
   ------------------------------------------------------------------
   -- Primitive recursion on trees (Guard Ax 9-10 analog for binary
@@ -96,6 +101,11 @@ data Deriv : Formula -> Set where
              Deriv (atomic (eqn (ap2 IfLf O (ap2 Pair a b)) a))
   axIfLfN  : (x y a b : Term) ->
              Deriv (atomic (eqn (ap2 IfLf (ap2 Pair x y) (ap2 Pair a b)) b))
+  -- Safe-default totality when second arg is leaf.  Required for
+  -- Theorem 12 base cases at x = O for IfLf.
+  axIfLfLL : Deriv (atomic (eqn (ap2 IfLf O O) O))
+  axIfLfNL : (x y : Term) ->
+             Deriv (atomic (eqn (ap2 IfLf (ap2 Pair x y) O) O))
   axTreeEqLL : Deriv (atomic (eqn (ap2 TreeEq O O) O))
   axTreeEqLN : (a b : Term) ->
                Deriv (atomic (eqn (ap2 TreeEq O (ap2 Pair a b)) (ap2 Pair O O)))
@@ -188,6 +198,15 @@ data Deriv : Formula -> Set where
   axExFalso  : (P Q : Formula) ->
                Deriv (P imp ((not P) imp Q))
 
+  -- Classical contrapositive:  (P ⊃ Q) ⊃ (~Q ⊃ ~P) .
+  --
+  -- Classical tautology.  The curried  axNeg  above is intuitionistically
+  -- derivable from  axExFalso , so it is too weak to derive this.  Added
+  -- as a primitive so that transport-inside-a-negation steps (used in
+  -- the Thm 11 diagonal) are one-line axiom instances.
+  axContrapos : (P Q : Formula) ->
+                Deriv ((P imp Q) imp ((not Q) imp (not P)))
+
   ------------------------------------------------------------------
   -- Rules of inference (no side conditions).
 
@@ -212,27 +231,24 @@ data Deriv : Formula -> Set where
                        (substF zero (ap2 Pair (var v1) (var v2)) P))) ->
                Deriv P
 
-  ------------------------------------------------------------------
-  -- Schema F (uniqueness of tree recursion).
-  --
-  -- If  f  and  g  both satisfy the Rec defining equations (same z,
-  -- same s), then  f  and  g  agree on all trees.  Guard 1963 does
-  -- not have this as a primitive axiom; we add it because our
-  -- primitive recursion discipline benefits from it.  Stated on
-  -- atomic equations.
+------------------------------------------------------------------------
+-- Derived axKT (Tree-indexed): for canonical input t = reify v, KT t
+-- (defined as a function in BRA.Term) reduces to a Z + Comp2-Pair tree.
+-- Transparency is provable by induction on v.
 
-  ruleF      : (f g : Fun1) (z : Term) (s : Fun2) ->
-               Deriv (atomic (eqn (ap1 f O) z)) ->
-               Deriv (atomic (eqn (ap1 f (ap2 Pair (var zero) (var (suc zero))))
-                                   (ap2 s (ap2 Pair (var zero) (var (suc zero)))
-                                          (ap2 Pair (ap1 f (var zero))
-                                                    (ap1 f (var (suc zero))))))) ->
-               Deriv (atomic (eqn (ap1 g O) z)) ->
-               Deriv (atomic (eqn (ap1 g (ap2 Pair (var zero) (var (suc zero))))
-                                   (ap2 s (ap2 Pair (var zero) (var (suc zero)))
-                                          (ap2 Pair (ap1 g (var zero))
-                                                    (ap1 g (var (suc zero))))))) ->
-               Deriv (atomic (eqn (ap1 f (var zero)) (ap1 g (var zero))))
+axKT : (v : Tree) (x : Term) ->
+       Deriv (atomic (eqn (ap1 (KT (reify v)) x) (reify v)))
+axKT lf       x = axZ x
+axKT (nd a b) x =
+  let s1 : Deriv (atomic (eqn (ap1 (Comp2 Pair (KT (reify a)) (KT (reify b))) x)
+                              (ap2 Pair (ap1 (KT (reify a)) x)
+                                        (ap1 (KT (reify b)) x))))
+      s1 = axComp2 Pair (KT (reify a)) (KT (reify b)) x
+      ihA = axKT a x
+      ihB = axKT b x
+      s2 = congL Pair (ap1 (KT (reify b)) x) ihA
+      s3 = congR Pair (reify a) ihB
+  in ruleTrans s1 (ruleTrans s2 s3)
 
 ------------------------------------------------------------------------
 -- Consistency (hyp-less form).

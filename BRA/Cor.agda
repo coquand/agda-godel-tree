@@ -52,7 +52,7 @@ stepCor = Fan (Lift (KT tagAp2T))
               Pair
 
 cor : Fun1
-cor = Rec falseT stepCor
+cor = Rec O stepCor
 
 ------------------------------------------------------------------------
 -- stepCorRed: reduction of stepCor at generic (orig, recs).
@@ -67,13 +67,13 @@ stepCorRed orig recs =
       innerRed =
         ruleTrans (fanRed (Lift (KT pairCodeF2T)) (Post Snd Pair) Pair orig recs)
         (ruleTrans (congL Pair (ap2 (Post Snd Pair) orig recs)
-                     (constF2Red pairCodeF2T orig recs))
+                     (constF2Red (codeF2 Pair) orig recs))
                    (congR Pair pairCodeF2T
                      (ruleTrans (postRed Snd Pair orig recs)
                                 (axSnd orig recs))))
   in ruleTrans (fanRed (Lift (KT tagAp2T)) inner Pair orig recs)
      (ruleTrans (congL Pair (ap2 inner orig recs)
-                  (constF2Red tagAp2T orig recs))
+                  (constF2Red tagAp2 orig recs))
                 (congR Pair tagAp2T innerRed))
 
 ------------------------------------------------------------------------
@@ -81,7 +81,7 @@ stepCorRed orig recs =
 
 corOfReify : (t : Tree) ->
   Deriv (atomic (eqn (ap1 cor (reify t)) (reify (code (reify t)))))
-corOfReify lf = axRecLf falseT stepCor
+corOfReify lf = axRecLf O stepCor
 corOfReify (nd a b) =
   let reifyA = reify a
       reifyB = reify b
@@ -96,7 +96,7 @@ corOfReify (nd a b) =
       ihB    : Deriv (atomic (eqn corB rB))
       ihB    = corOfReify b
       s1     : Deriv (atomic (eqn (ap1 cor orig) (ap2 stepCor orig recs)))
-      s1     = axRecNd falseT stepCor reifyA reifyB
+      s1     = axRecNd O stepCor reifyA reifyB
       s2     : Deriv (atomic (eqn (ap2 stepCor orig recs)
                                    (ap2 Pair tagAp2T (ap2 Pair pairCodeF2T recs))))
       s2     = stepCorRed orig recs
