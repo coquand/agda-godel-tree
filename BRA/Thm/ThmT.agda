@@ -14375,6 +14375,484 @@ abstract
        (ruleTrans s8 (ruleTrans s9 (ruleTrans s10 (ruleTrans s11
        (ruleTrans hh be))))))))))))
 
+  ------------------------------------------------------------------
+  -- Theorem 12 / Parts/RecP.agda parametric variant for axRecPNd.
+  -- Term-form analog of body_axRecPNd_eval, taking sT, pT, aT, bT
+  -- as Term parameters directly (without code/reify wrapping).
+
+  body_axRecPNd_eval_param : (sT pT aT bT bb : Term) ->
+    Deriv (atomic (eqn
+      (ap2 body_axRecPNd
+            (ap2 Pair tagCode_axRecPNd
+              (ap2 Pair sT (ap2 Pair pT (ap2 Pair aT bT)))) bb)
+      (ap2 Pair
+        -- LHS: encoded (RecP s) p (Pair a b)
+        (ap2 Pair (reify tagAp2)
+          (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+            (ap2 Pair pT
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair aT bT))))))
+        -- RHS: encoded s (Pair p (Pair a b))(Pair (RecP s p a)(RecP s p b))
+        (ap2 Pair (reify tagAp2)
+          (ap2 Pair sT
+            (ap2 Pair
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair pT
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair (reify (codeF2 Pair))
+                        (ap2 Pair aT bT))))))
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+                                (ap2 Pair pT aT)))
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+                                (ap2 Pair pT bT))))))))))))
+  body_axRecPNd_eval_param sT pT aT bT bb =
+    let payST  = sT
+        payPT  = pT
+        payAT  = aT
+        payBT  = bT
+        payT   = ap2 Pair payST (ap2 Pair payPT (ap2 Pair payAT payBT))
+        a      = ap2 Pair tagCode_axRecPNd payT
+        K_a2V  = tagAp2
+        K_a2   = reify K_a2V
+        K_pairV = codeF2 Pair
+        K_pair = reify K_pairV
+        K_rPTV = leftT (codeF2 (RecP IfLf))
+        K_rPT  = reify K_rPTV
+        ext_s  = liftCompFstSnd_evalPair tagCode_axRecPNd payST
+                   (ap2 Pair payPT (ap2 Pair payAT payBT)) bb
+        ext_p  = liftFstSndSnd_evalPair3 tagCode_axRecPNd payST payPT
+                   (ap2 Pair payAT payBT) bb
+        ext_a  = liftFstSndSndSnd_evalPair4 tagCode_axRecPNd payST payPT payAT payBT bb
+        ext_b  = liftSndSndSndSnd_evalPair4 tagCode_axRecPNd payST payPT payAT payBT bb
+        kRPT   = liftKT_eval K_rPTV a bb
+        recP_st  = pairOfFan_eval (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) a bb
+                     K_rPT payST kRPT ext_s
+        ab_pair  = pairOfFan_eval
+                     (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                     (Lift (Comp Snd (Comp Snd (Comp Snd Snd)))) a bb
+                     payAT payBT ext_a ext_b
+        kPair_ab = pairOfConst_eval K_pairV
+                     (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                          (Lift (Comp Snd (Comp Snd (Comp Snd Snd)))) Pair)
+                     a bb (ap2 Pair payAT payBT) ab_pair
+        kA2_kPair_ab = pairOfConst_eval K_a2V
+                     (Fan (Lift (KT K_pair))
+                          (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                               (Lift (Comp Snd (Comp Snd (Comp Snd Snd)))) Pair)
+                          Pair)
+                     a bb (ap2 Pair K_pair (ap2 Pair payAT payBT)) kPair_ab
+        lhs_pT_aPair = pairOfFan_eval
+                         (Lift (Comp Fst (Comp Snd Snd)))
+                         (Fan (Lift (KT K_a2))
+                              (Fan (Lift (KT K_pair))
+                                   (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                        (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                        Pair)
+                                   Pair) Pair)
+                         a bb
+                         payPT (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT)))
+                         ext_p kA2_kPair_ab
+        lhs_inner = pairOfFan_eval
+                      (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                           (Fan (Lift (KT K_a2))
+                                (Fan (Lift (KT K_pair))
+                                     (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                          (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                          Pair)
+                                     Pair) Pair)
+                           Pair)
+                      a bb
+                      (ap2 Pair K_rPT payST)
+                      (ap2 Pair payPT
+                        (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT))))
+                      recP_st lhs_pT_aPair
+        lhsBuild = pairOfConst_eval K_a2V
+                     (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                          (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                               (Fan (Lift (KT K_a2))
+                                    (Fan (Lift (KT K_pair))
+                                         (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                              (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                              Pair)
+                                         Pair) Pair)
+                               Pair) Pair)
+                     a bb
+                     (ap2 Pair (ap2 Pair K_rPT payST)
+                       (ap2 Pair payPT
+                         (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT)))))
+                     lhs_inner
+        sub1_pPair = pairOfFan_eval
+                       (Lift (Comp Fst (Comp Snd Snd)))
+                       (Fan (Lift (KT K_a2))
+                            (Fan (Lift (KT K_pair))
+                                 (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                      (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                      Pair)
+                                 Pair) Pair)
+                       a bb
+                       payPT (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT)))
+                       ext_p kA2_kPair_ab
+        sub1_kPair = pairOfConst_eval K_pairV
+                       (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                            (Fan (Lift (KT K_a2))
+                                 (Fan (Lift (KT K_pair))
+                                      (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                           (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                           Pair)
+                                      Pair) Pair)
+                            Pair)
+                       a bb
+                       (ap2 Pair payPT
+                         (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT))))
+                       sub1_pPair
+        sub1 = pairOfConst_eval K_a2V
+                 (Fan (Lift (KT K_pair))
+                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                           (Fan (Lift (KT K_a2))
+                                (Fan (Lift (KT K_pair))
+                                     (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                          (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                          Pair)
+                                     Pair) Pair)
+                           Pair) Pair)
+                 a bb
+                 (ap2 Pair K_pair
+                   (ap2 Pair payPT
+                     (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT)))))
+                 sub1_kPair
+        recA_pT_aT = pairOfFan_eval
+                       (Lift (Comp Fst (Comp Snd Snd)))
+                       (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                       a bb payPT payAT ext_p ext_a
+        recA_inner = pairOfFan_eval
+                       (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                       (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                            (Lift (Comp Fst (Comp Snd (Comp Snd Snd)))) Pair)
+                       a bb
+                       (ap2 Pair K_rPT payST)
+                       (ap2 Pair payPT payAT)
+                       recP_st recA_pT_aT
+        recA = pairOfConst_eval K_a2V
+                 (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                           (Lift (Comp Fst (Comp Snd (Comp Snd Snd)))) Pair)
+                      Pair)
+                 a bb
+                 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT))
+                 recA_inner
+        recB_pT_bT = pairOfFan_eval
+                       (Lift (Comp Fst (Comp Snd Snd)))
+                       (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                       a bb payPT payBT ext_p ext_b
+        recB_inner = pairOfFan_eval
+                       (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                       (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                            (Lift (Comp Snd (Comp Snd (Comp Snd Snd)))) Pair)
+                       a bb
+                       (ap2 Pair K_rPT payST)
+                       (ap2 Pair payPT payBT)
+                       recP_st recB_pT_bT
+        recB = pairOfConst_eval K_a2V
+                 (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                           (Lift (Comp Snd (Comp Snd (Comp Snd Snd)))) Pair)
+                      Pair)
+                 a bb
+                 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT))
+                 recB_inner
+        rec_AB = pairOfFan_eval
+                   (Fan (Lift (KT K_a2))
+                        (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                             (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                  (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                  Pair)
+                             Pair) Pair)
+                   (Fan (Lift (KT K_a2))
+                        (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                             (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                  (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                  Pair)
+                             Pair) Pair)
+                   a bb
+                   (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT)))
+                   (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT)))
+                   recA recB
+        sub2_kPair = pairOfConst_eval K_pairV
+                       (Fan (Fan (Lift (KT K_a2))
+                                 (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                           (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                           Pair)
+                                      Pair) Pair)
+                            (Fan (Lift (KT K_a2))
+                                 (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                           (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                           Pair)
+                                      Pair) Pair)
+                            Pair)
+                       a bb
+                       (ap2 Pair (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT)))
+                                  (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT))))
+                       rec_AB
+        sub2 = pairOfConst_eval K_a2V
+                 (Fan (Lift (KT K_pair))
+                      (Fan (Fan (Lift (KT K_a2))
+                                (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                     (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                          (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                          Pair)
+                                     Pair) Pair)
+                           (Fan (Lift (KT K_a2))
+                                (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                     (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                          (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                          Pair)
+                                     Pair) Pair)
+                           Pair) Pair)
+                 a bb
+                 (ap2 Pair K_pair
+                   (ap2 Pair (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT)))
+                              (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT)))))
+                 sub2_kPair
+        sub1_sub2 = pairOfFan_eval
+                      (Fan (Lift (KT K_a2))
+                           (Fan (Lift (KT K_pair))
+                                (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                     (Fan (Lift (KT K_a2))
+                                          (Fan (Lift (KT K_pair))
+                                               (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                    (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                    Pair)
+                                               Pair) Pair)
+                                     Pair) Pair) Pair)
+                      (Fan (Lift (KT K_a2))
+                           (Fan (Lift (KT K_pair))
+                                (Fan (Fan (Lift (KT K_a2))
+                                          (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                               (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                    (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                    Pair)
+                                               Pair) Pair)
+                                     (Fan (Lift (KT K_a2))
+                                          (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                               (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                    (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                    Pair)
+                                               Pair) Pair)
+                                     Pair) Pair) Pair)
+                      a bb
+                      (ap2 Pair K_a2 (ap2 Pair K_pair
+                        (ap2 Pair payPT
+                          (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT))))))
+                      (ap2 Pair K_a2 (ap2 Pair K_pair
+                        (ap2 Pair (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT)))
+                                   (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT))))))
+                      sub1 sub2
+        rhs_st_pair = pairOfFan_eval
+                        (Lift (Comp Fst Snd))
+                        (Fan (Fan (Lift (KT K_a2))
+                                  (Fan (Lift (KT K_pair))
+                                       (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                            (Fan (Lift (KT K_a2))
+                                                 (Fan (Lift (KT K_pair))
+                                                      (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                           (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                           Pair)
+                                                      Pair) Pair)
+                                            Pair) Pair) Pair)
+                             (Fan (Lift (KT K_a2))
+                                  (Fan (Lift (KT K_pair))
+                                       (Fan (Fan (Lift (KT K_a2))
+                                                 (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                           (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                           Pair)
+                                                      Pair) Pair)
+                                            (Fan (Lift (KT K_a2))
+                                                 (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                                      (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                           (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                           Pair)
+                                                      Pair) Pair)
+                                            Pair) Pair) Pair)
+                             Pair)
+                        a bb
+                        payST
+                        (ap2 Pair (ap2 Pair K_a2 (ap2 Pair K_pair
+                                    (ap2 Pair payPT
+                                      (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT))))))
+                                   (ap2 Pair K_a2 (ap2 Pair K_pair
+                                     (ap2 Pair (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT)))
+                                                (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT)))))))
+                        ext_s sub1_sub2
+        rhsBuild = pairOfConst_eval K_a2V
+                     (Fan (Lift (Comp Fst Snd))
+                          (Fan (Fan (Lift (KT K_a2))
+                                    (Fan (Lift (KT K_pair))
+                                         (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                              (Fan (Lift (KT K_a2))
+                                                   (Fan (Lift (KT K_pair))
+                                                        (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                             (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                             Pair)
+                                                        Pair) Pair)
+                                              Pair) Pair) Pair)
+                               (Fan (Lift (KT K_a2))
+                                    (Fan (Lift (KT K_pair))
+                                         (Fan (Fan (Lift (KT K_a2))
+                                                   (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                                        (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                             (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                             Pair)
+                                                        Pair) Pair)
+                                              (Fan (Lift (KT K_a2))
+                                                   (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                                        (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                             (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                             Pair)
+                                                        Pair) Pair)
+                                              Pair) Pair) Pair)
+                               Pair) Pair)
+                     a bb
+                     (ap2 Pair payST
+                       (ap2 Pair (ap2 Pair K_a2 (ap2 Pair K_pair
+                                   (ap2 Pair payPT
+                                     (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT))))))
+                                  (ap2 Pair K_a2 (ap2 Pair K_pair
+                                    (ap2 Pair (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT)))
+                                               (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT))))))))
+                     rhs_st_pair
+    in pairOfFan_eval
+         (Fan (Lift (KT K_a2))
+              (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                   (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                        (Fan (Lift (KT K_a2))
+                             (Fan (Lift (KT K_pair))
+                                  (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                       (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                       Pair)
+                                  Pair) Pair)
+                        Pair) Pair) Pair)
+         (Fan (Lift (KT K_a2))
+              (Fan (Lift (Comp Fst Snd))
+                   (Fan (Fan (Lift (KT K_a2))
+                             (Fan (Lift (KT K_pair))
+                                  (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                       (Fan (Lift (KT K_a2))
+                                            (Fan (Lift (KT K_pair))
+                                                 (Fan (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                      (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                      Pair)
+                                                 Pair) Pair)
+                                       Pair) Pair) Pair)
+                        (Fan (Lift (KT K_a2))
+                             (Fan (Lift (KT K_pair))
+                                  (Fan (Fan (Lift (KT K_a2))
+                                            (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                                 (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                      (Lift (Comp Fst (Comp Snd (Comp Snd Snd))))
+                                                      Pair)
+                                                 Pair) Pair)
+                                       (Fan (Lift (KT K_a2))
+                                            (Fan (Fan (Lift (KT K_rPT)) (Lift (Comp Fst Snd)) Pair)
+                                                 (Fan (Lift (Comp Fst (Comp Snd Snd)))
+                                                      (Lift (Comp Snd (Comp Snd (Comp Snd Snd))))
+                                                      Pair)
+                                                 Pair) Pair)
+                                       Pair) Pair) Pair)
+                        Pair) Pair) Pair)
+         a bb
+         (ap2 Pair K_a2
+           (ap2 Pair (ap2 Pair K_rPT payST)
+             (ap2 Pair payPT
+               (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT))))))
+         (ap2 Pair K_a2
+           (ap2 Pair payST
+             (ap2 Pair (ap2 Pair K_a2 (ap2 Pair K_pair
+                         (ap2 Pair payPT
+                           (ap2 Pair K_a2 (ap2 Pair K_pair (ap2 Pair payAT payBT))))))
+                        (ap2 Pair K_a2 (ap2 Pair K_pair
+                          (ap2 Pair (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payAT)))
+                                     (ap2 Pair K_a2 (ap2 Pair (ap2 Pair K_rPT payST) (ap2 Pair payPT payBT)))))))))
+         lhsBuild rhsBuild
+
+  thmTDispAxRecPNd_param : (sT pT aT bT : Term) ->
+    Deriv (atomic (eqn
+      (ap1 thmT (ap2 Pair tagCode_axRecPNd
+                   (ap2 Pair sT (ap2 Pair pT (ap2 Pair aT bT)))))
+      (ap2 Pair
+        (ap2 Pair (reify tagAp2)
+          (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+            (ap2 Pair pT
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair aT bT))))))
+        (ap2 Pair (reify tagAp2)
+          (ap2 Pair sT
+            (ap2 Pair
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair pT
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair (reify (codeF2 Pair))
+                        (ap2 Pair aT bT))))))
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+                                (ap2 Pair pT aT)))
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+                                (ap2 Pair pT bT))))))))))))
+  thmTDispAxRecPNd_param sT pT aT bT =
+    let payT = ap2 Pair sT (ap2 Pair pT (ap2 Pair aT bT))
+        a    = ap2 Pair tagCode_axRecPNd payT
+        b    = ap2 Pair (ap1 thmT tagCode_axRecPNd) (ap1 thmT payT)
+        e1   = dispatchOpens tagAxRecPLf payT
+        s1   = skipAtTag (natCode tagAxI)      tagCode_axRecPNd payT b body_axI      next_axI
+                  (teqDiff tagAxI      tagAxRecPNd refl)
+        s2   = skipAtTag (natCode tagAxFst)    tagCode_axRecPNd payT b body_axFst    next_axFst
+                  (teqDiff tagAxFst    tagAxRecPNd refl)
+        s3   = skipAtTag (natCode tagAxSnd)    tagCode_axRecPNd payT b body_axSnd    next_axSnd
+                  (teqDiff tagAxSnd    tagAxRecPNd refl)
+        s4   = skipAtTag (natCode tagAxConst)  tagCode_axRecPNd payT b body_axConst  next_axConst
+                  (teqDiff tagAxConst  tagAxRecPNd refl)
+        s5   = skipAtTag (natCode tagAxComp)   tagCode_axRecPNd payT b body_axComp   next_axComp
+                  (teqDiff tagAxComp   tagAxRecPNd refl)
+        s6   = skipAtTag (natCode tagAxComp2)  tagCode_axRecPNd payT b body_axComp2  next_axComp2
+                  (teqDiff tagAxComp2  tagAxRecPNd refl)
+        s7   = skipAtTag (natCode tagAxLift)   tagCode_axRecPNd payT b body_axLift   next_axLift
+                  (teqDiff tagAxLift   tagAxRecPNd refl)
+        s8   = skipAtTag (natCode tagAxPost)   tagCode_axRecPNd payT b body_axPost   next_axPost
+                  (teqDiff tagAxPost   tagAxRecPNd refl)
+        s9   = skipAtTag (natCode tagAxFan)    tagCode_axRecPNd payT b body_axFan    next_axFan
+                  (teqDiff tagAxFan    tagAxRecPNd refl)
+        s10  = skipAtTag (natCode tagAxKT)     tagCode_axRecPNd payT b body_axZ      next_axKT
+                  (teqDiff tagAxKT     tagAxRecPNd refl)
+        s11  = skipAtTag (natCode tagAxRecLf)  tagCode_axRecPNd payT b body_axRecLf  next_axRecLf
+                  (teqDiff tagAxRecLf  tagAxRecPNd refl)
+        s12  = skipAtTag (natCode tagAxRecNd)  tagCode_axRecPNd payT b body_axRecNd  next_axRecNd
+                  (teqDiff tagAxRecNd  tagAxRecPNd refl)
+        s13  = skipAtTag (natCode tagAxRecPLf) tagCode_axRecPNd payT b body_axRecPLf next_axRecPLf
+                  (teqDiff tagAxRecPLf tagAxRecPNd refl)
+        hh   = hitAtTag  (natCode tagAxRecPNd) tagCode_axRecPNd payT b body_axRecPNd next_axRecPNd
+                  (teqEq tagAxRecPNd)
+        be   = body_axRecPNd_eval_param sT pT aT bT b
+    in ruleTrans e1 (ruleTrans s1 (ruleTrans s2 (ruleTrans s3
+       (ruleTrans s4 (ruleTrans s5 (ruleTrans s6 (ruleTrans s7
+       (ruleTrans s8 (ruleTrans s9 (ruleTrans s10 (ruleTrans s11
+       (ruleTrans s12 (ruleTrans s13 (ruleTrans hh be))))))))))))))
+
 ------------------------------------------------------------------------
 -- WithDispatch : module parameterised by the 30 dispatch lemmas not
 -- proved in this session.  Sessions D-F instantiate.
