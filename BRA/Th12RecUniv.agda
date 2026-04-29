@@ -516,10 +516,47 @@ module Th12RecUnivCase
   -- WithClosure submodule: takes the closure proof as parameter, then
   -- delivers Steps D-final, E, F, G, H using it.
 
+  ----------------------------------------------------------------------
+  -- Df_chain12_at v1 v2 : the Term returned by RecPairCase.thm12_Rec_zs_pair
+  -- when instantiated with v1T = var v1, v2T = var v2, and IH1Rec.Df = ap1
+  -- Df_F1_Rec_zs (var v_i).  Computed by manually expanding RecPairCase's
+  -- chain construction (see BRA.Th12Rec.Th12RecCase.RecPairCase).
+
+  Df_chain12_at : (v1 v2 : Nat) -> Term
+  Df_chain12_at v1 v2 =
+    let cv1 = ap1 cor (var v1)
+        cv2 = ap1 cor (var v2)
+        rec_v1 = ap1 recF (var v1)
+        X' = ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cv1 cv2))
+        Df_E1 = ap2 Pair tagCode_axRecNd
+                  (ap2 Pair zT (ap2 Pair sT (ap2 Pair cv1 cv2)))
+        Df_E_v1 = ap2 Pair tagCode_congL
+                    (ap2 Pair pCT (ap2 Pair (ap1 Df_F1_Rec_zs (var v1))
+                                            (mkAp1T cf cv2)))
+        Df_E_v1_lifted = ap2 Pair tagCode_congR
+                            (ap2 Pair sT (ap2 Pair Df_E_v1 X'))
+        Df_chain1 = ap2 Pair tagCode_ruleTrans
+                      (ap2 Pair Df_E1 Df_E_v1_lifted)
+        Df_E_v2 = ap2 Pair tagCode_congR
+                    (ap2 Pair pCT (ap2 Pair (ap1 Df_F1_Rec_zs (var v2))
+                                            (ap1 cor rec_v1)))
+        Df_E_v2_lifted = ap2 Pair tagCode_congR
+                            (ap2 Pair sT (ap2 Pair Df_E_v2 X'))
+    in ap2 Pair tagCode_ruleTrans (ap2 Pair Df_chain1 Df_E_v2_lifted)
+
   module WithClosure
     (Df_F1_Rec_zs_closed :
        (x : Nat) (r : Term) ->
        Eq (substF1 x r Df_F1_Rec_zs) Df_F1_Rec_zs)
+    -- Theorem 12 for s in BRA-Deriv form (NOT encoded form).
+    (ih_s_bra : (a b : Term) ->
+       Deriv (atomic (eqn (mkAp2T sT (ap1 cor a) (ap1 cor b))
+                          (ap1 cor (ap2 s a b)))))
+    -- Step B2 (mechanical, ~150-200 LoC): BRA-equality bridging
+    -- ap1 Df_F1_Rec_zs (Pair v1 v2) to Df_chain12_at v1 v2.
+    (Df_F1_Rec_zs_at_Pair : (v1 v2 : Nat) ->
+       Deriv (atomic (eqn (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))
+                          (Df_chain12_at v1 v2))))
     where
 
     --------------------------------------------------------------------
@@ -622,6 +659,85 @@ module Th12RecUnivCase
                   (subst zero (var v) (codeFTeq1Asym recF (var zero))))))
                 (thClosed zero (var v))
                 ihD))
+
+    --------------------------------------------------------------------
+    -- Step F: basePair Agda function.
+    --
+    -- Given two IH-Derivs at var v1, var v2, build Deriv (substF zero
+    -- (Pair (var v1)(var v2)) P_Th12_Rec_zs).
+    --
+    -- Strategy:
+    --   1. Use toIH1Rec to package each IH-Deriv as IH1Rec record.
+    --   2. Apply RecPairCase to get the Sigma chain proof.
+    --   3. Use Df_F1_Rec_zs_at_Pair to bridge ap1 Df_F1_Rec_zs (Pair v1 v2)
+    --      = Df_chain12_at v1 v2 (= the Sigma's first projection).
+    --   4. cong1 thmT + ruleTrans to derive
+    --      Deriv (eqn (thmT (ap1 Df_F1_Rec_zs (Pair v1 v2)))(codeFTeq1Asym recF (Pair v1 v2))).
+    --   5. eqSubst chain (analog of Step D-final) to bridge to substF form.
+
+    -- Eq lemma: subst zero (Pair (var v1)(var v2)) (codeFTeq1Asym recF (var zero))
+    --         = codeFTeq1Asym recF (Pair (var v1)(var v2)).
+    codeFTeq1Asym_subst_eq_Pair : (v1 v2 : Nat) ->
+      Eq (subst zero (ap2 Pair (var v1) (var v2)) (codeFTeq1Asym recF (var zero)))
+         (codeFTeq1Asym recF (ap2 Pair (var v1) (var v2)))
+    codeFTeq1Asym_subst_eq_Pair v1 v2 =
+      eqCong3 (\ cf' cor' recF' -> ap2 Pair
+        (ap2 Pair (reify tagAp1)(ap2 Pair cf' (ap1 cor' (ap2 Pair (var v1)(var v2)))))
+        (ap1 cor' (ap1 recF' (ap2 Pair (var v1)(var v2)))))
+        (cf_closed zero (ap2 Pair (var v1)(var v2)))
+        (cor_closed_eq zero (ap2 Pair (var v1)(var v2)))
+        (recF_closed zero (ap2 Pair (var v1)(var v2)))
+
+    basePair : (v1 v2 : Nat) ->
+               Deriv (substF zero (var v1) P_Th12_Rec_zs) ->
+               Deriv (substF zero (var v2) P_Th12_Rec_zs) ->
+               Deriv (substF zero (ap2 Pair (var v1) (var v2)) P_Th12_Rec_zs)
+    basePair v1 v2 ihD_v1 ihD_v2 =
+      let
+        ih1 : IH1Rec recF (var v1)
+        ih1 = toIH1Rec v1 ihD_v1
+
+        ih2 : IH1Rec recF (var v2)
+        ih2 = toIH1Rec v2 ihD_v2
+
+        -- Apply RecPairCase to get the Sigma chain proof.
+        module RPC = BRA.Th12Rec.Th12RecCase.RecPairCase z s z_corLemma
+                       (var v1) (var v2) ih1 ih2 ih_s_bra
+
+        -- The Sigma's image: thmT (Df_chain12) = codeFTeq1Asym recF (Pair v1 v2).
+        sigma_image : Deriv (atomic (eqn (ap1 thmT (Df_chain12_at v1 v2))
+                                          (codeFTeq1Asym recF (ap2 Pair (var v1) (var v2)))))
+        sigma_image = snd RPC.thm12_Rec_zs_pair
+
+        -- Bridge: ap1 Df_F1_Rec_zs (Pair v1 v2) =BRA Df_chain12_at v1 v2.
+        bridge_at_Pair : Deriv (atomic (eqn (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))
+                                             (Df_chain12_at v1 v2)))
+        bridge_at_Pair = Df_F1_Rec_zs_at_Pair v1 v2
+
+        -- cong1 thmT to lift bridge.
+        bridge_thmT : Deriv (atomic (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2))))
+                                          (ap1 thmT (Df_chain12_at v1 v2))))
+        bridge_thmT = cong1 thmT bridge_at_Pair
+
+        -- Compose: thmT (Df_F1_Rec_zs (Pair v1 v2)) = codeFTeq1Asym recF (Pair v1 v2).
+        concrete : Deriv (atomic (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2))))
+                                       (codeFTeq1Asym recF (ap2 Pair (var v1) (var v2)))))
+        concrete = ruleTrans bridge_thmT sigma_image
+      in
+        -- Bridge concrete to substF form via 3-layer eqSubst chain.
+        eqSubst (\ thT' -> Deriv (atomic (eqn
+            (ap1 thT' (ap1 (substF1 zero (ap2 Pair (var v1) (var v2)) Df_F1_Rec_zs)
+                            (ap2 Pair (var v1) (var v2))))
+            (subst zero (ap2 Pair (var v1) (var v2)) (codeFTeq1Asym recF (var zero))))))
+          (eqSym (thClosed zero (ap2 Pair (var v1) (var v2))))
+          (eqSubst (\ Df' -> Deriv (atomic (eqn
+              (ap1 thmT (ap1 Df' (ap2 Pair (var v1) (var v2))))
+              (subst zero (ap2 Pair (var v1) (var v2)) (codeFTeq1Asym recF (var zero))))))
+            (eqSym (Df_F1_Rec_zs_closed zero (ap2 Pair (var v1) (var v2))))
+            (eqSubst (\ rhs -> Deriv (atomic (eqn
+                (ap1 thmT (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))) rhs)))
+              (eqSym (codeFTeq1Asym_subst_eq_Pair v1 v2))
+              concrete))
 
   ----------------------------------------------------------------------
   -- Steps E, F, G, H to follow.  Steps B-H to follow:
