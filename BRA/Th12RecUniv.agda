@@ -297,6 +297,389 @@ module Th12RecUnivCase
     in ruleTrans s1 step
 
   ----------------------------------------------------------------------
+  -- Step B2 reduction lemmas: BRA reductions of step_inner's emit_X
+  -- combinators at runtime (orig = Pair v1 v2, recs = Pair r1 r2).
+
+  -- Generic helper: EmitPair_red.
+  EmitPair_red : (ha hb : Fun2) (orig recs : Term) (a' b' : Term)
+              -> Deriv (atomic (eqn (ap2 ha orig recs) a'))
+              -> Deriv (atomic (eqn (ap2 hb orig recs) b'))
+              -> Deriv (atomic (eqn (ap2 (EmitPair ha hb) orig recs) (ap2 Pair a' b')))
+  EmitPair_red ha hb orig recs a' b' Da Db =
+    let s1 = axFan ha hb Pair orig recs
+        s2 = congL Pair (ap2 hb orig recs) Da
+        s3 = congR Pair a' Db
+    in ruleTrans s1 (ruleTrans s2 s3)
+
+  -- KT2_red: ap2 (Lift (KT (reify T))) orig recs = reify T.
+  KT2_reify_red : (T : Tree) (orig recs : Term) ->
+    Deriv (atomic (eqn (ap2 (Lift (KT (reify T))) orig recs) (reify T)))
+  KT2_reify_red T orig recs =
+    ruleTrans (axLift (KT (reify T)) orig recs) (axKT T orig)
+
+  -- emit_cv1 reduces to ap1 cor v1 at orig=Pair v1 v2.
+  emit_cv1_red : (v1' v2' recs : Term) ->
+    Deriv (atomic (eqn (ap2 emit_cv1 (ap2 Pair v1' v2') recs) (ap1 cor v1')))
+  emit_cv1_red v1' v2' recs =
+    let s1 = axLift (Comp cor Fst) (ap2 Pair v1' v2') recs
+        s2 = axComp cor Fst (ap2 Pair v1' v2')
+        s3 = cong1 cor (axFst v1' v2')
+    in ruleTrans s1 (ruleTrans s2 s3)
+
+  -- emit_cv2 reduces to ap1 cor v2 at orig=Pair v1 v2.
+  emit_cv2_red : (v1' v2' recs : Term) ->
+    Deriv (atomic (eqn (ap2 emit_cv2 (ap2 Pair v1' v2') recs) (ap1 cor v2')))
+  emit_cv2_red v1' v2' recs =
+    let s1 = axLift (Comp cor Snd) (ap2 Pair v1' v2') recs
+        s2 = axComp cor Snd (ap2 Pair v1' v2')
+        s3 = cong1 cor (axSnd v1' v2')
+    in ruleTrans s1 (ruleTrans s2 s3)
+
+  -- emit_corRecV1 reduces to cor (recF v1) at orig=Pair v1 v2.
+  emit_corRecV1_red : (v1' v2' recs : Term) ->
+    Deriv (atomic (eqn (ap2 emit_corRecV1 (ap2 Pair v1' v2') recs)
+                       (ap1 cor (ap1 recF v1'))))
+  emit_corRecV1_red v1' v2' recs =
+    let s1 = axLift (Comp cor (Comp recF Fst)) (ap2 Pair v1' v2') recs
+        s2 = axComp cor (Comp recF Fst) (ap2 Pair v1' v2')
+        s3 = cong1 cor (axComp recF Fst (ap2 Pair v1' v2'))
+        s4 = cong1 cor (cong1 recF (axFst v1' v2'))
+    in ruleTrans s1 (ruleTrans s2 (ruleTrans s3 s4))
+
+  -- RecsFst at orig=any, recs=Pair r1 r2 reduces to r1.
+  RecsFst_red : (orig r1 r2 : Term) ->
+    Deriv (atomic (eqn (ap2 RecsFst orig (ap2 Pair r1 r2)) r1))
+  RecsFst_red orig r1 r2 =
+    let s1 = axPost Fst Recs orig (ap2 Pair r1 r2)
+        s2 = cong1 Fst (axPost Snd Pair orig (ap2 Pair r1 r2))
+        s3 = cong1 Fst (axSnd orig (ap2 Pair r1 r2))
+        s4 = axFst r1 r2
+    in ruleTrans s1 (ruleTrans s2 (ruleTrans s3 s4))
+
+  -- RecsSnd similarly.
+  RecsSnd_red : (orig r1 r2 : Term) ->
+    Deriv (atomic (eqn (ap2 RecsSnd orig (ap2 Pair r1 r2)) r2))
+  RecsSnd_red orig r1 r2 =
+    let s1 = axPost Snd Recs orig (ap2 Pair r1 r2)
+        s2 = cong1 Snd (axPost Snd Pair orig (ap2 Pair r1 r2))
+        s3 = cong1 Snd (axSnd orig (ap2 Pair r1 r2))
+        s4 = axSnd r1 r2
+    in ruleTrans s1 (ruleTrans s2 (ruleTrans s3 s4))
+
+  -- emit_ih_v1_Df reduces to wrapped_inner_Rec (var v1) at runtime.
+  -- emit_ih_v1_Df = EmitPair (KT2 tagCode_ruleTrans) RecsFst.
+  emit_ih_v1_Df_red : (v1' v2' r1 r2 : Term) ->
+    Deriv (atomic (eqn (ap2 emit_ih_v1_Df (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+                       (ap2 Pair tagCode_ruleTrans r1)))
+  emit_ih_v1_Df_red v1' v2' r1 r2 =
+    EmitPair_red (KT2 tagCode_ruleTrans) RecsFst
+      (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+      tagCode_ruleTrans r1
+      (KT2_reify_red (natCode tagRuleTrans) (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+      (RecsFst_red (ap2 Pair v1' v2') r1 r2)
+
+  emit_ih_v2_Df_red : (v1' v2' r1 r2 : Term) ->
+    Deriv (atomic (eqn (ap2 emit_ih_v2_Df (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+                       (ap2 Pair tagCode_ruleTrans r2)))
+  emit_ih_v2_Df_red v1' v2' r1 r2 =
+    EmitPair_red (KT2 tagCode_ruleTrans) RecsSnd
+      (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+      tagCode_ruleTrans r2
+      (KT2_reify_red (natCode tagRuleTrans) (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+      (RecsSnd_red (ap2 Pair v1' v2') r1 r2)
+
+  -- emit_X reduces to mkAp2T pCT cv1 cv2 (= X' in Df_chain12_at) at runtime.
+  emit_X_red : (v1' v2' recs : Term) ->
+    Deriv (atomic (eqn (ap2 emit_X (ap2 Pair v1' v2') recs)
+                       (ap2 Pair (reify tagAp2)
+                         (ap2 Pair pCT (ap2 Pair (ap1 cor v1')(ap1 cor v2'))))))
+  emit_X_red v1' v2' recs =
+    EmitPair_red (KT2 (reify tagAp2)) _
+      (ap2 Pair v1' v2') recs (reify tagAp2) _
+      (KT2_reify_red tagAp2 (ap2 Pair v1' v2') recs)
+      (EmitPair_red (KT2 pCT) _
+        (ap2 Pair v1' v2') recs pCT _
+        (KT2_reify_red (codeF2 Pair) (ap2 Pair v1' v2') recs)
+        (EmitPair_red emit_cv1 emit_cv2
+          (ap2 Pair v1' v2') recs (ap1 cor v1') (ap1 cor v2')
+          (emit_cv1_red v1' v2' recs)
+          (emit_cv2_red v1' v2' recs)))
+
+  -- emit_mkAp1Tcf at emit_t reduces to mkAp1T cf t' if emit_t reduces to t'.
+  emit_mkAp1Tcf_red : (emit_t : Fun2) (orig recs : Term) (t' : Term) ->
+    Deriv (atomic (eqn (ap2 emit_t orig recs) t')) ->
+    Deriv (atomic (eqn (ap2 (emit_mkAp1Tcf emit_t) orig recs)
+                       (ap2 Pair (reify tagAp1) (ap2 Pair cf t'))))
+  emit_mkAp1Tcf_red emit_t orig recs t' Dt =
+    EmitPair_red (KT2 (reify tagAp1)) _
+      orig recs (reify tagAp1) _
+      (KT2_reify_red tagAp1 orig recs)
+      (EmitPair_red (KT2 cf) emit_t
+        orig recs cf t'
+        (KT2_reify_red (codeF1 recF) orig recs)
+        Dt)
+
+  -- emit_Df_E1 reduces to Df_E1 (per Df_chain12_at).
+  emit_Df_E1_red : (v1' v2' recs : Term) ->
+    Deriv (atomic (eqn (ap2 emit_Df_E1 (ap2 Pair v1' v2') recs)
+                       (ap2 Pair tagCode_axRecNd
+                         (ap2 Pair zT (ap2 Pair sT
+                           (ap2 Pair (ap1 cor v1')(ap1 cor v2')))))))
+  emit_Df_E1_red v1' v2' recs =
+    EmitPair_red (KT2 tagCode_axRecNd) _
+      (ap2 Pair v1' v2') recs tagCode_axRecNd _
+      (KT2_reify_red _ (ap2 Pair v1' v2') recs)
+      (EmitPair_red (KT2 zT) _
+        (ap2 Pair v1' v2') recs zT _
+        (KT2_reify_red (code z) (ap2 Pair v1' v2') recs)
+        (EmitPair_red (KT2 sT) _
+          (ap2 Pair v1' v2') recs sT _
+          (KT2_reify_red (codeF2 s) (ap2 Pair v1' v2') recs)
+          (EmitPair_red emit_cv1 emit_cv2
+            (ap2 Pair v1' v2') recs (ap1 cor v1') (ap1 cor v2')
+            (emit_cv1_red v1' v2' recs)
+            (emit_cv2_red v1' v2' recs))))
+
+  -- emit_Df_E_v1 reduces to Df_E_v1.
+  emit_Df_E_v1_red : (v1' v2' r1 r2 : Term) ->
+    Deriv (atomic (eqn (ap2 emit_Df_E_v1 (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+                       (ap2 Pair tagCode_congL
+                         (ap2 Pair pCT (ap2 Pair (ap2 Pair tagCode_ruleTrans r1)
+                                                  (ap2 Pair (reify tagAp1)
+                                                    (ap2 Pair cf (ap1 cor v2'))))))))
+  emit_Df_E_v1_red v1' v2' r1 r2 =
+    EmitPair_red (KT2 tagCode_congL) _
+      (ap2 Pair v1' v2') (ap2 Pair r1 r2) tagCode_congL _
+      (KT2_reify_red _ (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+      (EmitPair_red (KT2 pCT) _
+        (ap2 Pair v1' v2') (ap2 Pair r1 r2) pCT _
+        (KT2_reify_red (codeF2 Pair) (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+        (EmitPair_red emit_ih_v1_Df _
+          (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+          (ap2 Pair tagCode_ruleTrans r1) _
+          (emit_ih_v1_Df_red v1' v2' r1 r2)
+          (emit_mkAp1Tcf_red emit_cv2 (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+            (ap1 cor v2') (emit_cv2_red v1' v2' (ap2 Pair r1 r2)))))
+
+  -- emit_Df_E_v1_lifted reduces to Df_E_v1_lifted.
+  emit_Df_E_v1_lifted_red : (v1' v2' r1 r2 : Term)
+    (Df_E_v1' : Term)
+    (Df_E_v1_red : Deriv (atomic (eqn (ap2 emit_Df_E_v1 (ap2 Pair v1' v2') (ap2 Pair r1 r2)) Df_E_v1'))) ->
+    Deriv (atomic (eqn (ap2 emit_Df_E_v1_lifted (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+                       (ap2 Pair tagCode_congR
+                         (ap2 Pair sT
+                           (ap2 Pair Df_E_v1'
+                                     (ap2 Pair (reify tagAp2)
+                                       (ap2 Pair pCT
+                                         (ap2 Pair (ap1 cor v1')(ap1 cor v2')))))))))
+  emit_Df_E_v1_lifted_red v1' v2' r1 r2 Df_E_v1' Df_E_v1_red =
+    EmitPair_red (KT2 tagCode_congR) _
+      (ap2 Pair v1' v2') (ap2 Pair r1 r2) tagCode_congR _
+      (KT2_reify_red _ (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+      (EmitPair_red (KT2 sT) _
+        (ap2 Pair v1' v2') (ap2 Pair r1 r2) sT _
+        (KT2_reify_red (codeF2 s) (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+        (EmitPair_red emit_Df_E_v1 emit_X
+          (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+          Df_E_v1' _
+          Df_E_v1_red
+          (emit_X_red v1' v2' (ap2 Pair r1 r2))))
+
+  -- emit_Df_chain1 reduces to Df_chain1.
+  emit_Df_chain1_red : (v1' v2' r1 r2 : Term)
+    (Df_E1' Df_E_v1_lifted' : Term)
+    (DE1 : Deriv (atomic (eqn (ap2 emit_Df_E1 (ap2 Pair v1' v2') (ap2 Pair r1 r2)) Df_E1')))
+    (DEv1 : Deriv (atomic (eqn (ap2 emit_Df_E_v1_lifted (ap2 Pair v1' v2') (ap2 Pair r1 r2)) Df_E_v1_lifted'))) ->
+    Deriv (atomic (eqn (ap2 emit_Df_chain1 (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+                       (ap2 Pair tagCode_ruleTrans (ap2 Pair Df_E1' Df_E_v1_lifted'))))
+  emit_Df_chain1_red v1' v2' r1 r2 Df_E1' Df_E_v1_lifted' DE1 DEv1 =
+    EmitPair_red (KT2 tagCode_ruleTrans) _
+      (ap2 Pair v1' v2') (ap2 Pair r1 r2) tagCode_ruleTrans _
+      (KT2_reify_red _ (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+      (EmitPair_red emit_Df_E1 emit_Df_E_v1_lifted
+        (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+        Df_E1' Df_E_v1_lifted'
+        DE1 DEv1)
+
+  emit_Df_E_v2_red : (v1' v2' r1 r2 : Term) ->
+    Deriv (atomic (eqn (ap2 emit_Df_E_v2 (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+                       (ap2 Pair tagCode_congR
+                         (ap2 Pair pCT
+                           (ap2 Pair (ap2 Pair tagCode_ruleTrans r2)
+                                     (ap1 cor (ap1 recF v1')))))))
+  emit_Df_E_v2_red v1' v2' r1 r2 =
+    EmitPair_red (KT2 tagCode_congR) _
+      (ap2 Pair v1' v2') (ap2 Pair r1 r2) tagCode_congR _
+      (KT2_reify_red _ (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+      (EmitPair_red (KT2 pCT) _
+        (ap2 Pair v1' v2') (ap2 Pair r1 r2) pCT _
+        (KT2_reify_red (codeF2 Pair) (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+        (EmitPair_red emit_ih_v2_Df emit_corRecV1
+          (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+          (ap2 Pair tagCode_ruleTrans r2) (ap1 cor (ap1 recF v1'))
+          (emit_ih_v2_Df_red v1' v2' r1 r2)
+          (emit_corRecV1_red v1' v2' (ap2 Pair r1 r2))))
+
+  emit_Df_E_v2_lifted_red : (v1' v2' r1 r2 : Term)
+    (Df_E_v2' : Term)
+    (DE2 : Deriv (atomic (eqn (ap2 emit_Df_E_v2 (ap2 Pair v1' v2') (ap2 Pair r1 r2)) Df_E_v2'))) ->
+    Deriv (atomic (eqn (ap2 emit_Df_E_v2_lifted (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+                       (ap2 Pair tagCode_congR
+                         (ap2 Pair sT
+                           (ap2 Pair Df_E_v2'
+                                     (ap2 Pair (reify tagAp2)
+                                       (ap2 Pair pCT
+                                         (ap2 Pair (ap1 cor v1')(ap1 cor v2')))))))))
+  emit_Df_E_v2_lifted_red v1' v2' r1 r2 Df_E_v2' DE2 =
+    EmitPair_red (KT2 tagCode_congR) _
+      (ap2 Pair v1' v2') (ap2 Pair r1 r2) tagCode_congR _
+      (KT2_reify_red _ (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+      (EmitPair_red (KT2 sT) _
+        (ap2 Pair v1' v2') (ap2 Pair r1 r2) sT _
+        (KT2_reify_red (codeF2 s) (ap2 Pair v1' v2') (ap2 Pair r1 r2))
+        (EmitPair_red emit_Df_E_v2 emit_X
+          (ap2 Pair v1' v2') (ap2 Pair r1 r2)
+          Df_E_v2' _
+          DE2
+          (emit_X_red v1' v2' (ap2 Pair r1 r2))))
+
+  ----------------------------------------------------------------------
+  -- Step B2: Df_F1_Rec_zs_at_Pair_proven.
+  --
+  -- Compose:
+  --   ap1 Df_F1_Rec_zs (Pair v1 v2)
+  --   = wrapped_inner_Rec (Pair v1 v2)              [Df_F1_Rec_zs_reduce_outer]
+  --   = Pair tagCode_ruleTrans (ap1 inner_Rec (Pair v1 v2))
+  --   = Pair tagCode_ruleTrans (ap2 step_inner pairT (Pair r1 r2))    [axRecNd]
+  --   = Pair tagCode_ruleTrans (Pair Df_chain1 Df_E_v2_lifted)
+  --   = Df_chain12_at v1 v2.
+
+  -- Internal helper: Df_F1_Rec_zs_at_Pair_proven_explicit, RHS in expanded form.
+  -- The Df_F1_Rec_zs_at_Pair_proven (matching Df_chain12_at signature)
+  -- comes later in the file after Df_chain12_at is defined.
+
+  Df_F1_Rec_zs_at_Pair_explicit : (v1 v2 : Nat) ->
+    Deriv (atomic (eqn (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))
+                       (ap2 Pair tagCode_ruleTrans
+                         (ap2 Pair
+                           -- Df_chain1' (= Df_chain1 in Df_chain12_at).
+                           (ap2 Pair tagCode_ruleTrans
+                             (ap2 Pair
+                               -- Df_E1' (= Df_E1).
+                               (ap2 Pair tagCode_axRecNd
+                                 (ap2 Pair zT (ap2 Pair sT
+                                   (ap2 Pair (ap1 cor (var v1))(ap1 cor (var v2))))))
+                               -- Df_E_v1_lifted'.
+                               (ap2 Pair tagCode_congR
+                                 (ap2 Pair sT
+                                   (ap2 Pair
+                                     -- Df_E_v1'.
+                                     (ap2 Pair tagCode_congL
+                                       (ap2 Pair pCT
+                                         (ap2 Pair
+                                           (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec (var v1)))
+                                           (ap2 Pair (reify tagAp1)
+                                             (ap2 Pair cf (ap1 cor (var v2)))))))
+                                     -- X'.
+                                     (ap2 Pair (reify tagAp2)
+                                       (ap2 Pair pCT
+                                         (ap2 Pair (ap1 cor (var v1))(ap1 cor (var v2))))))))))
+                           -- Df_E_v2_lifted'.
+                           (ap2 Pair tagCode_congR
+                             (ap2 Pair sT
+                               (ap2 Pair
+                                 -- Df_E_v2'.
+                                 (ap2 Pair tagCode_congR
+                                   (ap2 Pair pCT
+                                     (ap2 Pair
+                                       (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec (var v2)))
+                                       (ap1 cor (ap1 recF (var v1))))))
+                                 -- X'.
+                                 (ap2 Pair (reify tagAp2)
+                                   (ap2 Pair pCT
+                                     (ap2 Pair (ap1 cor (var v1))(ap1 cor (var v2))))))))))))
+  Df_F1_Rec_zs_at_Pair_explicit v1 v2 =
+    let
+      pairT = ap2 Pair (var v1) (var v2)
+      r1 = ap1 inner_Rec (var v1)
+      r2 = ap1 inner_Rec (var v2)
+      recs = ap2 Pair r1 r2
+
+      -- Stage 1: outer reduction.
+      stage1 : Deriv (atomic (eqn (ap1 Df_F1_Rec_zs pairT) (wrapped_inner_Rec pairT)))
+      stage1 = Df_F1_Rec_zs_reduce_outer pairT
+
+      -- Stage 2: ap1 inner_Rec pairT = step_inner orig recs.
+      stage2 : Deriv (atomic (eqn (ap1 inner_Rec pairT)
+                                   (ap2 step_inner pairT recs)))
+      stage2 = axRecNd lf_inner step_inner (var v1) (var v2)
+
+      -- Stage 3: step_inner orig recs reduces to chain content.
+      -- step_inner = EmitPair emit_Df_chain1 emit_Df_E_v2_lifted.
+
+      -- Compute chain1 and chain1_lifted Term forms.
+      Df_E1' : Term
+      Df_E1' = ap2 Pair tagCode_axRecNd
+                  (ap2 Pair zT (ap2 Pair sT (ap2 Pair (ap1 cor (var v1))(ap1 cor (var v2)))))
+
+      Df_E_v1' : Term
+      Df_E_v1' = ap2 Pair tagCode_congL
+                    (ap2 Pair pCT
+                      (ap2 Pair (ap2 Pair tagCode_ruleTrans r1)
+                                (ap2 Pair (reify tagAp1)
+                                  (ap2 Pair cf (ap1 cor (var v2))))))
+
+      Df_E_v1_lifted' : Term
+      Df_E_v1_lifted' = ap2 Pair tagCode_congR
+                          (ap2 Pair sT
+                            (ap2 Pair Df_E_v1'
+                                      (ap2 Pair (reify tagAp2)
+                                        (ap2 Pair pCT
+                                          (ap2 Pair (ap1 cor (var v1))(ap1 cor (var v2)))))))
+
+      Df_chain1' : Term
+      Df_chain1' = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_E1' Df_E_v1_lifted')
+
+      Df_E_v2' : Term
+      Df_E_v2' = ap2 Pair tagCode_congR
+                    (ap2 Pair pCT
+                      (ap2 Pair (ap2 Pair tagCode_ruleTrans r2)
+                                (ap1 cor (ap1 recF (var v1)))))
+
+      Df_E_v2_lifted' : Term
+      Df_E_v2_lifted' = ap2 Pair tagCode_congR
+                          (ap2 Pair sT
+                            (ap2 Pair Df_E_v2'
+                                      (ap2 Pair (reify tagAp2)
+                                        (ap2 Pair pCT
+                                          (ap2 Pair (ap1 cor (var v1))(ap1 cor (var v2)))))))
+
+      -- step_inner reduces to Pair Df_chain1' Df_E_v2_lifted'.
+      stage3 : Deriv (atomic (eqn (ap2 step_inner pairT recs)
+                                   (ap2 Pair Df_chain1' Df_E_v2_lifted')))
+      stage3 =
+        EmitPair_red emit_Df_chain1 emit_Df_E_v2_lifted
+          pairT recs Df_chain1' Df_E_v2_lifted'
+          (emit_Df_chain1_red (var v1) (var v2) r1 r2 Df_E1' Df_E_v1_lifted'
+            (emit_Df_E1_red (var v1) (var v2) recs)
+            (emit_Df_E_v1_lifted_red (var v1) (var v2) r1 r2 Df_E_v1'
+              (emit_Df_E_v1_red (var v1) (var v2) r1 r2)))
+          (emit_Df_E_v2_lifted_red (var v1) (var v2) r1 r2 Df_E_v2'
+            (emit_Df_E_v2_red (var v1) (var v2) r1 r2))
+
+      -- Combine stage 2 + stage 3: ap1 inner_Rec pairT = Pair Df_chain1' Df_E_v2_lifted'.
+      stage23 : Deriv (atomic (eqn (ap1 inner_Rec pairT)
+                                    (ap2 Pair Df_chain1' Df_E_v2_lifted')))
+      stage23 = ruleTrans stage2 stage3
+
+      -- Combine stage 1 + cong: Df_F1_Rec_zs pairT = Pair tagCode_ruleTrans (Pair Df_chain1' Df_E_v2_lifted').
+      stage_final : Deriv (atomic (eqn (ap1 Df_F1_Rec_zs pairT)
+                                        (ap2 Pair tagCode_ruleTrans
+                                          (ap2 Pair Df_chain1' Df_E_v2_lifted'))))
+      stage_final = ruleTrans stage1 (congR Pair tagCode_ruleTrans stage23)
+    in stage_final
+
+  ----------------------------------------------------------------------
   -- Step C: shape proof at any input x.
   --
   --   Fst (ap1 Df_F1_Rec_zs x)  =BRA  tagCode_ruleTrans.
@@ -733,6 +1116,13 @@ module Th12RecUnivCase
         Df_E_v2_lifted = ap2 Pair tagCode_congR
                             (ap2 Pair sT (ap2 Pair Df_E_v2 X'))
     in ap2 Pair tagCode_ruleTrans (ap2 Pair Df_chain1 Df_E_v2_lifted)
+
+  -- Df_F1_Rec_zs_at_Pair_proven: identical content to Df_F1_Rec_zs_at_Pair_explicit,
+  -- but RHS expressed via Df_chain12_at (definitionally equal forms).
+  Df_F1_Rec_zs_at_Pair_proven : (v1 v2 : Nat) ->
+    Deriv (atomic (eqn (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))
+                       (Df_chain12_at v1 v2)))
+  Df_F1_Rec_zs_at_Pair_proven = Df_F1_Rec_zs_at_Pair_explicit
 
   module WithClosure
     (Df_F1_Rec_zs_closed :
