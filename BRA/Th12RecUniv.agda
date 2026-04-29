@@ -505,12 +505,174 @@ module Th12RecUnivCase
 
   -- step_inner_closed: structural traversal.  step_inner contains many
   -- KT (reify K) sub-Fun1's (closed via reifyClosed) and one Comp recF Fst
-  -- (closed via recF_closed).  Most positions reduce to refl; the
-  -- recF-containing position needs explicit cong.
-  --
-  -- Rather than a deep cascade of eqCong's, we make step_inner_closed a
-  -- module sub-parameter via WithClosure (below).  For typical concrete
-  -- (closed z, s) instances, the caller discharges as `\ _ _ -> refl`.
+  -- (closed via recF_closed).  Helpers below build the Eq cascade.
+
+  -- Helper: substF1 x r (KT (reify T)) = KT (reify T) by structural
+  -- induction on T (since KT (reify T) reduces via reify's lf/nd cases).
+  KT_reify_substF1_closed : (T : Tree) (x : Nat) (r : Term) ->
+    Eq (substF1 x r (KT (reify T))) (KT (reify T))
+  KT_reify_substF1_closed lf       x r = refl
+  KT_reify_substF1_closed (nd a b) x r =
+    eqCong2 (\ aa bb -> Comp2 Pair aa bb)
+      (KT_reify_substF1_closed a x r)
+      (KT_reify_substF1_closed b x r)
+
+  Lift_KT_reify_closed : (T : Tree) (x : Nat) (r : Term) ->
+    Eq (substF2 x r (Lift (KT (reify T)))) (Lift (KT (reify T)))
+  Lift_KT_reify_closed T x r = eqCong Lift (KT_reify_substF1_closed T x r)
+
+  -- Helper: EmitPair preserves closure.
+  EmitPair_closed : (h1 h2 : Fun2) ->
+    ((x : Nat) (r : Term) -> Eq (substF2 x r h1) h1) ->
+    ((x : Nat) (r : Term) -> Eq (substF2 x r h2) h2) ->
+    (x : Nat) (r : Term) -> Eq (substF2 x r (EmitPair h1 h2)) (EmitPair h1 h2)
+  EmitPair_closed h1 h2 c1 c2 x r =
+    eqCong2 (\ a b -> Fan a b Pair) (c1 x r) (c2 x r)
+
+  -- emit_cv1, emit_cv2, RecsFst, RecsSnd: structurally closed (refl).
+  emit_cv1_closed : (x : Nat) (r : Term) -> Eq (substF2 x r emit_cv1) emit_cv1
+  emit_cv1_closed x r = refl
+
+  emit_cv2_closed : (x : Nat) (r : Term) -> Eq (substF2 x r emit_cv2) emit_cv2
+  emit_cv2_closed x r = refl
+
+  RecsFst_closed : (x : Nat) (r : Term) -> Eq (substF2 x r RecsFst) RecsFst
+  RecsFst_closed x r = refl
+
+  RecsSnd_closed : (x : Nat) (r : Term) -> Eq (substF2 x r RecsSnd) RecsSnd
+  RecsSnd_closed x r = refl
+
+  -- emit_corRecV1 contains Comp recF Fst -> uses recF_closed.
+  emit_corRecV1_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_corRecV1) emit_corRecV1
+  emit_corRecV1_closed x r =
+    eqCong (\ rec' -> Lift (Comp cor (Comp rec' Fst))) (recF_closed x r)
+
+  -- KT2 K for various K via Lift_KT_reify_closed.
+  KT2_tagCode_ruleTrans_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 tagCode_ruleTrans)) (KT2 tagCode_ruleTrans)
+  KT2_tagCode_ruleTrans_closed x r = Lift_KT_reify_closed (natCode tagRuleTrans) x r
+
+  KT2_tagCode_axRecNd_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 tagCode_axRecNd)) (KT2 tagCode_axRecNd)
+  KT2_tagCode_axRecNd_closed x r = Lift_KT_reify_closed (natCode tagAxRecNd) x r
+    where open import BRA.Thm.Tag using (tagAxRecNd)
+
+  KT2_tagCode_congL_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 tagCode_congL)) (KT2 tagCode_congL)
+  KT2_tagCode_congL_closed x r = Lift_KT_reify_closed (natCode tagCongL) x r
+    where open import BRA.Thm.Tag using (tagCongL)
+
+  KT2_tagCode_congR_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 tagCode_congR)) (KT2 tagCode_congR)
+  KT2_tagCode_congR_closed x r = Lift_KT_reify_closed (natCode tagCongR) x r
+    where open import BRA.Thm.Tag using (tagCongR)
+
+  KT2_tagAp1_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 (reify tagAp1))) (KT2 (reify tagAp1))
+  KT2_tagAp1_closed x r = Lift_KT_reify_closed tagAp1 x r
+
+  KT2_tagAp2_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 (reify tagAp2))) (KT2 (reify tagAp2))
+  KT2_tagAp2_closed x r = Lift_KT_reify_closed tagAp2 x r
+
+  KT2_zT_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 zT)) (KT2 zT)
+  KT2_zT_closed x r = Lift_KT_reify_closed (code z) x r
+
+  KT2_sT_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 sT)) (KT2 sT)
+  KT2_sT_closed x r = Lift_KT_reify_closed (codeF2 s) x r
+
+  KT2_pCT_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 pCT)) (KT2 pCT)
+  KT2_pCT_closed x r = Lift_KT_reify_closed (codeF2 Pair) x r
+
+  KT2_cf_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r (KT2 cf)) (KT2 cf)
+  KT2_cf_closed x r = Lift_KT_reify_closed (codeF1 recF) x r
+
+  -- Build closure for emit_X = EmitPair (KT2 tagAp2)(EmitPair (KT2 pCT)(EmitPair emit_cv1 emit_cv2)).
+  emit_X_closed : (x : Nat) (r : Term) -> Eq (substF2 x r emit_X) emit_X
+  emit_X_closed =
+    EmitPair_closed _ _ KT2_tagAp2_closed
+      (EmitPair_closed _ _ KT2_pCT_closed
+        (EmitPair_closed _ _ emit_cv1_closed emit_cv2_closed))
+
+  -- emit_mkAp1Tcf emit_t = EmitPair (KT2 tagAp1)(EmitPair (KT2 cf) emit_t).
+  emit_mkAp1Tcf_closed : (emit_t : Fun2) ->
+    ((x : Nat) (r : Term) -> Eq (substF2 x r emit_t) emit_t) ->
+    (x : Nat) (r : Term) -> Eq (substF2 x r (emit_mkAp1Tcf emit_t)) (emit_mkAp1Tcf emit_t)
+  emit_mkAp1Tcf_closed emit_t et_closed =
+    EmitPair_closed _ _ KT2_tagAp1_closed
+      (EmitPair_closed _ _ KT2_cf_closed et_closed)
+
+  emit_ih_v1_Df_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_ih_v1_Df) emit_ih_v1_Df
+  emit_ih_v1_Df_closed =
+    EmitPair_closed _ _ KT2_tagCode_ruleTrans_closed RecsFst_closed
+
+  emit_ih_v2_Df_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_ih_v2_Df) emit_ih_v2_Df
+  emit_ih_v2_Df_closed =
+    EmitPair_closed _ _ KT2_tagCode_ruleTrans_closed RecsSnd_closed
+
+  emit_Df_E1_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_Df_E1) emit_Df_E1
+  emit_Df_E1_closed =
+    EmitPair_closed _ _ KT2_tagCode_axRecNd_closed
+      (EmitPair_closed _ _ KT2_zT_closed
+        (EmitPair_closed _ _ KT2_sT_closed
+          (EmitPair_closed _ _ emit_cv1_closed emit_cv2_closed)))
+
+  emit_Df_E_v1_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_Df_E_v1) emit_Df_E_v1
+  emit_Df_E_v1_closed =
+    EmitPair_closed _ _ KT2_tagCode_congL_closed
+      (EmitPair_closed _ _ KT2_pCT_closed
+        (EmitPair_closed _ _ emit_ih_v1_Df_closed
+          (emit_mkAp1Tcf_closed emit_cv2 emit_cv2_closed)))
+
+  emit_Df_E_v1_lifted_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_Df_E_v1_lifted) emit_Df_E_v1_lifted
+  emit_Df_E_v1_lifted_closed =
+    EmitPair_closed _ _ KT2_tagCode_congR_closed
+      (EmitPair_closed _ _ KT2_sT_closed
+        (EmitPair_closed _ _ emit_Df_E_v1_closed emit_X_closed))
+
+  emit_Df_chain1_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_Df_chain1) emit_Df_chain1
+  emit_Df_chain1_closed =
+    EmitPair_closed _ _ KT2_tagCode_ruleTrans_closed
+      (EmitPair_closed _ _ emit_Df_E1_closed emit_Df_E_v1_lifted_closed)
+
+  emit_Df_E_v2_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_Df_E_v2) emit_Df_E_v2
+  emit_Df_E_v2_closed =
+    EmitPair_closed _ _ KT2_tagCode_congR_closed
+      (EmitPair_closed _ _ KT2_pCT_closed
+        (EmitPair_closed _ _ emit_ih_v2_Df_closed emit_corRecV1_closed))
+
+  emit_Df_E_v2_lifted_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r emit_Df_E_v2_lifted) emit_Df_E_v2_lifted
+  emit_Df_E_v2_lifted_closed =
+    EmitPair_closed _ _ KT2_tagCode_congR_closed
+      (EmitPair_closed _ _ KT2_sT_closed
+        (EmitPair_closed _ _ emit_Df_E_v2_closed emit_X_closed))
+
+  step_inner_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r step_inner) step_inner
+  step_inner_closed =
+    EmitPair_closed _ _ emit_Df_chain1_closed emit_Df_E_v2_lifted_closed
+
+  -- Df_F1_Rec_zs_closed via 3 closures: tagCode_ruleTrans, lf_inner, step_inner.
+  Df_F1_Rec_zs_closed_proven : (x : Nat) (r : Term) ->
+    Eq (substF1 x r Df_F1_Rec_zs) Df_F1_Rec_zs
+  Df_F1_Rec_zs_closed_proven x r =
+    eqCong3 (\ tk lf si -> Comp2 Pair (KT tk)(Rec lf si))
+      (tagCode_ruleTrans_closed x r)
+      (lf_inner_closed x r)
+      (step_inner_closed x r)
 
   ----------------------------------------------------------------------
   -- WithClosure submodule: takes the closure proof as parameter, then
