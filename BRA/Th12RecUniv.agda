@@ -269,6 +269,34 @@ module Th12RecUnivCase
     in ruleTrans s1 (ruleTrans step_LHS step_RHS)
 
   ----------------------------------------------------------------------
+  -- Helper: generalisation of Step B1 to any input x.
+  --
+  --   ap1 Df_F1_Rec_zs x  =BRA  Pair tagCode_ruleTrans (ap1 inner_Rec x).
+  --
+  -- This is the OUTER reduction (Comp2 Pair (KT _) inner_Rec); the inner
+  -- inner_Rec doesn't reduce on opaque x.
+
+  wrapped_inner_Rec : Term -> Term
+  wrapped_inner_Rec x = ap2 Pair tagCode_ruleTrans (ap1 inner_Rec x)
+
+  Df_F1_Rec_zs_reduce_outer : (x : Term) ->
+    Deriv (atomic (eqn (ap1 Df_F1_Rec_zs x) (wrapped_inner_Rec x)))
+  Df_F1_Rec_zs_reduce_outer x =
+    let
+      s1 : Deriv (atomic (eqn (ap1 Df_F1_Rec_zs x)
+                              (ap2 Pair (ap1 (KT tagCode_ruleTrans) x)
+                                        (ap1 inner_Rec x))))
+      s1 = axComp2 Pair (KT tagCode_ruleTrans) inner_Rec x
+
+      s2 : Deriv (atomic (eqn (ap1 (KT tagCode_ruleTrans) x) tagCode_ruleTrans))
+      s2 = axKT (natCode tagRuleTrans) x
+
+      step : Deriv (atomic (eqn (ap2 Pair (ap1 (KT tagCode_ruleTrans) x)(ap1 inner_Rec x))
+                                 (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec x))))
+      step = congL Pair (ap1 inner_Rec x) s2
+    in ruleTrans s1 step
+
+  ----------------------------------------------------------------------
   -- Step C: shape proof at any input x.
   --
   --   Fst (ap1 Df_F1_Rec_zs x)  =BRA  tagCode_ruleTrans.
@@ -693,14 +721,14 @@ module Th12RecUnivCase
         Df_E1 = ap2 Pair tagCode_axRecNd
                   (ap2 Pair zT (ap2 Pair sT (ap2 Pair cv1 cv2)))
         Df_E_v1 = ap2 Pair tagCode_congL
-                    (ap2 Pair pCT (ap2 Pair (ap1 Df_F1_Rec_zs (var v1))
+                    (ap2 Pair pCT (ap2 Pair (wrapped_inner_Rec (var v1))
                                             (mkAp1T cf cv2)))
         Df_E_v1_lifted = ap2 Pair tagCode_congR
                             (ap2 Pair sT (ap2 Pair Df_E_v1 X'))
         Df_chain1 = ap2 Pair tagCode_ruleTrans
                       (ap2 Pair Df_E1 Df_E_v1_lifted)
         Df_E_v2 = ap2 Pair tagCode_congR
-                    (ap2 Pair pCT (ap2 Pair (ap1 Df_F1_Rec_zs (var v2))
+                    (ap2 Pair pCT (ap2 Pair (wrapped_inner_Rec (var v2))
                                             (ap1 cor rec_v1)))
         Df_E_v2_lifted = ap2 Pair tagCode_congR
                             (ap2 Pair sT (ap2 Pair Df_E_v2 X'))
@@ -792,23 +820,17 @@ module Th12RecUnivCase
       IH1Rec recF (var v)
     toIH1Rec v ihD =
       record
-        { Df    = ap1 Df_F1_Rec_zs (var v)
+        { Df    = wrapped_inner_Rec (var v)
         ; fstL  = _
         ; fstR  = _
-        ; shape = shape_at (var v)
+        ; shape = axFst tagCode_ruleTrans (ap1 inner_Rec (var v))
         ; image = image_proof
         }
       where
-        -- ihD has type substF zero (var v) P_Th12_Rec_zs, which Agda reduces to:
-        --   atomic (eqn (ap1 (substF1 zero (var v) thmT)
-        --                    (ap1 (substF1 zero (var v) Df_F1_Rec_zs)(var v)))
-        --               (subst zero (var v) (codeFTeq1Asym recF (var zero))))
-        -- Bridge to (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))(codeFTeq1Asym recF (var v)))
-        -- via the same 3-layer eqSubst chain as Step D-final.
-        image_proof : Deriv (atomic (eqn
+        image_at_Df : Deriv (atomic (eqn
                        (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))
                        (codeFTeq1Asym recF (var v))))
-        image_proof =
+        image_at_Df =
           eqSubst (\ rhs -> Deriv (atomic (eqn
               (ap1 thmT (ap1 Df_F1_Rec_zs (var v))) rhs)))
             (codeFTeq1Asym_subst_eq_var v)
@@ -821,6 +843,13 @@ module Th12RecUnivCase
                   (subst zero (var v) (codeFTeq1Asym recF (var zero))))))
                 (thClosed zero (var v))
                 ihD))
+
+        image_proof : Deriv (atomic (eqn
+                       (ap1 thmT (wrapped_inner_Rec (var v)))
+                       (codeFTeq1Asym recF (var v))))
+        image_proof =
+          ruleTrans (cong1 thmT (ruleSym (Df_F1_Rec_zs_reduce_outer (var v))))
+                    image_at_Df
 
     --------------------------------------------------------------------
     -- Step F: basePair Agda function.
@@ -903,6 +932,23 @@ module Th12RecUnivCase
     liftedAxEqTrans P a b c D1 D2 =
       B_combinator (B_combinator (liftAxiom P (axEqTrans a b c)) D1) D2
 
+    -- liftedRuleSym : from P imp (a=b), produce P imp (b=a).
+    -- Uses axEqTrans a b a + axRefl a.
+    liftedRuleSym : (P : Formula) (a b : Term) ->
+                    Deriv (P imp atomic (eqn a b)) ->
+                    Deriv (P imp atomic (eqn b a))
+    liftedRuleSym P a b D =
+      liftedAxEqTrans P a b a D (liftAxiom P (axRefl a))
+
+    -- liftedRuleTrans : from P imp (a=b) and P imp (b=c), produce P imp (a=c).
+    -- Uses liftedRuleSym + liftedAxEqTrans.
+    liftedRuleTrans : (P : Formula) (a b c : Term) ->
+                      Deriv (P imp atomic (eqn a b)) ->
+                      Deriv (P imp atomic (eqn b c)) ->
+                      Deriv (P imp atomic (eqn a c))
+    liftedRuleTrans P a b c D1 D2 =
+      liftedAxEqTrans P b a c (liftedRuleSym P a b D1) D2
+
     liftedCong1 : (P : Formula) (f : Fun1) (a b : Term) ->
                   Deriv (P imp atomic (eqn a b)) ->
                   Deriv (P imp atomic (eqn (ap1 f a) (ap1 f b)))
@@ -971,16 +1017,53 @@ module Th12RecUnivCase
             (thClosed zero (var v))
             lifted_ihD))
 
+    -- Bridge image_at_Df form to wrapped_inner_Rec form using
+    -- B_combinator + liftAxiom + axEqCong1.
+
+    toIH1Rec_lifted_image_wrapped : (P : Formula) (v : Nat) ->
+      Deriv (P imp substF zero (var v) P_Th12_Rec_zs) ->
+      Deriv (P imp atomic (eqn (ap1 thmT (wrapped_inner_Rec (var v)))
+                                (codeFTeq1Asym recF (var v))))
+    toIH1Rec_lifted_image_wrapped P v lifted_ihD =
+      let
+        -- (P imp eqn (thmT (Df_F1_Rec_zs (var v))) (codeFTeq1Asym recF (var v))).
+        lifted_at_Df : Deriv (P imp atomic (eqn
+                              (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))
+                              (codeFTeq1Asym recF (var v))))
+        lifted_at_Df = toIH1Rec_lifted_image P v lifted_ihD
+
+        -- We need to bridge (thmT (Df_F1_Rec_zs (var v))) = (thmT (wrapped_inner_Rec (var v)))
+        -- and apply ruleSym + liftedAxEqTrans.
+        --
+        -- First: liftAxiom of the BRA-Deriv  thmT (wrapped_inner_Rec (var v)) = thmT (Df_F1_Rec_zs (var v))
+        -- via cong1 thmT (ruleSym (Df_F1_Rec_zs_reduce_outer (var v))).
+        bridge_thmT : Deriv (atomic (eqn
+                       (ap1 thmT (wrapped_inner_Rec (var v)))
+                       (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))))
+        bridge_thmT = cong1 thmT (ruleSym (Df_F1_Rec_zs_reduce_outer (var v)))
+
+        lifted_bridge : Deriv (P imp atomic (eqn
+                       (ap1 thmT (wrapped_inner_Rec (var v)))
+                       (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))))
+        lifted_bridge = liftAxiom P bridge_thmT
+      in
+        liftedRuleTrans P
+          (ap1 thmT (wrapped_inner_Rec (var v)))
+          (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))
+          (codeFTeq1Asym recF (var v))
+          lifted_bridge
+          lifted_at_Df
+
     toIH1Rec_lifted : (P : Formula) (v : Nat) ->
                       Deriv (P imp substF zero (var v) P_Th12_Rec_zs) ->
                       IH1Rec_lifted P recF (var v)
     toIH1Rec_lifted P v lifted_ihD =
       record
-        { Df    = ap1 Df_F1_Rec_zs (var v)
+        { Df    = wrapped_inner_Rec (var v)
         ; fstL  = _
         ; fstR  = _
-        ; shape = shape_at (var v)
-        ; image = toIH1Rec_lifted_image P v lifted_ihD
+        ; shape = axFst tagCode_ruleTrans (ap1 inner_Rec (var v))
+        ; image = toIH1Rec_lifted_image_wrapped P v lifted_ihD
         }
 
     --------------------------------------------------------------------
