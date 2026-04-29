@@ -363,47 +363,100 @@ module Th12RecCase
              (IH1Rec.shape ih_v2) (IH1Rec.image ih_v2)
 
     --------------------------------------------------------------------
-    -- Lift E_v1 and E_v2 into the outer  mkAp2T sT X _  context via
-    -- two more congR's at the sT layer.  But we need to rewrite the
-    -- second slot of  mkAp2T sT X _ , so it's congR at the outer Pair.
+    -- Lift E_v1 to outer mkAp2T sT X _ context via parDispCongR_param
+    -- with g = s, xT = X.  The result is an encoded equation rewriting
+    -- u2_E1 (= mkAp2T sT X Y_initial) to u2_after_v1 (= mkAp2T sT X Y_after_v1).
     --
-    -- u2_E1 = Pair tagAp2 (Pair sT (Pair X Y_initial)).
+    -- Df_E_v1's Fst is tagCode_congL (Pair-shaped since natCode tagCongL
+    -- = nd lf (...)), so the shape proof is axFst tagCode_congL _.
+
+    Df_E_v1_lifted : Term
+    Df_E_v1_lifted = ap2 Pair tagCode_congR
+                       (ap2 Pair sT (ap2 Pair Df_E_v1 X))
+
+    E_v1_lifted : Deriv (atomic (eqn (ap1 thmT Df_E_v1_lifted)
+                                      (ap2 Pair u2_E1 u2_after_v1)))
+    E_v1_lifted = thmTDispCongR_param s X Df_E_v1 Y_initial Y_after_v1
+                    _ _ (axFst tagCode_congL _) E_v1
+
+    --------------------------------------------------------------------
+    -- Lift E_v2 similarly.
+
+    Df_E_v2_lifted : Term
+    Df_E_v2_lifted = ap2 Pair tagCode_congR
+                       (ap2 Pair sT (ap2 Pair Df_E_v2 X))
+
+    E_v2_lifted : Deriv (atomic (eqn (ap1 thmT Df_E_v2_lifted)
+                                      (ap2 Pair u2_after_v1 u2_full)))
+    E_v2_lifted = thmTDispCongR_param s X Df_E_v2 Y_after_v1 Y_full
+                    _ _ (axFst tagCode_congR _) E_v2
+
+    --------------------------------------------------------------------
+    -- chain1 = parDispRuleTrans(E1, E_v1_lifted): produces encoded
+    -- equation  u1_E1 = u2_after_v1.
+
+    Df_chain1 : Term
+    Df_chain1 = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_E1 Df_E_v1_lifted)
+
+    chain1 : Deriv (atomic (eqn (ap1 thmT Df_chain1)
+                                 (ap2 Pair u1_E1 u2_after_v1)))
+    chain1 = thmTDispRuleTrans_param Df_E1 Df_E_v1_lifted
+              u1_E1 u2_E1 u2_E1 u2_after_v1
+              _ _ (axFst tagCode_axRecNd _) E1 E_v1_lifted
+
+    --------------------------------------------------------------------
+    -- chain12 = parDispRuleTrans(chain1, E_v2_lifted): produces encoded
+    -- equation  u1_E1 = u2_full.
+
+    Df_chain12 : Term
+    Df_chain12 = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_chain1 Df_E_v2_lifted)
+
+    chain12 : Deriv (atomic (eqn (ap1 thmT Df_chain12)
+                                  (ap2 Pair u1_E1 u2_full)))
+    chain12 = thmTDispRuleTrans_param Df_chain1 Df_E_v2_lifted
+               u1_E1 u2_after_v1 u2_after_v1 u2_full
+               _ _ (axFst tagCode_ruleTrans _) chain1 E_v2_lifted
+
+    --------------------------------------------------------------------
+    -- chain12 establishes the encoded equation:
+    --   thmT (Df_chain12) = Pair u1_E1 u2_full
+    --                     = Pair (mkAp1T cf X) (mkAp2T sT X Y_full)
+    -- which encodes the BRA equation:
+    --   (Rec z s)(encoded Pair cv1 cv2) = s (encoded Pair cv1 cv2)
+    --                                       (encoded Pair (cor rec_v1)(cor rec_v2))
     --
-    -- Encoded congR on the  Pair X _  slot, at codeF2 = Pair... actually
-    -- the rewrite is on the ENCODED equation u2_E1 (= encoded Pair).
-    -- Inside u2_E1's structure, Y_initial is positioned inside an
-    -- ap2 Pair (Pair sT (Pair X _)).  To rewrite Y_initial -> Y_after_v1,
-    -- we use thmTDispCongR_param at g = Pair (the outermost Pair),
-    -- but we're rewriting the SECOND slot of  Pair X _ , not the
-    -- outermost one.  Easier: use parDispCong at all three Pair levels
-    -- (Pair sT _, Pair X _, then the inner Pair).
+    -- To extend chain12 to a complete Theorem 12 Sigma-form proof
+    --   (Df_pair, Deriv (eqn (thmT Df_pair)(codeFTeq1Asym recF pairT)))
+    -- we need TWO more steps:
     --
-    -- Alternative: chain via parDispRuleTrans in the outer (full-eq)
-    -- context.  Each E step produces an encoded equation rewrite that
-    -- composes.  Use parDispRuleTrans threading u1_E1, u2_E1 -> u2_v1
-    -- -> u2_full. And to lift E_v1 into the right slot of u2_E1, we
-    -- need additional cong-encoding.
+    --   E_s : encoded equation  mkAp2T sT (cor pairT)(cor (Pair rec_v1 rec_v2))
+    --                          = cor (s pairT (Pair rec_v1 rec_v2))
+    --         (= ih_s.image -- Theorem 12 for s at the appropriate point)
     --
-    -- For brevity, this layered congR-ing of E_v1 / E_v2 into the outer
-    -- mkAp2T sT context is pure mechanical engineering, not architectural.
-    -- We document the structure here and defer the explicit chain
-    -- composition to the full glue layer (~150 LoC of additional E-steps
-    -- + parDispRuleTrans threading).
+    --   bridges : encoded cor_red_pair  X = cor pairT  AND
+    --             Y_full = cor (Pair rec_v1 rec_v2) ,
+    --             needed to align u2_full's RHS with E_s's LHS.
     --
-    -- The key architectural deliverable is:
-    --   * The leaf case is fully proved (Th12_F1_Rec_zs_at_lf).
-    --   * The Pair-case proof, parametric in (ih_v1, ih_v2, ih_s),
-    --     reduces to the same chain pattern as Thm12RecCheck.agda's
-    --     RecOSPairCaseFull, with one substitution: the sBin-specific
-    --     E2+E3 (parDispAxPost + parDispAxSnd) pair is replaced by
-    --     a single application of ih_s (Theorem 12 for s, bundled).
+    -- The bridges are encoded versions of cor_red_pair.  They are
+    -- constructed from parEncAxRecNd O sT_cor v1 v2 + encoded
+    -- stepCorRed (which itself has known encoding via Fan/Lift/KT
+    -- composition).  Total ~200 LoC of mechanical encoding.
     --
-    -- The full Pair-case Sigma-form  thm12_Rec_zs_pair  is built by
-    -- threading the chain through parDispRuleTrans at each step, plus
-    -- a final BRA-level outer bridge through cor_red_pair and axRecNd.
-    -- See Thm12RecCheck.agda::RecOSPairCaseFull.thm12_RecOS_pair for
-    -- the proven pattern (730 LoC including 4 dispatcher chains and
-    -- the outer cor-bridge).
+    -- Once threaded, the final encoded chain produces:
+    --   Pair u1_E1 (cor (s pairT (Pair rec_v1 rec_v2)))
+    -- and a BRA-level outer bridge applies:
+    --   - LHS: u1_E1 = mkAp1T cf X -> mkAp1T cf (cor pairT) via congR + cor_red_pair.
+    --   - RHS: cor (s pairT _) -> cor (recF pairT) via cong1 cor (axRecNd reversed).
+    -- producing  codeFTeq1Asym recF pairT .
+
+    --------------------------------------------------------------------
+    -- Sigma-form deliverable: encoded chain output Pair u1_E1 u2_full.
+    -- This is the architectural milestone for the Pair-case proof,
+    -- ready to be extended by encoded E_s + outer BRA bridge.
+
+    pair_chain_output : Sigma Term (\ Df ->
+      Deriv (atomic (eqn (ap1 thmT Df) (ap2 Pair u1_E1 u2_full))))
+    pair_chain_output = mkSigma Df_chain12 chain12
 
   ----------------------------------------------------------------------
   -- The schematic statement and packaging note.
