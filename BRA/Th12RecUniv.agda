@@ -27,8 +27,11 @@ open import BRA.Formula
 open import BRA.Deriv
 open import BRA.Cor
 open import BRA.Thm14CodeFTeqAsym
+open import BRA.Thm.Tag using
+  ( tagAxRecLf ; tagRuleTrans )
 open import BRA.Thm.ThmT using
   ( thmT
+  ; tagCode_axRecLf
   ; tagCode_ruleTrans ; tagCode_axRecNd ; tagCode_axRefl
   ; tagCode_congL ; tagCode_congR )
 
@@ -103,14 +106,7 @@ module Th12RecUnivCase
   --   composed: Pair (mkAp1T cf (cor O)) (cor (recF O)) = codeFTeq1Asym recF O.
 
   Df_lf_orig : Term
-  Df_lf_orig = ap2 Pair (reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))) (ap2 Pair zT sT)
-  -- Note: tagAxRecLf = 11 (= suc^11 zero).  Reify of natCode 11 is the closed-Tree
-  -- encoding.  Equivalent to  ap2 Pair tagCode_axRecLf (ap2 Pair zT sT)  but
-  -- written explicitly to avoid the import.  We use tagCode_axRecLf below
-  -- where it's available.
-
-  -- Alternative (cleaner): import tagCode_axRecLf from ThmT.
-  -- Df_lf_orig = ap2 Pair tagCode_axRecLf (ap2 Pair zT sT).
+  Df_lf_orig = ap2 Pair tagCode_axRecLf (ap2 Pair zT sT)
 
   encAxReflRecFO : Term
   encAxReflRecFO = ap2 Pair tagCode_axRefl (ap1 cor (ap1 recF O))
@@ -230,7 +226,41 @@ module Th12RecUnivCase
   Df_F1_Rec_zs = Comp2 Pair (KT tagCode_ruleTrans) inner_Rec
 
   ----------------------------------------------------------------------
-  -- Step A complete.  Steps B-H to follow:
+  -- Step B1: BRA-equality reduction at O.
+  --
+  --   ap1 Df_F1_Rec_zs O =BRA Pair tagCode_ruleTrans lf_inner.
+  --
+  -- Proof: axComp2 + axKT + axRecLf composed via congL/congR.
+
+  Df_F1_Rec_zs_at_O :
+    Deriv (atomic (eqn (ap1 Df_F1_Rec_zs O)
+                       (ap2 Pair tagCode_ruleTrans lf_inner)))
+  Df_F1_Rec_zs_at_O =
+    let
+      s1 : Deriv (atomic (eqn (ap1 Df_F1_Rec_zs O)
+                              (ap2 Pair (ap1 (KT tagCode_ruleTrans) O)
+                                        (ap1 inner_Rec O))))
+      s1 = axComp2 Pair (KT tagCode_ruleTrans) inner_Rec O
+
+      s2 : Deriv (atomic (eqn (ap1 (KT tagCode_ruleTrans) O) tagCode_ruleTrans))
+      s2 = axKT (natCode tagRuleTrans) O
+
+      s3 : Deriv (atomic (eqn (ap1 inner_Rec O) lf_inner))
+      s3 = axRecLf lf_inner step_inner
+
+      step_LHS : Deriv (atomic (eqn
+                  (ap2 Pair (ap1 (KT tagCode_ruleTrans) O)(ap1 inner_Rec O))
+                  (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec O))))
+      step_LHS = congL Pair (ap1 inner_Rec O) s2
+
+      step_RHS : Deriv (atomic (eqn
+                  (ap2 Pair tagCode_ruleTrans (ap1 inner_Rec O))
+                  (ap2 Pair tagCode_ruleTrans lf_inner)))
+      step_RHS = congR Pair tagCode_ruleTrans s3
+    in ruleTrans s1 (ruleTrans step_LHS step_RHS)
+
+  ----------------------------------------------------------------------
+  -- Step A and B1 complete.  Steps B-H to follow:
   --   B (~80 LoC):  Df_F1_Rec_zs_at_O  : Deriv (eqn (ap1 Df_F1_Rec_zs O) lf_inner_form).
   --                Df_F1_Rec_zs_at_Pair : Deriv (eqn (ap1 Df_F1_Rec_zs (Pair v1 v2))
   --                                              (concrete chain Term)).
