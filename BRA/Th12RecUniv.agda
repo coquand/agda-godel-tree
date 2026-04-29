@@ -565,6 +565,64 @@ module Th12RecUnivCase
             (eqSym codeFTeq1Asym_subst_eq_O)
             Th12_at_lf_concrete))
 
+    --------------------------------------------------------------------
+    -- Step E: toIH1Rec packaging.
+    --
+    -- Given an IH-Deriv at var v (= a substF-form Deriv from ruleIndBT's
+    -- step hypothesis), package it as an IH1Rec recF (var v) record.
+    -- Uses shape_at (Step C) for the shape field and eqSubst chain
+    -- (similar to Step D-final) for the image field.
+
+    -- Eq lemma: subst zero (var v) (codeFTeq1Asym recF (var zero))
+    --         = codeFTeq1Asym recF (var v).
+    codeFTeq1Asym_subst_eq_var : (v : Nat) ->
+      Eq (subst zero (var v) (codeFTeq1Asym recF (var zero)))
+         (codeFTeq1Asym recF (var v))
+    codeFTeq1Asym_subst_eq_var v =
+      eqCong3 (\ cf' cor' recF' -> ap2 Pair
+        (ap2 Pair (reify tagAp1)(ap2 Pair cf' (ap1 cor' (var v))))
+        (ap1 cor' (ap1 recF' (var v))))
+        (cf_closed zero (var v))
+        (cor_closed_eq zero (var v))
+        (recF_closed zero (var v))
+
+    open BRA.Th12Rec using (IH1Rec)
+
+    toIH1Rec : (v : Nat) ->
+      Deriv (substF zero (var v) P_Th12_Rec_zs) ->
+      IH1Rec recF (var v)
+    toIH1Rec v ihD =
+      record
+        { Df    = ap1 Df_F1_Rec_zs (var v)
+        ; fstL  = _
+        ; fstR  = _
+        ; shape = shape_at (var v)
+        ; image = image_proof
+        }
+      where
+        -- ihD has type substF zero (var v) P_Th12_Rec_zs, which Agda reduces to:
+        --   atomic (eqn (ap1 (substF1 zero (var v) thmT)
+        --                    (ap1 (substF1 zero (var v) Df_F1_Rec_zs)(var v)))
+        --               (subst zero (var v) (codeFTeq1Asym recF (var zero))))
+        -- Bridge to (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))(codeFTeq1Asym recF (var v)))
+        -- via the same 3-layer eqSubst chain as Step D-final.
+        image_proof : Deriv (atomic (eqn
+                       (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))
+                       (codeFTeq1Asym recF (var v))))
+        image_proof =
+          eqSubst (\ rhs -> Deriv (atomic (eqn
+              (ap1 thmT (ap1 Df_F1_Rec_zs (var v))) rhs)))
+            (codeFTeq1Asym_subst_eq_var v)
+            (eqSubst (\ Df' -> Deriv (atomic (eqn
+                (ap1 thmT (ap1 Df' (var v)))
+                (subst zero (var v) (codeFTeq1Asym recF (var zero))))))
+              (Df_F1_Rec_zs_closed zero (var v))
+              (eqSubst (\ thT' -> Deriv (atomic (eqn
+                  (ap1 thT' (ap1 (substF1 zero (var v) Df_F1_Rec_zs)(var v)))
+                  (subst zero (var v) (codeFTeq1Asym recF (var zero))))))
+                (thClosed zero (var v))
+                ihD))
+
   ----------------------------------------------------------------------
   -- Steps E, F, G, H to follow.  Steps B-H to follow:
   --   B (~80 LoC):  Df_F1_Rec_zs_at_O  : Deriv (eqn (ap1 Df_F1_Rec_zs O) lf_inner_form).
