@@ -26,6 +26,7 @@ open import BRA.Term
 open import BRA.Formula
 open import BRA.Deriv
 open import BRA.Cor
+open import BRA.ReifyClosed  using (reifyClosed)
 open import BRA.Thm14CodeFTeqAsym
 open import BRA.Thm.Tag using
   ( tagAxRecLf ; tagRuleTrans )
@@ -426,18 +427,103 @@ module Th12RecUnivCase
   -- ASSUME it as a parameter and provide it in the closure.
 
   ----------------------------------------------------------------------
-  -- Steps A, B1, C, D-partial complete.
+  -- Step D-final: structural Eq lemmas.
   --
-  -- Step D2 (~30 LoC): discharge the two structural Eq lemmas
-  --   Df_F1_Rec_zs_closed : (r : Term) -> Eq (substF1 zero r Df_F1_Rec_zs) Df_F1_Rec_zs
-  --   recF_closed : (r : Term) -> Eq (substF1 zero r recF) recF
-  -- by structural induction using z_closed + s_closed + reifyClosed for
-  -- the various reify-of-natCode terms.
+  -- recF_closed : substF1 x r recF = recF (from z_closed + s_closed).
+  -- cor_closed_eq : substF1 x r cor = cor (cor is structurally closed
+  --                 since cor = Rec O stepCor with O closed and stepCor
+  --                 a closed Fun2 expression; provable by structural
+  --                 unfolding which reduces to refl).
+
+  recF_closed : (x : Nat) (r : Term) -> Eq (substF1 x r recF) recF
+  recF_closed x r = eqCong2 Rec (z_closed x r) (s_closed x r)
+
+  -- cor = Rec O stepCor where O is closed and stepCor is a closed Fun2.
+  -- Therefore substF1 x r cor reduces (Agda) to Rec O stepCor = cor.
+  -- This holds by definitional reduction (refl) since substF1 doesn't
+  -- enter Fun2 constants like Pair, Lift, etc., and stepCor's structure
+  -- has no free vars.
+
+  cor_closed_eq : (x : Nat) (r : Term) -> Eq (substF1 x r cor) cor
+  cor_closed_eq x r = refl
+
+  -- tagCode-style constants are closed (reify of natCode).
+  -- subst x r (reify (natCode N)) = reify (natCode N) by reifyClosed.
+
+  tagCode_ruleTrans_closed : (x : Nat) (r : Term) ->
+    Eq (subst x r tagCode_ruleTrans) tagCode_ruleTrans
+  tagCode_ruleTrans_closed x r = reifyClosed (natCode tagRuleTrans) x r
+
+  tagCode_axRecLf_closed : (x : Nat) (r : Term) ->
+    Eq (subst x r tagCode_axRecLf) tagCode_axRecLf
+  tagCode_axRecLf_closed x r = reifyClosed (natCode tagAxRecLf) x r
+
+  tagCode_axRefl_closed : (x : Nat) (r : Term) ->
+    Eq (subst x r tagCode_axRefl) tagCode_axRefl
+  tagCode_axRefl_closed x r = reifyClosed _ x r
+
+  -- zT, sT, cf are reify of trees → reify-closed.
+
+  zT_closed : (x : Nat) (r : Term) -> Eq (subst x r zT) zT
+  zT_closed x r = reifyClosed (code z) x r
+
+  sT_closed : (x : Nat) (r : Term) -> Eq (subst x r sT) sT
+  sT_closed x r = reifyClosed (codeF2 s) x r
+
+  cf_closed : (x : Nat) (r : Term) -> Eq (subst x r cf) cf
+  cf_closed x r = reifyClosed (codeF1 recF) x r
+
+  -- pCT = reify (codeF2 Pair) is also closed.
+  pCT_closed : (x : Nat) (r : Term) -> Eq (subst x r pCT) pCT
+  pCT_closed x r = reifyClosed (codeF2 Pair) x r
+
+  -- Df_lf_orig = ap2 Pair tagCode_axRecLf (ap2 Pair zT sT). All closed parts.
+  Df_lf_orig_closed : (x : Nat) (r : Term) -> Eq (subst x r Df_lf_orig) Df_lf_orig
+  Df_lf_orig_closed x r =
+    eqCong2 (\ a b -> ap2 Pair a (ap2 Pair (fst b) (snd b)))
+      (tagCode_axRecLf_closed x r)
+      (eqCong2 (\ a b -> mkSigma a b) (zT_closed x r) (sT_closed x r))
+
+  -- encAxReflRecFO = ap2 Pair tagCode_axRefl (ap1 cor (ap1 recF O)).
+  -- subst x r encAxReflRecFO traverses recF, cor, O.
+  encAxReflRecFO_closed : (x : Nat) (r : Term) ->
+    Eq (subst x r encAxReflRecFO) encAxReflRecFO
+  encAxReflRecFO_closed x r =
+    eqCong2 (ap2 Pair)
+      (tagCode_axRefl_closed x r)
+      (eqCong2 (\ f g -> ap1 f (ap1 g O))
+         (cor_closed_eq x r)
+         (recF_closed x r))
+
+  lf_inner_closed : (x : Nat) (r : Term) -> Eq (subst x r lf_inner) lf_inner
+  lf_inner_closed x r =
+    eqCong2 (ap2 Pair) (Df_lf_orig_closed x r) (encAxReflRecFO_closed x r)
+
+  -- Df_F1_Rec_zs is built from constants and Rec on closed parts.
+  -- substF1 x r Df_F1_Rec_zs = Comp2 Pair (KT (subst x r tagCode_ruleTrans)) (Rec (subst x r lf_inner)(substF2 x r step_inner)).
+  -- Need step_inner_closed too.
+
+  -- step_inner_closed: structural traversal.  step_inner contains many
+  -- KT (reify K) sub-Fun1's (closed via reifyClosed) and one Comp recF Fst
+  -- (closed via recF_closed).  Most positions reduce to refl; the
+  -- recF-containing position needs explicit cong.
   --
-  -- These let us bridge  Th12_at_lf_concrete  to  Deriv (substF zero O P_Th12_Rec_zs)
-  -- via eqSubst, completing Step D.
-  --
-  -- Subsequent steps E, F, G, H follow as outlined.  Steps B-H to follow:
+  -- Rather than a deep cascade of eqCong's, we make step_inner_closed a
+  -- module sub-parameter via WithClosure (below).  For typical concrete
+  -- (closed z, s) instances, the caller discharges as `\ _ _ -> refl`.
+
+  ----------------------------------------------------------------------
+  -- WithClosure submodule: takes the closure proof as parameter, then
+  -- delivers Steps D-final, E, F, G, H using it.
+
+  module WithClosure
+    (Df_F1_Rec_zs_closed :
+       (x : Nat) (r : Term) ->
+       Eq (substF1 x r Df_F1_Rec_zs) Df_F1_Rec_zs)
+    where
+
+  ----------------------------------------------------------------------
+  -- Steps E, F, G, H to follow.  Steps B-H to follow:
   --   B (~80 LoC):  Df_F1_Rec_zs_at_O  : Deriv (eqn (ap1 Df_F1_Rec_zs O) lf_inner_form).
   --                Df_F1_Rec_zs_at_Pair : Deriv (eqn (ap1 Df_F1_Rec_zs (Pair v1 v2))
   --                                              (concrete chain Term)).
