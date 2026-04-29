@@ -692,6 +692,90 @@ module Th12RecUnivCase
                Deriv (substF zero (var v1) P_Th12_Rec_zs) ->
                Deriv (substF zero (var v2) P_Th12_Rec_zs) ->
                Deriv (substF zero (ap2 Pair (var v1) (var v2)) P_Th12_Rec_zs)
+    --------------------------------------------------------------------
+    -- Step G0: liftAxiom — lift a non-IH-dependent Deriv to implication form.
+    --
+    --   liftAxiom (P : Formula) (Q : Formula) (D : Deriv Q)
+    --     : Deriv (P imp Q)
+    --   = mp (axK Q P) D.
+
+    liftAxiom : (P : Formula) {Q : Formula} -> Deriv Q -> Deriv (P imp Q)
+    liftAxiom P D = mp (axK _ P) D
+
+    --------------------------------------------------------------------
+    -- Step G1: B_combinator — lifted mp.
+    --
+    --   B_combinator : Deriv (P imp (Q imp R)) -> Deriv (P imp Q)
+    --                  -> Deriv (P imp R)
+    --
+    -- Construction: from D1 : P imp (Q imp R) and D2 : P imp Q,
+    --   axS P Q R : (P imp (Q imp R)) imp ((P imp Q) imp (P imp R))
+    --   mp axS D1 : (P imp Q) imp (P imp R)
+    --   mp ... D2 : P imp R.
+
+    B_combinator : {P Q R : Formula} ->
+                   Deriv (P imp (Q imp R)) ->
+                   Deriv (P imp Q) ->
+                   Deriv (P imp R)
+    B_combinator {P} {Q} {R} D1 D2 = mp (mp (axS P Q R) D1) D2
+
+    --------------------------------------------------------------------
+    -- Step G2: lifted equational rules.
+    --
+    --   liftedRuleTrans : Deriv (P imp atomic (eqn a b))
+    --                  -> Deriv (P imp atomic (eqn a c))
+    --                  -> Deriv (P imp atomic (eqn b c))
+    -- (Note: signature uses BRA's axEqTrans which is "from a=b and a=c
+    -- conclude b=c", not the standard "from a=b and b=c conclude a=c".)
+    --
+    -- Proper liftedRuleTrans (a=b, b=c -> a=c) constructed via ruleSym.
+    --
+    -- liftedCong1 : (f : Fun1) -> Deriv (P imp atomic (eqn a b))
+    --              -> Deriv (P imp atomic (eqn (ap1 f a)(ap1 f b)))
+    -- via axEqCong1 + B_combinator.
+
+    liftedAxEqTrans : (P : Formula) (a b c : Term) ->
+                      Deriv (P imp atomic (eqn a b)) ->
+                      Deriv (P imp atomic (eqn a c)) ->
+                      Deriv (P imp atomic (eqn b c))
+    liftedAxEqTrans P a b c D1 D2 =
+      B_combinator (B_combinator (liftAxiom P (axEqTrans a b c)) D1) D2
+
+    liftedCong1 : (P : Formula) (f : Fun1) (a b : Term) ->
+                  Deriv (P imp atomic (eqn a b)) ->
+                  Deriv (P imp atomic (eqn (ap1 f a) (ap1 f b)))
+    liftedCong1 P f a b D =
+      B_combinator (liftAxiom P (axEqCong1 f a b)) D
+
+    liftedCongL : (P : Formula) (g : Fun2) (a b c : Term) ->
+                  Deriv (P imp atomic (eqn a b)) ->
+                  Deriv (P imp atomic (eqn (ap2 g a c) (ap2 g b c)))
+    liftedCongL P g a b c D =
+      B_combinator (liftAxiom P (axEqCongL g a b c)) D
+
+    liftedCongR : (P : Formula) (g : Fun2) (a b c : Term) ->
+                  Deriv (P imp atomic (eqn a b)) ->
+                  Deriv (P imp atomic (eqn (ap2 g c a) (ap2 g c b)))
+    liftedCongR P g a b c D =
+      B_combinator (liftAxiom P (axEqCongR g a b c)) D
+
+    --------------------------------------------------------------------
+    -- Step G3: liftedEqSubst — Agda-level eqSubst on the implication type.
+    --
+    -- Trivial: from D : Deriv (P imp Property x) and Eq x y,
+    -- produce Deriv (P imp Property y) via Agda's eqSubst.
+
+    liftedEqSubst : {A : Set} (P : Formula) (Property : A -> Formula)
+                    {x y : A} -> Eq x y ->
+                    Deriv (P imp Property x) ->
+                    Deriv (P imp Property y)
+    liftedEqSubst P Property eq D =
+      eqSubst (\ z -> Deriv (P imp Property z)) eq D
+
+    --------------------------------------------------------------------
+    -- Step G to be continued: G4 (lifted toIH1Rec), G5 (lifted dispCongL/R)
+    -- — the crux —, G6 (lifted parDispRuleTrans), G7 (lifted basePair).
+
     basePair v1 v2 ihD_v1 ihD_v2 =
       let
         ih1 : IH1Rec recF (var v1)
