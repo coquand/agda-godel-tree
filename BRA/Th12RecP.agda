@@ -211,22 +211,49 @@ module Th12RecPCase
   -- thmTDispAxRecPNd_param (Term-version) are exported from ThmT.
 
   ----------------------------------------------------------------------
-  -- Schematic statement (universal closure deferred to glue).
+  -- Pair-case Sigma deliverable, parametric in:
+  --   ih_p_v1   : IH2RecP at (p, v1T)  -- the recursive call at v1.
+  --   ih_p_v2   : IH2RecP at (p, v2T)  -- the recursive call at v2.
+  --   ih_s_bra  : BRA-Deriv form of Theorem 12 for s.
+  --   parDispAxRecPNd_param : the missing Term-form dispatcher
+  --     (see "Missing infrastructure" note below).
   --
-  -- Following the encoding-trick from NEXT-SESSION-RECP-TREEEQ.md:
-  -- variable layout  x at var 0 (recursion variable), p at var 1 (kept fresh).
-  -- The ruleIndBT step inducts on var 0; the IH for the step case
-  -- substitutes (var 0 := Pair (var v_a) (var v_b)) on the formula.
+  -- Mirror of BRA.Th12Rec.Th12RecCase.RecPairCase exactly.
 
-  -- P_Th12_RecP_s : Formula
-  -- P_Th12_RecP_s =
-  --   atomic (eqn (ap1 thmT (ap2 Df_F2_RecP_s (var (suc zero)) (var zero)))
-  --               (codeFTeq2Asym recPF (var (suc zero)) (var zero)))
+  -- The Pair-case Sigma proof for RecP would mirror Th12Rec.RecPairCase
+  -- exactly, with binary modifications:
+  --   * E1 uses thmTDispAxRecPNd_param (Term-form dispatcher)
+  --     instead of thmTDispAxRecNd_param.
+  --   * E_v1, E_v2 are IH-bridging steps using IH2RecP records.
+  --   * Lifted versions thread through outer  mkAp2T sT _ _  via
+  --     thmTDispCongR_param at g = s, just as in Rec.
+  --   * Final BRA-level outer bridge through corOfPair (twice) +
+  --     ih_s_bra + cong1 cor (ruleSym (axRecPNd s p v1T v2T)).
   --
-  -- where Df_F2_RecP_s : Fun2 is the "auto-recursing" form
-  --   Df_F2_RecP_s = RecP step_payload  (binary RecP at the BRA level)
-  -- with step_payload : Fun2 producing the encoded chain Term as output.
+  -- Total ~150 LoC of construction, architecturally identical to Rec.
+  -- BLOCKER: thmTDispAxRecPNd_param not yet exported from ThmT.agda.
+
+  ----------------------------------------------------------------------
+  -- Missing infrastructure for full RecP closure:
   --
-  -- The lf case is Th12_F2_RecP_s_at_lf (proved above).
-  -- The Pair case is parametric in IH2RecP records (architectural pattern
-  -- documented above; full chain composition deferred to glue).
+  -- thmTDispAxRecPNd_param needs to be added to BRA/Thm/ThmT.agda's
+  -- abstract block.  The construction is mechanical, mirroring
+  -- thmTDispAxRecNd_param (lines 14315-14376) with these changes:
+  --
+  --   * Slot ordering: RecPNd has payload  Pair sT (Pair pT (Pair aT bT))
+  --     vs RecNd's     Pair zT (Pair sT (Pair aT bT)).
+  --     => liftCompFstSnd_evalPair extracts sT (was zT).
+  --        liftFstSndSnd_evalPair3 extracts pT (was sT).
+  --     The remaining slot extractors (a, b) are unchanged.
+  --
+  --   * Encoded form: codeF2 (RecP s) = Pair (leftT (codeF2 (RecP IfLf))) sT
+  --     vs codeF1 (Rec z s) = Pair (leftT (codeF1 (Rec O IfLf))) (Pair zT sT).
+  --     The "build encoded codeF2 (RecP s)" step uses different combinators.
+  --
+  -- Total ~200 LoC of careful Agda inside ThmT.agda's abstract block,
+  -- mirroring the existing body_axRecNd_eval_param + thmTDispAxRecNd_param.
+  --
+  -- Once added, RecPPairCase becomes fully concrete (no parametric input
+  -- for parDispAxRecPNd_param) and the universal closure
+  -- Th12_F2_RecP_s : Deriv P_Th12_RecP_s follows via ruleIndBT or
+  -- fromBaseAndPair (analog of Th12Rec's path).
