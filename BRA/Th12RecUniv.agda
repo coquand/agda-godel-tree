@@ -522,6 +522,49 @@ module Th12RecUnivCase
        Eq (substF1 x r Df_F1_Rec_zs) Df_F1_Rec_zs)
     where
 
+    --------------------------------------------------------------------
+    -- Step D-final: Th12_at_lf_substF : Deriv (substF zero O P_Th12_Rec_zs).
+    --
+    -- Strategy: bridge Th12_at_lf_concrete via eqSubst at multiple
+    -- positions, using thClosed / Df_F1_Rec_zs_closed / recF_closed /
+    -- cor_closed_eq / cf_closed and similar Eq lemmas.
+    --
+    -- substF zero O P_Th12_Rec_zs reduces (Agda definitional, outside
+    -- abstract block) to:
+    --   atomic (eqn (ap1 thmT (ap1 (substF1 zero O Df_F1_Rec_zs) O))
+    --               (subst zero O (codeFTeq1Asym recF (var zero))))
+    -- (using thClosed = refl for the thmT slot).
+    --
+    -- We bridge via eqSubst on each "stuck" position.
+
+    -- subst zero O (codeFTeq1Asym recF (var zero)) = codeFTeq1Asym recF O
+    -- by structural cong using cf_closed, cor_closed_eq, recF_closed.
+    codeFTeq1Asym_subst_eq_O :
+      Eq (subst zero O (codeFTeq1Asym recF (var zero)))
+         (codeFTeq1Asym recF O)
+    codeFTeq1Asym_subst_eq_O =
+      eqCong3 (\ cf' cor' recF' -> ap2 Pair
+        (ap2 Pair (reify tagAp1)(ap2 Pair cf' (ap1 cor' O)))
+        (ap1 cor' (ap1 recF' O)))
+        (cf_closed zero O)
+        (cor_closed_eq zero O)
+        (recF_closed zero O)
+
+    Th12_at_lf_substF : Deriv (substF zero O P_Th12_Rec_zs)
+    Th12_at_lf_substF =
+      eqSubst (\ thT' -> Deriv (atomic (eqn
+          (ap1 thT' (ap1 (substF1 zero O Df_F1_Rec_zs) O))
+          (subst zero O (codeFTeq1Asym recF (var zero))))))
+        (eqSym (thClosed zero O))
+        (eqSubst (\ Df' -> Deriv (atomic (eqn
+            (ap1 thmT (ap1 Df' O))
+            (subst zero O (codeFTeq1Asym recF (var zero))))))
+          (eqSym (Df_F1_Rec_zs_closed zero O))
+          (eqSubst (\ rhs -> Deriv (atomic (eqn
+              (ap1 thmT (ap1 Df_F1_Rec_zs O)) rhs)))
+            (eqSym codeFTeq1Asym_subst_eq_O)
+            Th12_at_lf_concrete))
+
   ----------------------------------------------------------------------
   -- Steps E, F, G, H to follow.  Steps B-H to follow:
   --   B (~80 LoC):  Df_F1_Rec_zs_at_O  : Deriv (eqn (ap1 Df_F1_Rec_zs O) lf_inner_form).
