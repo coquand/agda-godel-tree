@@ -1125,19 +1125,25 @@ module Th12RecUnivCase
   Df_F1_Rec_zs_at_Pair_proven = Df_F1_Rec_zs_at_Pair_explicit
 
   module WithClosure
-    (Df_F1_Rec_zs_closed :
-       (x : Nat) (r : Term) ->
-       Eq (substF1 x r Df_F1_Rec_zs) Df_F1_Rec_zs)
     -- Theorem 12 for s in BRA-Deriv form (NOT encoded form).
+    -- This is the ONLY remaining parameter at WithClosure level: depends
+    -- on s (caller-supplied Fun2). For specific s, dischargeable from
+    -- BRA's defining axioms.
     (ih_s_bra : (a b : Term) ->
        Deriv (atomic (eqn (mkAp2T sT (ap1 cor a) (ap1 cor b))
                           (ap1 cor (ap2 s a b)))))
-    -- Step B2 (mechanical, ~150-200 LoC): BRA-equality bridging
-    -- ap1 Df_F1_Rec_zs (Pair v1 v2) to Df_chain12_at v1 v2.
-    (Df_F1_Rec_zs_at_Pair : (v1 v2 : Nat) ->
-       Deriv (atomic (eqn (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))
-                          (Df_chain12_at v1 v2))))
     where
+
+    -- Df_F1_Rec_zs_closed and Df_F1_Rec_zs_at_Pair are proved internally
+    -- and used by the rest of WithClosure.
+    Df_F1_Rec_zs_closed : (x : Nat) (r : Term) ->
+                          Eq (substF1 x r Df_F1_Rec_zs) Df_F1_Rec_zs
+    Df_F1_Rec_zs_closed = Df_F1_Rec_zs_closed_proven
+
+    Df_F1_Rec_zs_at_Pair : (v1 v2 : Nat) ->
+      Deriv (atomic (eqn (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))
+                         (Df_chain12_at v1 v2)))
+    Df_F1_Rec_zs_at_Pair = Df_F1_Rec_zs_at_Pair_proven
 
     --------------------------------------------------------------------
     -- Step D-final: Th12_at_lf_substF : Deriv (substF zero O P_Th12_Rec_zs).
