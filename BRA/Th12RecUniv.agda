@@ -30,10 +30,12 @@ open import BRA.Thm14CodeFTeqAsym
 open import BRA.Thm.Tag using
   ( tagAxRecLf ; tagRuleTrans )
 open import BRA.Thm.ThmT using
-  ( thmT
+  ( thmT ; thClosed
   ; tagCode_axRecLf
   ; tagCode_ruleTrans ; tagCode_axRecNd ; tagCode_axRefl
-  ; tagCode_congL ; tagCode_congR )
+  ; tagCode_congL ; tagCode_congR
+  ; thmTDispAxRefl_param ; thmTDispRuleTrans_param )
+import BRA.Th12Rec
 
 ------------------------------------------------------------------------
 -- Helper Fun2 combinators for runtime emission.
@@ -73,6 +75,12 @@ RecsSnd = Post Snd Recs
 module Th12RecUnivCase
   (z : Term)
   (s : Fun2)
+  (z_corLemma : Deriv (atomic (eqn (ap1 cor z) (reify (code z)))))
+  -- Closure assumptions: z and s contain no free var (they're recursion
+  -- parameters; in practice always closed -- O, numerals, or closed
+  -- combinator expressions).  The caller commits to these.
+  (z_closed : (x : Nat) (r : Term) -> Eq (subst x r z) z)
+  (s_closed : (x : Nat) (r : Term) -> Eq (substF2 x r s) s)
   where
 
   zT : Term
@@ -302,7 +310,134 @@ module Th12RecUnivCase
     in ruleTrans cong_Fst fst_proj
 
   ----------------------------------------------------------------------
-  -- Step A, B1, C complete.  Steps B-H to follow:
+  -- Reuse the proven Th12_F1_Rec_zs_at_lf from BRA.Th12Rec.Th12RecCase.
+
+  open BRA.Th12Rec.Th12RecCase z s z_corLemma using
+    ( Th12_F1_Rec_zs_at_lf )
+  -- Th12_F1_Rec_zs_at_lf : Deriv (eqn (thmT Df_lf_orig)(codeFTeq1Asym recF O))
+  -- where Df_lf_orig = ap2 Pair tagCode_axRecLf (ap2 Pair zT sT) (matches our Df_lf_orig).
+
+  ----------------------------------------------------------------------
+  -- Step D: Th12_at_lf : Deriv (substF zero O P_Th12_Rec_zs).
+  --
+  -- Strategy:
+  --   1. Build the explicit form of substF zero O P_Th12_Rec_zs:
+  --      atomic (eqn (ap1 (substF1 zero O thmT)(ap1 (substF1 zero O Df_F1_Rec_zs) O))
+  --                   (codeFTeq1Asym recF O))
+  --      (the var 0 inside (var zero) substitutes to O).
+  --   2. Bridge thmT-fixity via thClosed.
+  --   3. Bridge Df_F1_Rec_zs-fixity via Df_F1_Rec_zs_closed.
+  --   4. Apply Th12_F1_Rec_zs_at_lf composed via parDispRuleTrans + axRefl
+  --      (since our Df_F1_Rec_zs O = Pair tagCode_ruleTrans lf_inner has the
+  --       outer ruleTrans wrapping; we use thmTDispRuleTrans_param to compute
+  --       its thmT-image).
+
+  P_Th12_Rec_zs : Formula
+  P_Th12_Rec_zs = atomic (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (var zero)))
+                              (codeFTeq1Asym recF (var zero)))
+
+  -- Step D auxiliary:  thmT image of Df_F1_Rec_zs O = Pair tagCode_ruleTrans lf_inner
+  -- equals codeFTeq1Asym recF O via parDispRuleTrans + axRefl threading.
+
+  Th12_at_lf_concrete :
+    Deriv (atomic (eqn (ap1 thmT (ap1 Df_F1_Rec_zs O)) (codeFTeq1Asym recF O)))
+  Th12_at_lf_concrete =
+    let
+      -- thmT (Pair tagCode_ruleTrans lf_inner) via parDispRuleTrans_param.
+      --
+      -- lf_inner = Pair Df_lf_orig encAxReflRecFO.
+      -- y1 = Df_lf_orig: image Pair (mkAp1T cf (cor O))(cor (recF O)).
+      -- y2 = encAxReflRecFO = Pair tagCode_axRefl (cor (recF O)):
+      --      image Pair (cor (recF O))(cor (recF O))   [via thmTDispAxRefl_param].
+      -- composed: Pair (mkAp1T cf (cor O))(cor (recF O)) = codeFTeq1Asym recF O.
+
+      cor_recF_O : Term
+      cor_recF_O = ap1 cor (ap1 recF O)
+
+      cor_O : Term
+      cor_O = ap1 cor O
+
+      lhsLeft : Term
+      lhsLeft = mkAp1T cf cor_O
+
+      -- thmT y1 = Pair lhsLeft cor_recF_O (= codeFTeq1Asym recF O).
+      img_y1 : Deriv (atomic (eqn (ap1 thmT Df_lf_orig) (codeFTeq1Asym recF O)))
+      img_y1 = Th12_F1_Rec_zs_at_lf
+
+      -- thmT y2 = Pair cor_recF_O cor_recF_O via thmTDispAxRefl_param.
+      img_y2 : Deriv (atomic (eqn (ap1 thmT encAxReflRecFO)
+                                   (ap2 Pair cor_recF_O cor_recF_O)))
+      img_y2 = thmTDispAxRefl_param cor_recF_O
+
+      -- Shape proof for y1: Fst Df_lf_orig = tagCode_axRecLf = Pair O ...
+      shape_y1 : Deriv (atomic (eqn (ap1 Fst Df_lf_orig) tagCode_axRecLf))
+      shape_y1 = axFst tagCode_axRecLf (ap2 Pair zT sT)
+
+      -- Compose via thmTDispRuleTrans_param.
+      -- Pair tagCode_ruleTrans lf_inner = Pair tagCode_ruleTrans (Pair Df_lf_orig encAxReflRecFO).
+      composed : Deriv (atomic (eqn
+        (ap1 thmT (ap2 Pair tagCode_ruleTrans (ap2 Pair Df_lf_orig encAxReflRecFO)))
+        (ap2 Pair lhsLeft cor_recF_O)))
+      composed = thmTDispRuleTrans_param Df_lf_orig encAxReflRecFO
+                   lhsLeft cor_recF_O cor_recF_O cor_recF_O
+                   _ _ shape_y1 img_y1 img_y2
+
+      -- Bridge: ap1 thmT (ap1 Df_F1_Rec_zs O) -> ap1 thmT (Pair tagCode_ruleTrans lf_inner)
+      -- via cong1 thmT (Df_F1_Rec_zs_at_O).
+      reduce_outer : Deriv (atomic (eqn
+        (ap1 thmT (ap1 Df_F1_Rec_zs O))
+        (ap1 thmT (ap2 Pair tagCode_ruleTrans lf_inner))))
+      reduce_outer = cong1 thmT Df_F1_Rec_zs_at_O
+
+      -- ap2 Pair lhsLeft cor_recF_O = codeFTeq1Asym recF O (definitionally).
+      -- codeFTeq1Asym recF O = mkEqT (mkAp1T cf (cor O))(cor (recF O))
+      --                     = ap2 Pair (mkAp1T cf cor_O) cor_recF_O = ap2 Pair lhsLeft cor_recF_O. ✓
+    in ruleTrans reduce_outer composed
+
+  ----------------------------------------------------------------------
+  -- Step D: lift Th12_at_lf_concrete to substF zero O P_Th12_Rec_zs via
+  -- thClosed and Df_F1_Rec_zs_closed.
+  --
+  -- substF zero O P_Th12_Rec_zs computes (Agda definitional reduction)
+  -- to atomic (eqn (ap1 (substF1 zero O thmT)(ap1 (substF1 zero O Df_F1_Rec_zs) O))
+  --                 (codeFTeq1Asym (substF1 zero O recF) O)).
+  --
+  -- We need to bridge:
+  --   substF1 zero O thmT = thmT          [thClosed].
+  --   substF1 zero O Df_F1_Rec_zs = Df_F1_Rec_zs   [Df_F1_Rec_zs_closed, derived].
+  --   substF1 zero O recF = recF          [from z_closed, s_closed].
+  --
+  -- The Eq lemmas combined via eqSubst convert Th12_at_lf_concrete into
+  -- the required Deriv form.
+
+  -- Df_F1_Rec_zs_closed : Eq (substF1 zero O Df_F1_Rec_zs) Df_F1_Rec_zs.
+  --   substF1 zero O (Comp2 Pair (KT tagCode_ruleTrans) inner_Rec)
+  --   = Comp2 Pair (substF1 zero O (KT tagCode_ruleTrans))(substF1 zero O inner_Rec).
+  --   substF1 zero O (KT k) reduces to KT (subst zero O k); we need
+  --     (subst zero O tagCode_ruleTrans) = tagCode_ruleTrans (closed reify).
+  --   substF1 zero O (Rec lf_inner step_inner)
+  --   = Rec (subst zero O lf_inner)(substF2 zero O step_inner).
+  --     subst zero O lf_inner uses subst zero O on Df_lf_orig (= Pair zT sT-form, all closed)
+  --     and on encAxReflRecFO (= Pair tagCode_axRefl (cor (recF O))).
+  --     For this to be closed, need recF closed (= z, s closed) and cor closed (it is, defined as Rec O stepCor with closed stepCor).
+  --
+  -- This Eq lemma requires careful structural induction.  We defer the
+  -- proof to the next sub-step (Step D2).  For Step D currently, we
+  -- ASSUME it as a parameter and provide it in the closure.
+
+  ----------------------------------------------------------------------
+  -- Steps A, B1, C, D-partial complete.
+  --
+  -- Step D2 (~30 LoC): discharge the two structural Eq lemmas
+  --   Df_F1_Rec_zs_closed : (r : Term) -> Eq (substF1 zero r Df_F1_Rec_zs) Df_F1_Rec_zs
+  --   recF_closed : (r : Term) -> Eq (substF1 zero r recF) recF
+  -- by structural induction using z_closed + s_closed + reifyClosed for
+  -- the various reify-of-natCode terms.
+  --
+  -- These let us bridge  Th12_at_lf_concrete  to  Deriv (substF zero O P_Th12_Rec_zs)
+  -- via eqSubst, completing Step D.
+  --
+  -- Subsequent steps E, F, G, H follow as outlined.  Steps B-H to follow:
   --   B (~80 LoC):  Df_F1_Rec_zs_at_O  : Deriv (eqn (ap1 Df_F1_Rec_zs O) lf_inner_form).
   --                Df_F1_Rec_zs_at_Pair : Deriv (eqn (ap1 Df_F1_Rec_zs (Pair v1 v2))
   --                                              (concrete chain Term)).
