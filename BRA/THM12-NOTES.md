@@ -1,9 +1,15 @@
 # Def 12 and Thm 12 — notes for review
 
-Status: **not a validated plan**.  These are my current reading of
-guard15 Def 12 (p.16) and Thm 12 (p.16), written out so the user
-can check the interpretation before any code is committed to
-`BRA/`.
+Status: **not a validated plan; Phase 2 work**.  These are my
+current reading of guard15 Def 12 (p.16) and Thm 12 (p.16),
+written out so the user can check the interpretation before any
+code is committed to `BRA/`.
+
+**Scheduled for Phase 2** (after Gödel I / Thm 11; see
+`BRA/EX24-DESIGN.md` for the Phase 1 / Phase 2 split).  This file
+is the spec the eventual `BRA/CodeT.agda` (and the Thm 12 / 13 / 14
+chain) will be coded against.  No code will be written from this
+doc until Phase 1 is complete.
 
 Companion to `BRA/EX24-DESIGN.md`.  Once the user confirms the
 interpretation, the Thm 12 section of EX24-DESIGN.md should be
@@ -49,7 +55,7 @@ For us, with Guard's `num = cor`:
 
 ```agda
 codeT  : Term -> Term
-codeT O           = O
+codeT O           = ap2 Pair O O               -- = reify (code O); see Note A
 codeT (var n)     = ap1 cor (var n)            -- symbolic, unreduced
 codeT (ap1 f t)   = ap2 Pair (reify tagAp1)
                      (ap2 Pair (reify (codeF1 f)) (codeT t))
@@ -64,6 +70,14 @@ codeFT (P imp Q)          = ap2 Pair (reify tagImp)
                              (ap2 Pair (codeFT P) (codeFT Q))
 ```
 
+**Note A: `codeT O`.**  An earlier draft of this doc had
+`codeT O = O`.  That was wrong: `BRA/Term.agda` defines
+`code O = nd tagO lf` with `tagO = lf`, so `code O = nd lf lf` and
+`reify (code O) = ap2 Pair O O`, *not* `O`.  The constant `0`
+codes-to-itself-modulo-the-tag-wrapper, mirroring Guard's
+"0 -> 0" only in the structural sense, not literally.  Fixed in
+the spec above.
+
 ### Why this matches Guard
 
 **Guard's worked example.** For `ξ = "fx = g(hx, 0)"`, Def 12
@@ -76,11 +90,76 @@ computes `3J(3J("f", numx)+1, num g(hx, 0))`:
   analog: `ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 f))
   (ap1 cor (var 0)))` — where `ap1 cor (var 0)` is the symbolic
   `num(x)`.
-- `num g(hx, 0)` codes `g(hx, 0)` as a numeral (closed, since `hx`
-  and `0` are also computed with num on subterms).  Our analog:
-  `codeT (ap2 g (ap1 h (var 0)) O)` — which unfolds to a specific
-  BRA term that still contains `ap1 cor (var 0)` once for the `h x`
-  subterm and is otherwise closed.
+- `num g(hx, 0)` is the more interesting half — fully unfolded
+  below.
+
+**Worked example: `num g(h x, 0)` in BRA.**  Take `g : Fun2`,
+`h : Fun1`, `x = var 0`, `0 = O`.  The source term is
+`ap2 g (ap1 h (var 0)) O`.  Apply codeT clause-by-clause:
+
+    codeT (ap2 g (ap1 h (var 0)) O)
+      = ap2 Pair (reify tagAp2)
+          (ap2 Pair (reify (codeF2 g))
+            (ap2 Pair (codeT (ap1 h (var 0)))
+                      (codeT O)))
+
+    codeT (ap1 h (var 0))
+      = ap2 Pair (reify tagAp1)
+          (ap2 Pair (reify (codeF1 h)) (codeT (var 0)))
+
+    codeT (var 0) = ap1 cor (var 0)            -- THE symbolic cor
+    codeT O       = ap2 Pair O O                -- = reify (code O)
+
+Putting it together, `codeT (ap2 g (ap1 h (var 0)) O)` =
+
+    ap2 Pair (reify tagAp2)
+      (ap2 Pair (reify (codeF2 g))
+        (ap2 Pair
+          (ap2 Pair (reify tagAp1)
+            (ap2 Pair (reify (codeF1 h))
+              (ap1 cor (var 0))))                   -- only symbolic cor
+          (ap2 Pair O O)))                          -- code of constant 0
+
+**Properties to note.**
+
+1. All structural tags (`tagAp1`, `tagAp2`, `codeF1 h`, `codeF2 g`)
+   are closed reified trees -- they reify once at meta-build time
+   and never reduce.
+2. The constant `0` gets its honest code `ap2 Pair O O`
+   (= `reify (code O)`).  It does *not* get wrapped in cor: `0` is
+   already a closed numeral, so num/cor on it would just return
+   its code, which we substitute directly at codeT-time.
+3. The variable `x` (= var 0) is the unique spot where
+   `ap1 cor (var 0)` appears symbolically -- *one* occurrence,
+   exactly matching the *one* underlined variable in the source
+   term.
+4. Under `ruleInst x_0 := reify t`, the `ap1 cor (var 0)` becomes
+   `ap1 cor (reify t)`, which reduces (by `corOfReify`) to
+   `reify (code (reify t))` -- the genuine Gödel code of the
+   numeral `reify t`.  The whole expression is then closed and
+   equals the actual code of `g(h(numeral-of-t), 0)`.
+
+**Counting cor's.**  The number of symbolic `ap1 cor (var n)`
+slots in `codeT t` equals the number of free-variable occurrences
+in `t`.  Each `ruleInst` step instantiating one variable to a
+closed numeral fires exactly one cor (per occurrence of that
+variable).  Bounded growth -- good for Thm 14's diagonal
+manipulations.
+
+**Connecting to Guard's `"sx" = num(sx)` self-consistency.**
+Guard wrote `num g(h x, 0)` in two ways and showed they agree:
+- as Def 12's recursive coding of the term `g(h x, 0)` (the
+  unfolding above, with x underlined throughout);
+- as `num` applied to the whole open term `g(h x, 0)`.
+
+We follow the structural-unfolding reading for codeT because
+(a) it's a total Agda recursion on Term, requiring no BRA proofs
+to define; (b) BRA's `cor` (= `Rec falseT stepCor`) is not even
+defined to reduce on open `ap1 f` / `ap2 g` -- it only reduces on
+reified trees -- so the "apply num to the whole term" reading
+isn't directly evaluable in BRA.  The two readings agree as BRA
+terms (modulo Def 12's self-consistency observation), but
+codeT's structural unfolding is the form we actually compute with.
 
 **Guard's self-consistency "sx" = "sx".** Guard writes
 `3J("s", numx)+1 = num(sx)`.  Reading the LHS via Def 12: `"sx"`

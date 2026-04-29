@@ -37,8 +37,7 @@
 -- The remaining work for Goedel II step 4 -- defining a parametric
 -- subst-rule encoding  subEnc : Term -> Term  and connecting
 --  ap1 thmT (subEnc x)  to  sb  parametrically in  x  -- is a separate
--- subproject (see  BRA/NEXT-SESSION-GODELII-V2.md ).  This file is
--- strictly the computational kernel.
+-- subproject.  This file is strictly the computational kernel.
 
 module BRA.SbAxiom where
 

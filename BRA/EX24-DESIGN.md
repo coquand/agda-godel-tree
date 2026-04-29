@@ -20,12 +20,47 @@ proceeds by clear contract, not by-the-seat.
 | `ax`       | `ax`     | `BRA/Ax.agda` (planned) | — |
 | `sbt`      | —        | **skipped** (trees pair for free) | — |
 | `sbf`      | —        | **skipped** (trees pair for free) | — |
-| `sb`       | `subT`   | `BRA/SubT.agda` (planned) | — |
-| `sub`      | `sub`    | `BRA/Sub.agda` (planned) | — |
+| `sb`       | `subT`   | `BRA/SubT.agda` | ✓ done |
+| `sub`      | `sub`    | `BRA/Sub.agda` | ✓ done |
 
 Six functors total (Guard has eight; `sbt`/`sbf` dissolve under
 tree-pairing since they existed only to decode prime-product lists
 in Guard's natural-number encoding).
+
+## Milestone driving the open questions: Thm 11 (Gödel I)
+
+The four open questions below are judged by **what Thm 11 actually
+needs**, not by what would be nice for an eventual Thm 14.
+
+Thm 11 (Guard p.15): construct `j = "th(x_1) ≠ sub(x_0, x_0)"` and
+prove `sub(j, j)` is unprovable.  Unprovability is a meta-Agda
+argument:
+
+- assume `pf : Deriv (sub(j, j))` with derivation-encoding `y_d`,
+- by `ruleInst` on `pf` with `x_1 := numeral y_d`:
+  `Deriv (th(numeral y_d) ≠ sub(numeral(code j), numeral(code j)))`,
+- combine with a Deriv of `th(numeral y_d) = numeral(code(sub(j,j)))`
+  (call this `enc`, see below) and a Deriv of
+  `sub(numeral(code j), numeral(code j)) = numeral(code(sub(j,j)))`
+  (subDef + corOfReify),
+- get Deriv inconsistency; contradict meta-level Consistent.
+
+So Thm 11 needs:
+
+- `th` defined and dispatching correctly (Q1, Q2, Q3 below),
+- `subDef` (✓), `corOfReify` (✓),
+- `enc` -- a **Thm 12-lite for derivations only** (new, see
+  `## enc` section), built by induction over `Deriv` constructors
+  using `mpFDef` / `subTDef` / `axDef` / `indFDef` for splice steps.
+
+Thm 11 does **not** need:
+
+- Full Thm 12 (`∀f : Fun1. ∃D_f. th(D_f x) = code(f x = f x))`),
+  which is for general primitive recursive functors -- needed for
+  Thm 13 → Thm 14 (Gödel II), not Thm 11.
+
+This narrows the path: resolve Q1/Q2/Q3 with the **cheapest option
+that suffices for Thm 11**, defer Q4 to the Gödel II phase.
 
 ## Naming convention
 
@@ -110,11 +145,16 @@ variable but the induction hypothesis is weaker: you don't get IHs
 for both subtrees independently.  **Dead** — insufficient for
 Thm 11's diagonal construction.
 
-**Pending user decision.** Leaning toward Option A as a starting
-point (matches `mpF`'s clean projection style; convention cost is
-cheap; renaming via `ruleInst` recovers generality).  Upgrade to C
-only if some Thm 12 case forces it.  User is thinking about which
-way `v'` should work.  **Do not code `indF` until this is resolved.**
+**Decision: Option A** (locked, judged against Thm 11).
+
+`enc` (the Thm 12-lite for Gödel I) needs to handle the
+`ruleIndBT P v1 v2 base step` constructor case via th's mod-4 ind
+branch.  When *we* construct derivations for `enc` and Thm 11, we
+choose `v1 = zero` freely.  Option A's projection-style indF
+suffices.  Option C's full generality (handling arbitrary v1 in
+user-supplied derivations) is not required by Thm 11.  If a Thm 12
+case in the eventual Gödel II work forces wider v1, upgrade to C
+then; for now A is the cheapest sufficient choice.
 
 ### ax (Ex 24 [6])
 
@@ -141,65 +181,149 @@ the index tree via `Pair`.  ~200 lines.
 axiom schema — and let `th`'s mod-4 dispatch branch on which
 schema applies.  Larger but flat structure.  ~400 lines.
 
-**Open question:** Guard's `ax` is conceptually one functor indexed
-by natural number.  Our parametric axioms don't fit that shape
-directly; Option A is closer to Guard but trickier to encode.
-Settle this before coding `ax`.
+**Decision: Option A** (locked, judged against Thm 11).
 
-### subT (Ex 24 [4])
+`enc` walks Deriv constructor-by-constructor; for each axiom case
+(axI, axFst, ..., axExFalso) it builds a tree-index `i_ax` and
+relies on `axDef` at that index.  A single Fun1 indexed by a tree
+(with parameters folded in via Pair) is sufficient and ~2× smaller
+than Option B's per-schema bundle.  No Thm 11 case forces the flat
+structure of B.  Pick A.
 
-**Spec.**
+### subT (Ex 24 [4])  -- done
 
-    subT (reify (nd (code(var n)) codeA)) (reify codeB)
-      = reify (codedSubst codeA (code(var n)) codeB)
+**Spec (built).**
 
-(where `codedSubst` is our meta-level substitution on Tree, defined
-in `BRA/Term.agda`).  Argument 1 is the packed substitution data
-`Pair (code(var n)) codeA`; argument 2 is the target code.
+    ap2 subT (ap2 Pair (reify (code (var n))) (reify codeA))
+             (reify codeB)
+      = reify (codedSubst codeA (code (var n)) codeB)
 
-**Definition sketch.**
+**`codedSubst` adjustment.**  The original asymmetric definition in
+`BRA/Term.agda` (split test `treeEq a tagVar` / `treeEq b tgt`,
+keeping `nd a b` unchanged when only the first matched) was replaced
+with the symmetric whole-node form
+
+    codedSubst repl varCode (nd a b) =
+      boolCase (treeEq varCode (nd a b))
+        repl
+        (nd (codedSubst repl varCode a) (codedSubst repl varCode b))
+
+This (a) matches `stepSubT`'s `TreeEq codeVarN orig` test exactly
+and (b) takes `varCode = code (var n)` (the whole variable code) as
+its target, matching the design spec.  Equivalent to the original
+on well-formed term codes -- the only place `nd tagVar X` appears in
+a code is at variable nodes, so the whole-node test reproduces the
+asymmetric one.  No downstream consumers existed yet, so the change
+was safe.
+
+**Definition (built).**
+
+    checkEqSubT : Fun2
+    checkEqSubT = Fan (Lift (Comp Fst Fst)) (Lift Snd) TreeEq
+
+    contSubT : Fun2
+    contSubT = Fan (Lift (Comp Snd Fst)) (Post Snd Pair) Pair
 
     stepSubT : Fun2
-    stepSubT = Fan checkEq continuation IfLf
-      where
-        checkEq      = Fan (Lift (Comp Fst Fst)) (Lift Snd) TreeEq
-        continuation = Fan (Lift (Comp Snd Fst)) (Post Snd Pair) Pair
+    stepSubT = Fan checkEqSubT contSubT IfLf
 
     subT : Fun2
     subT = RecP stepSubT
 
-**Proof outline.** Meta-induction on the tree `codeB`:
-- `codeB = lf`: `reify = O`; `axRecPLf stepSubT _`.  ~3 lines.
-- `codeB = nd a b`: `axRecPNd stepSubT _ _ _`, unfold `stepSubT`,
-  split on `TreeEq (reify codeVarN) (reify (nd a b))`:
-  - match (`O`): `axIfLfL` returns `codeA`.  Meta-level
-    `codedSubst` at a matching node also returns `repl = codeA`.
-    ~10 lines.
-  - no-match (`Pair O O`): `axIfLfN` returns `recs`.  Meta-level
-    `codedSubst` recurses into children.  IH on both.  ~20 lines.
+**Proof structure (built).**  Meta-induction on the tree `codeB`:
+- `codeB = lf`: 1 line via `axRecPLf`.
+- `codeB = nd a b`: ~80 lines.  `axRecPNd`, then `axFan` on
+  `stepSubT`.  `checkEqSubT` reduces to `TreeEq varT orig` (helper
+  `checkEqAt`) then to `boolCase (treeEq varCode (nd a b)) O falseT`
+  (helper `treeEqRed`, by meta-induction on two trees).  `contSubT`
+  reduces to `Pair codeAT recs` (helper `contAt`).  Combine into a
+  clean `IfLf`, dispatch via `ifLfDispatch`.  A `where`-bound
+  `finishCase : (b : Bool) -> Deriv ...` case-splits on the boolean
+  to align with `codedSubst`'s definitional unfolding.
 
-Estimate ~100 lines total.  This is the first real test of whether
-the combinator style scales past trivial projections.
+**Actual size.**  268 lines, 0.086 s.  Larger than the ~100-line
+estimate, mostly from typed-`let` bookkeeping in `checkEqAt`/
+`contAt` (~30 lines each), `treeEqRed` + helpers (~40 lines), and
+the `subTDef nd` body (~120 lines).  Confirmed: the combinator
+style scales past trivial projections.  First real `RecP` proof.
 
-### sub (Ex 24 [8])
+### sub (Ex 24 [8])  -- done
 
-**Spec.** `sub(z, "P") = "S^{x₀}_{ss…s0_z} P"` — substitute the
-numeral of z for `x₀` in `P`.
+**Spec (built).**  For any tree zTree and codeP:
 
-**Definition.** With `cor` and `subT` in hand:
+    ap2 sub (reify zTree) (reify codeP)
+      = reify (codedSubst (code (reify zTree)) (code (var 0)) codeP)
 
+**Definition (built).**  Fixed `varCode0T = reify (code (var 0))`:
+
+    leftSub  : Fun2
+    leftSub  = Fan (Lift (KT varCode0T)) (Lift cor) Pair
+    rightSub : Fun2
+    rightSub = Post Snd Pair
     sub : Fun2
-    sub (z , reify codeP)
-      = ap2 subT (ap2 Pair (reify (code (var 0))) (ap1 cor z))
-                 (reify codeP)
+    sub = Fan leftSub rightSub subT
 
-Implemented as a Fun2 using `Fan`, `Post`, and a few constants for
-`reify (code (var 0))`:
+`leftSub a b = Pair varCode0T (cor a)` (subst data); `rightSub a b
+= b` (target passes through); outer Fan applies `subT` to them.
 
-    sub = Post subTFixedVar0 ...   -- ~one line combinator
+**Proof structure (built).**  Linear chain: axFan unfold sub,
+reduce leftSub via axFan + constF2Red + axLift, reduce rightSub via
+axPost + axSnd, rewrite `ap1 cor z` via `corOfReify`, then close
+with `subTDef zero corCode codeP`.
 
-Derivation uses `subT`'s defining equation + `cor`'s behavior on
-numerals (= reified trees).  ~30 lines.
+**Actual size.**  138 lines, 0.04 s.  In line with the ~30-line
+estimate plus the typed-`let` overhead.
+
+## `enc` — Thm 12-lite for Deriv (gating Thm 11)
+
+Thm 11 needs an internalisation of *the proof relation itself*,
+not of arbitrary primitive recursive functors.  This is strictly
+weaker than Thm 12 and is a finite case-split, not a meta-induction
+over functor definitions.
+
+**Signature.**
+
+    enc : (P : Formula) -> Deriv P ->
+      Sigma Tree (\ y ->
+        Deriv (atomic (eqn (ap1 th (reify y))
+                           (reify (codeFormula P)))))
+
+**Structure.**  One case per `Deriv` constructor (~30 cases):
+
+- **Computation axioms** (axI, axFst, ..., axRecPNd, axIfLf*,
+  axTreeEq*, axGoodstein, axRefl, axEqTrans, axEqCong*, axK,
+  axS, axNeg, axExFalso): build `y = nd <ax-tag-shape> <param-encoding>`,
+  Deriv from `axDef <encoded-index>`, then `th` reduces via the
+  ax branch.  ~1-3 lines per case.
+- **Structural rules** (ruleSym, ruleTrans, cong1, congL, congR):
+  recurse via IH, splice with appropriate eq-axiom encodings.  These
+  are derived in BRA but `enc` must still encode them: ruleTrans
+  uses axEqTrans + 2 mp; cong1 uses axEqCong1 + 1 mp; etc.  Each
+  ~5-10 lines using `mpFDef` to splice.
+- **`mp`**: IH gives `(y_1, eq_1)` for `Deriv (P imp Q)` and
+  `(y_2, eq_2)` for `Deriv P`.  Build `y = nd <mp-tag-shape> (Pair
+  y_1 y_2)`.  `th(y)` reduces via mp branch to `mpF(th(y_1),
+  th(y_2)) = mpF(code(P imp Q), code(P)) = code Q` by `mpFDef`.
+- **`ruleInst x t`**: IH gives `(y_0, eq_0)` for `Deriv P`.  Build
+  `y = nd <sb-tag-shape> (Pair (Pair (encode-x) (encode-t)) y_0)`.
+  `th(y)` reduces via sb branch to `subT(...)(th(y_0))`, then
+  `subTDef` finishes.
+- **`ruleIndBT P v1 v2 base step`**: as discussed (Q1), choose
+  v1 = zero in our usage.  IH gives encodings for `base` and
+  `step`; build `y = nd <ind-tag-shape> (Pair y_base y_step)` and
+  close via `indFDef`.
+- **`ruleF`**: Schema F.  Most complex case -- gives uniqueness of
+  Rec.  May need to be encoded via a sequence of axRefl + axRec*
+  steps, or added to `ax` as a parametric axiom schema.  Decide
+  when reaching this case.
+
+**Estimate.** ~400-600 lines across one or two files.  Each Deriv
+constructor case is small (1-10 lines) once `th`'s defining
+equations exist.  The volume is in the case-count, not depth.
+
+**Files.** `BRA/Enc.agda` (the lemma).  Possibly a small companion
+`BRA/EncTags.agda` if the tag-shape constants need their own
+namespace.
 
 ## Thm 12 — target signature
 
@@ -289,28 +413,60 @@ Estimate ~300-500 lines for Gödel II once Thm 12/13 are in place.
     th(4y+2) = mp(th(Ky), th(Ly))
     th(4y+3) = ind(th(Ky), th(Ly))
 
-In our tree setting, the mod-4 dispatch becomes a tag-nd nesting
-(four tree shapes at the top level: `lf`, `nd lf lf`, `nd (nd lf lf)
-lf`, `nd lf (nd lf lf)` say, or whatever encoding we pick).  `th =
-Rec fallback stepTh` where stepTh dispatches on the input shape.
-~100 lines.
+**Decision: tag-by-tree-shape, dispatch via Rec + IfLf** (locked,
+judged against Thm 11).
+
+The mod-4 trick doesn't translate directly to trees: there's no
+arithmetic mod on `Tree`.  Instead, encode the four cases as four
+distinguishable top-level tree shapes and dispatch via the Rec /
+IfLf machinery we already have.  Concrete encoding (proposed):
+
+    th(lf)               = ax(O)         -- degenerate base
+    th(nd lf payload)    = ax(payload)              -- "tag 0" = ax
+    th(nd (nd lf lf) p)  = sb(K1 p, K2 p)(th(L p))  -- "tag 1" = sb
+    th(nd (nd lf (nd lf lf)) p) = mp(th(K p), th(L p))  -- "tag 2" = mp
+    th(nd (nd (nd lf lf) lf) p) = ind(th(K p), th(L p)) -- "tag 3" = ind
+
+(Exact tags TBD when coding -- shapes must be distinguishable by
+nested IfLf on `Fst` of the input, and avoid collision with the
+existing tag space in `BRA/Term.agda`.)
+
+Built as `th = Rec th_lf_case stepTh` where `stepTh` is a Fun2
+that on `(orig, recs)` does:
+  1. `IfLf` on `Fst orig` to split "tag 0" from "tags 1-3";
+  2. nested `IfLf` to refine within tags 1-3;
+  3. each branch invokes the appropriate Ex 24 functor (`ax` /
+     `subT` / `mpF` / `indF`) on the appropriate sub-trees of
+     `Snd orig` and on the recursive results from `recs`.
+
+J/K/L become `Fst`, `Snd`, `Comp Fst Snd`, etc. -- pure tree
+projections.  No new tree-level J/K/L wrapper needed.
+
+~100-150 lines.  This is the second real `RecP`/`Rec`-heavy file
+(after `subT`); same combinator hygiene applies.
 
 ## Proposed commit order
 
-1. `[BRA-ex24-ind]`    — indF, parallel to mpF.
-2. `[BRA-ex24-subT]`   — subT, first real RecP proof.
-3. `[BRA-ex24-sub]`    — sub built on subT + cor.
-4. `[BRA-ex24-ax]`     — ax; decide Option A vs. B first.
-5. `[BRA-th]`          — th as the mod-4 dispatcher.
-6. `[BRA-thm12-base]`  — Thm 12 base cases (D_I, D_Fst, etc.).
-7. `[BRA-thm12-step]`  — Thm 12 step cases (Comp, Comp2, Rec).
-8. `[BRA-thm12-binary]` — Thm 12 for Fun2.
-9. `[BRA-thm13]`       — Thm 13 corollary.
-10. `[BRA-godelI]`     — Gödel I via Thm 12 + th's fixed-point.
-11. `[BRA-godelII]`    — Gödel II via Thm 14.
+**Phase 1 — Thm 11 (Gödel I).**
+
+1. `[BRA-ex24-ind]`    — indF, Option A, parallel to mpF.
+2. `[BRA-ex24-subT]`   — subT, first real RecP proof.  ✓ DONE
+3. `[BRA-ex24-sub]`    — sub built on subT + cor.  ✓ DONE
+4. `[BRA-ex24-ax]`     — ax, Option A (single Fun1 with Pair-folded params).
+5. `[BRA-th]`          — th: tag-by-tree-shape, Rec + IfLf dispatch.
+6. `[BRA-enc]`         — Thm 12-lite: enc walks Deriv constructors.
+7. `[BRA-godelI]`      — Thm 11: diagonal `j` + meta-Agda unprovability.
+
+**Phase 2 — Thm 14 (Gödel II), gated on Q4.**
+
+8. `[BRA-thm12-base]`  — Thm 12 base cases (D_I, D_Fst, etc.).
+9. `[BRA-thm12-step]`  — Thm 12 step cases (Comp, Comp2, Rec).
+10. `[BRA-thm12-binary]` — Thm 12 for Fun2.
+11. `[BRA-thm13]`       — Thm 13 corollary.
+12. `[BRA-godelII]`     — Gödel II via Thm 14.
 
 Expected total: 1500-2500 lines of Agda across ~15 files, each
-file typecheck < 10s.  Consistent with Session G's estimate.
+file typecheck < 10s.  Phase 1 estimate: 800-1200 lines.
 
 ## Hard constraints (unchanged)
 
@@ -322,20 +478,32 @@ file typecheck < 10s.  Consistent with Session G's estimate.
 - No new Deriv constructors for things definable from existing
   axioms + Rec/RecP combinators
 
-## Open questions to resolve before coding
+## Open questions — resolution status
 
-1. **indF's `v'` convention.** Options A / B / C / D above.  Leaning
-   A (fix `v1 = zero`, pure projection parallel to `mpF`), but user
-   is thinking.  Blocks indF.
-2. **ax's encoding.** Option A (one indexed Fun1) vs. Option B
-   (per-schema bundle).  Depends on how `th` uses `ax` in the mod-4
-   dispatch and whether the parametric axioms matter at Thm 12.
-   Blocks ax.
-3. **Gödel pairing encoding.**  `th` uses `K`/`L` to decompose its
-   input index.  In trees these are `Fst`/`Snd`.  Confirm that
-   Guard's `J(KKy, LKy)` style composes cleanly to `Fst (Fst y)`,
-   `Snd (Fst y)`, etc.  If yes, no extra work; if no, we need a
-   tree-level J/K/L wrapper.  Blocks `th`.
+All four questions above are judged against **what Thm 11 needs**
+(see `## Milestone` section).
+
+1. **indF's `v'` convention.**  ✓ RESOLVED.  Option A (fix
+   `v1 = zero`, pure projection parallel to `mpF`).  Sufficient for
+   `enc`'s ruleIndBT case in Thm 11.  Upgrade to C only if a Thm 12
+   case in Phase 2 forces it.
+2. **ax's encoding.**  ✓ RESOLVED.  Option A (single Fun1 indexed
+   by tree, parametric axioms fold params via Pair).  ~2× smaller
+   than Option B; Thm 11's `enc` only needs the dispatch to fire
+   correctly per case, not flat structure.
+3. **Gödel pairing encoding for `th`.**  ✓ RESOLVED.
+   Tag-by-tree-shape with Rec + nested IfLf dispatch (see `## th`
+   section).  J/K/L become `Fst`/`Snd`/`Comp Fst Snd` etc. -- no
+   tree-level J/K/L wrapper needed.
 4. **Def 12 / Thm 12 interpretation** (from `BRA/THM12-NOTES.md`).
-   Four sub-questions listed there for user review before any Thm
-   12 code is written.
+   DEFERRED to Phase 2.  Thm 11 uses `enc` (Thm 12-lite for Deriv
+   only), not full Thm 12 over arbitrary functors.  Resolve Q4
+   before commit 8 (`[BRA-thm12-base]`).
+
+## Open questions — Phase 2 only
+
+A. **`ruleF` (Schema F) inside `enc`.**  The most awkward Deriv
+   constructor for `enc`.  Two routes:  (a) encode it as a sequence
+   of axRefl + axRec* steps inside `enc`'s ruleF case; (b) add a
+   parametric `ruleF` schema to `ax` so `enc` closes via `axDef`.
+   Decide when reaching that case in `[BRA-enc]`.
