@@ -36,11 +36,13 @@ open import BRA.Deriv
 open import BRA.Cor
 open import BRA.Thm14CodeFTeqAsym
 open import BRA.Th12Rec using (IH1Rec ; IH2Rec ; cor_red_pair)
+open import BRA.CorOfPair    using (corOfPair)
 open import BRA.Thm.ThmT using
   ( thmT
   ; tagCode_axRecPLf ; tagCode_axRecPNd
   ; tagCode_ruleTrans ; tagCode_congL ; tagCode_congR
-  ; thmTDispAxRecPLf_param )
+  ; thmTDispAxRecPLf_param ; thmTDispAxRecPNd_param
+  ; thmTDispRuleTrans_param ; thmTDispCongL_param ; thmTDispCongR_param )
 open import BRA.Thm.Parts.AxRecPLf using (encAxRecPLf ; outAxRecPLf)
 
 ------------------------------------------------------------------------
@@ -220,40 +222,297 @@ module Th12RecPCase
   --
   -- Mirror of BRA.Th12Rec.Th12RecCase.RecPairCase exactly.
 
-  -- The Pair-case Sigma proof for RecP would mirror Th12Rec.RecPairCase
-  -- exactly, with binary modifications:
-  --   * E1 uses thmTDispAxRecPNd_param (Term-form dispatcher)
-  --     instead of thmTDispAxRecNd_param.
-  --   * E_v1, E_v2 are IH-bridging steps using IH2RecP records.
-  --   * Lifted versions thread through outer  mkAp2T sT _ _  via
-  --     thmTDispCongR_param at g = s, just as in Rec.
-  --   * Final BRA-level outer bridge through corOfPair (twice) +
-  --     ih_s_bra + cong1 cor (ruleSym (axRecPNd s p v1T v2T)).
-  --
-  -- Total ~150 LoC of construction, architecturally identical to Rec.
-  -- BLOCKER: thmTDispAxRecPNd_param not yet exported from ThmT.agda.
-
   ----------------------------------------------------------------------
-  -- Missing infrastructure for full RecP closure:
-  --
-  -- thmTDispAxRecPNd_param needs to be added to BRA/Thm/ThmT.agda's
-  -- abstract block.  The construction is mechanical, mirroring
-  -- thmTDispAxRecNd_param (lines 14315-14376) with these changes:
-  --
-  --   * Slot ordering: RecPNd has payload  Pair sT (Pair pT (Pair aT bT))
-  --     vs RecNd's     Pair zT (Pair sT (Pair aT bT)).
-  --     => liftCompFstSnd_evalPair extracts sT (was zT).
-  --        liftFstSndSnd_evalPair3 extracts pT (was sT).
-  --     The remaining slot extractors (a, b) are unchanged.
-  --
-  --   * Encoded form: codeF2 (RecP s) = Pair (leftT (codeF2 (RecP IfLf))) sT
-  --     vs codeF1 (Rec z s) = Pair (leftT (codeF1 (Rec O IfLf))) (Pair zT sT).
-  --     The "build encoded codeF2 (RecP s)" step uses different combinators.
-  --
-  -- Total ~200 LoC of careful Agda inside ThmT.agda's abstract block,
-  -- mirroring the existing body_axRecNd_eval_param + thmTDispAxRecNd_param.
-  --
-  -- Once added, RecPPairCase becomes fully concrete (no parametric input
-  -- for parDispAxRecPNd_param) and the universal closure
-  -- Th12_F2_RecP_s : Deriv P_Th12_RecP_s follows via ruleIndBT or
-  -- fromBaseAndPair (analog of Th12Rec's path).
+  -- Pair case (proved): mirrors Th12Rec.RecPairCase with binary
+  -- modifications.  Uses the new thmTDispAxRecPNd_param dispatcher
+  -- (now exported from ThmT.agda).
+
+  module RecPPairCase
+    (p v1T v2T : Term)
+    (ih_p_v1 : IH2RecP recPF p v1T)
+    (ih_p_v2 : IH2RecP recPF p v2T)
+    (ih_s_bra : (a b : Term) ->
+       Deriv (atomic (eqn (mkAp2T sT (ap1 cor a) (ap1 cor b))
+                          (ap1 cor (ap2 s a b)))))
+    where
+
+    ppairT : Term
+    ppairT = ap2 Pair v1T v2T
+
+    cv1 : Term
+    cv1 = ap1 cor v1T
+
+    cv2 : Term
+    cv2 = ap1 cor v2T
+
+    rec_pv1 : Term
+    rec_pv1 = ap2 recPF p v1T
+
+    rec_pv2 : Term
+    rec_pv2 = ap2 recPF p v2T
+
+    cp : Term
+    cp = ap1 cor p
+
+    -- Encoded forms.
+    -- X = encoded cor of (Pair v1 v2) = mkAp2T pCT (cor v1)(cor v2).
+    X : Term
+    X = ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cv1 cv2))
+
+    -- ppCorPairForm = encoded "Pair p (Pair v1 v2)".
+    ppCorPairForm : Term
+    ppCorPairForm = ap2 Pair (reify tagAp2)
+                      (ap2 Pair pCT (ap2 Pair cp X))
+
+    -- Y_initial = encoded "Pair (RecP s p (cor v1))(RecP s p (cor v2))" pre-IH.
+    Y_initial : Term
+    Y_initial = ap2 Pair (reify tagAp2)
+                  (ap2 Pair pCT (ap2 Pair (mkAp2T cf2 cp cv1) (mkAp2T cf2 cp cv2)))
+
+    -- Y_after_v1 / Y_full as in Rec, but binary IH-encoded.
+    Y_after_v1 : Term
+    Y_after_v1 = ap2 Pair (reify tagAp2)
+                   (ap2 Pair pCT (ap2 Pair (ap1 cor rec_pv1) (mkAp2T cf2 cp cv2)))
+
+    Y_full : Term
+    Y_full = ap2 Pair (reify tagAp2)
+               (ap2 Pair pCT (ap2 Pair (ap1 cor rec_pv1) (ap1 cor rec_pv2)))
+
+    -- u1_E1 = encoded LHS of axRecPNd output: mkAp2T cf2 cp (mkAp2T pCT cv1 cv2)
+    --       = encoded "RecP s (cor p) (Pair v1 v2)".  Note we use cp=cor p
+    --       as the pT slot so the chain aligns with codeFTeq2Asym's (cor p).
+    u1_E1 : Term
+    u1_E1 = ap2 Pair (reify tagAp2)
+              (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+                (ap2 Pair cp (ap2 Pair (reify tagAp2)
+                  (ap2 Pair pCT (ap2 Pair cv1 cv2)))))
+
+    u2_E1 : Term
+    u2_E1 = ap2 Pair (reify tagAp2)
+              (ap2 Pair sT
+                (ap2 Pair
+                  (ap2 Pair (reify tagAp2)
+                    (ap2 Pair pCT (ap2 Pair cp
+                      (ap2 Pair (reify tagAp2)
+                        (ap2 Pair pCT (ap2 Pair cv1 cv2))))))
+                  Y_initial))
+
+    u2_after_v1 : Term
+    u2_after_v1 = ap2 Pair (reify tagAp2)
+                    (ap2 Pair sT
+                      (ap2 Pair
+                        (ap2 Pair (reify tagAp2)
+                          (ap2 Pair pCT (ap2 Pair cp
+                            (ap2 Pair (reify tagAp2)
+                              (ap2 Pair pCT (ap2 Pair cv1 cv2))))))
+                        Y_after_v1))
+
+    u2_full : Term
+    u2_full = ap2 Pair (reify tagAp2)
+                (ap2 Pair sT
+                  (ap2 Pair
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair pCT (ap2 Pair cp
+                        (ap2 Pair (reify tagAp2)
+                          (ap2 Pair pCT (ap2 Pair cv1 cv2))))))
+                    Y_full))
+
+    --------------------------------------------------------------------
+    -- E1: parDispAxRecPNd at sT, p, cv1, cv2.
+
+    Df_E1 : Term
+    Df_E1 = ap2 Pair tagCode_axRecPNd
+                (ap2 Pair sT (ap2 Pair cp (ap2 Pair cv1 cv2)))
+
+    E1 : Deriv (atomic (eqn (ap1 thmT Df_E1) (ap2 Pair u1_E1 u2_E1)))
+    E1 = thmTDispAxRecPNd_param sT cp cv1 cv2
+
+    --------------------------------------------------------------------
+    -- E_v1: parDispCongL on Pair, replaces (mkAp2T cf2 cp cv1) -> (cor rec_pv1).
+
+    Df_E_v1 : Term
+    Df_E_v1 = ap2 Pair tagCode_congL
+                  (ap2 Pair pCT (ap2 Pair (IH2RecP.Df ih_p_v1) (mkAp2T cf2 cp cv2)))
+
+    E_v1 : Deriv (atomic (eqn (ap1 thmT Df_E_v1)
+                              (ap2 Pair Y_initial Y_after_v1)))
+    E_v1 = thmTDispCongL_param Pair (mkAp2T cf2 cp cv2) (IH2RecP.Df ih_p_v1)
+             (mkAp2T cf2 cp cv1) (ap1 cor rec_pv1)
+             (IH2RecP.fstR ih_p_v1) (IH2RecP.fstL ih_p_v1)
+             (IH2RecP.shape ih_p_v1) (IH2RecP.image ih_p_v1)
+
+    --------------------------------------------------------------------
+    -- E_v2: parDispCongR on Pair, replaces (mkAp2T cf2 cp cv2) -> (cor rec_pv2).
+
+    Df_E_v2 : Term
+    Df_E_v2 = ap2 Pair tagCode_congR
+                  (ap2 Pair pCT (ap2 Pair (IH2RecP.Df ih_p_v2) (ap1 cor rec_pv1)))
+
+    E_v2 : Deriv (atomic (eqn (ap1 thmT Df_E_v2)
+                              (ap2 Pair Y_after_v1 Y_full)))
+    E_v2 = thmTDispCongR_param Pair (ap1 cor rec_pv1) (IH2RecP.Df ih_p_v2)
+             (mkAp2T cf2 cp cv2) (ap1 cor rec_pv2)
+             (IH2RecP.fstR ih_p_v2) (IH2RecP.fstL ih_p_v2)
+             (IH2RecP.shape ih_p_v2) (IH2RecP.image ih_p_v2)
+
+    --------------------------------------------------------------------
+    -- Lifted versions through outer mkAp2T sT (encoded ppCorPair) _.
+
+    Df_E_v1_lifted : Term
+    Df_E_v1_lifted = ap2 Pair tagCode_congR
+                       (ap2 Pair sT (ap2 Pair Df_E_v1 ppCorPairForm))
+
+    E_v1_lifted : Deriv (atomic (eqn (ap1 thmT Df_E_v1_lifted)
+                                      (ap2 Pair u2_E1 u2_after_v1)))
+    E_v1_lifted = thmTDispCongR_param s ppCorPairForm
+                    Df_E_v1 Y_initial Y_after_v1
+                    _ _ (axFst tagCode_congL _) E_v1
+
+    Df_E_v2_lifted : Term
+    Df_E_v2_lifted = ap2 Pair tagCode_congR
+                       (ap2 Pair sT (ap2 Pair Df_E_v2 ppCorPairForm))
+
+    E_v2_lifted : Deriv (atomic (eqn (ap1 thmT Df_E_v2_lifted)
+                                      (ap2 Pair u2_after_v1 u2_full)))
+    E_v2_lifted = thmTDispCongR_param s ppCorPairForm
+                    Df_E_v2 Y_after_v1 Y_full
+                    _ _ (axFst tagCode_congR _) E_v2
+
+    --------------------------------------------------------------------
+    -- chain1, chain12: encoded chain composition.
+
+    Df_chain1 : Term
+    Df_chain1 = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_E1 Df_E_v1_lifted)
+
+    chain1 : Deriv (atomic (eqn (ap1 thmT Df_chain1)
+                                 (ap2 Pair u1_E1 u2_after_v1)))
+    chain1 = thmTDispRuleTrans_param Df_E1 Df_E_v1_lifted
+              u1_E1 u2_E1 u2_E1 u2_after_v1
+              _ _ (axFst tagCode_axRecPNd _) E1 E_v1_lifted
+
+    Df_chain12 : Term
+    Df_chain12 = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_chain1 Df_E_v2_lifted)
+
+    chain12 : Deriv (atomic (eqn (ap1 thmT Df_chain12)
+                                  (ap2 Pair u1_E1 u2_full)))
+    chain12 = thmTDispRuleTrans_param Df_chain1 Df_E_v2_lifted
+               u1_E1 u2_after_v1 u2_after_v1 u2_full
+               _ _ (axFst tagCode_ruleTrans _) chain1 E_v2_lifted
+
+    --------------------------------------------------------------------
+    -- BRA-level outer bridge to codeFTeq2Asym recPF p ppairT.
+    --
+    -- LHS: u1_E1 = mkAp2T cf2 cp X -> mkAp2T cf2 cp (cor ppairT)
+    --   via congR + ruleSym (corOfPair v1T v2T)  to bridge X = cor ppairT.
+    -- RHS: u2_full = mkAp2T sT ppCorPair Y_full -> cor (recPF p ppairT) via:
+    --   step a:  ppCorPair = mkAp2T pCT cp X -> cor (Pair p ppairT)
+    --     via ruleSym corOfPair on the inner X part, then ruleSym corOfPair on Pair cp _.
+    --   step b:  Y_full = mkAp2T pCT (cor rec_pv1)(cor rec_pv2) -> cor (Pair rec_pv1 rec_pv2)
+    --     via ruleSym corOfPair.
+    --   step c:  mkAp2T sT (cor(Pair p ppairT))(cor(Pair rec_pv1 rec_pv2))
+    --              -> cor (s (Pair p ppairT)(Pair rec_pv1 rec_pv2))   [ih_s_bra]
+    --   step d:  cor (s (Pair p ppairT)(Pair rec_pv1 rec_pv2)) -> cor (recPF p ppairT)
+    --     via cong1 cor (ruleSym (axRecPNd s p v1T v2T)).
+
+    bridge_X_to_corPpairT : Deriv (atomic (eqn X (ap1 cor ppairT)))
+    bridge_X_to_corPpairT = ruleSym (corOfPair v1T v2T)
+
+    bridge_u1_E1 : Deriv (atomic (eqn u1_E1
+                                   (mkAp2T cf2 cp (ap1 cor ppairT))))
+    bridge_u1_E1 =
+      congR Pair (reify tagAp2)
+        (congR Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+          (congR Pair cp bridge_X_to_corPpairT))
+
+    -- ppCorPair = mkAp2T pCT cp X.  Bridge to cor (Pair p ppairT):
+    --   step1: X -> cor ppairT, giving mkAp2T pCT cp (cor ppairT) = mkAp2T pCT (cor p)(cor ppairT).
+    --   step2: ruleSym (corOfPair p ppairT) gives mkAp2T pCT (cor p)(cor ppairT) = cor (Pair p ppairT).
+
+    bridge_ppCorPair_a : Deriv (atomic (eqn
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp X)))
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp (ap1 cor ppairT))))))
+    bridge_ppCorPair_a =
+      congR Pair (reify tagAp2)
+        (congR Pair pCT
+          (congR Pair cp bridge_X_to_corPpairT))
+
+    bridge_ppCorPair_to_cor : Deriv (atomic (eqn
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp (ap1 cor ppairT))))
+       (ap1 cor (ap2 Pair p ppairT))))
+    bridge_ppCorPair_to_cor = ruleSym (corOfPair p ppairT)
+
+    bridge_ppCorPair : Deriv (atomic (eqn
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp X)))
+       (ap1 cor (ap2 Pair p ppairT))))
+    bridge_ppCorPair = ruleTrans bridge_ppCorPair_a bridge_ppCorPair_to_cor
+
+    -- Bridge Y_full to cor (Pair rec_pv1 rec_pv2) via ruleSym corOfPair.
+    bridge_Y_full : Deriv (atomic (eqn Y_full
+                                    (ap1 cor (ap2 Pair rec_pv1 rec_pv2))))
+    bridge_Y_full = ruleSym (corOfPair rec_pv1 rec_pv2)
+
+    -- Bridge u2_full's first arg (encoded ppCorPair) to cor (Pair p ppairT).
+    u2_after_first : Term
+    u2_after_first = ap2 Pair (reify tagAp2)
+                       (ap2 Pair sT
+                         (ap2 Pair (ap1 cor (ap2 Pair p ppairT)) Y_full))
+
+    bridge_u2_a : Deriv (atomic (eqn u2_full u2_after_first))
+    bridge_u2_a =
+      congR Pair (reify tagAp2)
+        (congR Pair sT
+          (congL Pair Y_full bridge_ppCorPair))
+
+    -- Bridge Y_full -> cor (Pair rec_pv1 rec_pv2).
+    u2_after_both : Term
+    u2_after_both = ap2 Pair (reify tagAp2)
+                      (ap2 Pair sT
+                        (ap2 Pair (ap1 cor (ap2 Pair p ppairT))
+                                  (ap1 cor (ap2 Pair rec_pv1 rec_pv2))))
+
+    bridge_u2_b : Deriv (atomic (eqn u2_after_first u2_after_both))
+    bridge_u2_b =
+      congR Pair (reify tagAp2)
+        (congR Pair sT
+          (congR Pair (ap1 cor (ap2 Pair p ppairT)) bridge_Y_full))
+
+    -- u2_after_both = mkAp2T sT (cor(Pair p ppairT))(cor(Pair rec_pv1 rec_pv2)).
+    -- Apply ih_s_bra at (Pair p ppairT, Pair rec_pv1 rec_pv2):
+
+    bridge_u2_c : Deriv (atomic (eqn u2_after_both
+                                    (ap1 cor (ap2 s (ap2 Pair p ppairT)
+                                                    (ap2 Pair rec_pv1 rec_pv2)))))
+    bridge_u2_c = ih_s_bra (ap2 Pair p ppairT) (ap2 Pair rec_pv1 rec_pv2)
+
+    -- Final step: cor (s (Pair p ppairT)(Pair rec_pv1 rec_pv2)) -> cor (recPF p ppairT)
+    -- via cong1 cor (ruleSym (axRecPNd s p v1T v2T)).
+
+    recP_unfold : Deriv (atomic (eqn (ap2 recPF p ppairT)
+                                     (ap2 s (ap2 Pair p ppairT)
+                                            (ap2 Pair rec_pv1 rec_pv2))))
+    recP_unfold = axRecPNd s p v1T v2T
+
+    bridge_u2_d : Deriv (atomic (eqn (ap1 cor (ap2 s (ap2 Pair p ppairT)
+                                                     (ap2 Pair rec_pv1 rec_pv2)))
+                                      (ap1 cor (ap2 recPF p ppairT))))
+    bridge_u2_d = cong1 cor (ruleSym recP_unfold)
+
+    bridge_u2_full : Deriv (atomic (eqn u2_full (ap1 cor (ap2 recPF p ppairT))))
+    bridge_u2_full =
+      ruleTrans bridge_u2_a
+        (ruleTrans bridge_u2_b (ruleTrans bridge_u2_c bridge_u2_d))
+
+    --------------------------------------------------------------------
+    -- Final outer bridge: combine LHS and RHS bridges.
+
+    bridge_outer : Deriv (atomic (eqn (ap2 Pair u1_E1 u2_full)
+                                       (codeFTeq2Asym recPF p ppairT)))
+    bridge_outer =
+      ruleTrans (congL Pair u2_full bridge_u1_E1)
+                (congR Pair (mkAp2T cf2 cp (ap1 cor ppairT)) bridge_u2_full)
+
+    thm12_RecP_s_pair :
+      Sigma Term (\ Df ->
+        Deriv (atomic (eqn (ap1 thmT Df) (codeFTeq2Asym recPF p ppairT))))
+    thm12_RecP_s_pair =
+      mkSigma Df_chain12 (ruleTrans chain12 bridge_outer)
