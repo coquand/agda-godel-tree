@@ -37,6 +37,7 @@ open import BRA.Term
 open import BRA.Formula
 open import BRA.Deriv
 open import BRA.Cor
+open import BRA.CorOfPair    using (corOfPair)
 open import BRA.Thm14CodeFTeqAsym
 open import BRA.Thm.ThmT using
   ( thmT
@@ -235,9 +236,17 @@ module Th12RecCase
     (v1T v2T : Term)
     (ih_v1 : IH1Rec recF v1T)
     (ih_v2 : IH1Rec recF v2T)
-    -- ih_s : Theorem 12 for s, bundled at the specific point we need
-    (ih_s  : IH2Rec s (ap2 Pair v1T v2T)
-                       (ap2 Pair (ap1 recF v1T) (ap1 recF v2T)))
+    -- ih_s_bra : BRA-Deriv form of Theorem 12 for s -- the bridge
+    --   mkAp2T sT (cor a)(cor b) = cor (s a b) at any (a, b).
+    --
+    -- Note: this is the BRA-Deriv form (Deriv (eqn _ _) directly), NOT
+    -- the encoded form Deriv (eqn (thmT _)(Pair _ _)).  For specific s
+    -- this is BRA-provable from BRA's axioms, mirroring corOfPair (which
+    -- proves the same statement for s = Pair).  For parametric s the
+    -- caller commits to providing it.
+    (ih_s_bra : (a b : Term) ->
+       Deriv (atomic (eqn (mkAp2T sT (ap1 cor a) (ap1 cor b))
+                          (ap1 cor (ap2 s a b)))))
     where
 
     pairT : Term
@@ -457,6 +466,103 @@ module Th12RecCase
     pair_chain_output : Sigma Term (\ Df ->
       Deriv (atomic (eqn (ap1 thmT Df) (ap2 Pair u1_E1 u2_full))))
     pair_chain_output = mkSigma Df_chain12 chain12
+
+    --------------------------------------------------------------------
+    -- BRA-level outer bridge from chain12's output  Pair u1_E1 u2_full
+    -- to  codeFTeq1Asym recF pairT  =  Pair (mkAp1T cf (cor pairT))
+    --                                       (cor (recF pairT)) .
+    --
+    -- LHS:  u1_E1 = mkAp1T cf X  ->  mkAp1T cf (cor pairT)
+    --   via  ruleSym (corOfPair v1T v2T)  inside  congR Pair _ .
+    --
+    -- RHS:  u2_full = mkAp2T sT X Y_full  ->  cor (recF pairT)
+    --   via the chain:
+    --     u2_full
+    --     -> mkAp2T sT (cor pairT) Y_full          [bridge X = cor pairT]
+    --     -> mkAp2T sT (cor pairT) (cor (Pair rec_v1 rec_v2))   [bridge Y_full]
+    --     -> cor (s pairT (Pair rec_v1 rec_v2))    [ih_s_bra at (pairT, Pair rec_v1 rec_v2)]
+    --     -> cor (recF pairT)                      [cong1 cor (ruleSym axRecNd)]
+
+    -- LHS bridge:  X -> cor pairT  via ruleSym corOfPair.
+    bridge_X_to_corPairT : Deriv (atomic (eqn X (ap1 cor pairT)))
+    bridge_X_to_corPairT = ruleSym (corOfPair v1T v2T)
+
+    bridge_u1_E1 : Deriv (atomic (eqn u1_E1 (mkAp1T cf (ap1 cor pairT))))
+    bridge_u1_E1 =
+      congR Pair (reify tagAp1)
+        (congR Pair cf bridge_X_to_corPairT)
+
+    -- RHS bridge step a: u2_full -> mkAp2T sT (cor pairT) Y_full.
+    --   mkAp2T sT a b = Pair tagAp2 (Pair sT (Pair a b))
+    --   Replace X (a slot) with cor pairT inside Pair X Y_full.
+    u2_after_X : Term
+    u2_after_X = ap2 Pair (reify tagAp2)
+                   (ap2 Pair sT (ap2 Pair (ap1 cor pairT) Y_full))
+
+    bridge_u2_a : Deriv (atomic (eqn u2_full u2_after_X))
+    bridge_u2_a =
+      congR Pair (reify tagAp2)
+        (congR Pair sT
+          (congL Pair Y_full bridge_X_to_corPairT))
+
+    -- RHS bridge step b: u2_after_X -> mkAp2T sT (cor pairT)(cor (Pair rec_v1 rec_v2)).
+    bridge_Y_full_to_corPair : Deriv (atomic (eqn Y_full
+                                              (ap1 cor (ap2 Pair rec_v1 rec_v2))))
+    bridge_Y_full_to_corPair = ruleSym (corOfPair rec_v1 rec_v2)
+
+    u2_after_Y : Term
+    u2_after_Y = ap2 Pair (reify tagAp2)
+                   (ap2 Pair sT (ap2 Pair (ap1 cor pairT)
+                                          (ap1 cor (ap2 Pair rec_v1 rec_v2))))
+
+    bridge_u2_b : Deriv (atomic (eqn u2_after_X u2_after_Y))
+    bridge_u2_b =
+      congR Pair (reify tagAp2)
+        (congR Pair sT
+          (congR Pair (ap1 cor pairT) bridge_Y_full_to_corPair))
+
+    -- u2_after_Y is exactly mkAp2T sT (cor pairT)(cor (Pair rec_v1 rec_v2)).
+    -- So bridge_step_c via ih_s_bra at (pairT, Pair rec_v1 rec_v2):
+    --   mkAp2T sT (cor pairT)(cor (Pair rec_v1 rec_v2))
+    --     = cor (s pairT (Pair rec_v1 rec_v2)).
+
+    bridge_u2_c : Deriv (atomic (eqn u2_after_Y
+                                      (ap1 cor (ap2 s pairT (ap2 Pair rec_v1 rec_v2)))))
+    bridge_u2_c = ih_s_bra pairT (ap2 Pair rec_v1 rec_v2)
+
+    -- RHS bridge step d: cor (s pairT (Pair rec_v1 rec_v2)) -> cor (recF pairT)
+    --   via cong1 cor (ruleSym (axRecNd z s v1T v2T)).
+
+    rec_unfold : Deriv (atomic (eqn (ap1 recF pairT)
+                                     (ap2 s pairT (ap2 Pair rec_v1 rec_v2))))
+    rec_unfold = axRecNd z s v1T v2T
+
+    bridge_u2_d : Deriv (atomic (eqn (ap1 cor (ap2 s pairT (ap2 Pair rec_v1 rec_v2)))
+                                      (ap1 cor (ap1 recF pairT))))
+    bridge_u2_d = cong1 cor (ruleSym rec_unfold)
+
+    bridge_u2_full : Deriv (atomic (eqn u2_full (ap1 cor (ap1 recF pairT))))
+    bridge_u2_full =
+      ruleTrans bridge_u2_a
+        (ruleTrans bridge_u2_b (ruleTrans bridge_u2_c bridge_u2_d))
+
+    --------------------------------------------------------------------
+    -- Combine LHS and RHS bridges into a Deriv (eqn Pair-output codeFTeq1Asym).
+
+    bridge_outer : Deriv (atomic (eqn (ap2 Pair u1_E1 u2_full)
+                                       (codeFTeq1Asym recF pairT)))
+    bridge_outer =
+      ruleTrans (congL Pair u2_full bridge_u1_E1)
+                (congR Pair (mkAp1T cf (ap1 cor pairT)) bridge_u2_full)
+
+    --------------------------------------------------------------------
+    -- Final Pair-case Sigma deliverable.
+
+    thm12_Rec_zs_pair :
+      Sigma Term (\ Df ->
+        Deriv (atomic (eqn (ap1 thmT Df) (codeFTeq1Asym recF pairT))))
+    thm12_Rec_zs_pair =
+      mkSigma Df_chain12 (ruleTrans chain12 bridge_outer)
 
   ----------------------------------------------------------------------
   -- The schematic statement and packaging note.
