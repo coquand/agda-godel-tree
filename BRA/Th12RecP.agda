@@ -42,7 +42,12 @@ open import BRA.Thm.ThmT using
   ; tagCode_axRecPLf ; tagCode_axRecPNd
   ; tagCode_ruleTrans ; tagCode_congL ; tagCode_congR
   ; thmTDispAxRecPLf_param ; thmTDispAxRecPNd_param
-  ; thmTDispRuleTrans_param ; thmTDispCongL_param ; thmTDispCongR_param )
+  ; thmTDispRuleTrans_param ; thmTDispCongL_param ; thmTDispCongR_param
+  ; thmTDispCongL_param_doublelifted
+  ; thmTDispCongR_param_doublelifted
+  ; thmTDispRuleTrans_param_doublelifted
+  ; liftAxiomTwo ; liftedRuleTransTwo
+  ; liftedCongLTwo ; liftedCongRTwo )
 open import BRA.Thm.Parts.AxRecPLf using (encAxRecPLf ; outAxRecPLf)
 
 ------------------------------------------------------------------------
@@ -55,6 +60,19 @@ record IH2RecP (g : Fun2) (p x : Term) : Set where
     fstR  : Term
     shape : Deriv (atomic (eqn (ap1 Fst Df) (ap2 Pair fstL fstR)))
     image : Deriv (atomic (eqn (ap1 thmT Df) (codeFTeq2Asym g p x)))
+
+-- Doubly-lifted variant: image at depth 2 (under P1 imp (P2 imp ...)).
+-- Used by the Carneiro-style basePair_param construction for Theorem 12
+-- of RecP s at universal closure.
+
+record IH2RecP_doublelifted (P1 P2 : Formula) (g : Fun2) (p x : Term) : Set where
+  field
+    Df    : Term
+    fstL  : Term
+    fstR  : Term
+    shape : Deriv (atomic (eqn (ap1 Fst Df) (ap2 Pair fstL fstR)))
+    image : Deriv (P1 imp (P2 imp atomic
+              (eqn (ap1 thmT Df) (codeFTeq2Asym g p x))))
 
 ------------------------------------------------------------------------
 -- Main parametric module.
@@ -516,3 +534,286 @@ module Th12RecPCase
         Deriv (atomic (eqn (ap1 thmT Df) (codeFTeq2Asym recPF p ppairT))))
     thm12_RecP_s_pair =
       mkSigma Df_chain12 (ruleTrans chain12 bridge_outer)
+
+  ----------------------------------------------------------------------
+  -- Doubly-lifted Pair-case Sigma (mirror of RecPPairCase, lifted under
+  -- P1 imp (P2 imp ...)).  Used by the Carneiro-style basePair_param
+  -- construction for Theorem 12 of RecP s at universal closure.
+  --
+  -- All non-IH dispatchers (axRecPNd, axiom-only equational rules) lift
+  -- via liftAxiomTwo.  IH-using dispatchers use _doublelifted variants.
+  -- ih_s_bra is axiom-only (per s) and lifts via liftAxiomTwo.
+
+  module RecPPairCase_doublelifted
+    (P1 P2 : Formula)
+    (p v1T v2T : Term)
+    (ih_p_v1_dl : IH2RecP_doublelifted P1 P2 recPF p v1T)
+    (ih_p_v2_dl : IH2RecP_doublelifted P1 P2 recPF p v2T)
+    (ih_s_bra : (a b : Term) ->
+       Deriv (atomic (eqn (mkAp2T sT (ap1 cor a) (ap1 cor b))
+                          (ap1 cor (ap2 s a b)))))
+    where
+
+    -- Term-level shorthands (same as RecPPairCase).
+
+    ppairT : Term
+    ppairT = ap2 Pair v1T v2T
+
+    cv1 : Term
+    cv1 = ap1 cor v1T
+
+    cv2 : Term
+    cv2 = ap1 cor v2T
+
+    rec_pv1 : Term
+    rec_pv1 = ap2 recPF p v1T
+
+    rec_pv2 : Term
+    rec_pv2 = ap2 recPF p v2T
+
+    cp : Term
+    cp = ap1 cor p
+
+    X : Term
+    X = ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cv1 cv2))
+
+    Y_initial : Term
+    Y_initial = ap2 Pair (reify tagAp2)
+                  (ap2 Pair pCT (ap2 Pair (mkAp2T cf2 cp cv1) (mkAp2T cf2 cp cv2)))
+
+    Y_after_v1 : Term
+    Y_after_v1 = ap2 Pair (reify tagAp2)
+                   (ap2 Pair pCT (ap2 Pair (ap1 cor rec_pv1) (mkAp2T cf2 cp cv2)))
+
+    Y_full : Term
+    Y_full = ap2 Pair (reify tagAp2)
+               (ap2 Pair pCT (ap2 Pair (ap1 cor rec_pv1) (ap1 cor rec_pv2)))
+
+    u1_E1 : Term
+    u1_E1 = ap2 Pair (reify tagAp2)
+              (ap2 Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+                (ap2 Pair cp (ap2 Pair (reify tagAp2)
+                  (ap2 Pair pCT (ap2 Pair cv1 cv2)))))
+
+    u2_E1 : Term
+    u2_E1 = ap2 Pair (reify tagAp2)
+              (ap2 Pair sT
+                (ap2 Pair
+                  (ap2 Pair (reify tagAp2)
+                    (ap2 Pair pCT (ap2 Pair cp
+                      (ap2 Pair (reify tagAp2)
+                        (ap2 Pair pCT (ap2 Pair cv1 cv2))))))
+                  Y_initial))
+
+    u2_after_v1 : Term
+    u2_after_v1 = ap2 Pair (reify tagAp2)
+                    (ap2 Pair sT
+                      (ap2 Pair
+                        (ap2 Pair (reify tagAp2)
+                          (ap2 Pair pCT (ap2 Pair cp
+                            (ap2 Pair (reify tagAp2)
+                              (ap2 Pair pCT (ap2 Pair cv1 cv2))))))
+                        Y_after_v1))
+
+    u2_full : Term
+    u2_full = ap2 Pair (reify tagAp2)
+                (ap2 Pair sT
+                  (ap2 Pair
+                    (ap2 Pair (reify tagAp2)
+                      (ap2 Pair pCT (ap2 Pair cp
+                        (ap2 Pair (reify tagAp2)
+                          (ap2 Pair pCT (ap2 Pair cv1 cv2))))))
+                    Y_full))
+
+    Df_E1 : Term
+    Df_E1 = ap2 Pair tagCode_axRecPNd
+                (ap2 Pair sT (ap2 Pair cp (ap2 Pair cv1 cv2)))
+
+    Df_E_v1 : Term
+    Df_E_v1 = ap2 Pair tagCode_congL
+                  (ap2 Pair pCT (ap2 Pair (IH2RecP_doublelifted.Df ih_p_v1_dl)
+                                          (mkAp2T cf2 cp cv2)))
+
+    Df_E_v2 : Term
+    Df_E_v2 = ap2 Pair tagCode_congR
+                  (ap2 Pair pCT (ap2 Pair (IH2RecP_doublelifted.Df ih_p_v2_dl)
+                                          (ap1 cor rec_pv1)))
+
+    ppCorPairForm : Term
+    ppCorPairForm = ap2 Pair (reify tagAp2)
+                      (ap2 Pair pCT (ap2 Pair cp X))
+
+    ----------------------------------------------------------------
+    -- Doubly-lifted dispatcher chain.
+
+    E1_dl : Deriv (P1 imp (P2 imp atomic
+              (eqn (ap1 thmT Df_E1) (ap2 Pair u1_E1 u2_E1))))
+    E1_dl = liftAxiomTwo P1 P2 (thmTDispAxRecPNd_param sT cp cv1 cv2)
+
+    E_v1_dl : Deriv (P1 imp (P2 imp atomic
+                (eqn (ap1 thmT Df_E_v1) (ap2 Pair Y_initial Y_after_v1))))
+    E_v1_dl = thmTDispCongL_param_doublelifted Pair (mkAp2T cf2 cp cv2)
+                (IH2RecP_doublelifted.Df ih_p_v1_dl)
+                (mkAp2T cf2 cp cv1) (ap1 cor rec_pv1)
+                (IH2RecP_doublelifted.fstR ih_p_v1_dl)
+                (IH2RecP_doublelifted.fstL ih_p_v1_dl)
+                P1 P2
+                (IH2RecP_doublelifted.shape ih_p_v1_dl)
+                (IH2RecP_doublelifted.image ih_p_v1_dl)
+
+    E_v2_dl : Deriv (P1 imp (P2 imp atomic
+                (eqn (ap1 thmT Df_E_v2) (ap2 Pair Y_after_v1 Y_full))))
+    E_v2_dl = thmTDispCongR_param_doublelifted Pair (ap1 cor rec_pv1)
+                (IH2RecP_doublelifted.Df ih_p_v2_dl)
+                (mkAp2T cf2 cp cv2) (ap1 cor rec_pv2)
+                (IH2RecP_doublelifted.fstR ih_p_v2_dl)
+                (IH2RecP_doublelifted.fstL ih_p_v2_dl)
+                P1 P2
+                (IH2RecP_doublelifted.shape ih_p_v2_dl)
+                (IH2RecP_doublelifted.image ih_p_v2_dl)
+
+    Df_E_v1_lifted : Term
+    Df_E_v1_lifted = ap2 Pair tagCode_congR
+                       (ap2 Pair sT (ap2 Pair Df_E_v1 ppCorPairForm))
+
+    E_v1_lifted_dl : Deriv (P1 imp (P2 imp atomic
+                       (eqn (ap1 thmT Df_E_v1_lifted)
+                            (ap2 Pair u2_E1 u2_after_v1))))
+    E_v1_lifted_dl = thmTDispCongR_param_doublelifted s ppCorPairForm Df_E_v1
+                       Y_initial Y_after_v1
+                       _ _
+                       P1 P2
+                       (axFst tagCode_congL _) E_v1_dl
+
+    Df_E_v2_lifted : Term
+    Df_E_v2_lifted = ap2 Pair tagCode_congR
+                       (ap2 Pair sT (ap2 Pair Df_E_v2 ppCorPairForm))
+
+    E_v2_lifted_dl : Deriv (P1 imp (P2 imp atomic
+                       (eqn (ap1 thmT Df_E_v2_lifted)
+                            (ap2 Pair u2_after_v1 u2_full))))
+    E_v2_lifted_dl = thmTDispCongR_param_doublelifted s ppCorPairForm Df_E_v2
+                       Y_after_v1 Y_full
+                       _ _
+                       P1 P2
+                       (axFst tagCode_congR _) E_v2_dl
+
+    Df_chain1 : Term
+    Df_chain1 = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_E1 Df_E_v1_lifted)
+
+    chain1_dl : Deriv (P1 imp (P2 imp atomic
+                  (eqn (ap1 thmT Df_chain1) (ap2 Pair u1_E1 u2_after_v1))))
+    chain1_dl = thmTDispRuleTrans_param_doublelifted Df_E1 Df_E_v1_lifted
+                  u1_E1 u2_E1 u2_E1 u2_after_v1
+                  _ _
+                  P1 P2
+                  (axFst tagCode_axRecPNd _) E1_dl E_v1_lifted_dl
+
+    Df_chain12 : Term
+    Df_chain12 = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_chain1 Df_E_v2_lifted)
+
+    chain12_dl : Deriv (P1 imp (P2 imp atomic
+                   (eqn (ap1 thmT Df_chain12) (ap2 Pair u1_E1 u2_full))))
+    chain12_dl = thmTDispRuleTrans_param_doublelifted Df_chain1 Df_E_v2_lifted
+                   u1_E1 u2_after_v1 u2_after_v1 u2_full
+                   _ _
+                   P1 P2
+                   (axFst tagCode_ruleTrans _) chain1_dl E_v2_lifted_dl
+
+    ----------------------------------------------------------------
+    -- BRA-level outer bridge.  All axiom-only relative to ih_s_bra,
+    -- so we build at unlifted level then liftAxiomTwo at the end.
+
+    bridge_X_to_corPpairT : Deriv (atomic (eqn X (ap1 cor ppairT)))
+    bridge_X_to_corPpairT = ruleSym (corOfPair v1T v2T)
+
+    bridge_u1_E1 : Deriv (atomic (eqn u1_E1 (mkAp2T cf2 cp (ap1 cor ppairT))))
+    bridge_u1_E1 =
+      congR Pair (reify tagAp2)
+        (congR Pair (ap2 Pair (reify (leftT (codeF2 (RecP IfLf)))) sT)
+          (congR Pair cp bridge_X_to_corPpairT))
+
+    bridge_ppCorPair_a : Deriv (atomic (eqn
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp X)))
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp (ap1 cor ppairT))))))
+    bridge_ppCorPair_a =
+      congR Pair (reify tagAp2)
+        (congR Pair pCT
+          (congR Pair cp bridge_X_to_corPpairT))
+
+    bridge_ppCorPair_to_cor : Deriv (atomic (eqn
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp (ap1 cor ppairT))))
+       (ap1 cor (ap2 Pair p ppairT))))
+    bridge_ppCorPair_to_cor = ruleSym (corOfPair p ppairT)
+
+    bridge_ppCorPair : Deriv (atomic (eqn
+       (ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cp X)))
+       (ap1 cor (ap2 Pair p ppairT))))
+    bridge_ppCorPair = ruleTrans bridge_ppCorPair_a bridge_ppCorPair_to_cor
+
+    bridge_Y_full : Deriv (atomic (eqn Y_full (ap1 cor (ap2 Pair rec_pv1 rec_pv2))))
+    bridge_Y_full = ruleSym (corOfPair rec_pv1 rec_pv2)
+
+    u2_after_first : Term
+    u2_after_first = ap2 Pair (reify tagAp2)
+                       (ap2 Pair sT
+                         (ap2 Pair (ap1 cor (ap2 Pair p ppairT)) Y_full))
+
+    bridge_u2_a : Deriv (atomic (eqn u2_full u2_after_first))
+    bridge_u2_a =
+      congR Pair (reify tagAp2)
+        (congR Pair sT
+          (congL Pair Y_full bridge_ppCorPair))
+
+    u2_after_both : Term
+    u2_after_both = ap2 Pair (reify tagAp2)
+                      (ap2 Pair sT
+                        (ap2 Pair (ap1 cor (ap2 Pair p ppairT))
+                                  (ap1 cor (ap2 Pair rec_pv1 rec_pv2))))
+
+    bridge_u2_b : Deriv (atomic (eqn u2_after_first u2_after_both))
+    bridge_u2_b =
+      congR Pair (reify tagAp2)
+        (congR Pair sT
+          (congR Pair (ap1 cor (ap2 Pair p ppairT)) bridge_Y_full))
+
+    bridge_u2_c : Deriv (atomic (eqn u2_after_both
+                                    (ap1 cor (ap2 s (ap2 Pair p ppairT)
+                                                    (ap2 Pair rec_pv1 rec_pv2)))))
+    bridge_u2_c = ih_s_bra (ap2 Pair p ppairT) (ap2 Pair rec_pv1 rec_pv2)
+
+    recP_unfold : Deriv (atomic (eqn (ap2 recPF p ppairT)
+                                     (ap2 s (ap2 Pair p ppairT)
+                                            (ap2 Pair rec_pv1 rec_pv2))))
+    recP_unfold = axRecPNd s p v1T v2T
+
+    bridge_u2_d : Deriv (atomic (eqn (ap1 cor (ap2 s (ap2 Pair p ppairT)
+                                                     (ap2 Pair rec_pv1 rec_pv2)))
+                                      (ap1 cor (ap2 recPF p ppairT))))
+    bridge_u2_d = cong1 cor (ruleSym recP_unfold)
+
+    bridge_u2_full : Deriv (atomic (eqn u2_full (ap1 cor (ap2 recPF p ppairT))))
+    bridge_u2_full = ruleTrans bridge_u2_a
+                       (ruleTrans bridge_u2_b (ruleTrans bridge_u2_c bridge_u2_d))
+
+    bridge_outer : Deriv (atomic (eqn (ap2 Pair u1_E1 u2_full)
+                                       (codeFTeq2Asym recPF p ppairT)))
+    bridge_outer = ruleTrans (congL Pair u2_full bridge_u1_E1)
+                             (congR Pair (mkAp2T cf2 cp (ap1 cor ppairT)) bridge_u2_full)
+
+    bridge_outer_dl : Deriv (P1 imp (P2 imp atomic
+                        (eqn (ap2 Pair u1_E1 u2_full)
+                             (codeFTeq2Asym recPF p ppairT))))
+    bridge_outer_dl = liftAxiomTwo P1 P2 bridge_outer
+
+    ----------------------------------------------------------------
+    -- Final doubly-lifted Sigma.
+
+    thm12_RecP_s_pair_dl : Sigma Term (\ Df ->
+      Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT Df) (codeFTeq2Asym recPF p ppairT)))))
+    thm12_RecP_s_pair_dl = mkSigma Df_chain12
+      (liftedRuleTransTwo P1 P2
+         (ap1 thmT Df_chain12)
+         (ap2 Pair u1_E1 u2_full)
+         (codeFTeq2Asym recPF p ppairT)
+         chain12_dl bridge_outer_dl)
