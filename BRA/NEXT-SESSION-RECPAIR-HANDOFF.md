@@ -81,7 +81,58 @@ Pair-case proof — the `RecPairCase` chain embeds `ih1.image` and
 `ih2.image` into the encoded equation.  So the deduction theorem
 really does need to bite, and at two levels.
 
-## Open questions for fresh analysis
+## Strongly suggested first direction: classical variant deduction theorem
+
+User-supplied guidance.  See `feedback_variant_deduction_theorem.md`
+in auto-memory for full details.
+
+In classical propositional logic there is a deduction theorem
+variant that, instead of rewriting the proof of `F |- G` (cost:
+proof length), constructs `|- F -> G` by **adding a fixed number
+of steps proportional to formula length**, given:
+
+- The hypothetical proof `F |- G` (kept as an Agda function — not
+  rewritten).
+- A special-case witness `|- F(B)` for some B substituted for some
+  wff variable A in F.
+
+Construction uses `(A ^ F) v (B ^ ~F)` as a self-substitution that
+classically equals A when F holds and equals B otherwise.
+
+**Why it might be the right shape for basePair_param:**
+
+- The special-case witness is already proved:
+  `Th12_at_lf_substF : Deriv (substF zero O P_Th12_Rec_zs)` is
+  exactly `|- F(O)` where F(t) = substF zero t P_Th12_Rec_zs.
+- basePair's proof tree stays intact — no doubly-lifted dispatcher
+  cascades.
+- Cost scales with `len(P_Th12_Rec_zs)`, not with the basePair
+  proof tree size.
+
+**Open implementation questions:**
+
+1. **Adaptation to BRA's Term substitution.**  The variant theorem
+   operates on PROPOSITIONAL substitution of wff variables.  BRA's
+   Formula has only `atomic` of Eq and `imp` — no wff-variable
+   substitution.  The analog needs to be re-derived for Term
+   substitution into atomic Eqs (`substF`).
+
+2. **Classical strength.**  BRA has `axContrapos`, `axNeg`,
+   `axExFalso`.  Need to verify these give enough classical
+   machinery for the variant theorem — specifically excluded
+   middle `F v ~F` to combine the "F branch" and "~F branch" of
+   the construction.
+
+3. **And/Or/Iff encodings.**  BRA has no primitive `^`, `v`, `<->`.
+   These would need to be encoded via `imp` and `not` (De Morgan),
+   and the construction's iff-handling and disjunction-elimination
+   would need those encodings.
+
+If all three check out, **implement the variant theorem at the BRA
+level as a single small file**.  It would discharge any single-IH
+or two-IH inductive step uniformly — not just for Rec.
+
+## Other directions worth considering if the variant theorem doesn't apply
 
 1. **Different formula shape for `P_Th12_Rec_zs`?**  The current
    formula bundles "thmT(Df_F1_Rec_zs(var 0)) = codeFTeq1Asym ..."
@@ -102,27 +153,9 @@ really does need to bite, and at two levels.
    shape is what forces the doubly-lifted form.  Could the universal
    closure for Rec be reached via a different combination (e.g.,
    `ruleInst` + a single-IH lemma proved separately + a global
-   composition)?  This would route around the Hilbert deduction
-   theorem entirely.
+   composition)?
 
-4. **Single-shot deduction theorem at the BRA level?**  Instead of
-   walking through every dispatcher node, prove ONE general
-   "Hilbert deduction theorem for atomic Eq derivations" lemma in
-   BRA/Deriv.agda or a small new file:
-
-   ```
-   deductionEq : (P : Formula) (a b : Term) ->
-                 (Deriv (atomic (eqn ?? ??)) -> Deriv (atomic (eqn a b))) ->
-                 Deriv (P imp atomic (eqn a b))
-   ```
-
-   if such a thing is provable for the specific shape we need.
-   This may not exist in general (Agda functions aren't Hilbert
-   proofs) but might exist for the **linear** case (input used once),
-   which would cover most of basePair's structure if we can refactor
-   the chain to use each IH-image exactly once.
-
-5. **Look at how Ryan / Rose handle this for HBL (Hilbert-Bernays-Löb)
+4. **Look at how Ryan / Rose handle this for HBL (Hilbert-Bernays-Löb)
    provability conditions.**  Theorem 14 of guard15.pdf cites HBL
    provability conditions; the analog for Rec inside BRA might
    point at the right factoring.
@@ -130,7 +163,12 @@ really does need to bite, and at two levels.
 ## Constraint reminders for next session
 
 - Files ≤ ~250 LoC.
-- Typecheck < 2 s per file.
+- Typecheck < 2 s per file.  **Even 7 s is too much.**
+- The doubly-lifted dispatcher infrastructure (commits 9673103 +
+  1d04d46) typechecks in ~7 s in isolation but ThmT.agda is now
+  14 000 LoC — over the budget by an order of magnitude.  This is
+  pre-existing, not introduced this session, but a future cleanup
+  may want to split ThmT into smaller files.
 - If the candidate proof shape blows past either bound, **stop and
   rethink the math**.  Do not push through with abstract blocks or
   splits hoping the bound clears — the bound is the signal.
@@ -147,7 +185,13 @@ really does need to bite, and at two levels.
 4. `BRA/Deriv.agda:220-232` — ruleIndBT signature.
 5. `BRA/FromBaseAndPair.agda` — how IH-constant Pair-case proofs
    are usually discharged.
-6. Memory: `feedback_guard_fast_typecheck.md`,
-   `feedback_th14_needs_schematic_repeated.md`,
-   `feedback_ski_syntactic_translation.md`,
-   `project_th12rec_univ_progress.md`.
+6. Memory:
+   - `feedback_variant_deduction_theorem.md` — **read first**;
+     the suggested first direction.
+   - `feedback_guard_fast_typecheck.md` — typecheck-time discipline.
+   - `feedback_recpair_godel2_inherent.md` — why this is the inherent
+     hard step of Goedel II.
+   - `feedback_th14_needs_schematic_repeated.md`,
+     `feedback_ski_syntactic_translation.md`,
+     `project_th12rec_univ_progress.md`,
+     `project_recpair_lifted_dispatchers.md`.
