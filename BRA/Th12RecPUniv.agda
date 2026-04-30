@@ -127,20 +127,118 @@ module Th12RecPUnivCase
   f_lf : Fun1
   f_lf = Comp2 Pair f_Df_lf_orig f_encAxRefl
 
-  -- step_inner : Fun2 for the RecP step.  At runtime, RecP step_inner p (Pair v1 v2)
-  -- = step_inner (Pair p (Pair v1 v2))(Pair (RecP step_inner p v1)(RecP step_inner p v2)).
-  --
-  -- For the architectural scaffold, step_inner is taken as a parameter
-  -- of WithClosure (the full ~150-200 LoC Fan-of-combinators is mechanical
-  -- engineering deferred via parameters).
-  --
-  -- For now, we use a stub step_inner that emits O at the chain content
-  -- position.  The CALLER's WithClosure parameters will provide the
-  -- actual BRA-equality reductions and chain proofs.
+  ----------------------------------------------------------------------
+  -- emit_* combinators for the real step_inner.  Each is a Fun2 that
+  -- at runtime (orig = Pair p (Pair v1 v2), recs = Pair r1 r2) emits a
+  -- specific Term piece of the chain Df.
 
+  -- Recs projector: ap2 Recs orig recs = recs.
+  Recs : Fun2
+  Recs = Post Snd Pair
+
+  -- RecsFst : ap2 RecsFst orig (Pair r1 r2) = r1.
+  RecsFst : Fun2
+  RecsFst = Post Fst Recs
+
+  -- RecsSnd : ap2 RecsSnd orig (Pair r1 r2) = r2.
+  RecsSnd : Fun2
+  RecsSnd = Post Snd Recs
+
+  -- emit_v1 : ap2 emit_v1 (Pair p (Pair v1 v2)) _ = v1.
+  emit_v1 : Fun2
+  emit_v1 = Lift (Comp Fst Snd)
+
+  -- emit_v2 : ap2 emit_v2 (Pair p (Pair v1 v2)) _ = v2.
+  emit_v2 : Fun2
+  emit_v2 = Lift (Comp Snd Snd)
+
+  -- emit_cp : ap2 emit_cp orig _ = cor (Fst orig).
+  emit_cp : Fun2
+  emit_cp = Lift (Comp cor Fst)
+
+  emit_cv1 : Fun2
+  emit_cv1 = Lift (Comp cor (Comp Fst Snd))
+
+  emit_cv2 : Fun2
+  emit_cv2 = Lift (Comp cor (Comp Snd Snd))
+
+  -- emit_f_lf_p : ap2 emit_f_lf_p orig _ = ap1 f_lf (Fst orig) = f_lf p.
+  emit_f_lf_p : Fun2
+  emit_f_lf_p = Lift (Comp f_lf Fst)
+
+  -- emit_cor_recPF_pv1 : ap2 ... orig _ = cor (recPF p v1)
+  --                = ap1 cor (ap2 recPF (Fst orig)(Fst (Snd orig))).
+  emit_cor_recPF_pv1 : Fun2
+  emit_cor_recPF_pv1 = Lift (Comp cor (Comp2 recPF Fst (Comp Fst Snd)))
+
+  -- emit_IfLf_v1 : ap2 ... orig recs = ap2 IfLf v1 (Pair (f_lf p) r1).
+  emit_IfLf_v1 : Fun2
+  emit_IfLf_v1 = Fan emit_v1 (EmitPair emit_f_lf_p RecsFst) IfLf
+
+  emit_IfLf_v2 : Fun2
+  emit_IfLf_v2 = Fan emit_v2 (EmitPair emit_f_lf_p RecsSnd) IfLf
+
+  -- emit_IH_Df_v1 : Pair tagCode_ruleTrans (IfLf-form for v1).
+  -- This is wrapped_IfLf_form p v1 at runtime.
+  emit_IH_Df_v1 : Fun2
+  emit_IH_Df_v1 = EmitPair (KT2 tagCode_ruleTrans) emit_IfLf_v1
+
+  emit_IH_Df_v2 : Fun2
+  emit_IH_Df_v2 = EmitPair (KT2 tagCode_ruleTrans) emit_IfLf_v2
+
+  -- mkAp2T cf2 cp cv2 = Pair tagAp2 (Pair cf2 (Pair cp cv2)).
+  emit_mkAp2T_cf2_cp_cv2 : Fun2
+  emit_mkAp2T_cf2_cp_cv2 = EmitPair (KT2 (reify tagAp2))
+                             (EmitPair (KT2 cf2) (EmitPair emit_cp emit_cv2))
+
+  -- X = Pair tagAp2 (Pair pCT (Pair cv1 cv2)).
+  emit_X : Fun2
+  emit_X = EmitPair (KT2 (reify tagAp2))
+             (EmitPair (KT2 pCT) (EmitPair emit_cv1 emit_cv2))
+
+  -- ppCorPairForm = Pair tagAp2 (Pair pCT (Pair cp X)).
+  emit_ppCorPairForm : Fun2
+  emit_ppCorPairForm = EmitPair (KT2 (reify tagAp2))
+                         (EmitPair (KT2 pCT) (EmitPair emit_cp emit_X))
+
+  -- Df_E1 = Pair tagCode_axRecPNd (Pair sT (Pair cp (Pair cv1 cv2))).
+  emit_Df_E1 : Fun2
+  emit_Df_E1 = EmitPair (KT2 tagCode_axRecPNd)
+                 (EmitPair (KT2 sT)
+                   (EmitPair emit_cp (EmitPair emit_cv1 emit_cv2)))
+
+  -- Df_E_v1 = Pair tagCode_congL (Pair pCT (Pair (IH.Df_v1)(mkAp2T cf2 cp cv2))).
+  emit_Df_E_v1 : Fun2
+  emit_Df_E_v1 = EmitPair (KT2 tagCode_congL)
+                   (EmitPair (KT2 pCT)
+                     (EmitPair emit_IH_Df_v1 emit_mkAp2T_cf2_cp_cv2))
+
+  -- Df_E_v1_lifted = Pair tagCode_congR (Pair sT (Pair Df_E_v1 ppCorPairForm)).
+  emit_Df_E_v1_lifted : Fun2
+  emit_Df_E_v1_lifted = EmitPair (KT2 tagCode_congR)
+                          (EmitPair (KT2 sT)
+                            (EmitPair emit_Df_E_v1 emit_ppCorPairForm))
+
+  -- Df_E_v2 = Pair tagCode_congR (Pair pCT (Pair (IH.Df_v2)(cor(recPF p v1)))).
+  emit_Df_E_v2 : Fun2
+  emit_Df_E_v2 = EmitPair (KT2 tagCode_congR)
+                   (EmitPair (KT2 pCT)
+                     (EmitPair emit_IH_Df_v2 emit_cor_recPF_pv1))
+
+  emit_Df_E_v2_lifted : Fun2
+  emit_Df_E_v2_lifted = EmitPair (KT2 tagCode_congR)
+                          (EmitPair (KT2 sT)
+                            (EmitPair emit_Df_E_v2 emit_ppCorPairForm))
+
+  -- Df_chain1 = Pair tagCode_ruleTrans (Pair Df_E1 Df_E_v1_lifted).
+  emit_Df_chain1 : Fun2
+  emit_Df_chain1 = EmitPair (KT2 tagCode_ruleTrans)
+                     (EmitPair emit_Df_E1 emit_Df_E_v1_lifted)
+
+  -- step_inner emits Pair Df_chain1 Df_E_v2_lifted (the chain content
+  -- without the outer tagCode_ruleTrans wrapper, which Df_F2_RecP_s adds).
   step_inner : Fun2
-  step_inner = Const  -- ap2 Const a b = a; emits orig (Pair p (Pair v1 v2)).
-                     -- Stub; real step_inner emits the chain content.
+  step_inner = EmitPair emit_Df_chain1 emit_Df_E_v2_lifted
 
   inner_dispatch : Fun2
   inner_dispatch = Fan (Post Snd Pair)
