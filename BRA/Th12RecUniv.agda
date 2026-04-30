@@ -26,6 +26,7 @@ open import BRA.Term
 open import BRA.Formula
 open import BRA.Deriv
 open import BRA.Cor
+open import BRA.CorOfPair using (corOfPair)
 open import BRA.ReifyClosed  using (reifyClosed)
 open import BRA.Thm14CodeFTeqAsym
 open import BRA.Thm.Tag using
@@ -35,7 +36,14 @@ open import BRA.Thm.ThmT using
   ; tagCode_axRecLf
   ; tagCode_ruleTrans ; tagCode_axRecNd ; tagCode_axRefl
   ; tagCode_congL ; tagCode_congR
-  ; thmTDispAxRefl_param ; thmTDispRuleTrans_param )
+  ; thmTDispAxRefl_param ; thmTDispRuleTrans_param
+  ; thmTDispAxRecNd_param
+  ; thmTDispCongL_param_doublelifted
+  ; thmTDispCongR_param_doublelifted
+  ; thmTDispRuleTrans_param_doublelifted
+  ; liftAxiomTwo ; B_combinatorTwo
+  ; liftedRuleTransTwo ; liftedRuleSymTwo
+  ; liftedCong1Two ; liftedCongLTwo ; liftedCongRTwo )
 import BRA.Th12Rec
 
 ------------------------------------------------------------------------
@@ -1463,6 +1471,71 @@ module Th12RecUnivCase
         }
 
     --------------------------------------------------------------------
+    -- Doubly-lifted IH1Rec record (image at depth 2).
+
+    record IH1Rec_doublelifted (P1 P2 : Formula) (f : Fun1) (x : Term) : Set where
+      field
+        Df    : Term
+        fstL  : Term
+        fstR  : Term
+        shape : Deriv (atomic (eqn (ap1 Fst Df) (ap2 Pair fstL fstR)))
+        image : Deriv (P1 imp (P2 imp atomic
+                  (eqn (ap1 thmT Df) (codeFTeq1Asym f x))))
+
+    --------------------------------------------------------------------
+    -- Doubly-lifted toIH1Rec_image: 3-layer eqSubst at depth 2.
+
+    toIH1Rec_doublelifted_image : (P1 P2 : Formula) (v : Nat) ->
+      Deriv (P1 imp (P2 imp substF zero (var v) P_Th12_Rec_zs)) ->
+      Deriv (P1 imp (P2 imp atomic
+        (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))
+             (codeFTeq1Asym recF (var v)))))
+    toIH1Rec_doublelifted_image P1 P2 v dl_ihD =
+      eqSubst (\ rhs -> Deriv (P1 imp (P2 imp atomic
+            (eqn (ap1 thmT (ap1 Df_F1_Rec_zs (var v))) rhs))))
+        (codeFTeq1Asym_subst_eq_var v)
+        (eqSubst (\ Df' -> Deriv (P1 imp (P2 imp atomic
+              (eqn (ap1 thmT (ap1 Df' (var v)))
+                   (subst zero (var v) (codeFTeq1Asym recF (var zero)))))))
+          (Df_F1_Rec_zs_closed zero (var v))
+          (eqSubst (\ thT' -> Deriv (P1 imp (P2 imp atomic
+                (eqn (ap1 thT' (ap1 (substF1 zero (var v) Df_F1_Rec_zs)(var v)))
+                     (subst zero (var v) (codeFTeq1Asym recF (var zero)))))))
+            (thClosed zero (var v))
+            dl_ihD))
+
+    -- Bridge to wrapped_inner_Rec form via cong1 thmT (ruleSym Df_F1_Rec_zs_reduce_outer).
+    toIH1Rec_doublelifted_image_wrapped : (P1 P2 : Formula) (v : Nat) ->
+      Deriv (P1 imp (P2 imp substF zero (var v) P_Th12_Rec_zs)) ->
+      Deriv (P1 imp (P2 imp atomic
+        (eqn (ap1 thmT (wrapped_inner_Rec (var v)))
+             (codeFTeq1Asym recF (var v)))))
+    toIH1Rec_doublelifted_image_wrapped P1 P2 v dl_ihD =
+      let bridge_thmT : Deriv (atomic
+                          (eqn (ap1 thmT (wrapped_inner_Rec (var v)))
+                               (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))))
+          bridge_thmT = cong1 thmT (ruleSym (Df_F1_Rec_zs_reduce_outer (var v)))
+          dl_at_Df   = toIH1Rec_doublelifted_image P1 P2 v dl_ihD
+          dl_bridge  = liftAxiomTwo P1 P2 bridge_thmT
+      in liftedRuleTransTwo P1 P2
+           (ap1 thmT (wrapped_inner_Rec (var v)))
+           (ap1 thmT (ap1 Df_F1_Rec_zs (var v)))
+           (codeFTeq1Asym recF (var v))
+           dl_bridge dl_at_Df
+
+    toIH1Rec_doublelifted : (P1 P2 : Formula) (v : Nat) ->
+                            Deriv (P1 imp (P2 imp substF zero (var v) P_Th12_Rec_zs)) ->
+                            IH1Rec_doublelifted P1 P2 recF (var v)
+    toIH1Rec_doublelifted P1 P2 v dl_ihD =
+      record
+        { Df    = wrapped_inner_Rec (var v)
+        ; fstL  = _
+        ; fstR  = _
+        ; shape = axFst tagCode_ruleTrans (ap1 inner_Rec (var v))
+        ; image = toIH1Rec_doublelifted_image_wrapped P1 P2 v dl_ihD
+        }
+
+    --------------------------------------------------------------------
     -- Step G5-G7 path: the lifted basePair is taken as a sub-module
     -- parameter.  Caller discharges via either:
     --   (a) Adding uniformity lemmas to ThmT.agda's abstract block for
@@ -1539,6 +1612,297 @@ module Th12RecUnivCase
                 (ap1 thmT (ap1 Df_F1_Rec_zs (ap2 Pair (var v1) (var v2)))) rhs)))
               (eqSym (codeFTeq1Asym_subst_eq_Pair v1 v2))
               concrete))
+
+    --------------------------------------------------------------------
+    -- basePair_param: doubly-lifted Pair-case proof.  Discharges both
+    -- IH hypotheses Pv1, Pv2 into a closed Hilbert proof of
+    -- Pv1 imp (Pv2 imp Ppair).  Mirrors RecPairCase chain by chain,
+    -- replacing each dispatcher with its _doublelifted variant and
+    -- each axiom-only Deriv via liftAxiomTwo.
+
+    -- Helper: P imp P (axI for formulas, derived from axS + axK).
+    axImpRefl : (P : Formula) -> Deriv (P imp P)
+    axImpRefl P =
+      mp (mp (axS P (P imp P) P) (axK P (P imp P))) (axK P P)
+
+    module BasePair (v1 v2 : Nat) where
+
+      Pv1 : Formula
+      Pv1 = substF zero (var v1) P_Th12_Rec_zs
+
+      Pv2 : Formula
+      Pv2 = substF zero (var v2) P_Th12_Rec_zs
+
+      Ppair : Formula
+      Ppair = substF zero (ap2 Pair (var v1) (var v2)) P_Th12_Rec_zs
+
+      -- Doubly-lifted IH derivs: trivially provable since each Pv_i is
+      -- already in scope as a free hypothesis on the LHS of the imp chain.
+      dl_ihD_v1 : Deriv (Pv1 imp (Pv2 imp Pv1))
+      dl_ihD_v1 = axK Pv1 Pv2
+
+      dl_ihD_v2 : Deriv (Pv1 imp (Pv2 imp Pv2))
+      dl_ihD_v2 = liftAxiom Pv1 (axImpRefl Pv2)
+
+      ih1 : IH1Rec_doublelifted Pv1 Pv2 recF (var v1)
+      ih1 = toIH1Rec_doublelifted Pv1 Pv2 v1 dl_ihD_v1
+
+      ih2 : IH1Rec_doublelifted Pv1 Pv2 recF (var v2)
+      ih2 = toIH1Rec_doublelifted Pv1 Pv2 v2 dl_ihD_v2
+
+      v1T : Term
+      v1T = var v1
+      v2T : Term
+      v2T = var v2
+      pairT : Term
+      pairT = ap2 Pair v1T v2T
+      cv1 : Term
+      cv1 = ap1 cor v1T
+      cv2 : Term
+      cv2 = ap1 cor v2T
+      rec_v1 : Term
+      rec_v1 = ap1 recF v1T
+      rec_v2 : Term
+      rec_v2 = ap1 recF v2T
+
+      X : Term
+      X = ap2 Pair (reify tagAp2) (ap2 Pair pCT (ap2 Pair cv1 cv2))
+
+      Y_initial : Term
+      Y_initial = ap2 Pair (reify tagAp2)
+                    (ap2 Pair pCT (ap2 Pair (mkAp1T cf cv1) (mkAp1T cf cv2)))
+
+      Y_after_v1 : Term
+      Y_after_v1 = ap2 Pair (reify tagAp2)
+                     (ap2 Pair pCT (ap2 Pair (ap1 cor rec_v1) (mkAp1T cf cv2)))
+
+      Y_full : Term
+      Y_full = ap2 Pair (reify tagAp2)
+                 (ap2 Pair pCT (ap2 Pair (ap1 cor rec_v1) (ap1 cor rec_v2)))
+
+      u1_E1 : Term
+      u1_E1 = mkAp1T cf X
+
+      u2_E1 : Term
+      u2_E1 = ap2 Pair (reify tagAp2) (ap2 Pair sT (ap2 Pair X Y_initial))
+
+      u2_after_v1 : Term
+      u2_after_v1 = ap2 Pair (reify tagAp2) (ap2 Pair sT (ap2 Pair X Y_after_v1))
+
+      u2_full : Term
+      u2_full = ap2 Pair (reify tagAp2) (ap2 Pair sT (ap2 Pair X Y_full))
+
+      u2_after_X : Term
+      u2_after_X = ap2 Pair (reify tagAp2)
+                     (ap2 Pair sT (ap2 Pair (ap1 cor pairT) Y_full))
+
+      u2_after_Y : Term
+      u2_after_Y = ap2 Pair (reify tagAp2)
+                     (ap2 Pair sT (ap2 Pair (ap1 cor pairT)
+                                            (ap1 cor (ap2 Pair rec_v1 rec_v2))))
+
+      Df_E_v1 : Term
+      Df_E_v1 = ap2 Pair tagCode_congL
+                  (ap2 Pair pCT (ap2 Pair (IH1Rec_doublelifted.Df ih1) (mkAp1T cf cv2)))
+
+      Df_E_v2 : Term
+      Df_E_v2 = ap2 Pair tagCode_congR
+                  (ap2 Pair pCT (ap2 Pair (IH1Rec_doublelifted.Df ih2) (ap1 cor rec_v1)))
+
+      ----------------------------------------------------------------
+      -- Doubly-lifted RecPairCase mirror.
+
+      E1_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                (eqn (ap1 thmT (ap2 Pair tagCode_axRecNd
+                                 (ap2 Pair zT (ap2 Pair sT (ap2 Pair cv1 cv2)))))
+                     (ap2 Pair u1_E1 u2_E1))))
+      E1_dl = liftAxiomTwo Pv1 Pv2 (thmTDispAxRecNd_param zT sT cv1 cv2)
+
+      E_v1_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                  (eqn (ap1 thmT Df_E_v1) (ap2 Pair Y_initial Y_after_v1))))
+      E_v1_dl = thmTDispCongL_param_doublelifted Pair (mkAp1T cf cv2)
+                  (IH1Rec_doublelifted.Df ih1)
+                  (mkAp1T cf cv1) (ap1 cor rec_v1)
+                  (IH1Rec_doublelifted.fstR ih1) (IH1Rec_doublelifted.fstL ih1)
+                  Pv1 Pv2
+                  (IH1Rec_doublelifted.shape ih1) (IH1Rec_doublelifted.image ih1)
+
+      E_v2_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                  (eqn (ap1 thmT Df_E_v2) (ap2 Pair Y_after_v1 Y_full))))
+      E_v2_dl = thmTDispCongR_param_doublelifted Pair (ap1 cor rec_v1)
+                  (IH1Rec_doublelifted.Df ih2)
+                  (mkAp1T cf cv2) (ap1 cor rec_v2)
+                  (IH1Rec_doublelifted.fstR ih2) (IH1Rec_doublelifted.fstL ih2)
+                  Pv1 Pv2
+                  (IH1Rec_doublelifted.shape ih2) (IH1Rec_doublelifted.image ih2)
+
+      Df_E_v1_lifted : Term
+      Df_E_v1_lifted = ap2 Pair tagCode_congR
+                         (ap2 Pair sT (ap2 Pair Df_E_v1 X))
+
+      E_v1_lifted_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                         (eqn (ap1 thmT Df_E_v1_lifted)
+                              (ap2 Pair u2_E1 u2_after_v1))))
+      E_v1_lifted_dl = thmTDispCongR_param_doublelifted s X Df_E_v1
+                         Y_initial Y_after_v1
+                         _ _
+                         Pv1 Pv2
+                         (axFst tagCode_congL _) E_v1_dl
+
+      Df_E_v2_lifted : Term
+      Df_E_v2_lifted = ap2 Pair tagCode_congR
+                         (ap2 Pair sT (ap2 Pair Df_E_v2 X))
+
+      E_v2_lifted_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                         (eqn (ap1 thmT Df_E_v2_lifted)
+                              (ap2 Pair u2_after_v1 u2_full))))
+      E_v2_lifted_dl = thmTDispCongR_param_doublelifted s X Df_E_v2
+                         Y_after_v1 Y_full
+                         _ _
+                         Pv1 Pv2
+                         (axFst tagCode_congR _) E_v2_dl
+
+      Df_chain1 : Term
+      Df_chain1 = ap2 Pair tagCode_ruleTrans (ap2 Pair (ap2 Pair tagCode_axRecNd
+                    (ap2 Pair zT (ap2 Pair sT (ap2 Pair cv1 cv2)))) Df_E_v1_lifted)
+
+      chain1_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                    (eqn (ap1 thmT Df_chain1) (ap2 Pair u1_E1 u2_after_v1))))
+      chain1_dl = thmTDispRuleTrans_param_doublelifted
+                    (ap2 Pair tagCode_axRecNd
+                      (ap2 Pair zT (ap2 Pair sT (ap2 Pair cv1 cv2))))
+                    Df_E_v1_lifted
+                    u1_E1 u2_E1 u2_E1 u2_after_v1
+                    _ _
+                    Pv1 Pv2
+                    (axFst tagCode_axRecNd _) E1_dl E_v1_lifted_dl
+
+      Df_chain12 : Term
+      Df_chain12 = ap2 Pair tagCode_ruleTrans (ap2 Pair Df_chain1 Df_E_v2_lifted)
+
+      chain12_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                     (eqn (ap1 thmT Df_chain12) (ap2 Pair u1_E1 u2_full))))
+      chain12_dl = thmTDispRuleTrans_param_doublelifted Df_chain1 Df_E_v2_lifted
+                     u1_E1 u2_after_v1 u2_after_v1 u2_full
+                     _ _
+                     Pv1 Pv2
+                     (axFst tagCode_ruleTrans _) chain1_dl E_v2_lifted_dl
+
+      ----------------------------------------------------------------
+      -- BRA-level outer bridge (axiom-only, then lift via liftAxiomTwo).
+
+      bridge_X_to_corPairT : Deriv (atomic (eqn X (ap1 cor pairT)))
+      bridge_X_to_corPairT = ruleSym (corOfPair v1T v2T)
+
+      bridge_u1_E1 : Deriv (atomic (eqn u1_E1 (mkAp1T cf (ap1 cor pairT))))
+      bridge_u1_E1 = congR Pair (reify tagAp1)
+                       (congR Pair cf bridge_X_to_corPairT)
+
+      bridge_u2_a : Deriv (atomic (eqn u2_full u2_after_X))
+      bridge_u2_a = congR Pair (reify tagAp2)
+                      (congR Pair sT
+                        (congL Pair Y_full bridge_X_to_corPairT))
+
+      bridge_Y_full_to_corPair : Deriv (atomic (eqn Y_full (ap1 cor (ap2 Pair rec_v1 rec_v2))))
+      bridge_Y_full_to_corPair = ruleSym (corOfPair rec_v1 rec_v2)
+
+      bridge_u2_b : Deriv (atomic (eqn u2_after_X u2_after_Y))
+      bridge_u2_b = congR Pair (reify tagAp2)
+                      (congR Pair sT
+                        (congR Pair (ap1 cor pairT) bridge_Y_full_to_corPair))
+
+      bridge_u2_c : Deriv (atomic (eqn u2_after_Y
+                         (ap1 cor (ap2 s pairT (ap2 Pair rec_v1 rec_v2)))))
+      bridge_u2_c = ih_s_bra pairT (ap2 Pair rec_v1 rec_v2)
+
+      rec_unfold : Deriv (atomic (eqn (ap1 recF pairT)
+                         (ap2 s pairT (ap2 Pair rec_v1 rec_v2))))
+      rec_unfold = axRecNd z s v1T v2T
+
+      bridge_u2_d : Deriv (atomic (eqn (ap1 cor (ap2 s pairT (ap2 Pair rec_v1 rec_v2)))
+                                        (ap1 cor (ap1 recF pairT))))
+      bridge_u2_d = cong1 cor (ruleSym rec_unfold)
+
+      bridge_u2_full : Deriv (atomic (eqn u2_full (ap1 cor (ap1 recF pairT))))
+      bridge_u2_full = ruleTrans bridge_u2_a
+                         (ruleTrans bridge_u2_b
+                           (ruleTrans bridge_u2_c bridge_u2_d))
+
+      bridge_outer : Deriv (atomic (eqn (ap2 Pair u1_E1 u2_full)
+                                         (codeFTeq1Asym recF pairT)))
+      bridge_outer = ruleTrans (congL Pair u2_full bridge_u1_E1)
+                               (congR Pair (mkAp1T cf (ap1 cor pairT)) bridge_u2_full)
+
+      bridge_outer_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                          (eqn (ap2 Pair u1_E1 u2_full)
+                               (codeFTeq1Asym recF pairT))))
+      bridge_outer_dl = liftAxiomTwo Pv1 Pv2 bridge_outer
+
+      sigma_image_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                         (eqn (ap1 thmT Df_chain12) (codeFTeq1Asym recF pairT))))
+      sigma_image_dl = liftedRuleTransTwo Pv1 Pv2
+                         (ap1 thmT Df_chain12)
+                         (ap2 Pair u1_E1 u2_full)
+                         (codeFTeq1Asym recF pairT)
+                         chain12_dl bridge_outer_dl
+
+      ----------------------------------------------------------------
+      -- Bridge from chain12-form to Df_F1_Rec_zs-form via
+      -- Df_F1_Rec_zs_at_Pair (axiom-only) + cong1 thmT.
+
+      bridge_thmT_chain12 : Deriv (atomic (eqn
+                              (ap1 thmT (ap1 Df_F1_Rec_zs pairT))
+                              (ap1 thmT Df_chain12)))
+      bridge_thmT_chain12 = cong1 thmT (Df_F1_Rec_zs_at_Pair v1 v2)
+
+      concrete_dl : Deriv (Pv1 imp (Pv2 imp atomic
+                      (eqn (ap1 thmT (ap1 Df_F1_Rec_zs pairT))
+                           (codeFTeq1Asym recF pairT))))
+      concrete_dl = liftedRuleTransTwo Pv1 Pv2
+                      (ap1 thmT (ap1 Df_F1_Rec_zs pairT))
+                      (ap1 thmT Df_chain12)
+                      (codeFTeq1Asym recF pairT)
+                      (liftAxiomTwo Pv1 Pv2 bridge_thmT_chain12)
+                      sigma_image_dl
+
+      ----------------------------------------------------------------
+      -- Bridge from concrete_dl to substF Ppair form via 3-layer
+      -- eqSubst chain (Agda-level, mirrors basePair's tail).
+
+      basePair_param_at : Deriv (Pv1 imp (Pv2 imp Ppair))
+      basePair_param_at =
+        eqSubst (\ thT' -> Deriv (Pv1 imp (Pv2 imp atomic (eqn
+            (ap1 thT' (ap1 (substF1 zero pairT Df_F1_Rec_zs) pairT))
+            (subst zero pairT (codeFTeq1Asym recF (var zero)))))))
+          (eqSym (thClosed zero pairT))
+          (eqSubst (\ Df' -> Deriv (Pv1 imp (Pv2 imp atomic (eqn
+              (ap1 thmT (ap1 Df' pairT))
+              (subst zero pairT (codeFTeq1Asym recF (var zero)))))))
+            (eqSym (Df_F1_Rec_zs_closed zero pairT))
+            (eqSubst (\ rhs -> Deriv (Pv1 imp (Pv2 imp atomic (eqn
+                (ap1 thmT (ap1 Df_F1_Rec_zs pairT)) rhs))))
+              (eqSym (codeFTeq1Asym_subst_eq_Pair v1 v2))
+              concrete_dl))
+
+    -- Top-level basePair_param at WithClosure.
+
+    basePair_param : (v1 v2 : Nat) ->
+      Deriv ((substF zero (var v1) P_Th12_Rec_zs) imp
+             ((substF zero (var v2) P_Th12_Rec_zs) imp
+              (substF zero (ap2 Pair (var v1) (var v2)) P_Th12_Rec_zs)))
+    basePair_param v1 v2 = BasePair.basePair_param_at v1 v2
+
+    --------------------------------------------------------------------
+    -- Final: Th12_F1_Rec_zs : Deriv P_Th12_Rec_zs via ruleIndBT,
+    -- using basePair_param directly (no longer needs WithBasePairParam).
+
+    Th12_F1_Rec_zs_concrete : Deriv P_Th12_Rec_zs
+    Th12_F1_Rec_zs_concrete = ruleIndBT P_Th12_Rec_zs
+                                (suc (suc zero))
+                                (suc (suc (suc zero)))
+                                Th12_at_lf_substF
+                                (basePair_param (suc (suc zero))
+                                                (suc (suc (suc zero))))
 
   ----------------------------------------------------------------------
   -- Steps E, F, G, H to follow.  Steps B-H to follow:
