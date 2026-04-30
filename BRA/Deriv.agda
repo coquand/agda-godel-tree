@@ -231,6 +231,36 @@ data Deriv : Formula -> Set where
                        (substF zero (ap2 Pair (var v1) (var v2)) P))) ->
                Deriv P
 
+  -- 2D binary-tree induction with DIAGONAL IHs in the (Pair, Pair) case.
+  -- For formula P with var 0 (= x) and var (suc zero) (= v) both free,
+  -- conclude P from four cases:
+  --
+  --   * baseLL : P at (O, O).
+  --   * baseLN : at (O, Pair v3 v4) with inner IHs at (O, v3), (O, v4).
+  --   * baseNL : at (Pair v1 v2, O) with outer IHs at (v1, O), (v2, O).
+  --   * basePP : at (Pair v1 v2, Pair v3 v4) with DIAGONAL cross-IHs at
+  --              (v1, v3) and (v2, v4) ONLY.
+  --
+  -- The diagonal-IH form is what TreeEq's recursive axTreeEqNN needs
+  -- (TreeEq (Pair v1 v2)(Pair v3 v4) recurses on (v1, v3) and (v2, v4)).
+  -- Not derivable from ruleIndBT alone in BRA's substitution language;
+  -- see BRA/RuleIndBT2.agda.
+  ruleIndBT2 : (P : Formula) (v1 v2 v3 v4 : Nat) ->
+               Deriv (substF (suc zero) O (substF zero O P)) ->
+               Deriv ((substF (suc zero) (var v3) (substF zero O P)) imp
+                      ((substF (suc zero) (var v4) (substF zero O P)) imp
+                       (substF (suc zero) (ap2 Pair (var v3) (var v4))
+                                          (substF zero O P)))) ->
+               Deriv ((substF (suc zero) O (substF zero (var v1) P)) imp
+                      ((substF (suc zero) O (substF zero (var v2) P)) imp
+                       (substF (suc zero) O
+                                          (substF zero (ap2 Pair (var v1) (var v2)) P)))) ->
+               Deriv ((substF (suc zero) (var v3) (substF zero (var v1) P)) imp
+                      ((substF (suc zero) (var v4) (substF zero (var v2) P)) imp
+                       (substF (suc zero) (ap2 Pair (var v3) (var v4))
+                                          (substF zero (ap2 Pair (var v1) (var v2)) P)))) ->
+               Deriv P
+
 ------------------------------------------------------------------------
 -- Derived axKT (Tree-indexed): for canonical input t = reify v, KT t
 -- (defined as a function in BRA.Term) reduces to a Z + Comp2-Pair tree.

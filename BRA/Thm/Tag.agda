@@ -199,6 +199,16 @@ tagRuleInst2 : Nat
 tagRuleInst2 = suc tagAxIfLfNL
 
 ------------------------------------------------------------------------
+-- 2D binary-tree induction with diagonal IHs (1 tag, 45).
+--
+-- Used by  ruleIndBT2 's encoded chain-Df.  Body extracts codeFormula P
+-- from the payload, mirroring tagRuleIndBT.  Required for Theorem 12 of
+-- TreeEq (diagonal recursion).
+
+tagRuleIndBT2 : Nat
+tagRuleIndBT2 = suc tagRuleInst2
+
+------------------------------------------------------------------------
 -- Schema F (ruleF) was a primitive Deriv constructor demotable to
 -- ruleIndBT + structural rules; removed in 2026-04-26 refactor.
 -- See BRA/REFACTOR-PLAN.md .

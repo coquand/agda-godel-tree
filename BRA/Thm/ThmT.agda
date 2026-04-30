@@ -16729,6 +16729,39 @@ module WithDispatch
     in mkR P tagRuleInst
            (nd (codeFormula P) (nd (code (var v1)) (nd (code (var v2)) (nd y_b y_s))))
            (thmTDispRuleIndBT P v1 v2 y_b y_s d_b d_s)
+  -- ruleIndBT2 reuses tagRuleIndBT's chain-Df slot.  The dispatch via
+  -- thmTDispRuleIndBT_param only extracts codeFormula P from
+  -- Fst (Snd a); the remaining payload is opaque, so we pack the four
+  -- sub-encodings (y_LL, y_LN, y_NL, y_PP) into the y_step slot.  This
+  -- avoids adding a new tag + dispatch lemma for ruleIndBT2.
+  encodeRich P (ruleIndBT2 .P v1 v2 v3 v4 pf_LL pf_LN pf_NL pf_PP) =
+    let
+        r_LL = encodeRich (substF (suc zero) O (substF zero O P)) pf_LL
+        r_LN = encodeRich ((substF (suc zero) (var v3) (substF zero O P)) imp
+                            ((substF (suc zero) (var v4) (substF zero O P)) imp
+                             (substF (suc zero) (ap2 Pair (var v3) (var v4))
+                                                 (substF zero O P)))) pf_LN
+        r_NL = encodeRich ((substF (suc zero) O (substF zero (var v1) P)) imp
+                            ((substF (suc zero) O (substF zero (var v2) P)) imp
+                             (substF (suc zero) O
+                                                 (substF zero (ap2 Pair (var v1) (var v2)) P)))) pf_NL
+        r_PP = encodeRich
+                ((substF (suc zero) (var v3) (substF zero (var v1) P)) imp
+                  ((substF (suc zero) (var v4) (substF zero (var v2) P)) imp
+                   (substF (suc zero) (ap2 Pair (var v3) (var v4))
+                                       (substF zero (ap2 Pair (var v1) (var v2)) P))))
+                pf_PP
+        y_LL = fst r_LL
+        y_LN = fst r_LN
+        y_NL = fst r_NL
+        y_PP = fst r_PP
+        y_step = nd y_LN (nd y_NL y_PP)
+    in mkR P tagRuleInst
+           (nd (codeFormula P)
+               (nd (code (var zero))
+                   (nd (code (var zero))
+                       (nd y_LL y_step))))
+           (thmTDispRuleIndBT_param P zero zero (reify y_LL) (reify y_step))
   -- Group III (4 safe-default axioms).
   encodeRich .(atomic (eqn (ap1 Fst O) O)) axFstLf =
     mkR (atomic (eqn (ap1 Fst O) O)) tagRuleIndBT lf thmTDispAxFstLf
