@@ -276,6 +276,60 @@ liftedCongR P g a b c D =
   B_combinator (liftAxiom P (axEqCongR g a b c)) D
 
 ------------------------------------------------------------------------
+-- Level-2 lift helpers: same as level-1 but operating two layers deep.
+-- Used by doubly-lifted dispatchers for basePair_param construction
+-- (Theorem 12 Rec/RecP universal closure under TWO IH hypotheses).
+
+liftAxiomTwo : (P1 P2 : Formula) {Q : Formula} ->
+               Deriv Q -> Deriv (P1 imp (P2 imp Q))
+liftAxiomTwo P1 P2 D = liftAxiom P1 (liftAxiom P2 D)
+
+B_combinatorTwo : {P1 P2 Q R : Formula} ->
+                  Deriv (P1 imp (P2 imp (Q imp R))) ->
+                  Deriv (P1 imp (P2 imp Q)) ->
+                  Deriv (P1 imp (P2 imp R))
+B_combinatorTwo {P1} {P2} {Q} {R} D1 D2 =
+  B_combinator (B_combinator (liftAxiom P1 (axS P2 Q R)) D1) D2
+
+liftedAxEqTransTwo : (P1 P2 : Formula) (a b c : Term) ->
+                     Deriv (P1 imp (P2 imp atomic (eqn a b))) ->
+                     Deriv (P1 imp (P2 imp atomic (eqn a c))) ->
+                     Deriv (P1 imp (P2 imp atomic (eqn b c)))
+liftedAxEqTransTwo P1 P2 a b c D1 D2 =
+  B_combinatorTwo (B_combinatorTwo (liftAxiomTwo P1 P2 (axEqTrans a b c)) D1) D2
+
+liftedRuleSymTwo : (P1 P2 : Formula) (a b : Term) ->
+                   Deriv (P1 imp (P2 imp atomic (eqn a b))) ->
+                   Deriv (P1 imp (P2 imp atomic (eqn b a)))
+liftedRuleSymTwo P1 P2 a b D =
+  liftedAxEqTransTwo P1 P2 a b a D (liftAxiomTwo P1 P2 (axRefl a))
+
+liftedRuleTransTwo : (P1 P2 : Formula) (a b c : Term) ->
+                     Deriv (P1 imp (P2 imp atomic (eqn a b))) ->
+                     Deriv (P1 imp (P2 imp atomic (eqn b c))) ->
+                     Deriv (P1 imp (P2 imp atomic (eqn a c)))
+liftedRuleTransTwo P1 P2 a b c D1 D2 =
+  liftedAxEqTransTwo P1 P2 b a c (liftedRuleSymTwo P1 P2 a b D1) D2
+
+liftedCong1Two : (P1 P2 : Formula) (f : Fun1) (a b : Term) ->
+                 Deriv (P1 imp (P2 imp atomic (eqn a b))) ->
+                 Deriv (P1 imp (P2 imp atomic (eqn (ap1 f a) (ap1 f b))))
+liftedCong1Two P1 P2 f a b D =
+  B_combinatorTwo (liftAxiomTwo P1 P2 (axEqCong1 f a b)) D
+
+liftedCongLTwo : (P1 P2 : Formula) (g : Fun2) (a b c : Term) ->
+                 Deriv (P1 imp (P2 imp atomic (eqn a b))) ->
+                 Deriv (P1 imp (P2 imp atomic (eqn (ap2 g a c) (ap2 g b c))))
+liftedCongLTwo P1 P2 g a b c D =
+  B_combinatorTwo (liftAxiomTwo P1 P2 (axEqCongL g a b c)) D
+
+liftedCongRTwo : (P1 P2 : Formula) (g : Fun2) (a b c : Term) ->
+                 Deriv (P1 imp (P2 imp atomic (eqn a b))) ->
+                 Deriv (P1 imp (P2 imp atomic (eqn (ap2 g c a) (ap2 g c b))))
+liftedCongRTwo P1 P2 g a b c D =
+  B_combinatorTwo (liftAxiomTwo P1 P2 (axEqCongR g a b c)) D
+
+------------------------------------------------------------------------
 -- Heavy block: combinators, helpers, cascade-skip lemmas, Group I
 -- dispatch proofs.
 
@@ -2035,6 +2089,56 @@ abstract
          (ap2 Pair xRes yRes)
          lifted_f1
          (liftedRuleTrans P
+           (ap2 Pair (ap2 X a b)(ap2 Y a b))
+           (ap2 Pair xRes (ap2 Y a b))
+           (ap2 Pair xRes yRes)
+           lifted_e1 lifted_e2)
+
+  -- Doubly-lifted variants for basePair_param construction.
+
+  pairOfConst_eval_doublelifted : (P1 P2 : Formula) (Kv : Tree) (X : Fun2) (a b xRes : Term) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap2 X a b) xRes))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap2 (Fan (Lift (KT (reify Kv))) X Pair) a b)
+                                       (ap2 Pair (reify Kv) xRes))))
+  pairOfConst_eval_doublelifted P1 P2 Kv X a b xRes Xeq =
+    let K : Term
+        K = reify Kv
+        f1 = axFan (Lift (KT K)) X Pair a b
+        kt1 = liftKT_eval Kv a b
+        e1 = congL Pair (ap2 X a b) kt1
+        lifted_combined : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap2 (Fan (Lift (KT K)) X Pair) a b) (ap2 Pair K (ap2 X a b)))))
+        lifted_combined = liftAxiomTwo P1 P2 (ruleTrans f1 e1)
+        lifted_e2 : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap2 Pair K (ap2 X a b)) (ap2 Pair K xRes))))
+        lifted_e2 = liftedCongRTwo P1 P2 Pair (ap2 X a b) xRes K Xeq
+    in liftedRuleTransTwo P1 P2
+         (ap2 (Fan (Lift (KT K)) X Pair) a b)
+         (ap2 Pair K (ap2 X a b))
+         (ap2 Pair K xRes)
+         lifted_combined lifted_e2
+
+  pairOfFan_eval_doublelifted : (P1 P2 : Formula) (X Y : Fun2) (a b xRes yRes : Term) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap2 X a b) xRes))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap2 Y a b) yRes))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap2 (Fan X Y Pair) a b) (ap2 Pair xRes yRes))))
+  pairOfFan_eval_doublelifted P1 P2 X Y a b xRes yRes Xeq Yeq =
+    let f1 = axFan X Y Pair a b
+        lifted_f1 : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap2 (Fan X Y Pair) a b) (ap2 Pair (ap2 X a b)(ap2 Y a b)))))
+        lifted_f1 = liftAxiomTwo P1 P2 f1
+        lifted_e1 : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap2 Pair (ap2 X a b)(ap2 Y a b)) (ap2 Pair xRes (ap2 Y a b)))))
+        lifted_e1 = liftedCongLTwo P1 P2 Pair (ap2 X a b) xRes (ap2 Y a b) Xeq
+        lifted_e2 : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap2 Pair xRes (ap2 Y a b)) (ap2 Pair xRes yRes))))
+        lifted_e2 = liftedCongRTwo P1 P2 Pair (ap2 Y a b) yRes xRes Yeq
+    in liftedRuleTransTwo P1 P2
+         (ap2 (Fan X Y Pair) a b)
+         (ap2 Pair (ap2 X a b)(ap2 Y a b))
+         (ap2 Pair xRes yRes)
+         lifted_f1
+         (liftedRuleTransTwo P1 P2
            (ap2 Pair (ap2 X a b)(ap2 Y a b))
            (ap2 Pair xRes (ap2 Y a b))
            (ap2 Pair xRes yRes)
@@ -10464,6 +10568,66 @@ abstract
          (Post (Comp (Comp Snd Snd) (Comp Snd Snd)) Pair)
          a bb u1 u4 lifted_eL lifted_eR
 
+  -- Doubly-lifted body_ruleTrans_eval_param.
+  body_ruleTrans_eval_param_doublelifted :
+    (y1T y2T bb : Term) (u1 u2 u3 u4 : Term) ->
+    (P1 P2 : Formula) ->
+    Deriv (atomic (eqn (ap1 Snd bb)
+                       (ap2 Pair (ap1 thmT y1T) (ap1 thmT y2T)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y1T) (ap2 Pair u1 u2)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y2T) (ap2 Pair u3 u4)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn
+      (ap2 body_ruleTrans (ap2 Pair tagCode_ruleTrans (ap2 Pair y1T y2T)) bb)
+      (ap2 Pair u1 u4))))
+  body_ruleTrans_eval_param_doublelifted y1T y2T bb u1 u2 u3 u4 P1 P2 distH lifted_d1 lifted_d2 =
+    let tj1 = ap1 thmT y1T
+        tj2 = ap1 thmT y2T
+        a   = ap2 Pair tagCode_ruleTrans (ap2 Pair y1T y2T)
+        e1L = postSndBody_eval (Comp Fst Fst) a bb
+        e2L = cong1 (Comp Fst Fst) distH
+        e3aL = axComp Fst Fst (ap2 Pair tj1 tj2)
+        e3bL = axFst tj1 tj2
+        e3cL = cong1 Fst e3bL
+        e3L = ruleTrans e3aL e3cL
+        lifted_e4aL = liftedCong1Two P1 P2 Fst tj1 (ap2 Pair u1 u2) lifted_d1
+        lifted_e4bL = liftAxiomTwo P1 P2 (axFst u1 u2)
+        lifted_e4L : Deriv (P1 imp (P2 imp atomic (eqn (ap1 Fst tj1) u1)))
+        lifted_e4L = liftedRuleTransTwo P1 P2 (ap1 Fst tj1) (ap1 Fst (ap2 Pair u1 u2)) u1
+                       lifted_e4aL lifted_e4bL
+        e1L_e2L_e3L = ruleTrans e1L (ruleTrans e2L e3L)
+        lifted_e1L_e2L_e3L = liftAxiomTwo P1 P2 e1L_e2L_e3L
+        lifted_eL : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap2 (Post (Comp (Comp Fst Fst) (Comp Snd Snd)) Pair) a bb) u1)))
+        lifted_eL = liftedRuleTransTwo P1 P2
+                      (ap2 (Post (Comp (Comp Fst Fst) (Comp Snd Snd)) Pair) a bb)
+                      (ap1 Fst tj1)
+                      u1
+                      lifted_e1L_e2L_e3L lifted_e4L
+        e1R = postSndBody_eval (Comp Snd Snd) a bb
+        e2R = cong1 (Comp Snd Snd) distH
+        e3aR = axComp Snd Snd (ap2 Pair tj1 tj2)
+        e3bR = axSnd tj1 tj2
+        e3cR = cong1 Snd e3bR
+        e3R = ruleTrans e3aR e3cR
+        lifted_e4aR = liftedCong1Two P1 P2 Snd tj2 (ap2 Pair u3 u4) lifted_d2
+        lifted_e4bR = liftAxiomTwo P1 P2 (axSnd u3 u4)
+        lifted_e4R : Deriv (P1 imp (P2 imp atomic (eqn (ap1 Snd tj2) u4)))
+        lifted_e4R = liftedRuleTransTwo P1 P2 (ap1 Snd tj2) (ap1 Snd (ap2 Pair u3 u4)) u4
+                       lifted_e4aR lifted_e4bR
+        e1R_e2R_e3R = ruleTrans e1R (ruleTrans e2R e3R)
+        lifted_e1R_e2R_e3R = liftAxiomTwo P1 P2 e1R_e2R_e3R
+        lifted_eR : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap2 (Post (Comp (Comp Snd Snd) (Comp Snd Snd)) Pair) a bb) u4)))
+        lifted_eR = liftedRuleTransTwo P1 P2
+                      (ap2 (Post (Comp (Comp Snd Snd) (Comp Snd Snd)) Pair) a bb)
+                      (ap1 Snd tj2)
+                      u4
+                      lifted_e1R_e2R_e3R lifted_e4R
+    in pairOfFan_eval_doublelifted P1 P2
+         (Post (Comp (Comp Fst Fst) (Comp Snd Snd)) Pair)
+         (Post (Comp (Comp Snd Snd) (Comp Snd Snd)) Pair)
+         a bb u1 u4 lifted_eL lifted_eR
+
   -- Parametric variant of thmTDispRuleTrans.  Takes y1T, y2T : Term sub-encodings
   -- with their parametric thmT-images (Pair u1 u2 / Pair u3 u4) plus a head-shape
   -- proof on y1T (so thmTDistrib_param fires on the outer Pair).  Output is the
@@ -10634,6 +10798,105 @@ abstract
                        (liftedRuleTrans P _ _ _ (liftAxiom P s22)
                        (liftedRuleTrans P _ _ _ (liftAxiom P s23)
                        (liftedRuleTrans P _ _ _ (liftAxiom P hh)
+                                              lifted_be))))))))))))))))))))))))
+    in chain_lifted
+
+  -- Doubly-lifted variant.
+  thmTDispRuleTrans_param_doublelifted :
+    (y1T y2T : Term) (u1 u2 u3 u4 : Term)
+    (y1' : Term) (x' : Term)
+    (P1 P2 : Formula) ->
+    Deriv (atomic (eqn (ap1 Fst y1T) (ap2 Pair x' y1'))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y1T) (ap2 Pair u1 u2)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y2T) (ap2 Pair u3 u4)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn
+      (ap1 thmT (ap2 Pair tagCode_ruleTrans (ap2 Pair y1T y2T)))
+      (ap2 Pair u1 u4))))
+  thmTDispRuleTrans_param_doublelifted y1T y2T u1 u2 u3 u4 y1' x' P1 P2
+                                         shape lifted_d1 lifted_d2 =
+    let payT = ap2 Pair y1T y2T
+        a    = ap2 Pair tagCode_ruleTrans payT
+        b    = ap2 Pair (ap1 thmT tagCode_ruleTrans) (ap1 thmT payT)
+        e1   = dispatchOpens tagRuleSym payT
+        s1   = skipAtTag (natCode tagAxI)         tagCode_ruleTrans payT b body_axI         next_axI
+                  (teqDiff tagAxI         tagRuleTrans refl)
+        s2   = skipAtTag (natCode tagAxFst)       tagCode_ruleTrans payT b body_axFst       next_axFst
+                  (teqDiff tagAxFst       tagRuleTrans refl)
+        s3   = skipAtTag (natCode tagAxSnd)       tagCode_ruleTrans payT b body_axSnd       next_axSnd
+                  (teqDiff tagAxSnd       tagRuleTrans refl)
+        s4   = skipAtTag (natCode tagAxConst)     tagCode_ruleTrans payT b body_axConst     next_axConst
+                  (teqDiff tagAxConst     tagRuleTrans refl)
+        s5   = skipAtTag (natCode tagAxComp)      tagCode_ruleTrans payT b body_axComp      next_axComp
+                  (teqDiff tagAxComp      tagRuleTrans refl)
+        s6   = skipAtTag (natCode tagAxComp2)     tagCode_ruleTrans payT b body_axComp2     next_axComp2
+                  (teqDiff tagAxComp2     tagRuleTrans refl)
+        s7   = skipAtTag (natCode tagAxLift)      tagCode_ruleTrans payT b body_axLift      next_axLift
+                  (teqDiff tagAxLift      tagRuleTrans refl)
+        s8   = skipAtTag (natCode tagAxPost)      tagCode_ruleTrans payT b body_axPost      next_axPost
+                  (teqDiff tagAxPost      tagRuleTrans refl)
+        s9   = skipAtTag (natCode tagAxFan)       tagCode_ruleTrans payT b body_axFan       next_axFan
+                  (teqDiff tagAxFan       tagRuleTrans refl)
+        s10  = skipAtTag (natCode tagAxKT)        tagCode_ruleTrans payT b body_axZ         next_axKT
+                  (teqDiff tagAxKT        tagRuleTrans refl)
+        s11  = skipAtTag (natCode tagAxRecLf)     tagCode_ruleTrans payT b body_axRecLf     next_axRecLf
+                  (teqDiff tagAxRecLf     tagRuleTrans refl)
+        s12  = skipAtTag (natCode tagAxRecNd)     tagCode_ruleTrans payT b body_axRecNd     next_axRecNd
+                  (teqDiff tagAxRecNd     tagRuleTrans refl)
+        s13  = skipAtTag (natCode tagAxRecPLf)    tagCode_ruleTrans payT b body_axRecPLf    next_axRecPLf
+                  (teqDiff tagAxRecPLf    tagRuleTrans refl)
+        s14  = skipAtTag (natCode tagAxRecPNd)    tagCode_ruleTrans payT b body_axRecPNd    next_axRecPNd
+                  (teqDiff tagAxRecPNd    tagRuleTrans refl)
+        s15  = skipAtTag (natCode tagAxIfLfL)     tagCode_ruleTrans payT b body_axIfLfL     next_axIfLfL
+                  (teqDiff tagAxIfLfL     tagRuleTrans refl)
+        s16  = skipAtTag (natCode tagAxIfLfN)     tagCode_ruleTrans payT b body_axIfLfN     next_axIfLfN
+                  (teqDiff tagAxIfLfN     tagRuleTrans refl)
+        s17  = skipAtTag (natCode tagAxTreeEqLL)  tagCode_ruleTrans payT b body_axTreeEqLL  next_axTreeEqLL
+                  (teqDiff tagAxTreeEqLL  tagRuleTrans refl)
+        s18  = skipAtTag (natCode tagAxTreeEqLN)  tagCode_ruleTrans payT b body_axTreeEqLN  next_axTreeEqLN
+                  (teqDiff tagAxTreeEqLN  tagRuleTrans refl)
+        s19  = skipAtTag (natCode tagAxTreeEqNL)  tagCode_ruleTrans payT b body_axTreeEqNL  next_axTreeEqNL
+                  (teqDiff tagAxTreeEqNL  tagRuleTrans refl)
+        s20  = skipAtTag (natCode tagAxTreeEqNN)  tagCode_ruleTrans payT b body_axTreeEqNN  next_axTreeEqNN
+                  (teqDiff tagAxTreeEqNN  tagRuleTrans refl)
+        s21  = skipAtTag (natCode tagAxGoodstein) tagCode_ruleTrans payT b body_axGoodstein next_axGoodstein
+                  (teqDiff tagAxGoodstein tagRuleTrans refl)
+        s22  = skipAtTag (natCode tagAxRefl)      tagCode_ruleTrans payT b body_axRefl      next_axRefl
+                  (teqDiff tagAxRefl      tagRuleTrans refl)
+        s23  = skipAtTag (natCode tagRuleSym)     tagCode_ruleTrans payT b body_ruleSym     next_ruleSym
+                  (teqDiff tagRuleSym     tagRuleTrans refl)
+        hh   = hitAtTag  (natCode tagRuleTrans)   tagCode_ruleTrans payT b body_ruleTrans   next_ruleTrans
+                  (teqEq tagRuleTrans)
+        sndB_unfold = axSnd (ap1 thmT tagCode_ruleTrans) (ap1 thmT payT)
+        distrib = thmTDistrib_param y1T y2T y1' shape
+        distH   = ruleTrans sndB_unfold distrib
+        lifted_be = body_ruleTrans_eval_param_doublelifted y1T y2T b u1 u2 u3 u4 P1 P2 distH
+                      lifted_d1 lifted_d2
+        chain_lifted =
+          liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 e1)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s1)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s2)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s3)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s4)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s5)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s6)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s7)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s8)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s9)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s10)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s11)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s12)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s13)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s14)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s15)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s16)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s17)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s18)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s19)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s20)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s21)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s22)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s23)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 hh)
                                               lifted_be))))))))))))))))))))))))
     in chain_lifted
 
@@ -11246,6 +11509,66 @@ abstract
          lifted_e_chain
          lifted_X_tjH_eq
 
+  -- Doubly-lifted variant.
+  congLR_extractTj_param_doublelifted :
+    (P1 P2 : Formula) (X : Fun1) (tag y_h_T bb sec third val : Term) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 Snd bb)
+                              (ap2 Pair (ap1 thmT sec)
+                                        (ap2 Pair (ap1 thmT y_h_T)
+                                                  (ap1 thmT third)))))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 X (ap1 thmT y_h_T)) val))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn
+      (ap2 (Post (Comp (Comp X (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+            (ap2 Pair tag (ap2 Pair sec (ap2 Pair y_h_T third)))
+            bb)
+      val)))
+  congLR_extractTj_param_doublelifted P1 P2 X tag y_h_T bb sec third val
+                                       lifted_distH lifted_X_tjH_eq =
+    let tjG = ap1 thmT sec
+        tjH = ap1 thmT y_h_T
+        tjX = ap1 thmT third
+        a = ap2 Pair tag (ap2 Pair sec (ap2 Pair y_h_T third))
+        innerPair = ap2 Pair tjH tjX
+        outerPair = ap2 Pair tjG innerPair
+        e_post = postSndBody_eval (Comp X (Comp Fst Snd)) a bb
+        e_unfX = axComp X (Comp Fst Snd) outerPair
+        e_unfFS = axComp Fst Snd outerPair
+        e_snd = axSnd tjG innerPair
+        e_fst_snd = cong1 Fst e_snd
+        e_compFS = ruleTrans e_unfFS e_fst_snd
+        e_X_compFS = cong1 X e_compFS
+        e_unf_inner_fst = axFst tjH tjX
+        e_X_inner = cong1 X e_unf_inner_fst
+        e_X_outer = ruleTrans e_unfX (ruleTrans e_X_compFS e_X_inner)
+        lifted_e_post = liftAxiomTwo P1 P2 e_post
+        lifted_e_dist : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap1 (Comp X (Comp Fst Snd)) (ap1 Snd bb))
+               (ap1 (Comp X (Comp Fst Snd)) outerPair))))
+        lifted_e_dist = liftedCong1Two P1 P2 (Comp X (Comp Fst Snd))
+                          (ap1 Snd bb) outerPair lifted_distH
+        lifted_e_X_outer = liftAxiomTwo P1 P2 e_X_outer
+        lifted_e_chain : Deriv (P1 imp (P2 imp atomic (eqn
+          (ap2 (Post (Comp (Comp X (Comp Fst Snd)) (Comp Snd Snd)) Pair) a bb)
+          (ap1 X tjH))))
+        lifted_e_chain =
+          liftedRuleTransTwo P1 P2
+            (ap2 (Post (Comp (Comp X (Comp Fst Snd)) (Comp Snd Snd)) Pair) a bb)
+            (ap1 (Comp X (Comp Fst Snd)) (ap1 Snd bb))
+            (ap1 X tjH)
+            lifted_e_post
+            (liftedRuleTransTwo P1 P2
+              (ap1 (Comp X (Comp Fst Snd)) (ap1 Snd bb))
+              (ap1 (Comp X (Comp Fst Snd)) outerPair)
+              (ap1 X tjH)
+              lifted_e_dist
+              lifted_e_X_outer)
+    in liftedRuleTransTwo P1 P2
+         (ap2 (Post (Comp (Comp X (Comp Fst Snd)) (Comp Snd Snd)) Pair) a bb)
+         (ap1 X tjH)
+         val
+         lifted_e_chain
+         lifted_X_tjH_eq
+
   body_congL_eval : (g : Fun2) (x : Term) (t u : Term) (y_h : Tree)
                     (bb : Term) ->
     Deriv (atomic (eqn (ap1 Snd bb)
@@ -11711,6 +12034,123 @@ abstract
          (ap2 Pair K_a2 (ap2 Pair payG (ap2 Pair u2 xT)))
          lifted_outerL lifted_outerR
 
+  -- Doubly-lifted body_congL_eval_param.
+  body_congL_eval_param_doublelifted :
+    (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 bb : Term) ->
+    (P1 P2 : Formula) ->
+    Deriv (atomic (eqn (ap1 Snd bb)
+                       (ap2 Pair (ap1 thmT (reify (codeF2 g)))
+                                 (ap2 Pair (ap1 thmT y_h_T)
+                                           (ap1 thmT xT))))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn
+      (ap2 body_congL
+            (ap2 Pair tagCode_congL
+                  (ap2 Pair (reify (codeF2 g)) (ap2 Pair y_h_T xT)))
+            bb)
+      (ap2 Pair (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair u1 xT)))
+                (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair u2 xT)))))))
+  body_congL_eval_param_doublelifted g xT y_h_T u1 u2 bb P1 P2 distH lifted_d_h =
+    let payG = reify (codeF2 g)
+        a    = ap2 Pair tagCode_congL (ap2 Pair payG (ap2 Pair y_h_T xT))
+        K_a2V = tagAp2
+        K_a2  = reify K_a2V
+        eG = liftCompFstSnd_evalPair tagCode_congL payG (ap2 Pair y_h_T xT) bb
+        eX = liftSndSndSnd_evalPair3 tagCode_congL payG y_h_T xT bb
+        lifted_eG = liftAxiomTwo P1 P2 eG
+        lifted_eX = liftAxiomTwo P1 P2 eX
+        lifted_distH = liftAxiomTwo P1 P2 distH
+
+        lifted_fst_tjH : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap1 Fst (ap1 thmT y_h_T)) (ap1 Fst (ap2 Pair u1 u2)))))
+        lifted_fst_tjH = liftedCong1Two P1 P2 Fst
+                          (ap1 thmT y_h_T) (ap2 Pair u1 u2) lifted_d_h
+        lifted_fst_pair = liftAxiomTwo P1 P2 (axFst u1 u2)
+        lifted_fst_tjH_eq : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap1 Fst (ap1 thmT y_h_T)) u1)))
+        lifted_fst_tjH_eq =
+          liftedRuleTransTwo P1 P2
+            (ap1 Fst (ap1 thmT y_h_T))
+            (ap1 Fst (ap2 Pair u1 u2))
+            u1
+            lifted_fst_tjH lifted_fst_pair
+
+        lifted_snd_tjH : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap1 Snd (ap1 thmT y_h_T)) (ap1 Snd (ap2 Pair u1 u2)))))
+        lifted_snd_tjH = liftedCong1Two P1 P2 Snd
+                          (ap1 thmT y_h_T) (ap2 Pair u1 u2) lifted_d_h
+        lifted_snd_pair = liftAxiomTwo P1 P2 (axSnd u1 u2)
+        lifted_snd_tjH_eq : Deriv (P1 imp (P2 imp atomic
+          (eqn (ap1 Snd (ap1 thmT y_h_T)) u2)))
+        lifted_snd_tjH_eq =
+          liftedRuleTransTwo P1 P2
+            (ap1 Snd (ap1 thmT y_h_T))
+            (ap1 Snd (ap2 Pair u1 u2))
+            u2
+            lifted_snd_tjH lifted_snd_pair
+
+        lifted_eT = congLR_extractTj_param_doublelifted P1 P2 Fst tagCode_congL
+                      y_h_T bb payG xT u1 lifted_distH lifted_fst_tjH_eq
+        lifted_eU = congLR_extractTj_param_doublelifted P1 P2 Snd tagCode_congL
+                      y_h_T bb payG xT u2 lifted_distH lifted_snd_tjH_eq
+
+        lifted_innerL_pair = pairOfFan_eval_doublelifted P1 P2
+                       (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                       (Lift (Comp Snd (Comp Snd Snd)))
+                       a bb u1 xT lifted_eT lifted_eX
+        lifted_innerL = pairOfFan_eval_doublelifted P1 P2 (Lift (Comp Fst Snd))
+                       (Fan (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                            (Lift (Comp Snd (Comp Snd Snd)))
+                            Pair)
+                       a bb payG (ap2 Pair u1 xT) lifted_eG lifted_innerL_pair
+        lifted_outerL = pairOfConst_eval_doublelifted P1 P2 K_a2V
+                       (Fan (Lift (Comp Fst Snd))
+                            (Fan (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                                 (Lift (Comp Snd (Comp Snd Snd)))
+                                 Pair)
+                            Pair)
+                       a bb (ap2 Pair payG (ap2 Pair u1 xT)) lifted_innerL
+
+        lifted_innerR_pair = pairOfFan_eval_doublelifted P1 P2
+                       (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                       (Lift (Comp Snd (Comp Snd Snd)))
+                       a bb u2 xT lifted_eU lifted_eX
+        lifted_innerR = pairOfFan_eval_doublelifted P1 P2 (Lift (Comp Fst Snd))
+                       (Fan (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                            (Lift (Comp Snd (Comp Snd Snd)))
+                            Pair)
+                       a bb payG (ap2 Pair u2 xT) lifted_eG lifted_innerR_pair
+        lifted_outerR = pairOfConst_eval_doublelifted P1 P2 K_a2V
+                       (Fan (Lift (Comp Fst Snd))
+                            (Fan (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                                 (Lift (Comp Snd (Comp Snd Snd)))
+                                 Pair)
+                            Pair)
+                       a bb (ap2 Pair payG (ap2 Pair u2 xT)) lifted_innerR
+    in pairOfFan_eval_doublelifted P1 P2
+         (Fan (Lift (KT K_a2))
+              (Fan (Lift (Comp Fst Snd))
+                   (Fan (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                        (Lift (Comp Snd (Comp Snd Snd)))
+                        Pair)
+                   Pair)
+              Pair)
+         (Fan (Lift (KT K_a2))
+              (Fan (Lift (Comp Fst Snd))
+                   (Fan (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                        (Lift (Comp Snd (Comp Snd Snd)))
+                        Pair)
+                   Pair)
+              Pair)
+         a bb
+         (ap2 Pair K_a2 (ap2 Pair payG (ap2 Pair u1 xT)))
+         (ap2 Pair K_a2 (ap2 Pair payG (ap2 Pair u2 xT)))
+         lifted_outerL lifted_outerR
+
   -- Parametric variant of thmTDispCongL.
   thmTDispCongL_param : (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term)
                         (y_h' x' : Term) ->
@@ -11913,6 +12353,120 @@ abstract
                        (liftedRuleTrans P _ _ _ (liftAxiom P s24)
                        (liftedRuleTrans P _ _ _ (liftAxiom P s25)
                        (liftedRuleTrans P _ _ _ (liftAxiom P hh)
+                                              lifted_be))))))))))))))))))))))))))
+    in chain_lifted
+
+  -- Doubly-lifted thmTDispCongL_param.
+  thmTDispCongL_param_doublelifted :
+    (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term)
+    (y_h' x' : Term)
+    (P1 P2 : Formula) ->
+    Deriv (atomic (eqn (ap1 Fst y_h_T) (ap2 Pair x' y_h'))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn
+      (ap1 thmT (ap2 Pair tagCode_congL
+                  (ap2 Pair (reify (codeF2 g)) (ap2 Pair y_h_T xT))))
+      (ap2 Pair (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair u1 xT)))
+                (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair u2 xT)))))))
+  thmTDispCongL_param_doublelifted g xT y_h_T u1 u2 y_h' x' P1 P2 shape_h lifted_d_h =
+    let payT = ap2 Pair (reify (codeF2 g)) (ap2 Pair y_h_T xT)
+        a    = ap2 Pair tagCode_congL payT
+        b    = ap2 Pair (ap1 thmT tagCode_congL) (ap1 thmT payT)
+        e1   = dispatchOpens tagCong1 payT
+        s1   = skipAtTag (natCode tagAxI)         tagCode_congL payT b body_axI         next_axI
+                  (teqDiff tagAxI         tagCongL refl)
+        s2   = skipAtTag (natCode tagAxFst)       tagCode_congL payT b body_axFst       next_axFst
+                  (teqDiff tagAxFst       tagCongL refl)
+        s3   = skipAtTag (natCode tagAxSnd)       tagCode_congL payT b body_axSnd       next_axSnd
+                  (teqDiff tagAxSnd       tagCongL refl)
+        s4   = skipAtTag (natCode tagAxConst)     tagCode_congL payT b body_axConst     next_axConst
+                  (teqDiff tagAxConst     tagCongL refl)
+        s5   = skipAtTag (natCode tagAxComp)      tagCode_congL payT b body_axComp      next_axComp
+                  (teqDiff tagAxComp      tagCongL refl)
+        s6   = skipAtTag (natCode tagAxComp2)     tagCode_congL payT b body_axComp2     next_axComp2
+                  (teqDiff tagAxComp2     tagCongL refl)
+        s7   = skipAtTag (natCode tagAxLift)      tagCode_congL payT b body_axLift      next_axLift
+                  (teqDiff tagAxLift      tagCongL refl)
+        s8   = skipAtTag (natCode tagAxPost)      tagCode_congL payT b body_axPost      next_axPost
+                  (teqDiff tagAxPost      tagCongL refl)
+        s9   = skipAtTag (natCode tagAxFan)       tagCode_congL payT b body_axFan       next_axFan
+                  (teqDiff tagAxFan       tagCongL refl)
+        s10  = skipAtTag (natCode tagAxKT)        tagCode_congL payT b body_axZ         next_axKT
+                  (teqDiff tagAxKT        tagCongL refl)
+        s11  = skipAtTag (natCode tagAxRecLf)     tagCode_congL payT b body_axRecLf     next_axRecLf
+                  (teqDiff tagAxRecLf     tagCongL refl)
+        s12  = skipAtTag (natCode tagAxRecNd)     tagCode_congL payT b body_axRecNd     next_axRecNd
+                  (teqDiff tagAxRecNd     tagCongL refl)
+        s13  = skipAtTag (natCode tagAxRecPLf)    tagCode_congL payT b body_axRecPLf    next_axRecPLf
+                  (teqDiff tagAxRecPLf    tagCongL refl)
+        s14  = skipAtTag (natCode tagAxRecPNd)    tagCode_congL payT b body_axRecPNd    next_axRecPNd
+                  (teqDiff tagAxRecPNd    tagCongL refl)
+        s15  = skipAtTag (natCode tagAxIfLfL)     tagCode_congL payT b body_axIfLfL     next_axIfLfL
+                  (teqDiff tagAxIfLfL     tagCongL refl)
+        s16  = skipAtTag (natCode tagAxIfLfN)     tagCode_congL payT b body_axIfLfN     next_axIfLfN
+                  (teqDiff tagAxIfLfN     tagCongL refl)
+        s17  = skipAtTag (natCode tagAxTreeEqLL)  tagCode_congL payT b body_axTreeEqLL  next_axTreeEqLL
+                  (teqDiff tagAxTreeEqLL  tagCongL refl)
+        s18  = skipAtTag (natCode tagAxTreeEqLN)  tagCode_congL payT b body_axTreeEqLN  next_axTreeEqLN
+                  (teqDiff tagAxTreeEqLN  tagCongL refl)
+        s19  = skipAtTag (natCode tagAxTreeEqNL)  tagCode_congL payT b body_axTreeEqNL  next_axTreeEqNL
+                  (teqDiff tagAxTreeEqNL  tagCongL refl)
+        s20  = skipAtTag (natCode tagAxTreeEqNN)  tagCode_congL payT b body_axTreeEqNN  next_axTreeEqNN
+                  (teqDiff tagAxTreeEqNN  tagCongL refl)
+        s21  = skipAtTag (natCode tagAxGoodstein) tagCode_congL payT b body_axGoodstein next_axGoodstein
+                  (teqDiff tagAxGoodstein tagCongL refl)
+        s22  = skipAtTag (natCode tagAxRefl)      tagCode_congL payT b body_axRefl      next_axRefl
+                  (teqDiff tagAxRefl      tagCongL refl)
+        s23  = skipAtTag (natCode tagRuleSym)     tagCode_congL payT b body_ruleSym     next_ruleSym
+                  (teqDiff tagRuleSym     tagCongL refl)
+        s24  = skipAtTag (natCode tagRuleTrans)   tagCode_congL payT b body_ruleTrans   next_ruleTrans
+                  (teqDiff tagRuleTrans   tagCongL refl)
+        s25  = skipAtTag (natCode tagCong1)       tagCode_congL payT b body_cong1       next_cong1
+                  (teqDiff tagCong1       tagCongL refl)
+        hh   = hitAtTag  (natCode tagCongL)       tagCode_congL payT b body_congL       next_congL
+                  (teqEq tagCongL)
+        sndB_unfold = axSnd (ap1 thmT tagCode_congL) (ap1 thmT payT)
+        shapeG = fstReifyCodeF2 g
+        innerT : Term
+        innerT = ap2 Pair y_h_T xT
+        distrib1 = thmTDistrib_param (reify (codeF2 g)) innerT (fst shapeG) (snd shapeG)
+        distrib2 = thmTDistrib_param y_h_T xT y_h' shape_h
+        distrib2_lifted = congR Pair (ap1 thmT (reify (codeF2 g))) distrib2
+        distrib  = ruleTrans distrib1 distrib2_lifted
+        distH    = ruleTrans sndB_unfold distrib
+        lifted_be = body_congL_eval_param_doublelifted g xT y_h_T u1 u2 b P1 P2 distH lifted_d_h
+        chain_lifted =
+          liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 e1)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s1)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s2)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s3)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s4)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s5)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s6)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s7)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s8)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s9)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s10)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s11)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s12)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s13)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s14)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s15)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s16)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s17)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s18)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s19)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s20)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s21)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s22)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s23)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s24)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s25)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 hh)
                                               lifted_be))))))))))))))))))))))))))
     in chain_lifted
 
@@ -12359,6 +12913,113 @@ abstract
          (ap2 Pair K_a2 (ap2 Pair payG (ap2 Pair xT u2)))
          lifted_outerL lifted_outerR
 
+  -- Doubly-lifted body_congR_eval_param.
+  body_congR_eval_param_doublelifted :
+    (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 bb : Term) ->
+    (P1 P2 : Formula) ->
+    Deriv (atomic (eqn (ap1 Snd bb)
+                       (ap2 Pair (ap1 thmT (reify (codeF2 g)))
+                                 (ap2 Pair (ap1 thmT y_h_T)
+                                           (ap1 thmT xT))))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn
+      (ap2 body_congR
+            (ap2 Pair tagCode_congR
+                  (ap2 Pair (reify (codeF2 g)) (ap2 Pair y_h_T xT)))
+            bb)
+      (ap2 Pair (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair xT u1)))
+                (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair xT u2)))))))
+  body_congR_eval_param_doublelifted g xT y_h_T u1 u2 bb P1 P2 distH lifted_d_h =
+    let payG = reify (codeF2 g)
+        a    = ap2 Pair tagCode_congR (ap2 Pair payG (ap2 Pair y_h_T xT))
+        K_a2V = tagAp2
+        K_a2  = reify K_a2V
+        eG = liftCompFstSnd_evalPair tagCode_congR payG (ap2 Pair y_h_T xT) bb
+        eX = liftSndSndSnd_evalPair3 tagCode_congR payG y_h_T xT bb
+        lifted_eG = liftAxiomTwo P1 P2 eG
+        lifted_eX = liftAxiomTwo P1 P2 eX
+        lifted_distH = liftAxiomTwo P1 P2 distH
+
+        lifted_fst_tjH = liftedCong1Two P1 P2 Fst (ap1 thmT y_h_T) (ap2 Pair u1 u2) lifted_d_h
+        lifted_fst_pair = liftAxiomTwo P1 P2 (axFst u1 u2)
+        lifted_fst_tjH_eq =
+          liftedRuleTransTwo P1 P2
+            (ap1 Fst (ap1 thmT y_h_T))
+            (ap1 Fst (ap2 Pair u1 u2))
+            u1
+            lifted_fst_tjH lifted_fst_pair
+
+        lifted_snd_tjH = liftedCong1Two P1 P2 Snd (ap1 thmT y_h_T) (ap2 Pair u1 u2) lifted_d_h
+        lifted_snd_pair = liftAxiomTwo P1 P2 (axSnd u1 u2)
+        lifted_snd_tjH_eq =
+          liftedRuleTransTwo P1 P2
+            (ap1 Snd (ap1 thmT y_h_T))
+            (ap1 Snd (ap2 Pair u1 u2))
+            u2
+            lifted_snd_tjH lifted_snd_pair
+
+        lifted_eT = congLR_extractTj_param_doublelifted P1 P2 Fst tagCode_congR
+                      y_h_T bb payG xT u1 lifted_distH lifted_fst_tjH_eq
+        lifted_eU = congLR_extractTj_param_doublelifted P1 P2 Snd tagCode_congR
+                      y_h_T bb payG xT u2 lifted_distH lifted_snd_tjH_eq
+
+        lifted_innerL_pair = pairOfFan_eval_doublelifted P1 P2
+                       (Lift (Comp Snd (Comp Snd Snd)))
+                       (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                       a bb xT u1 lifted_eX lifted_eT
+        lifted_innerL = pairOfFan_eval_doublelifted P1 P2 (Lift (Comp Fst Snd))
+                       (Fan (Lift (Comp Snd (Comp Snd Snd)))
+                            (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                            Pair)
+                       a bb payG (ap2 Pair xT u1) lifted_eG lifted_innerL_pair
+        lifted_outerL = pairOfConst_eval_doublelifted P1 P2 K_a2V
+                       (Fan (Lift (Comp Fst Snd))
+                            (Fan (Lift (Comp Snd (Comp Snd Snd)))
+                                 (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                                 Pair)
+                            Pair)
+                       a bb (ap2 Pair payG (ap2 Pair xT u1)) lifted_innerL
+
+        lifted_innerR_pair = pairOfFan_eval_doublelifted P1 P2
+                       (Lift (Comp Snd (Comp Snd Snd)))
+                       (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                       a bb xT u2 lifted_eX lifted_eU
+        lifted_innerR = pairOfFan_eval_doublelifted P1 P2 (Lift (Comp Fst Snd))
+                       (Fan (Lift (Comp Snd (Comp Snd Snd)))
+                            (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                            Pair)
+                       a bb payG (ap2 Pair xT u2) lifted_eG lifted_innerR_pair
+        lifted_outerR = pairOfConst_eval_doublelifted P1 P2 K_a2V
+                       (Fan (Lift (Comp Fst Snd))
+                            (Fan (Lift (Comp Snd (Comp Snd Snd)))
+                                 (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                                 Pair)
+                            Pair)
+                       a bb (ap2 Pair payG (ap2 Pair xT u2)) lifted_innerR
+    in pairOfFan_eval_doublelifted P1 P2
+         (Fan (Lift (KT K_a2))
+              (Fan (Lift (Comp Fst Snd))
+                   (Fan (Lift (Comp Snd (Comp Snd Snd)))
+                        (Post (Comp (Comp Fst (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                        Pair)
+                   Pair)
+              Pair)
+         (Fan (Lift (KT K_a2))
+              (Fan (Lift (Comp Fst Snd))
+                   (Fan (Lift (Comp Snd (Comp Snd Snd)))
+                        (Post (Comp (Comp Snd (Comp Fst Snd)) (Comp Snd Snd)) Pair)
+                        Pair)
+                   Pair)
+              Pair)
+         a bb
+         (ap2 Pair K_a2 (ap2 Pair payG (ap2 Pair xT u1)))
+         (ap2 Pair K_a2 (ap2 Pair payG (ap2 Pair xT u2)))
+         lifted_outerL lifted_outerR
+
   -- Parametric variant of thmTDispCongR.
   thmTDispCongR_param : (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term)
                         (y_h' x' : Term) ->
@@ -12563,6 +13224,123 @@ abstract
                        (liftedRuleTrans P _ _ _ (liftAxiom P s25)
                        (liftedRuleTrans P _ _ _ (liftAxiom P s26)
                        (liftedRuleTrans P _ _ _ (liftAxiom P hh)
+                                              lifted_be)))))))))))))))))))))))))))
+    in chain_lifted
+
+  -- Doubly-lifted thmTDispCongR_param.
+  thmTDispCongR_param_doublelifted :
+    (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term)
+    (y_h' x' : Term)
+    (P1 P2 : Formula) ->
+    Deriv (atomic (eqn (ap1 Fst y_h_T) (ap2 Pair x' y_h'))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2)))) ->
+    Deriv (P1 imp (P2 imp atomic (eqn
+      (ap1 thmT (ap2 Pair tagCode_congR
+                  (ap2 Pair (reify (codeF2 g)) (ap2 Pair y_h_T xT))))
+      (ap2 Pair (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair xT u1)))
+                (ap2 Pair (reify tagAp2)
+                          (ap2 Pair (reify (codeF2 g))
+                                    (ap2 Pair xT u2)))))))
+  thmTDispCongR_param_doublelifted g xT y_h_T u1 u2 y_h' x' P1 P2 shape_h lifted_d_h =
+    let payT = ap2 Pair (reify (codeF2 g)) (ap2 Pair y_h_T xT)
+        a    = ap2 Pair tagCode_congR payT
+        b    = ap2 Pair (ap1 thmT tagCode_congR) (ap1 thmT payT)
+        e1   = dispatchOpens tagCongL payT
+        s1   = skipAtTag (natCode tagAxI)         tagCode_congR payT b body_axI         next_axI
+                  (teqDiff tagAxI         tagCongR refl)
+        s2   = skipAtTag (natCode tagAxFst)       tagCode_congR payT b body_axFst       next_axFst
+                  (teqDiff tagAxFst       tagCongR refl)
+        s3   = skipAtTag (natCode tagAxSnd)       tagCode_congR payT b body_axSnd       next_axSnd
+                  (teqDiff tagAxSnd       tagCongR refl)
+        s4   = skipAtTag (natCode tagAxConst)     tagCode_congR payT b body_axConst     next_axConst
+                  (teqDiff tagAxConst     tagCongR refl)
+        s5   = skipAtTag (natCode tagAxComp)      tagCode_congR payT b body_axComp      next_axComp
+                  (teqDiff tagAxComp      tagCongR refl)
+        s6   = skipAtTag (natCode tagAxComp2)     tagCode_congR payT b body_axComp2     next_axComp2
+                  (teqDiff tagAxComp2     tagCongR refl)
+        s7   = skipAtTag (natCode tagAxLift)      tagCode_congR payT b body_axLift      next_axLift
+                  (teqDiff tagAxLift      tagCongR refl)
+        s8   = skipAtTag (natCode tagAxPost)      tagCode_congR payT b body_axPost      next_axPost
+                  (teqDiff tagAxPost      tagCongR refl)
+        s9   = skipAtTag (natCode tagAxFan)       tagCode_congR payT b body_axFan       next_axFan
+                  (teqDiff tagAxFan       tagCongR refl)
+        s10  = skipAtTag (natCode tagAxKT)        tagCode_congR payT b body_axZ         next_axKT
+                  (teqDiff tagAxKT        tagCongR refl)
+        s11  = skipAtTag (natCode tagAxRecLf)     tagCode_congR payT b body_axRecLf     next_axRecLf
+                  (teqDiff tagAxRecLf     tagCongR refl)
+        s12  = skipAtTag (natCode tagAxRecNd)     tagCode_congR payT b body_axRecNd     next_axRecNd
+                  (teqDiff tagAxRecNd     tagCongR refl)
+        s13  = skipAtTag (natCode tagAxRecPLf)    tagCode_congR payT b body_axRecPLf    next_axRecPLf
+                  (teqDiff tagAxRecPLf    tagCongR refl)
+        s14  = skipAtTag (natCode tagAxRecPNd)    tagCode_congR payT b body_axRecPNd    next_axRecPNd
+                  (teqDiff tagAxRecPNd    tagCongR refl)
+        s15  = skipAtTag (natCode tagAxIfLfL)     tagCode_congR payT b body_axIfLfL     next_axIfLfL
+                  (teqDiff tagAxIfLfL     tagCongR refl)
+        s16  = skipAtTag (natCode tagAxIfLfN)     tagCode_congR payT b body_axIfLfN     next_axIfLfN
+                  (teqDiff tagAxIfLfN     tagCongR refl)
+        s17  = skipAtTag (natCode tagAxTreeEqLL)  tagCode_congR payT b body_axTreeEqLL  next_axTreeEqLL
+                  (teqDiff tagAxTreeEqLL  tagCongR refl)
+        s18  = skipAtTag (natCode tagAxTreeEqLN)  tagCode_congR payT b body_axTreeEqLN  next_axTreeEqLN
+                  (teqDiff tagAxTreeEqLN  tagCongR refl)
+        s19  = skipAtTag (natCode tagAxTreeEqNL)  tagCode_congR payT b body_axTreeEqNL  next_axTreeEqNL
+                  (teqDiff tagAxTreeEqNL  tagCongR refl)
+        s20  = skipAtTag (natCode tagAxTreeEqNN)  tagCode_congR payT b body_axTreeEqNN  next_axTreeEqNN
+                  (teqDiff tagAxTreeEqNN  tagCongR refl)
+        s21  = skipAtTag (natCode tagAxGoodstein) tagCode_congR payT b body_axGoodstein next_axGoodstein
+                  (teqDiff tagAxGoodstein tagCongR refl)
+        s22  = skipAtTag (natCode tagAxRefl)      tagCode_congR payT b body_axRefl      next_axRefl
+                  (teqDiff tagAxRefl      tagCongR refl)
+        s23  = skipAtTag (natCode tagRuleSym)     tagCode_congR payT b body_ruleSym     next_ruleSym
+                  (teqDiff tagRuleSym     tagCongR refl)
+        s24  = skipAtTag (natCode tagRuleTrans)   tagCode_congR payT b body_ruleTrans   next_ruleTrans
+                  (teqDiff tagRuleTrans   tagCongR refl)
+        s25  = skipAtTag (natCode tagCong1)       tagCode_congR payT b body_cong1       next_cong1
+                  (teqDiff tagCong1       tagCongR refl)
+        s26  = skipAtTag (natCode tagCongL)       tagCode_congR payT b body_congL       next_congL
+                  (teqDiff tagCongL       tagCongR refl)
+        hh   = hitAtTag  (natCode tagCongR)       tagCode_congR payT b body_congR       next_congR
+                  (teqEq tagCongR)
+        sndB_unfold = axSnd (ap1 thmT tagCode_congR) (ap1 thmT payT)
+        shapeG = fstReifyCodeF2 g
+        innerT : Term
+        innerT = ap2 Pair y_h_T xT
+        distrib1 = thmTDistrib_param (reify (codeF2 g)) innerT (fst shapeG) (snd shapeG)
+        distrib2 = thmTDistrib_param y_h_T xT y_h' shape_h
+        distrib2_lifted = congR Pair (ap1 thmT (reify (codeF2 g))) distrib2
+        distrib  = ruleTrans distrib1 distrib2_lifted
+        distH    = ruleTrans sndB_unfold distrib
+        lifted_be = body_congR_eval_param_doublelifted g xT y_h_T u1 u2 b P1 P2 distH lifted_d_h
+        chain_lifted =
+          liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 e1)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s1)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s2)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s3)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s4)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s5)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s6)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s7)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s8)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s9)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s10)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s11)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s12)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s13)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s14)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s15)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s16)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s17)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s18)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s19)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s20)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s21)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s22)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s23)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s24)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s25)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 s26)
+          (liftedRuleTransTwo P1 P2 _ _ _ (liftAxiomTwo P1 P2 hh)
                                               lifted_be)))))))))))))))))))))))))))
     in chain_lifted
 
