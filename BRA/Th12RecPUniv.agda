@@ -355,6 +355,48 @@ module Th12RecPUnivCase
     in ruleTrans s_outer (ruleTrans s_outer_step1 s_outer_step2)
 
   ----------------------------------------------------------------------
+  -- IfLf-form helper for IH.Df slots in the doubly-lifted chain Df.
+  --
+  -- ap2 Df_F2_RecP_s p x reduces (via axFan + axLift + axKT + axFan +
+  -- axPost + axSnd + axLift) to wrapped_IfLf_form p x.  At opaque var x,
+  -- this reduction completes (no axIfLf needed); the IfLf application
+  -- inside is left as-is.
+
+  wrapped_IfLf_form : Term -> Term -> Term
+  wrapped_IfLf_form p x = ap2 Pair tagCode_ruleTrans
+                            (ap2 IfLf x (ap2 Pair (ap1 f_lf p)
+                                                  (ap2 (RecP step_inner) p x)))
+
+  Df_F2_RecP_s_eqv_IfLf_form : (p x : Term) ->
+    Deriv (atomic (eqn (ap2 Df_F2_RecP_s p x) (wrapped_IfLf_form p x)))
+  Df_F2_RecP_s_eqv_IfLf_form p x =
+    let
+      s1 = axFan (Lift (KT tagCode_ruleTrans)) inner_dispatch Pair p x
+      s_outerL : Deriv (atomic (eqn (ap2 (Lift (KT tagCode_ruleTrans)) p x)
+                                     tagCode_ruleTrans))
+      s_outerL = ruleTrans (axLift (KT tagCode_ruleTrans) p x)
+                            (axKT (natCode tagRuleTrans) p)
+      s_id_fan = axFan (Post Snd Pair) (Fan (Lift f_lf) (RecP step_inner) Pair) IfLf p x
+      s_post : Deriv (atomic (eqn (ap2 (Post Snd Pair) p x) x))
+      s_post = ruleTrans (axPost Snd Pair p x) (axSnd p x)
+      s_inner_fan = axFan (Lift f_lf) (RecP step_inner) Pair p x
+      s_inner_lift = axLift f_lf p x
+      s_inner_right : Deriv (atomic (eqn
+        (ap2 (Fan (Lift f_lf) (RecP step_inner) Pair) p x)
+        (ap2 Pair (ap1 f_lf p) (ap2 (RecP step_inner) p x))))
+      s_inner_right = ruleTrans s_inner_fan
+                        (congL Pair (ap2 (RecP step_inner) p x) s_inner_lift)
+      s_step1 = congL IfLf (ap2 (Fan (Lift f_lf) (RecP step_inner) Pair) p x) s_post
+      s_step2 = congR IfLf x s_inner_right
+      s_id : Deriv (atomic (eqn (ap2 inner_dispatch p x)
+                                  (ap2 IfLf x (ap2 Pair (ap1 f_lf p)
+                                                        (ap2 (RecP step_inner) p x)))))
+      s_id = ruleTrans s_id_fan (ruleTrans s_step1 s_step2)
+      s_outer1 = congL Pair (ap2 inner_dispatch p x) s_outerL
+      s_outer2 = congR Pair tagCode_ruleTrans s_id
+    in ruleTrans s1 (ruleTrans s_outer1 s_outer2)
+
+  ----------------------------------------------------------------------
   -- Th12 at lf input (concrete proof, replacing the WithClosure parameter).
   --
   -- Strategy: reduce Df_F2_RecP_s p O (Df_F2_RecP_s_at_O), then thmT
@@ -621,14 +663,17 @@ module Th12RecPUnivCase
         }
 
     --------------------------------------------------------------------
-    -- Doubly-lifted toIH2RecP (analog of toIH2RecP_lifted at depth 2).
+    -- Doubly-lifted toIH2RecP.  IH.Df is the IfLf-form (BRA-equal to
+    -- ap2 Df_F2_RecP_s pT (var v) but matches step_inner's runtime
+    -- emission at IH slots — the literal-equality pivot that closes
+    -- the chain Df bridge.
 
-    toIH2RecP_doublelifted_image : (P1 P2 : Formula) (v : Nat) ->
+    toIH2RecP_doublelifted_image_at_Df : (P1 P2 : Formula) (v : Nat) ->
       Deriv (P1 imp (P2 imp substF zero (var v) P_Th12_RecP_s)) ->
       Deriv (P1 imp (P2 imp atomic
         (eqn (ap1 thmT (ap2 Df_F2_RecP_s (var (suc zero)) (var v)))
              (codeFTeq2Asym recPF (var (suc zero)) (var v)))))
-    toIH2RecP_doublelifted_image P1 P2 v dl_ihD =
+    toIH2RecP_doublelifted_image_at_Df P1 P2 v dl_ihD =
       eqSubst (\ rhs -> Deriv (P1 imp (P2 imp atomic (eqn
             (ap1 thmT (ap2 Df_F2_RecP_s (var (suc zero)) (var v))) rhs))))
         (codeFTeq2Asym_subst_eq_var v)
@@ -642,15 +687,37 @@ module Th12RecPUnivCase
             (thClosed zero (var v))
             dl_ihD))
 
+    toIH2RecP_doublelifted_image : (P1 P2 : Formula) (v : Nat) ->
+      Deriv (P1 imp (P2 imp substF zero (var v) P_Th12_RecP_s)) ->
+      Deriv (P1 imp (P2 imp atomic
+        (eqn (ap1 thmT (wrapped_IfLf_form (var (suc zero)) (var v)))
+             (codeFTeq2Asym recPF (var (suc zero)) (var v)))))
+    toIH2RecP_doublelifted_image P1 P2 v dl_ihD =
+      let
+        base_dl = toIH2RecP_doublelifted_image_at_Df P1 P2 v dl_ihD
+        -- Bridge: thmT (wrapped_IfLf_form pT v) = thmT (Df_F2_RecP_s pT v)
+        -- via cong1 thmT (ruleSym (Df_F2_RecP_s_eqv_IfLf_form pT v)).
+        bridge : Deriv (atomic (eqn
+                  (ap1 thmT (wrapped_IfLf_form (var (suc zero)) (var v)))
+                  (ap1 thmT (ap2 Df_F2_RecP_s (var (suc zero)) (var v)))))
+        bridge = cong1 thmT (ruleSym (Df_F2_RecP_s_eqv_IfLf_form (var (suc zero)) (var v)))
+      in liftedRuleTransTwo P1 P2
+           (ap1 thmT (wrapped_IfLf_form (var (suc zero)) (var v)))
+           (ap1 thmT (ap2 Df_F2_RecP_s (var (suc zero)) (var v)))
+           (codeFTeq2Asym recPF (var (suc zero)) (var v))
+           (liftAxiomTwo P1 P2 bridge) base_dl
+
     toIH2RecP_doublelifted : (P1 P2 : Formula) (v : Nat) ->
                              Deriv (P1 imp (P2 imp substF zero (var v) P_Th12_RecP_s)) ->
                              IH2RecP_doublelifted P1 P2 recPF (var (suc zero)) (var v)
     toIH2RecP_doublelifted P1 P2 v dl_ihD =
       record
-        { Df    = ap2 Df_F2_RecP_s (var (suc zero)) (var v)
+        { Df    = wrapped_IfLf_form (var (suc zero)) (var v)
         ; fstL  = _
         ; fstR  = _
-        ; shape = shape_at (var (suc zero)) (var v)
+        ; shape = axFst tagCode_ruleTrans
+                    (ap2 IfLf (var v) (ap2 Pair (ap1 f_lf (var (suc zero)))
+                                                (ap2 (RecP step_inner) (var (suc zero)) (var v))))
         ; image = toIH2RecP_doublelifted_image P1 P2 v dl_ihD
         }
 
