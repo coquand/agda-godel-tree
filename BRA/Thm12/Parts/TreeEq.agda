@@ -49,15 +49,17 @@ codeFTeq2_TreeEq x v =
     (ap1 cor (ap2 TreeEq x v))
 
 ------------------------------------------------------------------------
--- Construction module: parametric over the NN case.
+-- ConstructionBase: parametric over D_TreeEq_NN_fun + closure.
+-- Provides D_TreeEq, reductions, bridges, and pointwise correctness for
+-- the LL / LN / NL non-recursive cases.  Does NOT depend on the NN
+-- pointwise correctness.  The full Construction module below extends
+-- this with the NN case (which DOES depend on NN_pt) plus the universal
+-- closure proof via nested ruleIndBT.
 
-module Construction
+module ConstructionBase
   (D_TreeEq_NN_fun : Fun2)
   (D_TreeEq_NN_closed : (x : Nat) (r : Term) ->
     Eq (substF2 x r D_TreeEq_NN_fun) D_TreeEq_NN_fun)
-  (D_correct2_TreeEq_NN_pt : (p q a b : Term) ->
-    Deriv (atomic (eqn (ap1 thmT (ap2 D_TreeEq_NN_fun (ap2 Pair p q) (ap2 Pair a b)))
-                       (codeFTeq2_TreeEq (ap2 Pair p q) (ap2 Pair a b)))))
   where
 
   ----------------------------------------------------------------------
@@ -575,6 +577,22 @@ module Construction
         r_disp = parDispAxTreeEqNL (ap1 cor p) (ap1 cor q)
         r_bridge = bridgeNL p q
     in ruleTrans r_thmT (ruleTrans r_disp r_bridge)
+
+------------------------------------------------------------------------
+-- Construction: extends ConstructionBase with the NN case + universal
+-- proof.  Adds the NN pointwise parameter D_correct2_TreeEq_NN_pt and
+-- threads it through the nested ruleIndBT closure.
+
+module Construction
+  (D_TreeEq_NN_fun : Fun2)
+  (D_TreeEq_NN_closed : (x : Nat) (r : Term) ->
+    Eq (substF2 x r D_TreeEq_NN_fun) D_TreeEq_NN_fun)
+  (D_correct2_TreeEq_NN_pt : (p q a b : Term) ->
+    Deriv (atomic (eqn (ap1 thmT (ap2 D_TreeEq_NN_fun (ap2 Pair p q) (ap2 Pair a b)))
+                       (codeFTeq2_TreeEq (ap2 Pair p q) (ap2 Pair a b)))))
+  where
+
+  open ConstructionBase D_TreeEq_NN_fun D_TreeEq_NN_closed public
 
   D_correct2_TreeEq_NN : (p q a b : Term) ->
     Deriv (atomic (eqn (ap1 thmT (ap2 D_TreeEq (ap2 Pair p q) (ap2 Pair a b)))
