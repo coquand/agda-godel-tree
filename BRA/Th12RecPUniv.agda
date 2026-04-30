@@ -30,7 +30,7 @@ open import BRA.Cor
 open import BRA.ReifyClosed  using (reifyClosed)
 open import BRA.Thm14CodeFTeqAsym
 open import BRA.Thm.Tag using
-  ( tagAxRecPLf ; tagRuleTrans )
+  ( tagAxRecPLf ; tagAxRefl ; tagRuleTrans )
 open import BRA.Thm.ThmT using
   ( thmT ; thClosed
   ; tagCode_axRecPLf
@@ -247,6 +247,173 @@ module Th12RecPUnivCase
   pCT_closed x r = reifyClosed (codeF2 Pair) x r
 
   ----------------------------------------------------------------------
+  -- Concrete lf-case proofs (no closure assumptions needed).
+  --
+  -- Df_F2_RecP_s_at_O p reduces  ap2 Df_F2_RecP_s p O  to the structured
+  -- lf payload  Pair tagCode_ruleTrans (lf_inner_at p)  via the chain
+  -- axFan + axLift + axKT + axFan + axPost + axSnd + axIfLfL + axComp2
+  -- (no axIfLf at opaque var — at concrete x = O, axIfLfL fires).
+
+  -- Helper: f_Df_lf_orig p reduces to Df_lf_orig_at p.
+  f_Df_lf_orig_red : (p : Term) ->
+    Deriv (atomic (eqn (ap1 f_Df_lf_orig p) (Df_lf_orig_at p)))
+  f_Df_lf_orig_red p =
+    let
+      s1 = axComp2 Pair (KT tagCode_axRecPLf) (Comp2 Pair (KT sT) cor) p
+      s2 = axKT (natCode tagAxRecPLf) p
+      s3 = axComp2 Pair (KT sT) cor p
+      s4 = axKT (codeF2 s) p
+      s_inner : Deriv (atomic (eqn (ap1 (Comp2 Pair (KT sT) cor) p)
+                                    (ap2 Pair sT (ap1 cor p))))
+      s_inner = ruleTrans s3 (congL Pair (ap1 cor p) s4)
+      step1 = congL Pair (ap1 (Comp2 Pair (KT sT) cor) p) s2
+      step2 = congR Pair tagCode_axRecPLf s_inner
+    in ruleTrans s1 (ruleTrans step1 step2)
+
+  -- Helper: f_encAxRefl p reduces to encAxReflRecPF_at p.
+  --   f_encAxRefl = Comp2 Pair (KT tagCode_axRefl) (Comp cor (Comp2 recPF I (KT O)))
+  --   ap1 f_encAxRefl p = Pair tagCode_axRefl (cor (recPF p O))
+  f_encAxRefl_red : (p : Term) ->
+    Deriv (atomic (eqn (ap1 f_encAxRefl p) (encAxReflRecPF_at p)))
+  f_encAxRefl_red p =
+    let
+      -- ap1 f_encAxRefl p = Pair (ap1 (KT tagCode_axRefl) p)
+      --                          (ap1 (Comp cor (Comp2 recPF I (KT O))) p)
+      s1 = axComp2 Pair (KT tagCode_axRefl) (Comp cor (Comp2 recPF I (KT O))) p
+      s2 = axKT (natCode tagAxRefl) p
+      -- Inner: ap1 (Comp cor (Comp2 recPF I (KT O))) p
+      --      = ap1 cor (ap1 (Comp2 recPF I (KT O)) p)
+      --      = ap1 cor (ap2 recPF (ap1 I p)((ap1 (KT O) p)))
+      --      = ap1 cor (ap2 recPF p O)
+      s3 = axComp cor (Comp2 recPF I (KT O)) p
+      s4 = axComp2 recPF I (KT O) p
+      s5 = axI p
+      s6 = axKT lf p   -- ap1 (KT O) p = O (since O = reify lf)
+      -- Combine: ap2 recPF (ap1 I p)(ap1 (KT O) p) = ap2 recPF p O.
+      s_recPF_args : Deriv (atomic (eqn (ap2 recPF (ap1 I p) (ap1 (KT O) p))
+                                          (ap2 recPF p O)))
+      s_recPF_args = ruleTrans (congL recPF (ap1 (KT O) p) s5)
+                                (congR recPF p s6)
+      s_recPF : Deriv (atomic (eqn (ap1 (Comp2 recPF I (KT O)) p) (ap2 recPF p O)))
+      s_recPF = ruleTrans s4 s_recPF_args
+      s_inner : Deriv (atomic (eqn (ap1 (Comp cor (Comp2 recPF I (KT O))) p)
+                                    (ap1 cor (ap2 recPF p O))))
+      s_inner = ruleTrans s3 (cong1 cor s_recPF)
+      step1 = congL Pair (ap1 (Comp cor (Comp2 recPF I (KT O))) p) s2
+      step2 = congR Pair tagCode_axRefl s_inner
+    in ruleTrans s1 (ruleTrans step1 step2)
+
+  -- Helper: f_lf p reduces to lf_inner_at p.
+  f_lf_red : (p : Term) ->
+    Deriv (atomic (eqn (ap1 f_lf p) (lf_inner_at p)))
+  f_lf_red p =
+    let
+      s1 = axComp2 Pair f_Df_lf_orig f_encAxRefl p
+      s2 = f_Df_lf_orig_red p
+      s3 = f_encAxRefl_red p
+    in ruleTrans s1 (ruleTrans (congL Pair (ap1 f_encAxRefl p) s2)
+                                (congR Pair (Df_lf_orig_at p) s3))
+
+  -- Df_F2_RecP_s reduction at lf input.
+  Df_F2_RecP_s_at_O : (p : Term) ->
+    Deriv (atomic (eqn (ap2 Df_F2_RecP_s p O)
+                        (ap2 Pair tagCode_ruleTrans (lf_inner_at p))))
+  Df_F2_RecP_s_at_O p =
+    let
+      -- Outer Fan: Df_F2_RecP_s p O = Pair (Lift (KT _) p O)(inner_dispatch p O).
+      s_outer = axFan (Lift (KT tagCode_ruleTrans)) inner_dispatch Pair p O
+      -- Lift (KT tagCode_ruleTrans) p O = tagCode_ruleTrans.
+      s_outerL = ruleTrans (axLift (KT tagCode_ruleTrans) p O)
+                            (axKT (natCode tagRuleTrans) p)
+      -- Inner: inner_dispatch p O = ...IfLf O (Pair (f_lf p) O)... = f_lf p.
+      s_id_fan = axFan (Post Snd Pair) (Fan (Lift f_lf) (RecP step_inner) Pair) IfLf p O
+      -- Post Snd Pair p O = Snd (Pair p O) = O.
+      s_post : Deriv (atomic (eqn (ap2 (Post Snd Pair) p O) O))
+      s_post = ruleTrans (axPost Snd Pair p O) (axSnd p O)
+      -- Fan (Lift f_lf) (RecP step_inner) Pair p O = Pair (f_lf p) O.
+      s_inner_fan = axFan (Lift f_lf) (RecP step_inner) Pair p O
+      s_lift_flf = axLift f_lf p O
+      s_recp_lf = axRecPLf step_inner p
+      s_inner_right : Deriv (atomic (eqn
+                       (ap2 (Fan (Lift f_lf) (RecP step_inner) Pair) p O)
+                       (ap2 Pair (ap1 f_lf p) O)))
+      s_inner_right = ruleTrans s_inner_fan
+                       (ruleTrans (congL Pair (ap2 (RecP step_inner) p O) s_lift_flf)
+                                  (congR Pair (ap1 f_lf p) s_recp_lf))
+      s_iflfL = axIfLfL (ap1 f_lf p) O
+      -- Combine inner_dispatch p O = f_lf p.
+      s_id_step1 = congL IfLf (ap2 (Fan (Lift f_lf) (RecP step_inner) Pair) p O) s_post
+      s_id_step2 = congR IfLf O s_inner_right
+      s_id : Deriv (atomic (eqn (ap2 inner_dispatch p O) (ap1 f_lf p)))
+      s_id = ruleTrans s_id_fan
+              (ruleTrans s_id_step1 (ruleTrans s_id_step2 s_iflfL))
+      -- f_lf p = lf_inner_at p.
+      s_flf = f_lf_red p
+      -- Combine outer.
+      s_outer_step1 = congL Pair (ap2 inner_dispatch p O) s_outerL
+      s_outer_step2 = congR Pair tagCode_ruleTrans (ruleTrans s_id s_flf)
+    in ruleTrans s_outer (ruleTrans s_outer_step1 s_outer_step2)
+
+  ----------------------------------------------------------------------
+  -- Th12 at lf input (concrete proof, replacing the WithClosure parameter).
+  --
+  -- Strategy: reduce Df_F2_RecP_s p O (Df_F2_RecP_s_at_O), then thmT
+  -- dispatches via tagCode_ruleTrans on (Df_lf_orig_at p, encAxReflRecPF_at p).
+  -- thmT(Df_lf_orig_at p) = codeFTeq2Asym recPF p O via Th12_F2_RecP_s_at_lf
+  -- (from BRA.Th12RecP).  thmT(encAxReflRecPF_at p) = Pair (cor(recPF p O))
+  -- (cor(recPF p O)) via thmTDispAxRefl_param.  body_ruleTrans combines.
+
+  module Th12RecPCaseInst = BRA.Th12RecP.Th12RecPCase s
+
+  Th12_at_lf_concrete_proven : (p : Term) ->
+    Deriv (atomic (eqn (ap1 thmT (ap2 Df_F2_RecP_s p O))
+                        (codeFTeq2Asym recPF p O)))
+  Th12_at_lf_concrete_proven p =
+    let
+      -- thmT(Pair tagCode_ruleTrans (Pair Df_lf_orig encAxRefl)) via dispatcher.
+      -- y1 = Df_lf_orig_at p = Df_lf p (from Th12RecP).
+      -- y2 = encAxReflRecPF_at p = Pair tagCode_axRefl (cor(recPF p O)).
+      --
+      -- thmT y1 = Pair (mkAp2T cf2 (cor p) (cor O))(cor(recPF p O))
+      --         = codeFTeq2Asym recPF p O   [via Th12_F2_RecP_s_at_lf p].
+      -- thmT y2 = Pair (cor(recPF p O))(cor(recPF p O))   [thmTDispAxRefl_param].
+      -- shape Fst(Df_lf_orig_at p) = Fst(Pair tagCode_axRecPLf _) = tagCode_axRecPLf.
+      -- u1 = mkAp2T cf2 (cor p)(cor O), u2 = u3 = cor(recPF p O), u4 = cor(recPF p O).
+      -- body_ruleTrans output: Pair u1 u4 = codeFTeq2Asym recPF p O. ✓
+
+      img_y1 : Deriv (atomic (eqn (ap1 thmT (Df_lf_orig_at p))
+                                   (codeFTeq2Asym recPF p O)))
+      img_y1 = Th12RecPCaseInst.Th12_F2_RecP_s_at_lf p
+
+      img_y2 : Deriv (atomic (eqn (ap1 thmT (encAxReflRecPF_at p))
+                                   (ap2 Pair (ap1 cor (ap2 recPF p O))
+                                             (ap1 cor (ap2 recPF p O)))))
+      img_y2 = thmTDispAxRefl_param (ap1 cor (ap2 recPF p O))
+
+      -- Apply thmTDispRuleTrans_param.
+      -- Note: codeFTeq2Asym recPF p O =
+      --   ap2 Pair (mkAp2T cf2 (ap1 cor p)(ap1 cor O))(ap1 cor (ap2 recPF p O)).
+      -- So u1 = mkAp2T cf2 (ap1 cor p)(ap1 cor O), u2 = cor(recPF p O).
+      -- u3 = u4 = cor(recPF p O).  u2 = u3 ✓.
+
+      disp : Deriv (atomic (eqn
+              (ap1 thmT (ap2 Pair tagCode_ruleTrans (lf_inner_at p)))
+              (ap2 Pair (mkAp2T cf2 (ap1 cor p)(ap1 cor O))
+                        (ap1 cor (ap2 recPF p O)))))
+      disp = thmTDispRuleTrans_param (Df_lf_orig_at p) (encAxReflRecPF_at p)
+              (mkAp2T cf2 (ap1 cor p)(ap1 cor O))
+              (ap1 cor (ap2 recPF p O))
+              (ap1 cor (ap2 recPF p O))
+              (ap1 cor (ap2 recPF p O))
+              _ _ (axFst tagCode_axRecPLf _) img_y1 img_y2
+
+      -- Bridge from Df_F2_RecP_s p O to Pair tagCode_ruleTrans (lf_inner_at p).
+      bridge : Deriv (atomic (eqn (ap1 thmT (ap2 Df_F2_RecP_s p O))
+                                   (ap1 thmT (ap2 Pair tagCode_ruleTrans (lf_inner_at p)))))
+      bridge = cong1 thmT (Df_F2_RecP_s_at_O p)
+    in ruleTrans bridge disp
+
+  ----------------------------------------------------------------------
   -- WithClosure submodule (analog of Th12RecUniv).
   --
   -- Takes:
@@ -277,10 +444,15 @@ module Th12RecPUnivCase
     (ih_s_bra : (a b : Term) ->
        Deriv (atomic (eqn (mkAp2T sT (ap1 cor a) (ap1 cor b))
                           (ap1 cor (ap2 s a b)))))
-    (Th12_at_lf_concrete_at : (p : Term) ->
-       Deriv (atomic (eqn (ap1 thmT (ap2 Df_F2_RecP_s p O))
-                          (codeFTeq2Asym recPF p O))))
     where
+
+    -- Th12 at lf-input: now concrete (was a parameter; discharged structurally
+    -- via Df_F2_RecP_s_at_O + thmTDispRuleTrans_param + Th12_F2_RecP_s_at_lf
+    -- + thmTDispAxRefl_param).
+    Th12_at_lf_concrete_at : (p : Term) ->
+      Deriv (atomic (eqn (ap1 thmT (ap2 Df_F2_RecP_s p O))
+                          (codeFTeq2Asym recPF p O)))
+    Th12_at_lf_concrete_at = Th12_at_lf_concrete_proven
 
     --------------------------------------------------------------------
     -- Step D-final: Th12_at_lf_substF.
