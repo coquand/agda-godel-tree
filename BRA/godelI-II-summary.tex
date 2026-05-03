@@ -334,7 +334,7 @@ godelII : Deriv Con -> Deriv bot
 godelII = Final.godelII
 \end{verbatim}
 
-\subsection{Modal-logic perspective: Theorems 12--14 as $\Box$-functoriality and HBL}
+\subsection{Modal-logic perspective: Theorems 12--14 as $\Box$-functoriality, necessitation, and the diagonal}
 \label{subsec:modal-perspective}
 
 The asymmetry of Section~\ref{subsec:num-cor} and the structure of
@@ -350,62 +350,90 @@ discipline is precisely the truth/validity distinction.
 Read in this light:
 \begin{description}
 
-  \item[The $\mathit{cor}$/$\mathit{code}$ asymmetry] is the
-        truth/validity distinction.  Guard's $\underline{x}$ is the
-        modal coercion sending a closed value $x$ to its code (a
-        $\mathbf{box}$ at type $\Box A$); $\mathit{code}$ of an open
-        BRA term has free value variables and lives outside the modal
-        fragment.  The trap that ``$\underline{f(x)}$ is the code of
-        $f(x)$'' is precisely the trap of confusing
-        $\mathbf{box}\;(f\;x)$ with $f\;(\mathbf{box}\;x)$ in
-        $\lambda^{\to\Box}_e$, where the typing rules forbid the
-        confusion outright.
+  \item[The $\mathit{cor}$/$\mathit{code}$ asymmetry: $f(\underline{x})$
+        vs $\underline{f(x)}$.]  In the modal calculus $\Box A$ and $A$
+        are different types, and a value-level function $f : A \to B$
+        cannot be applied to a code: $\mathbf{box}\;(f\;x) : \Box B$ is
+        well-typed, but $f\;(\mathbf{box}\;x)$ is a type error.  In BRA
+        the corresponding pair of expressions are
+        $\underline{f(x)} = \mathit{cor}(f\,x)$
+        (always a code by construction) and
+        $f(\underline{x}) = f(\mathit{cor}\,x)$
+        (just some tree, computed by running $f$ on the numeral of $x$;
+        not of the form $\mathit{cor}\,z$ for any natural $z$).
+        Both inhabit the uniform type $\mathit{Tree}$ in BRA, so no
+        type error fires --- but the modal status differs, and that
+        difference is exactly the content of Theorem~12.  The slogan
+        ``$\underline{x}$ is the code of $x$, but $f(\underline{x})$
+        need not be the code of anything'' is the BRA shadow of
+        Davies--Pfenning's typing distinction.
 
   \item[Theorem 12 is the functoriality of $\Box$ over $\mathit{Fun}_1$ / $\mathit{Fun}_2$.]
         At the BRA level a $\mathit{Fun}_1$-functor $f$ is a primitive
         recursive map $A \to B$ (here $A = B = \mathit{Tree}$).
         Theorem~12 produces a $D_f : \mathit{Fun}_1$ realising the
         lifted map $\Box A \to \Box B$, witnessed by an internal
-        derivation of the naturality square
+        derivation of the equation
         \[
           \mathit{thmT}\;(D_f\;x) \;=\; \widehat{f(\underline{x}) \;=\; \underline{f(x)}}.
         \]
         The two sides of the encoded equation are the two paths
-        $x \mapsto f(\mathit{cor}\;x)$ and $x \mapsto \mathit{cor}(f\;x)$
-        in the unit-naturality square of $\mathit{cor} : \mathrm{id}
-        \Rightarrow \Box$.  Theorem~12 is the BRA-internal proof that
-        these two paths agree at every $f$.
+        $x \mapsto f(\mathit{cor}\,x)$ and $x \mapsto \mathit{cor}(f\,x)$
+        in what would be the unit-naturality square of $\mathit{cor} :
+        \mathrm{id} \Rightarrow \Box$.  A subtlety: Theorem~12 doesn't
+        \emph{assume} a pre-existing functor $\Box$ and prove
+        naturality on top --- it simultaneously \emph{defines} the
+        functor's action on morphisms (the $D_f$) and proves the
+        square commutes.  Functoriality and naturality are produced in
+        one move.
 
-  \item[Theorem 13 transports an equation across $\Box$,]
-        a derived rule of the same flavour as the modal $K$ axiom
-        $\Box(A \to B) \to \Box A \to \Box B$.  Given a value-level
-        $\mathit{Deriv}\;(f\;x = y)$ it produces an internal derivation
-        of $\mathit{thmT}\;(D_f\;x) = \widehat{f(\underline{x}) = \underline{y}}$,
+  \item[Theorem 13 is necessitation for equations.]
+        Given a value-level $\mathit{Deriv}\;(f\,x = y)$ it produces
+        an internal derivation of
+        $\mathit{thmT}\;(D_f\,x) = \widehat{f(\underline{x}) = \underline{y}}$,
         replacing $\underline{f(x)}$ by $\underline{y}$ inside the box.
-        Operationally this is necessitation-under-hypothesis: an
-        equation that holds outside the modality is reflected to an
-        equation inside it.
+        This is the Hilbert--Bernays clause D1 ($\vdash A \Rightarrow
+        \vdash \Box A$) restricted to equational $A$, composed with
+        Theorem~12's naturality to rewrite the $\underline{f(x)}$ side
+        of the encoded equation as $\underline{y}$.  It is not the
+        modal $K$ axiom $\Box(A\to B) \to \Box A \to \Box B$; the
+        $K$-flavoured rule is Theorem~12 itself (lifting the morphism
+        $f$ to act on boxed inputs), whereas Theorem~13 is the
+        downstream necessitation step that closes equations under the
+        functor.
 
-  \item[Theorem 14, step 5, is an HBL-style internal reflection.]
+  \item[Theorem 14, step 5, internalises the unprovability half of G\"odel~I at the diagonal.]
         $\mathit{step5\_l}$ derives, parametrically in $x$, the encoded
         internal implication
         \[
-          \mathit{thmT}\;x = \mathit{cor}\;G
+          \mathit{thmT}\;x = \mathit{cor}\,G
             \;\;\mathrel{\mathit{imp}}\;\;
-          \mathit{thmT}\;(\mathit{constr5}\;x) = \mathit{cor}\;\bot.
+          \mathit{thmT}\;(\mathit{constr5}\,x) = \mathit{cor}\,\bot.
         \]
-        This is the Hilbert--Bernays--L\"ob clause~D2 ($\mathrm{Pr}\,
-        \ulcorner P\urcorner \to \mathrm{Pr}\,\ulcorner \mathrm{Pr}\,
-        \ulcorner P \urcorner\urcorner$, ``provable propositions are
-        provably provable'') applied at $P := G$, combined with $G$'s
-        own self-referential content $G \leftrightarrow \neg
-        \mathrm{Pr}(\ulcorner G \urcorner)$ to yield $\Box\bot$.
-        $\mathit{constr5}$ is the explicit primitive recursive realiser
-        of D2 at this fixed point; the chain $f\_\mathit{part}$,
+        Read externally: ``if $x$ codes a proof of $G$, then
+        $\mathit{constr5}\,x$ codes a proof of $\bot$''.  The
+        derivation uses two ingredients.  First, the diagonal
+        property of $G$ at the encoded level
+        ($G \leftrightarrow \neg\,\mathrm{Pr}(\ulcorner G\urcorner)$):
+        any proof of $G$ commits the system to its own
+        unprovability statement.  Second, the
+        Hilbert--Bernays clause D2 ($\Box A \to \Box\Box A$,
+        ``provable propositions are provably provable'') applied at
+        $A := \mathrm{Pr}(\ulcorner G\urcorner)$, which lets the
+        contradiction be \emph{internalised} rather than merely
+        observed.  The combination is the standard internal version
+        of the G\"odel~I direction $\mathrm{Con} \Rightarrow
+        \neg\,\mathrm{Pr}(\ulcorner G\urcorner)$, packaged as
+        $\mathrm{Pr}(\ulcorner G\urcorner) \to \mathrm{Pr}(\ulcorner
+        \bot\urcorner)$.  This is \emph{not} L\"ob's theorem
+        ($\Box(\Box A \to A) \to \Box A$); L\"ob is not used anywhere
+        in the chain.  $\mathit{constr5}$ is the explicit primitive
+        recursive realiser of this internalised G\"odel~I clause at
+        the diagonal $G$; the chain $f\_\mathit{part}$,
         $g\_\mathit{part}$, $K\_\mathit{part}$,
         $h\_\mathit{part}\_\mathit{skel}$ assembled in
-        Section~\ref{subsec:num-cor} above is the syntactic decomposition
-        of that realiser.
+        Section~\ref{subsec:num-cor} above is the syntactic
+        decomposition of that realiser.
 
 \end{description}
 
