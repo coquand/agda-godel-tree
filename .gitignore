@@ -5,34 +5,19 @@
 *.out
 *~
 
+# Documentation / handoff notes are kept locally but not tracked.
+*.md
+
 # Whitelist policy: only the following files/dirs are tracked.
-#   /BRA/                  -- the active Agda codebase
-#   /bra-godelII.tex       -- the project paper / writeup
-#   /bra-godelII.pdf       -- the compiled paper
-#   /CLAUDE.md             -- project instructions
-#   /README.md             -- project README (if present)
-#   /Rose.pdf, /Rose1.pdf, /Ryan.pdf, /Simmons.pdf
-#                          -- Rose-style reference PDFs cited by BRA
-#   /guard15.pdf, /guard-lecture_notes_on_recursive_arithmetic-1963.pdf
-#                          -- Guard 1963 reference PDFs
-#   /Chwistek-FormalProofGdels-1939.pdf
-#                          -- Chwistek 1939 historical reference
+#   /BRA/            -- the active Agda codebase (incl. BRA/godelI-II-summary.pdf)
+#   /bra-godelII.tex -- the project paper / writeup
 #
-# Everything else (including /old/ which holds legacy Agda, tex, notes,
-# scratch, and the prior Guard/ frozen codebase) is untracked.
+# Everything else (including CLAUDE.md, README.md, root-level reference
+# PDFs, build artefacts, and /old/ which holds the prior frozen state)
+# is untracked.
 
 /*
 
 !/.gitignore
 !/BRA/
 !/bra-godelII.tex
-!/bra-godelII.pdf
-!/CLAUDE.md
-!/README.md
-!/Rose.pdf
-!/Rose1.pdf
-!/Ryan.pdf
-!/Simmons.pdf
-!/guard15.pdf
-!/guard-lecture_notes_on_recursive_arithmetic-1963.pdf
-!/Chwistek-FormalProofGdels-1939.pdf
