@@ -334,6 +334,93 @@ godelII : Deriv Con -> Deriv bot
 godelII = Final.godelII
 \end{verbatim}
 
+\subsection{Modal-logic perspective: Theorems 12--14 as $\Box$-functoriality and HBL}
+\label{subsec:modal-perspective}
+
+The asymmetry of Section~\ref{subsec:num-cor} and the structure of
+Theorems~12--14 admit a clean reading in intuitionistic modal $S4$.
+Following Davies and Pfenning~\cite{daviespfenning2001}, separate
+\emph{value variables} (in $\Gamma$) from \emph{code variables}
+(in $\Delta$) and write $\Box A$ for ``code of type $A$'', with
+introduction $\mathbf{box}\;E : \Box A$ when $\Delta;\cdot \vdash E : A$
+(only modal-variable dependencies allowed) and elimination
+$\mathbf{let\;box}\;u = E_1 \mathbf{\;in\;} E_2$.  This two-context
+discipline is precisely the truth/validity distinction.
+
+Read in this light:
+\begin{description}
+
+  \item[The $\mathit{cor}$/$\mathit{code}$ asymmetry] is the
+        truth/validity distinction.  Guard's $\underline{x}$ is the
+        modal coercion sending a closed value $x$ to its code (a
+        $\mathbf{box}$ at type $\Box A$); $\mathit{code}$ of an open
+        BRA term has free value variables and lives outside the modal
+        fragment.  The trap that ``$\underline{f(x)}$ is the code of
+        $f(x)$'' is precisely the trap of confusing
+        $\mathbf{box}\;(f\;x)$ with $f\;(\mathbf{box}\;x)$ in
+        $\lambda^{\to\Box}_e$, where the typing rules forbid the
+        confusion outright.
+
+  \item[Theorem 12 is the functoriality of $\Box$ over $\mathit{Fun}_1$ / $\mathit{Fun}_2$.]
+        At the BRA level a $\mathit{Fun}_1$-functor $f$ is a primitive
+        recursive map $A \to B$ (here $A = B = \mathit{Tree}$).
+        Theorem~12 produces a $D_f : \mathit{Fun}_1$ realising the
+        lifted map $\Box A \to \Box B$, witnessed by an internal
+        derivation of the naturality square
+        \[
+          \mathit{thmT}\;(D_f\;x) \;=\; \widehat{f(\underline{x}) \;=\; \underline{f(x)}}.
+        \]
+        The two sides of the encoded equation are the two paths
+        $x \mapsto f(\mathit{cor}\;x)$ and $x \mapsto \mathit{cor}(f\;x)$
+        in the unit-naturality square of $\mathit{cor} : \mathrm{id}
+        \Rightarrow \Box$.  Theorem~12 is the BRA-internal proof that
+        these two paths agree at every $f$.
+
+  \item[Theorem 13 transports an equation across $\Box$,]
+        a derived rule of the same flavour as the modal $K$ axiom
+        $\Box(A \to B) \to \Box A \to \Box B$.  Given a value-level
+        $\mathit{Deriv}\;(f\;x = y)$ it produces an internal derivation
+        of $\mathit{thmT}\;(D_f\;x) = \widehat{f(\underline{x}) = \underline{y}}$,
+        replacing $\underline{f(x)}$ by $\underline{y}$ inside the box.
+        Operationally this is necessitation-under-hypothesis: an
+        equation that holds outside the modality is reflected to an
+        equation inside it.
+
+  \item[Theorem 14, step 5, is an HBL-style internal reflection.]
+        $\mathit{step5\_l}$ derives, parametrically in $x$, the encoded
+        internal implication
+        \[
+          \mathit{thmT}\;x = \mathit{cor}\;G
+            \;\;\mathrel{\mathit{imp}}\;\;
+          \mathit{thmT}\;(\mathit{constr5}\;x) = \mathit{cor}\;\bot.
+        \]
+        This is the Hilbert--Bernays--L\"ob clause~D2 ($\mathrm{Pr}\,
+        \ulcorner P\urcorner \to \mathrm{Pr}\,\ulcorner \mathrm{Pr}\,
+        \ulcorner P \urcorner\urcorner$, ``provable propositions are
+        provably provable'') applied at $P := G$, combined with $G$'s
+        own self-referential content $G \leftrightarrow \neg
+        \mathrm{Pr}(\ulcorner G \urcorner)$ to yield $\Box\bot$.
+        $\mathit{constr5}$ is the explicit primitive recursive realiser
+        of D2 at this fixed point; the chain $f\_\mathit{part}$,
+        $g\_\mathit{part}$, $K\_\mathit{part}$,
+        $h\_\mathit{part}\_\mathit{skel}$ assembled in
+        Section~\ref{subsec:num-cor} above is the syntactic decomposition
+        of that realiser.
+
+\end{description}
+
+What this perspective does \emph{not} do is shorten the BRA proof.
+Davies and Pfenning's $\Box$ is a metatheoretic construct; their typing
+rules leave $\Box A$ abstract and give no algorithmic content for
+$D_f$, $\mathit{constr5}$, or $\mathit{thmT}$.  G\"odel~II proper
+requires the provability predicate to be a primitive recursive function
+of the object theory, definable inside BRA itself --- the deep encoding
+is intrinsic to the theorem, not an artefact of the formalisation.  The
+modal reading is therefore best understood as a \emph{specification}
+that the BRA construction realises: theorem by theorem, BRA delivers
+the content that an $S4$-style code modality would require, via an
+explicit primitive-recursive witness.
+
 \section{Methodology}
 
 \subsection{Fast typecheck as a correctness oracle}
@@ -463,6 +550,11 @@ J.~R.~Guard,
 L.~C.~Paulson,
 \newblock \emph{A machine-assisted proof of G\"odel's incompleteness theorems for the theory of hereditarily finite sets},
 \newblock Review of Symbolic Logic, vol.~7 no.~3, 2014, pp.~484--498.
+
+\bibitem{daviespfenning2001}
+R.~Davies and F.~Pfenning,
+\newblock \emph{A modal analysis of staged computation},
+\newblock Journal of the ACM, vol.~48 no.~3, May 2001, pp.~555--604.
 
 \end{thebibliography}
 
