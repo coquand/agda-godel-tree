@@ -461,6 +461,67 @@ matching Guard's intent on page~17 and the comment in
 $\mathit{constr5}_{\mathrm{final}}$ then consume the two antecedents
 exactly as Guard's chain prescribes.
 
+\subsection{The Carneiro-lifted chain: simulating the deduction theorem in a Hilbert system}
+\label{subsec:carneiro}
+
+BRA's $\mathit{Deriv}$ is a Hilbert-style system: implication is a
+connective, but there is no native introduction rule that, given a
+derivation of $\psi$ depending on a hypothesis $\varphi$, returns
+$\mathit{Deriv}\;(\varphi \mathrel{\mathit{imp}} \psi)$.  The propositional
+axioms are Guard's
+\[
+  \mathit{axK} \;=\; P \mathrel{\mathit{imp}} (Q \mathrel{\mathit{imp}} P), \qquad
+  \mathit{axS} \;=\; (P \mathrel{\mathit{imp}} (Q \mathrel{\mathit{imp}} R))
+                       \mathrel{\mathit{imp}}
+                       ((P \mathrel{\mathit{imp}} Q) \mathrel{\mathit{imp}} (P \mathrel{\mathit{imp}} R)),
+\]
+together with modus ponens.  $\mathit{axS}$ is Frege's $1879$ axiom.
+
+In such a system the deduction theorem can be \emph{simulated} (a
+technique attributed to Mario Carneiro in the metamath community):
+replace every theorem $\psi_i$ in a derivation sequence by
+$\varphi \mathrel{\mathit{imp}} \psi_i$.  If $\psi_k$ follows from $\psi_i$
+and $\psi_j = \psi_i \mathrel{\mathit{imp}} \psi_k$ by modus ponens, then
+$\varphi \mathrel{\mathit{imp}} \psi_k$ follows from
+$\varphi \mathrel{\mathit{imp}} \psi_i$ and
+$\varphi \mathrel{\mathit{imp}} (\psi_i \mathrel{\mathit{imp}} \psi_k)
+ = \varphi \mathrel{\mathit{imp}} \psi_j$
+via $\mathit{axS}$ and two applications of modus ponens.  Frege's
+axiom is precisely what licenses the lifting; the form was apparently
+understood in $1879$ and lost in Russell's and Hilbert's later
+presentations.
+
+The Theorem~14 chain uses this trick at the level of the running
+hypothesis
+\[
+  \mathit{PrAtX}\;x \;:=\; (\mathit{thmT}\;x \;=\; \mathit{cor}\;G).
+\]
+Each step lemma $\mathit{step1\_l}, \dots, \mathit{step5\_l},
+K\_\mathit{part}\_l, h\_\mathit{part}\_\mathit{skel}\_l$ is the
+$\mathit{PrAtX}\;x \mathrel{\mathit{imp}} (\dots)$-lifted form of the
+underlying step equation; the suffix ``\verb|_l|'' (\emph{lifted}) marks
+this throughout the codebase.  Modus ponens between two adjacent step
+lemmas is mediated by $\mathit{axS}$.  The reusable combinators sit in
+\verb|BRA/Thm/EvalHelpers.agda| (header ``Lift helpers
+(deduction-theorem combinators)''); the lifted Theorem~13 for singular
+functors is in \verb|BRA/Th14Constr5.agda| (``Carneiro-lifted
+Theorem~14 chain''); the per-step proofs live in
+\verb|BRA/Th14Step3.agda|, \verb|Th14Step4Final.agda|,
+\verb|Th14Step5.agda|, and \verb|Th14Step5HPart.agda|.  Theorem~12's
+$\mathit{Rec}$~/~$\mathit{RecP}$ cases use the same idea at
+\emph{dispatcher granularity} --- the per-tag dispatcher is what is
+lifted, not each individual equation
+(\verb|BRA/Th12RecP.agda|, \verb|BRA/TreeEqReflParam.agda|, with
+helpers in \verb|BRA/Thm/EvalHelpers.agda|).
+
+Without this simulation the Theorem~14 development would not close:
+each step genuinely depends on $\mathit{PrAtX}\;x$, and a Hilbert-style
+$\mathit{Deriv}$ offers no native means to discharge such a hypothesis.
+The Carneiro lifting is therefore not a stylistic choice but a
+structural component of the proof, on a par with the
+$\mathit{cor}$/$\mathit{code}$ asymmetry of
+Section~\ref{subsec:num-cor}.
+
 \section{Statistics}
 
 \subsection{File-by-file summary of the G\"odel~II push}
