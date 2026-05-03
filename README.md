@@ -1,21 +1,35 @@
-# BRA — Goedel's Second Incompleteness Theorem in Binary Recursive Arithmetic
+# BRA — Goedel's Incompleteness Theorems in Basic Recursive Arithmetic
 
-An Agda formalization of Goedel's second incompleteness theorem
-(Goedel II) for **Binary Recursive Arithmetic** (BRA), a Rose/Guard-style
+An Agda formalization of Goedel's First and Second Incompleteness
+Theorems for **Basic Recursive Arithmetic** (BRA), a Guard-style
 equational system on binary trees with explicit substitution and
-primitive recursion.
+primitive recursion (Guard, *Lecture notes on recursive arithmetic*,
+Argonne, 1963).
 
-The headline result, in `BRA/GoedelIIFull.agda`:
+The headline results, in `BRA/GoedelIIFull.agda` (and
+`BRA/Thm11.agda`):
 
 ```agda
-godelII : Deriv Con -> Deriv bot
+thm11   : Deriv G   -> Deriv bot   -- Goedel I
+godelII : Deriv Con -> Deriv bot   -- Goedel II
 ```
 
-If BRA's encoding of its own consistency is provable in BRA, then BRA
-is inconsistent.  Constructive, Agda-checked, no postulates.
+If the diagonal sentence `G` is provable in BRA, BRA is inconsistent;
+likewise if BRA's encoding of its own consistency `Con` is provable in
+BRA, BRA is inconsistent.  Constructive, Agda-checked, no postulates.
 
-For the mathematical write-up see `bra-godelII.tex` (compile to
-`bra-godelII.pdf`).
+A crucial ingredient (easy to miss in the source) is the asymmetric
+role of the numeral function `num` / `cor` (= Guard's underline
+`x_`): for a primitive `f` of arity 1, `f(num x)` IS the code of a
+BRA term (the term "`f` applied to the numeral of `x`"), but
+`num(f x)` is the numeral of the *value* `f x` and in general is
+\*not\* the code of any such syntactic term.  Theorem 12 internalises
+the equation between these two trees inside BRA, and that bridge is
+what makes the whole Goedel II chain go through.  See
+`BRA/godelI-II-summary.tex`, section "Numerals: the asymmetry…".
+
+For the mathematical write-up see `BRA/godelI-II-summary.tex` (compile
+to `godelI-II-summary.pdf`).
 
 ## Discipline
 
@@ -77,9 +91,9 @@ headline file are under 1 s.
 
 | Path                  | Status                                                             |
 |-----------------------|--------------------------------------------------------------------|
-| `BRA/`                | The active codebase (tracked).                                     |
-| `bra-godelII.tex`     | Project paper (tracked).                                           |
-| `README.md`           | This file (tracked).                                               |
+| `BRA/`                            | The active codebase (tracked).                         |
+| `BRA/godelI-II-summary.tex`       | Project paper (tracked).                               |
+| `README.md`                       | This file (tracked).                                   |
 | `old/`                | Legacy Agda, tex, notes, scratch — not tracked, kept on disk only. |
 
 The reference PDFs (Rose, Ryan, Simmons, guard15, Guard 1963 lecture

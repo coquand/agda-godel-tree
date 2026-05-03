@@ -159,6 +159,57 @@ where $\mathit{Con} := \neg\big(\mathit{thmT}\;(v_0) = \mathit{reify}\;(\mathit{
 
 The construction follows Guard's pages~16--17 step by step.
 
+\subsection{Numerals: the asymmetry $f(\underline{x})$ vs.\ $\underline{f(x)}$}
+\label{subsec:num-cor}
+
+A crucial feature of the Theorem~12--14 chain, easy to miss in the
+formalisation, is the \emph{asymmetric} role of the numeral function.
+In Guard's notation~\cite{guard1963} the underline $\underline{x}$
+denotes the \emph{numeral} of $x$: a closed BRA term whose value is
+$x$.  In our Agda development this is the primitive-recursive function
+\[
+  \mathit{num} \;=\; \mathit{cor} \;:\; \mathit{Tree} \to \mathit{Tree},
+\]
+which sends a tree $x$ to the code of the BRA term that \emph{names}
+$x$.  We use $\mathit{num}$ and $\mathit{cor}$ interchangeably with
+Guard's $\underline{x}$.
+
+The asymmetry is this: for any $\mathit{Fun}_1$-functor $f$ and tree $x$,
+\begin{itemize}
+  \item $\mathit{ap}_1\;f\;(\mathit{num}\;x)$, i.e.\ $f(\underline{x})$,
+        \emph{is} the code of a BRA term --- specifically the term
+        ``$f$ applied to the numeral of $x$'';
+  \item $\mathit{num}\;(f\;x)$, i.e.\ $\underline{f(x)}$, \emph{is generally not}
+        the code of any such syntactic term --- it is the code of the numeral
+        naming the \emph{value} $f\;x$.
+\end{itemize}
+The two trees disagree in general; they agree only after BRA proves
+them equal.
+
+Theorem~12 is precisely the internalisation of that equation: for
+every $f : \mathit{Fun}_1$ it builds a $D_f : \mathit{Fun}_1$ such that
+\[
+  \mathit{Deriv}\;\big(\mathit{thmT}\;(D_f\;x)
+       \;=\; \mathit{codeFTeq}_1\;f\;x\big),
+\]
+where the right-hand side $\mathit{codeFTeq}_1\;f\;x$ is the encoded
+equation
+$\mathit{ap}_1\;f\;(\mathit{cor}\;x) = \mathit{cor}\;(f\;x)$, i.e.\ the
+encoded form of $f(\underline{x}) = \underline{f(x)}$.  In other
+words: BRA itself proves the bridge between the syntactic side
+(left-hand: a code-of-term) and the semantic side (right-hand: the
+numeral of the value).  This is what licenses every subsequent step of
+Goedel~II: it lets the internal $\mathit{thmT}$ predicate move between
+the two encodings exactly where Guard's pencil-and-paper argument
+tacitly does so.
+
+A symmetric variant in which both sides are coded the same way
+($\mathit{code}\;(f\;x)$ on both sides, say) collapses: the resulting
+trees do not align across the five steps of Theorem~14, and step~5
+becomes underivable.  The asymmetric form $f(\underline{x}) =
+\underline{f(x)}$ is therefore not a presentational choice but a load-bearing
+feature of the proof.
+
 \subsection{Theorem 12 --- the encoded ``$\mathit{th}\;f$'' clause}
 
 For every $\mathit{Fun}_1$-functor $f$, Theorem~12 produces a $\mathit{Fun}_1$
