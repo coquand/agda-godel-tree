@@ -334,120 +334,140 @@ godelII : Deriv Con -> Deriv bot
 godelII = Final.godelII
 \end{verbatim}
 
-\subsection{Modal-logic perspective: Theorems 12--14 as $\Box$-functoriality, necessitation, and the diagonal}
+\subsection{What Theorems 12--14 are doing, and where the notation hides things}
 \label{subsec:modal-perspective}
 
-The asymmetry of Section~\ref{subsec:num-cor} and the structure of
-Theorems~12--14 admit a clean reading in intuitionistic modal $S4$.
-Following Davies and Pfenning~\cite{daviespfenning2001}, separate
-\emph{value variables} (in $\Gamma$) from \emph{code variables}
-(in $\Delta$) and write $\Box A$ for ``code of type $A$'', with
-introduction $\mathbf{box}\;E : \Box A$ when $\Delta;\cdot \vdash E : A$
-(only modal-variable dependencies allowed) and elimination
-$\mathbf{let\;box}\;u = E_1 \mathbf{\;in\;} E_2$.  This two-context
-discipline is precisely the truth/validity distinction.
+The BRA chain involves two distinct encodings of trees as trees.  Pulling
+them apart helps explain what each of Theorems 12--14 is actually doing,
+and why Guard's compact notation can mislead.
 
-Read in this light:
-\begin{description}
+\paragraph{Two encodings.}
+Two functions are at play, and they are not the same:
+\begin{itemize}
+  \item $\mathit{cor} : \mathrm{Tree} \to \mathrm{Tree}$, the
+        \emph{numeral encoding}.  $\mathit{cor}\,x$ (also written
+        $\underline{x}$) is the canonical numeral whose value is $x$,
+        a tree of the form $S(S(\ldots S(0)))$.
+  \item $\mathit{code} : \mathrm{Term} \to \mathrm{Tree}$, the
+        \emph{syntactic encoding} of a BRA term, recording the term's
+        syntax tree.
+\end{itemize}
+The two operations agree on no input shape: $\mathit{cor}\,x$ collapses
+a tree to its numerical magnitude, while $\mathit{code}\,t$ preserves
+the structure of $t$ as a syntax tree.
 
-  \item[The $\mathit{cor}$/$\mathit{code}$ asymmetry: $f(\underline{x})$
-        vs $\underline{f(x)}$.]  In the modal calculus $\Box A$ and $A$
-        are different types, and a value-level function $f : A \to B$
-        cannot be applied to a code: $\mathbf{box}\;(f\;x) : \Box B$ is
-        well-typed, but $f\;(\mathbf{box}\;x)$ is a type error.  In BRA
-        the corresponding pair of expressions are
-        $\underline{f(x)} = \mathit{cor}(f\,x)$
-        (always a code by construction) and
-        $f(\underline{x}) = f(\mathit{cor}\,x)$
-        (just some tree, computed by running $f$ on the numeral of $x$;
-        not of the form $\mathit{cor}\,z$ for any natural $z$).
-        Both inhabit the uniform type $\mathit{Tree}$ in BRA, so no
-        type error fires --- but the modal status differs, and that
-        difference is exactly the content of Theorem~12.  The slogan
-        ``$\underline{x}$ is the code of $x$, but $f(\underline{x})$
-        need not be the code of anything'' is the BRA shadow of
-        Davies--Pfenning's typing distinction.
+\paragraph{The notational gotcha: $\mathit{code}(f(\underline{x}))$ vs $\mathit{code}(\underline{f(x)})$.}
+Two expressions that look symmetric in Guard's compact notation are
+quite different syntactic objects:
+\begin{itemize}
+  \item $f(\underline{x})$ is the \emph{syntactic term} ``function
+        symbol $f$ applied to the numeral $\underline{x}$''.  Its
+        encoding $\mathit{code}(f(\underline{x}))$ is unambiguously
+        the code of a (closed) BRA term: $f$ applied to the numeral
+        of $x$.
+  \item $\underline{f(x)}$ is the \emph{numeral} whose value is $f(x)$
+        --- a tree $S^n(0)$ for some $n$.  Guard's notation
+        $\mathit{code}(\underline{f(x)})$ takes the encoding of
+        \emph{that numeral}, which is in general \emph{not} the code
+        of the term $f(x)$: the term $f(x)$ has shape ``$f$ applied
+        to $x$'', while the numeral $\underline{f(x)}$ has shape
+        $S^n(0)$.  Completely different syntactic trees.
+\end{itemize}
+The compact $\underline{(\cdot)}$ invites the reader to treat the two
+sides of an equation like $\widehat{f(\underline{x}) = \underline{f(x)}}$
+as ``the same expression with the bar moved''.  In fact the inner
+brackets quietly switch between two different encodings: a
+syntactic-term encoding on the left, a numeral encoding on the right.
+Theorem 12 is the BRA-internal proof that, despite the notational
+mismatch, these two trees evaluate to the same value at every $f$.
 
-  \item[Theorem 12 is the functoriality of $\Box$ over $\mathit{Fun}_1$ / $\mathit{Fun}_2$.]
-        At the BRA level a $\mathit{Fun}_1$-functor $f$ is a primitive
-        recursive map $A \to B$ (here $A = B = \mathit{Tree}$).
-        Theorem~12 produces a $D_f : \mathit{Fun}_1$ realising the
-        lifted map $\Box A \to \Box B$, witnessed by an internal
-        derivation of the equation
-        \[
-          \mathit{thmT}\;(D_f\;x) \;=\; \widehat{f(\underline{x}) \;=\; \underline{f(x)}}.
-        \]
-        The two sides of the encoded equation are the two paths
-        $x \mapsto f(\mathit{cor}\,x)$ and $x \mapsto \mathit{cor}(f\,x)$
-        in what would be the unit-naturality square of $\mathit{cor} :
-        \mathrm{id} \Rightarrow \Box$.  A subtlety: Theorem~12 doesn't
-        \emph{assume} a pre-existing functor $\Box$ and prove
-        naturality on top --- it simultaneously \emph{defines} the
-        functor's action on morphisms (the $D_f$) and proves the
-        square commutes.  Functoriality and naturality are produced in
-        one move.
+\paragraph{Theorem 12: a per-functor lift $D_f$ together with naturality.}
+For every $\mathit{Fun}_1$ functor $f$, Theorem 12 produces a primitive
+recursive $D_f : \mathit{Fun}_1$ together with an internal derivation
+\[
+  \mathit{thmT}\,(D_f\,x) \;=\; \widehat{f(\underline{x}) \;=\; \underline{f(x)}}.
+\]
+$D_f$ is the ``code-level cousin'' of $f$: it takes numerals to
+numerals.  The encoded equation says that $D_f$ commutes with the
+numeral encoding, in the sense that running $f$ on a numeral and taking
+the numeral of $f(x)$ produce the same value.  Theorem 12 simultaneously
+\emph{defines} the lift $D_f$ and \emph{proves} that the lift is faithful.
 
-  \item[Theorem 13 is necessitation for equations.]
-        Given a value-level $\mathit{Deriv}\;(f\,x = y)$ it produces
-        an internal derivation of
-        $\mathit{thmT}\;(D_f\,x) = \widehat{f(\underline{x}) = \underline{y}}$,
-        replacing $\underline{f(x)}$ by $\underline{y}$ inside the box.
-        This is the Hilbert--Bernays clause D1 ($\vdash A \Rightarrow
-        \vdash \Box A$) restricted to equational $A$, composed with
-        Theorem~12's naturality to rewrite the $\underline{f(x)}$ side
-        of the encoded equation as $\underline{y}$.  It is not the
-        modal $K$ axiom $\Box(A\to B) \to \Box A \to \Box B$; the
-        $K$-flavoured rule is Theorem~12 itself (lifting the morphism
-        $f$ to act on boxed inputs), whereas Theorem~13 is the
-        downstream necessitation step that closes equations under the
-        functor.
+\paragraph{Theorem 13: lifting an external equation to an internal one.}
+Given a value-level $\mathit{Deriv}\,(f\,x = y)$, Theorem 13 produces
+an internal derivation
+$\mathit{thmT}\,(D_f\,x) = \widehat{f(\underline{x}) = \underline{y}}$.
+Read externally: ``BRA proves $f(x) = y$ at the value level $\Rightarrow$
+BRA also internally proves the corresponding encoded equation between
+numerals''.  This is the Hilbert--Bernays necessitation rule D1
+($\vdash A \Rightarrow \vdash \mathrm{Pr}(\ulcorner A \urcorner)$)
+restricted to equational $A$, applied on top of Theorem 12 to rewrite
+the $\underline{f(x)}$ side of the encoded equation as $\underline{y}$.
 
-  \item[Theorem 14, step 5, internalises the unprovability half of G\"odel~I at the diagonal.]
-        $\mathit{step5\_l}$ derives, parametrically in $x$, the encoded
-        internal implication
-        \[
-          \mathit{thmT}\;x = \mathit{cor}\,G
-            \;\;\mathrel{\mathit{imp}}\;\;
-          \mathit{thmT}\;(\mathit{constr5}\,x) = \mathit{cor}\,\bot.
-        \]
-        Read externally: ``if $x$ codes a proof of $G$, then
-        $\mathit{constr5}\,x$ codes a proof of $\bot$''.  The
-        derivation uses two ingredients.  First, the diagonal
-        property of $G$ at the encoded level
-        ($G \leftrightarrow \neg\,\mathrm{Pr}(\ulcorner G\urcorner)$):
-        any proof of $G$ commits the system to its own
-        unprovability statement.  Second, the
-        Hilbert--Bernays clause D2 ($\Box A \to \Box\Box A$,
-        ``provable propositions are provably provable'') applied at
-        $A := \mathrm{Pr}(\ulcorner G\urcorner)$, which lets the
-        contradiction be \emph{internalised} rather than merely
-        observed.  The combination is the standard internal version
-        of the G\"odel~I direction $\mathrm{Con} \Rightarrow
-        \neg\,\mathrm{Pr}(\ulcorner G\urcorner)$, packaged as
+\paragraph{Theorem 14, step 5: internalised G\"odel~I at the diagonal $G$.}
+$\mathit{step5\_l}$ derives, parametrically in $x$, the encoded internal
+implication
+\[
+  \mathit{thmT}\,x = \mathit{cor}\,G \;\;\to\;\;
+  \mathit{thmT}\,(\mathit{constr5}\,x) = \mathit{cor}\,\bot.
+\]
+Read externally: ``if $x$ codes a proof of $G$, then
+$\mathit{constr5}\,x$ codes a proof of $\bot$'', i.e.\ the encoded
+implication $\mathrm{Pr}(\ulcorner G\urcorner) \to
+\mathrm{Pr}(\ulcorner \bot\urcorner)$.
+
+The textbook decomposition of this internal implication has three
+pieces, all combined by internal modus ponens:
+\begin{enumerate}
+  \item One direction of the diagonal,
+        $G \to \neg\,\mathrm{Pr}(\ulcorner G\urcorner)$, BRA-derivable
+        from the construction of $G$.  Necessitating this gives an
+        internal derivation of
+        $\mathrm{Pr}(\ulcorner G\urcorner) \to
+         \mathrm{Pr}(\ulcorner \neg\,\mathrm{Pr}(\ulcorner G\urcorner)\urcorner)$.
+  \item Hilbert--Bernays clause D2 at $A := G$:
+        $\mathrm{Pr}(\ulcorner G\urcorner) \to
+         \mathrm{Pr}(\ulcorner \mathrm{Pr}(\ulcorner G\urcorner)\urcorner)$.
+        In BRA the realiser of D2 at $G$ is just the proof-checker:
+        given a tree $x$ with $\mathit{thmT}\,x = \mathit{cor}\,G$,
+        the verification ``$x$ codes a proof of $G$'' is itself the
+        evidence that $\mathrm{Pr}(\ulcorner G\urcorner)$ holds.
+  \item Internal modus ponens combining the two: the conclusion
         $\mathrm{Pr}(\ulcorner G\urcorner) \to \mathrm{Pr}(\ulcorner
-        \bot\urcorner)$.  This is \emph{not} L\"ob's theorem
-        ($\Box(\Box A \to A) \to \Box A$); L\"ob is not used anywhere
-        in the chain.  $\mathit{constr5}$ is the explicit primitive
-        recursive realiser of this internalised G\"odel~I clause at
-        the diagonal $G$; the chain $f\_\mathit{part}$,
-        $g\_\mathit{part}$, $K\_\mathit{part}$,
-        $h\_\mathit{part}\_\mathit{skel}$ assembled in
-        Section~\ref{subsec:num-cor} above is the syntactic
-        decomposition of that realiser.
+        \bot\urcorner)$.
+\end{enumerate}
+$\mathit{constr5}$ is the explicit primitive recursive function that
+packages the three pieces into a single proof-tree transformer; the
+chain $f\_\mathit{part}$, $g\_\mathit{part}$, $K\_\mathit{part}$,
+$h\_\mathit{part}\_\mathit{skel}$ in Section~\ref{subsec:num-cor} above
+is its syntactic decomposition.
 
-\end{description}
+So the connection to D2 is real but modest: D2 is one of three
+ingredients, and its BRA realiser is just the proof-checker, not a
+deep theorem.  Step 5 is \emph{not} L\"ob's theorem
+($\Box(\Box A \to A) \to \Box A$); L\"ob is never used in the chain.
 
-What this perspective does \emph{not} do is shorten the BRA proof.
-Davies and Pfenning's $\Box$ is a metatheoretic construct; their typing
-rules leave $\Box A$ abstract and give no algorithmic content for
-$D_f$, $\mathit{constr5}$, or $\mathit{thmT}$.  G\"odel~II proper
-requires the provability predicate to be a primitive recursive function
-of the object theory, definable inside BRA itself --- the deep encoding
-is intrinsic to the theorem, not an artefact of the formalisation.  The
-modal reading is therefore best understood as a \emph{specification}
-that the BRA construction realises: theorem by theorem, BRA delivers
-the content that an $S4$-style code modality would require, via an
-explicit primitive-recursive witness.
+\paragraph{Modal-logic sidebar.}
+For readers familiar with intuitionistic modal $S4$ in
+Davies--Pfenning's style~\cite{daviespfenning2001}: the picture
+above has a clean modal reading.  Their typed calculus has two
+contexts ($\Gamma$ for ordinary value variables and $\Delta$ for
+``code'' or ``boxed'' variables) and a type $\Box A$ of codes for
+$A$, with $\mathbf{box}\,M : \Box A$ allowed only when $M$ depends
+solely on $\Delta$-variables.  Under this reading: the $\mathit{cor}$
+operation is the unit $A \to \Box A$; Theorem 12 is the action of
+$\Box$ on a morphism (so $D_f$ is $\Box f$); Theorem 13 is
+necessitation D1 for equations; Theorem 14 step 5 invokes D2 at $G$
+plus the diagonal.  The notational gotcha above corresponds to the
+fact that $\mathbf{box}\,(f\,x) : \Box B$ is well-typed but
+$f\,(\mathbf{box}\,x)$ is a type error --- the modal type system
+catches by inspection what BRA's uniform $\mathrm{Tree}$ type lets the
+notation hide.  The modal reading is a useful specification, not a
+shortcut: Davies--Pfenning's $\Box$ is metatheoretic and gives no
+algorithmic content for $D_f$, $\mathit{constr5}$, or $\mathit{thmT}$.
+G\"odel~II proper requires the provability predicate to be a primitive
+recursive function definable inside BRA itself; the deep encoding is
+intrinsic to the theorem.
 
 \section{Methodology}
 
