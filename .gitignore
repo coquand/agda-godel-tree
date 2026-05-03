@@ -5,19 +5,21 @@
 *.out
 *~
 
-# Documentation / handoff notes are kept locally but not tracked.
+# Handoff notes / internal markdown are kept locally but not tracked.
+# (The root README.md is exempted by the whitelist below.)
 *.md
 
 # Whitelist policy: only the following files/dirs are tracked.
 #   /BRA/            -- the active Agda codebase (incl. BRA/godelI-II-summary.pdf)
 #   /bra-godelII.tex -- the project paper / writeup
+#   /README.md       -- public project README
 #
-# Everything else (including CLAUDE.md, README.md, root-level reference
-# PDFs, build artefacts, and /old/ which holds the prior frozen state)
-# is untracked.
+# Everything else (including CLAUDE.md, BRA/*.md handoff notes,
+# root-level reference PDFs, build artefacts, and /old/) is untracked.
 
 /*
 
 !/.gitignore
 !/BRA/
 !/bra-godelII.tex
+!/README.md
