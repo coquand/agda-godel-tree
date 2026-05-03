@@ -45,7 +45,7 @@ open BRA.Thm.ThmT.WithDispatch
 module Outer = BRA.Thm14Abstract.Thm14 thmT thClosed codeF1Th_noVar encode
 
 open Outer
-  using (j ; G ; G_norm ; diagonal ; bot ; thm11
+  using (j ; G ; G_norm ; G_unfold ; diagonal ; bot ; thm11
        ; i ; cG ; PrAtX ; Con ; subIIeqcG) public
 
 ----------------------------------------------------------------------

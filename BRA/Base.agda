@@ -102,10 +102,13 @@ treeEq (nd a b) (nd c d) = boolAnd (treeEq a c) (treeEq b d)
 
 ------------------------------------------------------------------------
 -- Tree recursion (metalevel)
+--
+-- Renamed from `treeRec` to `treeRecMeta` so that the Fun2 constructor
+-- `treeRec : Fun1 -> Fun2 -> Fun2` (Guard's Rfgh) can take that name.
 
-treeRec : {A : Set} -> A -> (Tree -> Tree -> A -> A -> A) -> Tree -> A
-treeRec z s lf       = z
-treeRec z s (nd a b) = s a b (treeRec z s a) (treeRec z s b)
+treeRecMeta : {A : Set} -> A -> (Tree -> Tree -> A -> A -> A) -> Tree -> A
+treeRecMeta z s lf       = z
+treeRecMeta z s (nd a b) = s a b (treeRecMeta z s a) (treeRecMeta z s b)
 
 ------------------------------------------------------------------------
 -- natCode (encoding natural numbers as trees)

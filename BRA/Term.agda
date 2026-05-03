@@ -17,30 +17,53 @@ data Fun1 where
   Snd   : Fun1
   Comp  : Fun1 -> Fun1 -> Fun1
   Comp2 : Fun2 -> Fun1 -> Fun1 -> Fun1
-  Rec   : Term -> Fun2 -> Fun1
   Z     : Fun1                        -- constant-leaf functor (= Guard's o).
                                       -- KT t (was a constructor) is now a
                                       -- defined function below.
+                                      -- Rec (was a constructor) is now a
+                                      -- defined function below, on top of
+                                      -- treeRec.
 
 data Fun2 where
-  Pair   : Fun2
-  Const  : Fun2
-  Lift   : Fun1 -> Fun2
-  Post   : Fun1 -> Fun2 -> Fun2
-  Fan    : Fun2 -> Fun2 -> Fun2 -> Fun2
-  IfLf   : Fun2
-  TreeEq : Fun2
-  RecP   : Fun2 -> Fun2
-  -- RecP s: parameterised tree recursion.
-  --   ap2 (RecP s) p O           = O
-  --   ap2 (RecP s) p (Pair a b) = ap2 s (Pair p (Pair a b))
-  --                                    (Pair (ap2 (RecP s) p a) (ap2 (RecP s) p b))
+  Pair    : Fun2
+  Const   : Fun2
+  Lift    : Fun1 -> Fun2
+  Post    : Fun1 -> Fun2 -> Fun2
+  Fan     : Fun2 -> Fun2 -> Fun2 -> Fun2
+  IfLf    : Fun2
+  TreeEq  : Fun2
+  treeRec : Fun1 -> Fun2 -> Fun2
+  -- treeRec f s p O          = ap1 f p
+  -- treeRec f s p (Pair a b) = ap2 s (Pair p (Pair a b))
+  --                                  (Pair (treeRec f s p a) (treeRec f s p b))
+  -- Mirrors Guard's Rfgh (guard15.pdf p.10, axioms 9-10).  RecP and Rec
+  -- below are Agda definitions on top of treeRec.
 
 data Term where
   O   : Term
   var : Nat -> Term
   ap1 : Fun1 -> Term -> Term
   ap2 : Fun2 -> Term -> Term -> Term
+
+------------------------------------------------------------------------
+-- RecP: legacy parameterised tree-recursor.  Defined in terms of
+-- treeRec (since Z p = O makes the leaf cases match exactly).
+
+RecP : Fun2 -> Fun2
+RecP s = treeRec Z s
+
+------------------------------------------------------------------------
+-- Rec: legacy 1-ary tree-recursor with leaf payload z = O.  Defined as
+--   Rec s = Comp2 (treeRec Z s) Z I
+-- so that  ap1 (Rec s) x = ap2 (treeRec Z s) (ap1 Z x) (ap1 I x)
+--                        BRA-equational to ap2 (treeRec Z s) O x.
+--
+-- Only z = O is used in the codebase (cor, thmT).  The previous
+-- z-parameterised  Rec : Term -> Fun2 -> Fun1  constructor was unsound
+-- in conjunction with  KT  for open  z  and is no longer needed.
+
+Rec : Fun2 -> Fun1
+Rec s = Comp2 (treeRec Z s) Z I
 
 ------------------------------------------------------------------------
 -- Equations
@@ -93,7 +116,6 @@ codeF1 Fst           = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc 
 codeF1 Snd           = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))) lf
 codeF1 (Comp f g)    = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))) (nd (codeF1 f) (codeF1 g))
 codeF1 (Comp2 h f g) = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))) (nd (codeF2 h) (nd (codeF1 f) (codeF1 g)))
-codeF1 (Rec z s)     = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))))) (nd (code z) (codeF2 s))
 codeF1 Z             = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))))) lf
 
 codeF2 Pair          = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))) lf
@@ -103,7 +125,7 @@ codeF2 (Post f h)    = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc 
 codeF2 (Fan h1 h2 h) = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))) (nd (codeF2 h1) (nd (codeF2 h2) (codeF2 h)))
 codeF2 IfLf          = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))))) lf
 codeF2 TreeEq        = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))))) lf
-codeF2 (RecP s)      = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))))))) (codeF2 s)
+codeF2 (treeRec f s) = nd (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))))))))))))))))))))))) (nd (codeF1 f) (codeF2 s))
 
 code O             = lf
 code (var n)       = nd tagVar (natCode n)
@@ -136,7 +158,6 @@ substF1 x r Fst           = Fst
 substF1 x r Snd           = Snd
 substF1 x r (Comp f g)    = Comp (substF1 x r f) (substF1 x r g)
 substF1 x r (Comp2 h f g) = Comp2 (substF2 x r h) (substF1 x r f) (substF1 x r g)
-substF1 x r (Rec z s)     = Rec (subst x r z) (substF2 x r s)
 substF1 x r Z             = Z
 
 substF2 x r Pair          = Pair
@@ -146,7 +167,7 @@ substF2 x r (Post f h)    = Post (substF1 x r f) (substF2 x r h)
 substF2 x r (Fan h1 h2 h) = Fan (substF2 x r h1) (substF2 x r h2) (substF2 x r h)
 substF2 x r IfLf          = IfLf
 substF2 x r TreeEq        = TreeEq
-substF2 x r (RecP s)      = RecP (substF2 x r s)
+substF2 x r (treeRec f s) = treeRec (substF1 x r f) (substF2 x r s)
 
 substEq : Nat -> Term -> Equation -> Equation
 substEq x r (eqn l r') = eqn (subst x r l) (subst x r r')
@@ -173,7 +194,7 @@ KT (ap2 (Post f h) a b)    = Z
 KT (ap2 (Fan h1 h2 h) a b) = Z
 KT (ap2 IfLf a b)          = Z
 KT (ap2 TreeEq a b)        = Z
-KT (ap2 (RecP s) a b)      = Z
+KT (ap2 (treeRec f s) a b) = Z
 
 
 ------------------------------------------------------------------------

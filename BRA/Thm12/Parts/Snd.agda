@@ -123,7 +123,7 @@ D_Snd_reduce_Pair v1 v2 =
 bridgeBase : Deriv (atomic (eqn parOutAxSndLf (codeFTeq1_Snd O)))
 bridgeBase =
   let cor_O : Deriv (atomic (eqn (ap1 cor O) O))
-      cor_O = axRecLf O stepCor
+      cor_O = axRecLf stepCor
 
       snd_O : Deriv (atomic (eqn (ap1 Snd O) O))
       snd_O = axSndLf
@@ -166,8 +166,9 @@ bridgeStep v1 v2 =
       cor_pair_unfold =
         let recs = ap2 Pair (ap1 cor v1) (ap1 cor v2)
             orig = ap2 Pair v1 v2
-            r1 = axRecNd O stepCor v1 v2
-            r2 = stepCorRed orig recs
+            origW = ap2 Pair O orig
+            r1 = axRecNd stepCor v1 v2
+            r2 = stepCorRed origW recs
         in ruleTrans r1 r2
 
       cor_snd_pair : Deriv (atomic (eqn (ap1 cor (ap1 Snd (ap2 Pair v1 v2))) (ap1 cor v2)))

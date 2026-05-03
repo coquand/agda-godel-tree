@@ -27,7 +27,7 @@ open import BRA.Term
 open import BRA.Formula
 open import BRA.Deriv
 open import BRA.Cor
-open import BRA.Thm.Tag using (tagAxLift)
+open import BRA.Thm.Tag using (tagAxLift ; tagRuleTrans)
 open import BRA.Thm.ThmT using (thmT ; tagCode_axLift ; tagCode_ruleTrans)
 open import BRA.Thm12.Param.AxLift
   using (parDispAxLift ; parEncAxLift ; parOutAxLift)
@@ -106,8 +106,7 @@ module LiftCase
         s2 : Deriv (atomic (eqn (ap2 (Lift (KT tagCode_ruleTrans)) a b)
                                  tagCode_ruleTrans))
         s2 = ruleTrans (axLift (KT tagCode_ruleTrans) a b)
-                       (axKT (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))
-                             a)
+                       (axKT (natCode tagRuleTrans) a)
 
         -- Inner Fan unfolds.
         s3 : Deriv (atomic (eqn (ap2 (Fan lift_part df_first Pair) a b)

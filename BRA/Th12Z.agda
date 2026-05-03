@@ -45,30 +45,31 @@ T3_Z = reify (encAxZ (var zero))
 ------------------------------------------------------------------------
 -- Df_F1_Z : Fun1
 --
--- ap1 Df_F1_Z x = ap2 Pair T1 (ap2 Pair T2 (ap2 Pair T3_Z (ap1 cor x)))
+-- NEW LAYOUT (refactor 2026-05-02): closed (T2, cor x) at inner Fst,
+-- T3_Z at outer Snd.
+--
+-- ap1 Df_F1_Z x = ap2 Pair T1 (ap2 Pair (ap2 Pair T2 (ap1 cor x)) T3_Z)
 
 Df_F1_Z : Fun1
 Df_F1_Z = Comp2 Pair
             (KT T1)
             (Comp2 Pair
-              (KT T2)
-              (Comp2 Pair
-                (KT T3_Z)
-                cor))
+              (Comp2 Pair (KT T2) cor)
+              (KT T3_Z))
 
 ------------------------------------------------------------------------
--- Df_F1_Z_unfold : same template as Df_F1_I_unfold (4 axComp2 + 3 ktRed).
+-- Df_F1_Z_unfold : same template as Df_F1_I_unfold under the new layout.
 
 Df_F1_Z_unfold : (x : Term) ->
   Deriv (atomic (eqn (ap1 Df_F1_Z x)
-                     (ap2 Pair T1 (ap2 Pair T2 (ap2 Pair T3_Z (ap1 cor x))))))
+                     (ap2 Pair T1 (ap2 Pair (ap2 Pair T2 (ap1 cor x)) T3_Z))))
 Df_F1_Z_unfold x =
   let
-    inner3 : Fun1
-    inner3 = Comp2 Pair (KT T3_Z) cor
+    argsF1 : Fun1
+    argsF1 = Comp2 Pair (KT T2) cor
 
     inner2 : Fun1
-    inner2 = Comp2 Pair (KT T2) inner3
+    inner2 = Comp2 Pair argsF1 (KT T3_Z)
 
     s1 : Deriv (atomic (eqn (ap1 Df_F1_Z x)
                             (ap2 Pair (ap1 (KT T1) x) (ap1 inner2 x))))
@@ -78,66 +79,64 @@ Df_F1_Z_unfold x =
     s2_kt1 = ktRed (natCode tagRuleInst) x
 
     s3 : Deriv (atomic (eqn (ap1 inner2 x)
-                            (ap2 Pair (ap1 (KT T2) x) (ap1 inner3 x))))
-    s3 = axComp2 Pair (KT T2) inner3 x
+                            (ap2 Pair (ap1 argsF1 x) (ap1 (KT T3_Z) x))))
+    s3 = axComp2 Pair argsF1 (KT T3_Z) x
 
-    s4_kt2 : Deriv (atomic (eqn (ap1 (KT T2) x) T2))
-    s4_kt2 = ktRed (code (var zero)) x
+    s4_kt3 : Deriv (atomic (eqn (ap1 (KT T3_Z) x) T3_Z))
+    s4_kt3 = ktRed (encAxZ (var zero)) x
 
-    s5 : Deriv (atomic (eqn (ap1 inner3 x)
-                            (ap2 Pair (ap1 (KT T3_Z) x) (ap1 cor x))))
-    s5 = axComp2 Pair (KT T3_Z) cor x
+    s5 : Deriv (atomic (eqn (ap1 argsF1 x)
+                            (ap2 Pair (ap1 (KT T2) x) (ap1 cor x))))
+    s5 = axComp2 Pair (KT T2) cor x
 
-    s6_kt3 : Deriv (atomic (eqn (ap1 (KT T3_Z) x) T3_Z))
-    s6_kt3 = ktRed (encAxZ (var zero)) x
+    s6_kt2 : Deriv (atomic (eqn (ap1 (KT T2) x) T2))
+    s6_kt2 = ktRed (code (var zero)) x
 
-    inner3_simp : Deriv (atomic (eqn (ap1 inner3 x)
-                                      (ap2 Pair T3_Z (ap1 cor x))))
-    inner3_simp = ruleTrans s5 (congL Pair (ap1 cor x) s6_kt3)
+    argsF1_simp : Deriv (atomic (eqn (ap1 argsF1 x)
+                                      (ap2 Pair T2 (ap1 cor x))))
+    argsF1_simp = ruleTrans s5 (congL Pair (ap1 cor x) s6_kt2)
 
     inner2_step1 : Deriv (atomic (eqn (ap1 inner2 x)
-                                       (ap2 Pair T2 (ap1 inner3 x))))
-    inner2_step1 = ruleTrans s3 (congL Pair (ap1 inner3 x) s4_kt2)
-
-    inner2_step2 : Deriv (atomic (eqn (ap2 Pair T2 (ap1 inner3 x))
-                                       (ap2 Pair T2 (ap2 Pair T3_Z (ap1 cor x)))))
-    inner2_step2 = congR Pair T2 inner3_simp
+                                       (ap2 Pair (ap1 argsF1 x) T3_Z)))
+    inner2_step1 = ruleTrans s3 (congR Pair (ap1 argsF1 x) s4_kt3)
 
     inner2_simp : Deriv (atomic (eqn (ap1 inner2 x)
-                                      (ap2 Pair T2 (ap2 Pair T3_Z (ap1 cor x)))))
-    inner2_simp = ruleTrans inner2_step1 inner2_step2
+                                      (ap2 Pair (ap2 Pair T2 (ap1 cor x)) T3_Z)))
+    inner2_simp = ruleTrans inner2_step1 (congL Pair T3_Z argsF1_simp)
 
     s_kt1 : Deriv (atomic (eqn (ap1 Df_F1_Z x)
                                 (ap2 Pair T1 (ap1 inner2 x))))
     s_kt1 = ruleTrans s1 (congL Pair (ap1 inner2 x) s2_kt1)
 
     s_final : Deriv (atomic (eqn (ap2 Pair T1 (ap1 inner2 x))
-                                  (ap2 Pair T1 (ap2 Pair T2
-                                    (ap2 Pair T3_Z (ap1 cor x))))))
+                                  (ap2 Pair T1
+                                    (ap2 Pair (ap2 Pair T2 (ap1 cor x)) T3_Z))))
     s_final = congR Pair T1 inner2_simp
   in ruleTrans s_kt1 s_final
 
 ------------------------------------------------------------------------
--- xShape for thmTDispRuleInst_param at xT = T3_Z.
---
--- T3_Z = reify (nd (natCode tagAxKT) (nd (codeF1 Z) (code (var zero))))
---      = ap2 Pair (reify (natCode tagAxKT)) (reify (nd (codeF1 Z) (code (var zero))))
--- reify (natCode tagAxKT) is itself ap2 Pair-shaped (since tagAxKT is suc-form).
--- We let Agda infer x', y' via underscores.
-
-xShape_F1_Z : Sigma Term (\ y' -> Sigma Term (\ x' ->
-  Deriv (atomic (eqn (ap1 Fst T3_Z) (ap2 Pair x' y')))))
-xShape_F1_Z = mkSigma _ (mkSigma _ (axFst _ _))
-
-------------------------------------------------------------------------
 -- Df_F1_Z_dispatch : runtime substitution bridge via thmTDispRuleInst_param.
+-- New encoding: no xShape needed.
 
 Df_F1_Z_dispatch : (x : Term) ->
   Deriv (atomic (eqn
-    (ap1 thmT (ap2 Pair T1 (ap2 Pair T2 (ap2 Pair T3_Z (ap1 cor x)))))
+    (ap1 thmT (ap2 Pair T1 (ap2 Pair (ap2 Pair T2 (ap1 cor x)) T3_Z)))
     (ap2 subT (ap2 Pair T2 (ap1 cor x)) (ap1 thmT T3_Z))))
 Df_F1_Z_dispatch x =
-  thmTDispRuleInst_param zero (ap1 cor x) T3_Z xShape_F1_Z
+  let
+    -- Inner-check witness for verifying body_ruleInst:
+    -- thmT T3_Z = reify (outAxZ (var zero)) is Pair-shaped definitionally.
+    fp : Term
+    fp = reify (code (ap1 Z (var zero)))
+    sp : Term
+    sp = O
+    eThm : Deriv (atomic (eqn (ap1 thmT T3_Z) (reify (outAxZ (var zero)))))
+    eThm = thmTDispAxZ (var zero)
+    eRefl : Deriv (atomic (eqn (reify (outAxZ (var zero))) (ap2 Pair fp sp)))
+    eRefl = axRefl (ap2 Pair fp sp)
+    dh : Deriv (atomic (eqn (ap1 thmT T3_Z) (ap2 Pair fp sp)))
+    dh = ruleTrans eThm eRefl
+  in thmTDispRuleInst_param zero (ap1 cor x) T3_Z fp sp dh
 
 ------------------------------------------------------------------------
 -- Df_F1_Z_axZ_thmT :  thmT T3_Z = reify (outAxZ (var zero)) .
@@ -156,7 +155,7 @@ Df_F1_Z_runtime : (x : Term) ->
 Df_F1_Z_runtime x =
   let
     runtimeTree : Term
-    runtimeTree = ap2 Pair T1 (ap2 Pair T2 (ap2 Pair T3_Z (ap1 cor x)))
+    runtimeTree = ap2 Pair T1 (ap2 Pair (ap2 Pair T2 (ap1 cor x)) T3_Z)
 
     s1 : Deriv (atomic (eqn (ap1 thmT (ap1 Df_F1_Z x))
                              (ap1 thmT runtimeTree)))
@@ -230,7 +229,7 @@ Th12_F1_Z_at_var0 =
     bridgeR : Deriv (atomic (eqn O (ap1 cor (ap1 Z x))))
     bridgeR =
       ruleSym (ruleTrans (cong1 cor (axZ x))
-                          (axRecLf O stepCor))
+                          (axRecLf stepCor))
 
     step4 : Deriv (atomic (eqn reducedT
                                 (codeFTeq1Asym Z x)))

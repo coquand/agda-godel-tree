@@ -28,14 +28,18 @@ open import BRA.Term
 open import BRA.Formula
 open import BRA.Thm.Tag using (tagRuleInst)
 
--- Payload order: y_h sits in the inner-pair head so the second-level
--- inner-pair distribution discharges via y_h's shape proof.  Putting
--- code t  first would block distribution when  t = O .  See the
--- corresponding note in  BRA.Thm.Parts.CongL .
+-- Payload order (refactor 2026-05-02 — see ARCHITECTURE-FINDINGS.md
+-- Finding 1 analog for ruleInst):  closed (varCode, tCode) pair sits at
+-- the inner-pair head, with the OPEN proof-index  y_h  at the outer Snd.
+-- This way, thmT distributes through the inner pair (Pair shape on
+-- (varCode, tCode) is closed via axFst), bringing  thmT y_h  out as
+-- Snd of the recs-image directly — no shape obligation on  y_h .
+-- Cf. body_ruleInst in BRA.Thm.ThmT and Definition 12 line 2 (Guard
+-- p.16) which Holds Parametrically in y_h under this layout.
 encRuleInst : Nat -> Term -> Tree -> Tree
 encRuleInst x t y_h = nd (natCode tagRuleInst)
-                         (nd (code (var x))
-                             (nd y_h (code t)))
+                         (nd (nd (code (var x)) (code t))
+                             y_h)
 
 outRuleInst : Nat -> Term -> Formula -> Tree
 outRuleInst x t P = codeFormula (substF x t P)

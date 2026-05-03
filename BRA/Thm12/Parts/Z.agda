@@ -18,7 +18,7 @@
 --   3. Bridge the difference  parOutAxZ (cor x) -> codeFTeq1_Z x: only the
 --      RHS slot differs (O vs cor (Z x)).  Provable via
 --        cong1 cor (axZ x)  : cor (Z x) = cor O
---        axRecLf O stepCor  : cor O = O
+--        axRecLf stepCor  : cor O = O
 --      then ruleSym + congR Pair.
 --
 -- This Parts file uses the ACTUAL ThmT (concrete) and the parametric
@@ -116,11 +116,11 @@ D_Z_reduce x =
 -- where RHS differs:
 --   parOutAxZ : O
 --   codeFTeq1_Z : cor (Z x)
--- And  cor (Z x) = cor O = O  by  cong1 cor (axZ x) + axRecLf O stepCor .
+-- And  cor (Z x) = cor O = O  by  cong1 cor (axZ x) + axRecLf stepCor .
 
 bridgeRHS : (x : Term) -> Deriv (atomic (eqn (ap1 cor (ap1 Z x)) O))
 bridgeRHS x =
-  ruleTrans (cong1 cor (axZ x)) (axRecLf O stepCor)
+  ruleTrans (cong1 cor (axZ x)) (axRecLf stepCor)
 
 bridgePair : (x : Term) ->
   Deriv (atomic (eqn (parOutAxZ (ap1 cor x)) (codeFTeq1_Z x)))

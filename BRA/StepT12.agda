@@ -131,6 +131,12 @@ evalFun2 (RecP s)      a lf       = lf
 evalFun2 (RecP s)      a (nd b1 b2) =
   evalFun2 s (nd a (nd b1 b2))
     (nd (evalFun2 (RecP s) a b1) (evalFun2 (RecP s) a b2))
+-- treeRec f s : Guard's Rfgh.  axRLf : leaf returns evalFun1 f p.
+--               axRNd : Pair returns evalFun2 s ... .
+evalFun2 (treeRec f s) a lf       = evalFun1 f a
+evalFun2 (treeRec f s) a (nd b1 b2) =
+  evalFun2 s (nd a (nd b1 b2))
+    (nd (evalFun2 (treeRec f s) a b1) (evalFun2 (treeRec f s) a b2))
 
 ------------------------------------------------------------------------
 -- Spec type for stepT12 (Fun1 case).
@@ -760,10 +766,7 @@ stepT12_Fan_rich h1 h2 h rec_h1 rec_h2 rec_h a b =
                               (reify (evalFun2 (Fan h1 h2 h) a b))))
     bra = ruleTrans step1 (ruleTrans step2 (ruleTrans step3 step4))
 
-  in encodeRich
-       (atomic (eqn (ap2 (Fan h1 h2 h) aT bT)
-                     (reify (evalFun2 (Fan h1 h2 h) a b))))
-       bra
+  in encodeRich bra
 
 ------------------------------------------------------------------------
 -- Comp2 h f g (Fun1-side analog of Fan, with i instead of (a, b)):
@@ -811,10 +814,7 @@ stepT12_Comp2_rich h f g rec_f rec_g rec_h i =
                               (reify (evalFun1 (Comp2 h f g) i))))
     bra = ruleTrans step1 (ruleTrans step2 (ruleTrans step3 step4))
 
-  in encodeRich
-       (atomic (eqn (ap1 (Comp2 h f g) iT)
-                     (reify (evalFun1 (Comp2 h f g) i))))
-       bra
+  in encodeRich bra
 
 ------------------------------------------------------------------------
 -- Generalised Rec: parametric over z = reify zT for any Tree zT.
@@ -920,10 +920,7 @@ stepT12_RecZ_rich :
   ((j k : Tree) -> EvalCorrect2 s j k) ->
   (i : Tree) -> StepT12RichRecZ zT s i
 stepT12_RecZ_rich zT s rec_s i =
-  encodeRich
-    (atomic (eqn (ap1 (Rec (reify zT) s) (reify i))
-                  (reify (evalFun1Z zT s i))))
-    (eval_correct_RecZ zT s rec_s i)
+  encodeRich (eval_correct_RecZ zT s rec_s i)
 
 ------------------------------------------------------------------------
 -- BRA-Deriv API: per-case  EvalCorrect{1,2}  recursors.

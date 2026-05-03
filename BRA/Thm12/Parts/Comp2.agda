@@ -59,12 +59,6 @@ module Comp2Case
          (ap2 Pair (reify tagAp1)
                    (ap2 Pair (reify (codeF1 g)) (ap1 cor x)))
          (ap1 cor (ap1 g x))))))
-  (Df'_shape : (x : Term) ->
-     Sigma Term (\ y' -> Sigma Term (\ x' ->
-       Deriv (atomic (eqn (ap1 Fst (ap1 Df' x)) (ap2 Pair x' y'))))))
-  (Dg_shape  : (x : Term) ->
-     Sigma Term (\ y' -> Sigma Term (\ x' ->
-       Deriv (atomic (eqn (ap1 Fst (ap1 Dg x)) (ap2 Pair x' y'))))))
   where
 
   ----------------------------------------------------------------------
@@ -106,24 +100,27 @@ module Comp2Case
                   (Comp2 Pair (KT cF1g) cor)
 
     -- y2a builder: ap1 y2a_part x = parEncCongL h (Df' x) (enc_g_num x)
-    --   = Pair tagCode_congL (Pair codeF2h (Pair (Df' x) (enc_g_num x))).
+    --   = Pair tagCode_congL (Pair (Pair codeF2h (enc_g_num x)) (Df' x))
+    -- New layout (Finding 1): closed pair (codeF2h, xT) inner, open IH y_h_T outer.
     y2a_part : Fun1
     y2a_part =
       Comp2 Pair (KT (BRA.Thm.ThmT.tagCode_congL))
-        (Comp2 Pair (KT cF2h)
-          (Comp2 Pair Df' enc_g_num))
+        (Comp2 Pair
+          (Comp2 Pair (KT cF2h) enc_g_num)
+          Df')
 
     -- corF': ap1 corF' x = cor (f' x).
     corF' : Fun1
     corF' = Comp cor f'
 
     -- y2b builder: ap1 y2b_part x = parEncCongR h (Dg x) (cor (f' x))
-    --   = Pair tagCode_congR (Pair codeF2h (Pair (Dg x) (cor (f' x)))).
+    --   = Pair tagCode_congR (Pair (Pair codeF2h (cor (f' x))) (Dg x)).
     y2b_part : Fun1
     y2b_part =
       Comp2 Pair (KT (BRA.Thm.ThmT.tagCode_congR))
-        (Comp2 Pair (KT cF2h)
-          (Comp2 Pair Dg corF'))
+        (Comp2 Pair
+          (Comp2 Pair (KT cF2h) corF')
+          Dg)
 
     -- y2c builder: ap1 y2c_part x = D2_h (f' x) (g x).
     y2c_part : Fun1
@@ -223,39 +220,42 @@ module Comp2Case
                                                     (ap2 Pair cF1g (ap1 cor x))))))
         red_y2a =
           let s1 = axComp2 Pair (KT (BRA.Thm.ThmT.tagCode_congL))
-                                (Comp2 Pair (KT cF2h)
-                                  (Comp2 Pair Df' enc_g_num)) x
+                                (Comp2 Pair
+                                  (Comp2 Pair (KT cF2h) enc_g_num)
+                                  Df') x
               s2 = axKT (natCode (BRA.Thm.Tag.tagCongL)) x
-              s3 = axComp2 Pair (KT cF2h) (Comp2 Pair Df' enc_g_num) x
-              s4 = axKT (codeF2 h) x
-              s5 = axComp2 Pair Df' enc_g_num x
-              ri2 = ruleTrans s5 (congR Pair (ap1 Df' x) red_enc_g_num)
-              ri1 = ruleTrans s3
-                      (ruleTrans (congL Pair _ s4)
-                                 (congR Pair cF2h ri2))
+              s3 = axComp2 Pair (Comp2 Pair (KT cF2h) enc_g_num) Df' x
+              s4 = axComp2 Pair (KT cF2h) enc_g_num x
+              s5 = axKT (codeF2 h) x
+              -- ap1 (Comp2 Pair (KT cF2h) enc_g_num) x = Pair cF2h (enc_g_num x)
+              ri_inner = ruleTrans s4
+                           (ruleTrans (congL Pair (ap1 enc_g_num x) s5)
+                                      (congR Pair cF2h red_enc_g_num))
+              ri2 = ruleTrans s3 (congL Pair (ap1 Df' x) ri_inner)
           in ruleTrans s1
                (ruleTrans (congL Pair _ s2)
-                          (congR Pair (BRA.Thm.ThmT.tagCode_congL) ri1))
+                          (congR Pair (BRA.Thm.ThmT.tagCode_congL) ri2))
 
         red_y2b : Deriv (atomic (eqn (ap1 y2b_part x)
                                        (parEncCongR h (ap1 Dg x) (ap1 cor (ap1 f' x)))))
         red_y2b =
           let s1 = axComp2 Pair (KT (BRA.Thm.ThmT.tagCode_congR))
-                                (Comp2 Pair (KT cF2h)
-                                  (Comp2 Pair Dg corF')) x
+                                (Comp2 Pair
+                                  (Comp2 Pair (KT cF2h) corF')
+                                  Dg) x
               s2 = axKT (natCode (BRA.Thm.Tag.tagCongR)) x
-              s3 = axComp2 Pair (KT cF2h) (Comp2 Pair Dg corF') x
-              s4 = axKT (codeF2 h) x
-              s5 = axComp2 Pair Dg corF' x
+              s3 = axComp2 Pair (Comp2 Pair (KT cF2h) corF') Dg x
+              s4 = axComp2 Pair (KT cF2h) corF' x
+              s5 = axKT (codeF2 h) x
               s6 = axComp cor f' x
-              ri_corF = s6  -- ap1 corF' x = ap1 cor (ap1 f' x)
-              ri2 = ruleTrans s5 (congR Pair (ap1 Dg x) ri_corF)
-              ri1 = ruleTrans s3
-                      (ruleTrans (congL Pair _ s4)
-                                 (congR Pair cF2h ri2))
+              -- ap1 (Comp2 Pair (KT cF2h) corF') x = Pair cF2h (cor (f' x))
+              ri_inner = ruleTrans s4
+                           (ruleTrans (congL Pair (ap1 corF' x) s5)
+                                      (congR Pair cF2h s6))
+              ri2 = ruleTrans s3 (congL Pair (ap1 Dg x) ri_inner)
           in ruleTrans s1
                (ruleTrans (congL Pair _ s2)
-                          (congR Pair (BRA.Thm.ThmT.tagCode_congR) ri1))
+                          (congR Pair (BRA.Thm.ThmT.tagCode_congR) ri2))
 
         red_y2c : Deriv (atomic (eqn (ap1 y2c_part x) (ap2 D2_h (ap1 f' x) (ap1 g x))))
         red_y2c = axComp2 D2_h f' g x
@@ -302,11 +302,9 @@ module Comp2Case
         u2_y2a = ap2 Pair (reify tagAp2)
                   (ap2 Pair cF2h (ap2 Pair u2_Df ENC_GUM))
 
-        d_Df_shape = snd (snd (Df'_shape x))
-
         d_y2a : Deriv (atomic (eqn (ap1 thmT (parEncCongL h (ap1 Df' x) ENC_GUM))
                                      (ap2 Pair u1_y2a u2_y2a)))
-        d_y2a = parDispCongL h (ap1 Df' x) ENC_GUM u1_Df u2_Df _ _ d_Df_shape d_Df
+        d_y2a = parDispCongL h (ap1 Df' x) ENC_GUM u1_Df u2_Df d_Df
 
         -- D_g x's image:
         u1_Dg : Term
@@ -326,13 +324,11 @@ module Comp2Case
         u2_y2b = ap2 Pair (reify tagAp2)
                   (ap2 Pair cF2h (ap2 Pair (ap1 cor (ap1 f' x)) u2_Dg))
 
-        d_Dg_shape = snd (snd (Dg_shape x))
-
         d_y2b : Deriv (atomic (eqn
                   (ap1 thmT (parEncCongR h (ap1 Dg x) (ap1 cor (ap1 f' x))))
                   (ap2 Pair u1_y2b u2_y2b)))
         d_y2b = parDispCongR h (ap1 Dg x) (ap1 cor (ap1 f' x))
-                              u1_Dg u2_Dg _ _ d_Dg_shape d_Dg
+                              u1_Dg u2_Dg d_Dg
 
         -- D2_h (f' x) (g x)'s image:
         u1_D2h : Term

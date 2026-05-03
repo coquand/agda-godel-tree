@@ -52,7 +52,7 @@ codeFTeq1_Rec_zs z s x =
 ------------------------------------------------------------------------
 -- Construction module: parametric over the Pair case Fun1.
 -- z is taken as a Term whose cor-image equals reify (code z)
--- (z_corLemma); typically z = O (then z_corLemma = axRecLf O stepCor).
+-- (z_corLemma); typically z = O (then z_corLemma = axRecLf stepCor).
 
 module Construction
   (z : Term)
@@ -170,7 +170,7 @@ module Construction
   bridgeO : Deriv (atomic (eqn (parOutAxRecLf zT sT) (codeFTeq1_Rec_zs z s O)))
   bridgeO =
     let cor_O : Deriv (atomic (eqn (ap1 cor O) O))
-        cor_O = axRecLf O stepCor
+        cor_O = axRecLf stepCor
         recLf_eq : Deriv (atomic (eqn (ap1 (Rec z s) O) z))
         recLf_eq = axRecLf z s
         cor_recLf_zT : Deriv (atomic (eqn (ap1 cor (ap1 (Rec z s) O)) zT))

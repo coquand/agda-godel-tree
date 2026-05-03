@@ -46,11 +46,11 @@ Th12_F1_Snd_at_lf =
     s3 = thmTDispAxSndLf
 
     bridgeInner : Deriv (atomic (eqn O (ap1 cor O)))
-    bridgeInner = ruleSym (axRecLf O stepCor)
+    bridgeInner = ruleSym (axRecLf stepCor)
 
     bridgeRHS : Deriv (atomic (eqn O (ap1 cor (ap1 Snd O))))
     bridgeRHS =
-      ruleSym (ruleTrans (cong1 cor axSndLf) (axRecLf O stepCor))
+      ruleSym (ruleTrans (cong1 cor axSndLf) (axRecLf stepCor))
 
     bridgeLHS : Deriv (atomic (eqn (mkAp1T (reify (codeF1 Snd)) O)
                                     (mkAp1T (reify (codeF1 Snd)) (ap1 cor O))))

@@ -90,11 +90,11 @@ Th12_F1_Fst_at_lf =
     --     bridged by  ruleSym (ruleTrans (cong1 cor axFstLf) (axRecLf O stepCor)).
 
     bridgeInner : Deriv (atomic (eqn O (ap1 cor O)))
-    bridgeInner = ruleSym (axRecLf O stepCor)
+    bridgeInner = ruleSym (axRecLf stepCor)
 
     bridgeRHS : Deriv (atomic (eqn O (ap1 cor (ap1 Fst O))))
     bridgeRHS =
-      ruleSym (ruleTrans (cong1 cor axFstLf) (axRecLf O stepCor))
+      ruleSym (ruleTrans (cong1 cor axFstLf) (axRecLf stepCor))
 
     -- Lift bridgeInner through  mkAp1T (reify (codeF1 Fst)) [_] :
     --   mkAp1T (reify (codeF1 Fst)) O  =  mkAp1T (reify (codeF1 Fst)) (ap1 cor O)

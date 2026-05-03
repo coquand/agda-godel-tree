@@ -208,9 +208,7 @@ module CompCase
         -- image: Pair u1_cong u2_Df.
         -- Fst-shape proof for parEncCong1: Fst (Pair tagCode_cong1 ...) = tagCode_cong1.
         cong_shape : Deriv (atomic (eqn (ap1 Fst (parEncCong1 f' (ap1 Dg x)))
-                                          (ap2 Pair O (reify (natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))))))))))))))))))))
-        -- tagCode_cong1 = reify (natCode tagCong1) where tagCong1 = 25.
-        -- reify (natCode 25) = Pair O (reify (natCode 24)).
+                                          tagCode_cong1))
         cong_shape = axFst tagCode_cong1 _
 
         d_inner_rt : Deriv (atomic (eqn (ap1 thmT (parEncRuleTrans

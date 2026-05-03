@@ -240,7 +240,7 @@ D_Fst_reduce_Pair v1 v2 =
 --   = ap2 Pair (ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 Fst)) (ap1 cor O)))
 --              (ap1 cor (ap1 Fst O))
 --
--- Bridge: rewrite O -> ap1 cor O via ruleSym (axRecLf O stepCor) inside the
+-- Bridge: rewrite O -> ap1 cor O via ruleSym (axRecLf stepCor) inside the
 -- Fst-LHS slot, and O -> ap1 cor (ap1 Fst O) via ruleSym
 -- (cor (Fst O) = cor O = O).
 
@@ -248,7 +248,7 @@ bridgeBase : Deriv (atomic (eqn parOutAxFstLf (codeFTeq1_Fst O)))
 bridgeBase =
   let -- cor O = O
       cor_O : Deriv (atomic (eqn (ap1 cor O) O))
-      cor_O = axRecLf O stepCor
+      cor_O = axRecLf stepCor
 
       -- ap1 Fst O = O
       fst_O : Deriv (atomic (eqn (ap1 Fst O) O))
@@ -315,11 +315,12 @@ bridgeStep v1 v2 =
       cor_pair_unfold =
         let recs = ap2 Pair (ap1 cor v1) (ap1 cor v2)
             orig = ap2 Pair v1 v2
-            r1 : Deriv (atomic (eqn (ap1 cor orig) (ap2 stepCor orig recs)))
-            r1 = axRecNd O stepCor v1 v2
-            r2 : Deriv (atomic (eqn (ap2 stepCor orig recs)
+            origW = ap2 Pair O orig
+            r1 : Deriv (atomic (eqn (ap1 cor orig) (ap2 stepCor origW recs)))
+            r1 = axRecNd stepCor v1 v2
+            r2 : Deriv (atomic (eqn (ap2 stepCor origW recs)
                                     (ap2 Pair (reify tagAp2) (ap2 Pair (reify (codeF2 Pair)) recs))))
-            r2 = stepCorRed orig recs
+            r2 = stepCorRed origW recs
         in ruleTrans r1 r2
 
       -- cor (Fst (Pair v1 v2)) = cor v1.

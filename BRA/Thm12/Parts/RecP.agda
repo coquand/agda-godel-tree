@@ -249,7 +249,7 @@ module Construction
                        (codeFTeq2_RecP_s s p O)))
   bridgeO p =
     let cor_O : Deriv (atomic (eqn (ap1 cor O) O))
-        cor_O = axRecLf O stepCor
+        cor_O = axRecLf stepCor
 
         recPLf_eq : Deriv (atomic (eqn (ap2 (RecP s) p O) O))
         recPLf_eq = axRecPLf s p

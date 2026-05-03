@@ -78,21 +78,22 @@ data Deriv : Formula -> Set where
   ------------------------------------------------------------------
   -- Primitive recursion on trees (Guard Ax 9-10 analog for binary
   -- trees instead of naturals).
+  --
+  -- The earlier  axRecLf  and  axRecNd  constructors have been
+  -- demoted to top-level derived lemmas (below the data type),
+  -- because  Rec s  is now an Agda function on top of  treeRec .
 
-  axRecLf  : (z : Term) (s : Fun2) ->
-             Deriv (atomic (eqn (ap1 (Rec z s) O) z))
-  axRecNd  : (z : Term) (s : Fun2) (a b : Term) ->
-             Deriv (atomic (eqn (ap1 (Rec z s) (ap2 Pair a b))
-                                 (ap2 s (ap2 Pair a b)
-                                        (ap2 Pair (ap1 (Rec z s) a)
-                                                  (ap1 (Rec z s) b)))))
-  axRecPLf : (s : Fun2) (p : Term) ->
-             Deriv (atomic (eqn (ap2 (RecP s) p O) O))
-  axRecPNd : (s : Fun2) (p a b : Term) ->
-             Deriv (atomic (eqn (ap2 (RecP s) p (ap2 Pair a b))
-                                 (ap2 s (ap2 Pair p (ap2 Pair a b))
-                                        (ap2 Pair (ap2 (RecP s) p a)
-                                                  (ap2 (RecP s) p b)))))
+  -- Unified tree-recursor (Guard's Rfgh, guard15.pdf p.10 axioms 9-10).
+  -- Replaces the misdesigned Rec/RecP split; carries a parameter p AND
+  -- has a non-trivial leaf f(p).  Once these axioms are in place,
+  -- Rec and RecP can be re-expressed as Agda definitions over treeRec.
+  axTreeRecLf : (f : Fun1) (s : Fun2) (p : Term) ->
+                Deriv (atomic (eqn (ap2 (treeRec f s) p O) (ap1 f p)))
+  axTreeRecNd : (f : Fun1) (s : Fun2) (p a b : Term) ->
+                Deriv (atomic (eqn (ap2 (treeRec f s) p (ap2 Pair a b))
+                                    (ap2 s (ap2 Pair p (ap2 Pair a b))
+                                           (ap2 Pair (ap2 (treeRec f s) p a)
+                                                     (ap2 (treeRec f s) p b)))))
 
   ------------------------------------------------------------------
   -- Conditional and equality primitives.
@@ -279,6 +280,131 @@ axKT (nd a b) x =
       s2 = congL Pair (ap1 (KT (reify b)) x) ihA
       s3 = congR Pair (reify a) ihB
   in ruleTrans s1 (ruleTrans s2 s3)
+
+------------------------------------------------------------------------
+-- Derived  axRecPLf  /  axRecPNd  (formerly  Deriv  constructors).
+--
+--  RecP s = treeRec Z s  definitionally, so  ap2 (RecP s) p _  reduces
+-- to  ap2 (treeRec Z s) p _ , and the unified tree-recursor axioms
+-- ( axTreeRecLf ,  axTreeRecNd ) suffice to derive the parametric-tree
+-- recursion equations.  At the leaf, RecP returns f(p) = Z(p) = O,
+-- bridged by  axZ p .
+
+axRecPLf : (s : Fun2) (p : Term) ->
+           Deriv (atomic (eqn (ap2 (RecP s) p O) O))
+axRecPLf s p = ruleTrans (axTreeRecLf Z s p) (axZ p)
+
+axRecPNd : (s : Fun2) (p a b : Term) ->
+           Deriv (atomic (eqn (ap2 (RecP s) p (ap2 Pair a b))
+                               (ap2 s (ap2 Pair p (ap2 Pair a b))
+                                      (ap2 Pair (ap2 (RecP s) p a)
+                                                (ap2 (RecP s) p b)))))
+axRecPNd s p a b = axTreeRecNd Z s p a b
+
+------------------------------------------------------------------------
+-- Derived  axRecLf  /  axRecNd  (formerly  Deriv  constructors).
+--
+--  Rec s = Comp2 (treeRec Z s) Z I  definitionally.  So
+--   ap1 (Rec s) x = ap2 (treeRec Z s) (ap1 Z x) (ap1 I x) ,
+-- which BRA-equationally reduces to  ap2 (treeRec Z s) O x .
+--
+-- At the leaf (x = O):
+--   ap1 (Rec s) O = ap2 (treeRec Z s) O O  (by axComp2 + axZ + axI)
+--                = ap1 Z O                  (by axTreeRecLf)
+--                = O                        (by axZ)
+--
+-- At a Pair node (x = Pair a b):
+--   ap1 (Rec s) (Pair a b)
+--     =  ap2 (treeRec Z s) O (Pair a b)         -- by axComp2/axZ/axI
+--     =  ap2 s (Pair O (Pair a b)) (Pair (ap2 (treeRec Z s) O a)
+--                                         (ap2 (treeRec Z s) O b))
+--                                                -- by axTreeRecNd
+--     =  ap2 s (Pair O (Pair a b)) (Pair (ap1 (Rec s) a)
+--                                         (ap1 (Rec s) b))
+--                                                -- bridging treeRec back
+--                                                -- to Rec via axComp2
+--
+-- Note: the  Pair O ...  wrapper in the first argument to  s  is a
+-- consequence of the  Comp2 ... Z I  encoding (the  Z  branch supplies
+-- the leaf  O  carrier, and  treeRec  wraps it together with the input
+-- in its step-rule context).  Callers that previously relied on the
+-- old shape (without the wrapper) need to be updated.
+
+-- Helper: ap1 (Rec s) x = ap2 (treeRec Z s) O x .
+recRedTo_treeRec : (s : Fun2) (x : Term) ->
+                   Deriv (atomic (eqn (ap1 (Rec s) x)
+                                      (ap2 (treeRec Z s) O x)))
+recRedTo_treeRec s x =
+  let e1 : Deriv (atomic (eqn (ap1 (Rec s) x)
+                              (ap2 (treeRec Z s) (ap1 Z x) (ap1 I x))))
+      e1 = axComp2 (treeRec Z s) Z I x
+      e2 : Deriv (atomic (eqn (ap2 (treeRec Z s) (ap1 Z x) (ap1 I x))
+                              (ap2 (treeRec Z s) O (ap1 I x))))
+      e2 = congL (treeRec Z s) (ap1 I x) (axZ x)
+      e3 : Deriv (atomic (eqn (ap2 (treeRec Z s) O (ap1 I x))
+                              (ap2 (treeRec Z s) O x)))
+      e3 = congR (treeRec Z s) O (axI x)
+  in ruleTrans e1 (ruleTrans e2 e3)
+
+-- Symmetric helper.
+treeRecOTo_rec : (s : Fun2) (x : Term) ->
+                 Deriv (atomic (eqn (ap2 (treeRec Z s) O x)
+                                    (ap1 (Rec s) x)))
+treeRecOTo_rec s x = ruleSym (recRedTo_treeRec s x)
+
+axRecLf : (s : Fun2) ->
+          Deriv (atomic (eqn (ap1 (Rec s) O) O))
+axRecLf s =
+  let e1 : Deriv (atomic (eqn (ap1 (Rec s) O) (ap2 (treeRec Z s) O O)))
+      e1 = recRedTo_treeRec s O
+      e2 : Deriv (atomic (eqn (ap2 (treeRec Z s) O O) (ap1 Z O)))
+      e2 = axTreeRecLf Z s O
+      e3 : Deriv (atomic (eqn (ap1 Z O) O))
+      e3 = axZ O
+  in ruleTrans e1 (ruleTrans e2 e3)
+
+axRecNd : (s : Fun2) (a b : Term) ->
+          Deriv (atomic (eqn (ap1 (Rec s) (ap2 Pair a b))
+                              (ap2 s (ap2 Pair O (ap2 Pair a b))
+                                     (ap2 Pair (ap1 (Rec s) a)
+                                               (ap1 (Rec s) b)))))
+axRecNd s a b =
+  let pab : Term
+      pab = ap2 Pair a b
+      e1 : Deriv (atomic (eqn (ap1 (Rec s) pab) (ap2 (treeRec Z s) O pab)))
+      e1 = recRedTo_treeRec s pab
+      e2 : Deriv (atomic (eqn (ap2 (treeRec Z s) O pab)
+                              (ap2 s (ap2 Pair O pab)
+                                     (ap2 Pair (ap2 (treeRec Z s) O a)
+                                               (ap2 (treeRec Z s) O b)))))
+      e2 = axTreeRecNd Z s O a b
+      bridgeA : Deriv (atomic (eqn (ap2 (treeRec Z s) O a) (ap1 (Rec s) a)))
+      bridgeA = treeRecOTo_rec s a
+      bridgeB : Deriv (atomic (eqn (ap2 (treeRec Z s) O b) (ap1 (Rec s) b)))
+      bridgeB = treeRecOTo_rec s b
+      e3a : Deriv (atomic (eqn (ap2 Pair (ap2 (treeRec Z s) O a)
+                                         (ap2 (treeRec Z s) O b))
+                               (ap2 Pair (ap1 (Rec s) a)
+                                         (ap2 (treeRec Z s) O b))))
+      e3a = congL Pair (ap2 (treeRec Z s) O b) bridgeA
+      e3b : Deriv (atomic (eqn (ap2 Pair (ap1 (Rec s) a)
+                                         (ap2 (treeRec Z s) O b))
+                               (ap2 Pair (ap1 (Rec s) a)
+                                         (ap1 (Rec s) b))))
+      e3b = congR Pair (ap1 (Rec s) a) bridgeB
+      e3 : Deriv (atomic (eqn (ap2 Pair (ap2 (treeRec Z s) O a)
+                                         (ap2 (treeRec Z s) O b))
+                               (ap2 Pair (ap1 (Rec s) a)
+                                         (ap1 (Rec s) b))))
+      e3 = ruleTrans e3a e3b
+      e4 : Deriv (atomic (eqn (ap2 s (ap2 Pair O pab)
+                                     (ap2 Pair (ap2 (treeRec Z s) O a)
+                                               (ap2 (treeRec Z s) O b)))
+                              (ap2 s (ap2 Pair O pab)
+                                     (ap2 Pair (ap1 (Rec s) a)
+                                               (ap1 (Rec s) b)))))
+      e4 = congR s (ap2 Pair O pab) e3
+  in ruleTrans e1 (ruleTrans e2 e4)
 
 ------------------------------------------------------------------------
 -- Consistency (hyp-less form).

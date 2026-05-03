@@ -103,7 +103,6 @@ abstract
  codedSubst_nd_codeF1 x repl Snd            rest = refl
  codedSubst_nd_codeF1 x repl (Comp _ _)     rest = refl
  codedSubst_nd_codeF1 x repl (Comp2 _ _ _)  rest = refl
- codedSubst_nd_codeF1 x repl (Rec _ _)      rest = refl
  codedSubst_nd_codeF1 x repl Z              rest = refl
 
  codedSubst_nd_codeF2 :
@@ -118,7 +117,7 @@ abstract
  codedSubst_nd_codeF2 x repl (Fan _ _ _)  rest = refl
  codedSubst_nd_codeF2 x repl IfLf         rest = refl
  codedSubst_nd_codeF2 x repl TreeEq       rest = refl
- codedSubst_nd_codeF2 x repl (RecP _)     rest = refl
+ codedSubst_nd_codeF2 x repl (treeRec _ _) rest = refl
 
  ---------------------------------------------------------------------
  -- Mutual: coding commutes with substitution on Term / Fun1 / Fun2.
@@ -331,32 +330,6 @@ abstract
                           (nd (codeF1 f) (codeF1 g))))
    in eqCong2 nd refl innerH
  
- codeCommutesF1 x r (Rec z s) =
-   let ihZ : Eq (code (subst x r z))
-                (codedSubst (code r) (code (var x)) (code z))
-       ihZ = codeCommutesT x r z
-       ihS : Eq (codeF2 (substF2 x r s))
-                (codedSubst (code r) (code (var x)) (codeF2 s))
-       ihS = codeCommutesF2 x r s
- 
-       inner :
-         Eq (nd (code (subst x r z)) (codeF2 (substF2 x r s)))
-            (codedSubst (code r) (code (var x)) (nd (code z) (codeF2 s)))
-       inner =
-         eqTrans (eqCong2 nd ihZ ihS)
-                 (eqSym (codedSubst_nd_code_z x (code r) z (codeF2 s)))
-   in eqCong2 nd refl inner
-   where
-     codedSubst_nd_code_z :
-       (x : Nat) (repl : Tree) (z : Term) (rest : Tree) ->
-       Eq (codedSubst repl (code (var x)) (nd (code z) rest))
-          (nd (codedSubst repl (code (var x)) (code z))
-              (codedSubst repl (code (var x)) rest))
-     codedSubst_nd_code_z x repl O           rest = refl
-     codedSubst_nd_code_z x repl (var n)     rest = refl
-     codedSubst_nd_code_z x repl (ap1 _ _)   rest = refl
-     codedSubst_nd_code_z x repl (ap2 _ _ _) rest = refl
- 
  codeCommutesF1 x r Z = refl
  
  ------------------------------------------------------------------------
@@ -404,8 +377,19 @@ abstract
                           (nd (codeF2 h2) (codeF2 h))))
    in eqCong2 nd refl inner1
  
- codeCommutesF2 x r (RecP s) =
-   eqCong2 nd refl (codeCommutesF2 x r s)
+ -- treeRec f s: encoded as  nd tag (nd (codeF1 f) (codeF2 s)) , parallel
+ -- to  Post f h .  Inner level-1  nd (codeF1 f) (codeF2 s)  pushes via
+ -- codedSubst_nd_codeF1 ; F1 + F2 IHs supply the inner equalities.
+ codeCommutesF2 x r (treeRec f s) =
+   let ihF = codeCommutesF1 x r f
+       ihS = codeCommutesF2 x r s
+       inner :
+         Eq (nd (codeF1 (substF1 x r f)) (codeF2 (substF2 x r s)))
+            (codedSubst (code r) (code (var x)) (nd (codeF1 f) (codeF2 s)))
+       inner =
+         eqTrans (eqCong2 nd ihF ihS)
+                 (eqSym (codedSubst_nd_codeF1 x (code r) f (codeF2 s)))
+   in eqCong2 nd refl inner
  
  ------------------------------------------------------------------------
  -- Outer: codeCommutes on Formula.

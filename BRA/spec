@@ -1,0 +1,45 @@
+
+    - ruleF inside Thm 12's step cases. Schema F is the most awkward constructor — same open question as for enc
+        in the design doc (Option A: encode as axRefl+axRec* sequence inside dfSpec1; Option B: add ruleF as a
+	    parametric ax schema). Decide when reaching the Rec step case.
+	        - indF's v1=zero convention. The Rec step case in Thm 12 uses induction; the decision in EX24-DESIGN §indF to
+		     fix v1 = zero is adequate (per the design doc's analysis). If it turns out Thm 12 needs wider v1, upgrade
+		         indF to Option C at that point.
+			     - codeFT definition. BRA/THM12-NOTES.md proposes the symbolic-cor-on-variables reading. This needs to be
+			         committed to and coded before Thm 12 work starts — but it's well-understood now and ~30 lines of meta Agda.
+				     - Abstract-spec vs concrete-realisation divergence. If you prove Thm 14 purely from dfSpec1 / dfSpec2 as
+				         parameters, you get Thm 14 gated on "someone delivers Thm 12". The gap closes when the concrete construction
+					     lands. No circularity.
+
+    Suggested order: write the abstract spec + Thm 14 first (commit [BRA-thm14-abstract], ~500 lines, fast to
+        typecheck because dfSpec* are parameters). Then the concrete Thm 12 in a second pass. This way Thm 14 is
+	    visibly reachable before the largest file (Thm 12 step cases) is written, and failures in the concrete Thm 12
+	         don't block progress on downstream results.
+
+    Total estimate: 1500–2500 lines across 3–5 new files, on top of the existing 6 BRA/ files. Each file <10s
+        typecheck per the hard constraints. This matches the EX24-DESIGN Phase 2 estimate. The abstraction discipline
+	     used for Thm 11 (forward-only spec, bridge as external lemma, coding-commutes as a named meta lemma)
+	         transfers directly to Thm 12; nothing in the dfT* spec introduces a new kind of difficulty.
+
+    Bottom line: yes, feasible, same shape as Thm 11, and you can get Thm 14 from the abstract spec well before
+        the concrete Thm 12 is built.
+
+
+
+    The underlying issue is that the mathematics of the diagonal in a typed setting is more delicate than Guard's
+     one-level natural-number story suggests. Guard can write sub(j,j) once and read it at either level; we
+    cannot. Until the agent has internalised (a) which functor realises Guard's sub in our setting (answer: sub,
+    not subT, because of cor), and (b) that the code-level diagonal identity is a named lemma proved by induction
+     on F, not a definitional equality, the file will not come out fast.
+
+    The fix is not to grind harder. It is to stop, state the two meta lemmas explicitly (codeCommutes by
+    induction on Formula; the diagonal identity as its specialisation at F), use sub instead of subT, and then
+    write Thm 11 in a dozen lines that compose them. If the agent is not doing that structural work first, it is
+    looping on surface syntax.
+
+    Guard, I just conflated "not in Guard's notation" with "a typing artefact".
+
+    So the right diagnosis is simpler: the agent isn't slow because of typing, it's slow because it hasn't
+        committed to (i) using sub (with cor) as Guard's sub, and (ii) naming codeCommutes as a lemma. Both are
+	    Guard-level mathematical moves that a number-only presentation hides in notation but does not eliminate.
+	                                     ~

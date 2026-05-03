@@ -1,4 +1,4 @@
-# Next session — Theorem 14 Phase C (lifted step3..step5 chain)
+# Next session — Theorem 14 Phase C (precise blocker + paths)
 
 ## Status from previous session (2026-05-02)
 
@@ -6,209 +6,185 @@ Phase A and Phase B of `BRA/NEXT-SESSION-THM14-CONSTR5.md` are
 landed and typecheck:
 
   * **Phase A** — `BRA/Thm14Numerals.agda` (170 LoC, 0.33s).
-    Closed encoded witnesses:
-      * `t_formula`, `t_deriv`, `t_term`, `t_witness` — Guard's
-        transitivity tautology `(x_0=x_2) ⊃ ((x_1=x_2) ⊃ (x_0=x_1))` .
-      * `t'_formula`, `t'_deriv`, `t'_term`, `t'_witness` — Guard's
-        ex-falso tautology `(x_0=x_1) ⊃ ((¬(x_0=x_1)) ⊃ (0=1))`  via
-        `axExFalso` .
+    Closed encoded witnesses `t_term + t_witness` (transitivity) and
+    `t'_term + t'_witness` (ex-falso).
 
   * **Phase B** — `BRA/Thm14Constr5Final.agda` (266 LoC, 0.61s).
-    Closed Fun1 definitions parametric in `r12_th` , `r12_sub` :
-      * `f_part`, `g_part`, `K_part`, `h_part`, `constr5` — Guard's
-        sb-chain numerals built from `Comp2 / KT / I / cor / D_thmT /
-        D_sub_at_ii` .
+    Closed Fun1 definitions for `f_part, g_part, K_part, h_part,
+    constr5` parametric in `r12_th, r12_sub`.
 
-These are NO-PROOF structural definitions of the encoded sb-chain;
-each `ap1 F x` BRA-equationally reduces to the Term form of Guard's
-encoded sb-chain layer.  The Fun1 algebra used is the standard
-`pairF1 = Comp2 Pair` , `constTermF1 = KT` , `constApp2F1 g a b =
-Comp2 g (KT a) (KT b)` for closed-but-non-canonical constants.
+## Phase C blocker — precise diagnosis
 
-## Phase C: the lifted step3..step5 chain (THIS SESSION)
+**The obstruction is in `body_ruleInst`'s CODEP_extractor design.**
 
-Goal: produce
+Currently in `BRA/Thm/ThmT.agda:347`:
 ```agda
-step5_l : (x : Term) ->
-          Deriv (PrAtX x imp
-                  atomic (eqn (ap1 thmT (ap1 constr5 x))
-                              (reify (codeFormula bot))))
+body_ruleInst = Fan
+                  ARGS_extractor                                       -- works on `a`
+                  (Post (Comp (Comp Fst Snd) (Comp Snd Snd)) Pair)     -- works on `recs`
+                  subT
 ```
-inside `module Th14Constr5Final (r12_th : Thm12_F1_Result thmT)
-(r12_sub : Thm12_F2_Result sub) where ...` (the existing module in
-`BRA/Thm14Constr5Final.agda` ).  Then Phase D plugs `(constr5,
-step5_l)` into `BRA.GoedelII.Compose` for the headline `godelII :
-Deriv Con -> Deriv bot` .
 
-### Pre-flight (mandatory; ~30 min)
+`ap2 body_ruleInst a recs` evaluates the second arg to
+`Fst(Snd(Snd recs)) = Fst(Snd(thmT payT))` where `payT = Pair varCode
+(Pair y tT)`.  By the cascade reasoning (varCode is closed Pair-shape),
+`thmT payT = Pair (thmT varCode) (thmT (Pair y tT))`.  So we end up at
+`Fst(thmT(Pair y tT))` — and to identify this with `thmT y` requires
+distributing thmT through `(Pair y tT)`, which requires `Fst y =
+Pair _ _` (xShape on y).
 
-1. Re-read `guard15.pdf` p.16-17 (Theorems 11-14) and `BRA/COR-AT-SB-LOAD-BEARING.md` .
-2. Verify the substitution sequence in Guard's `f, g, h, K, constr5`
-   matches the structural definitions in `BRA/Thm14Constr5Final.agda`
-   (Phase B comments document the intended encoding).  Do NOT re-derive
-   this from scratch; just check.
-3. Re-read `BRA/Thm14Step4Test.agda` — it exercises
-   `body_ruleInst_eval_param` with a single sb-step at var 1 + cor x
-   substituent.  This is the same pattern used by `K_part` 's
-   correctness proof (= step 4 of Guard).
+**Why no shape on y is available**:  In the closure
+(`Thm14Abstract.GodelII.closureToG`), `step5` is applied at `x := var
+(suc zero)`.  That `var 1` flows into K_part, h_part, etc. as the
+proof-index `y` of the sb-encoded ruleInst trees.  `Fst (var 1)` does
+not reduce; no axiom gives it Pair-shape.
 
-### Layout
+**Why the hypothesis doesn't bridge**:  The hypothesis we have is
+`thmT (var 1) = cG` (= the antecedent of step5's internal implication,
+or the lifted `PrAtX x` Carneiro hypothesis).  This is a fact about
+`thmT y`, not about `Fst y`.  Distributing thmT through `(Pair y tT)`
+needs xShape on y, which the hypothesis does not provide.
 
-Add a new file `BRA/Thm14Phase_C.agda` (or extend `Thm14Constr5Final.agda` —
-the latter starts to typecheck slowly under the Thm12-result import,
-so a new file is likely cleaner).  Skeleton:
+**Why Guard has no analogous blocker**:  Guard's Definition 12 line 2
+(`th(4y+1) = sb(KKy, LKy, th(Ly))`) is a parametric defining equation,
+stated for ANY `y`, with no shape hypothesis.  Our `thmT` (built via
+`Rec stepProtoWrapped`) does NOT satisfy this equation parametrically
+in `y` — only for closed `y` whose Fst-shape is derivable.
 
+## Three viable fixes (each substantial)
+
+### Fix 1: Modify `body_ruleInst`'s CODEP_extractor (cleanest mathematically)
+
+Replace
 ```agda
-module BRA.Thm14Phase_C
-  (r12_th  : Thm12_F1_Result thmT)
-  (r12_sub : Thm12_F2_Result sub)
-  where
-
-open BRA.Thm14Constr5Final.Th14Constr5Final r12_th r12_sub
-  using ( D_thmT ; D_sub ; D_sub_at_ii
-        ; f_part ; g_part ; K_part ; h_part ; constr5
-        ; sub_ii_subst )
-
-open import BRA.Th14Constr5
-open Th14Constr5 r12_th r12_sub
-  using (step1_l ; step2_l)
-
--- Step 3 ...  ~150-200 LoC
-step3_l : (x : Term) -> ...
-
--- Step 4 ...  ~80-120 LoC
-step4_l : (x : Term) -> ...
-
--- Step 5 inner (encMp on h_part / g_part) ...  ~120-180 LoC
-step5_inner : (x : Term) -> ...
-
--- Step 5 (encMp on inner / K_part) ...  ~30 LoC
-step5_l : (x : Term) -> ...
+body_ruleInst =
+  Fan ARGS_extractor
+      (Post (Comp (Comp Fst Snd) (Comp Snd Snd)) Pair)    -- uses recs
+      subT
+```
+with
+```agda
+body_ruleInst =
+  Fan ARGS_extractor
+      (Lift (Comp thmT (Comp Fst (Comp Snd Snd))))         -- uses a + thmT
+      subT
 ```
 
-### Per-step recipe
+Then `ap2 body_ruleInst a recs = subT (extracted args) (thmT y)`
+where `y = Fst(Snd(Snd a))` — bypassing the recs entirely.
 
-Each `step_K_l x` is a `liftedRuleTrans P (...) (...) (...)` chain
-over already-lifted pieces (helpers from `BRA.Thm.EvalHelpers` ).
-Where  P = PrAtX x .  Internally each chain node uses one of:
+**Closed-form correctness**:  For closed y_h with `thmT (reify y_h) =
+reify (codeFormula P)` (encode's recursion), the new extractor still
+gives `thmT (reify y_h)` — same value as the old extractor.  So
+`thmTDispRuleInst` (closed form) and `encodeRich` continue to work.
 
-  * `thmTDispMp_param` — for an encMp dispatch (need the inner and
-    outer `thmT` images of the two halves).
-  * `thmTDispRuleInst_param` — for an encRuleInst dispatch (need the
-    `Fst-shape` proof for the proof-index `xT` and the `thmT(xT)`
-    image).
-  * `subTDef` + `codeCommutesFormula` — to reduce `subT(...)
-    (codeFP)` to `reify (codeFormula (substF n t P))` .  Already done
-    inside `thmTDispRuleInst_param` 's body, but Phase C composes a
-    chain of these so the bridge appears at every layer.
-  * `corOfReify` ( `BRA/Cor.agda` ) — to identify `cor (reify v)` with
-    `reify (code (reify v))` at sb substituent positions.  Used at the
-    "depends on x" leaves where the substituent is `ap1 cor x` and
-    `code (ap1 cor x)` for an arbitrary  x  is a stuck term — the
-    bridge is what makes  cor x = num x  parametric in  x  match
-    Guard's encoding.
+**Parametric correctness**:  For open `y` with hypothesis `thmT y =
+codeP`, the new extractor gives `thmT y` directly, then
+`ruleTrans (cong refl ...) hyp` rewrites to `codeP`.  No shape on y
+needed.
 
-### The cor-bridge gotcha
+**Blocker**:  `body_ruleInst` is defined at line 347 of `ThmT.agda`,
+inside the abstract block, BEFORE `thmT = Rec stepProtoWrapped` at
+line 728.  The current scoping has `thmT` reference `body_ruleInst`
+via the cascade, so making `body_ruleInst` reference `thmT` creates
+a cycle.
 
-The hardest part of Phase C is the cor-bridge derivation at sb-leaves
-where the substituent is `ap1 cor x` for a runtime  x .  The result
-of `thmTDispRuleInst_param 0 (ap1 cor x) (reify t_term) ...` is
+**Resolution**:  Use a `mutual` block (or equivalent forward
+declaration) for `body_ruleInst` and `thmT`.  Agda accepts this
+because Fun1/Fun2 expressions are finite — the cycle is at the level
+of NAMES, not at the level of values (which both unfold to finite
+syntax trees).
 
+**Cost**:  Restructure the abstract block around lines 100-1000 of
+`ThmT.agda` to put `thmT` and `body_ruleInst` in a mutual block.
+Re-prove `body_ruleInst_eval` (closed form) with the new structure
+(~50 LoC change).  Re-derive `thmTDispRuleInst_param` without xShape
+(~80 LoC).  Total: ~200-300 LoC of careful surgery.
+
+### Fix 2: Add `axThmTSub` as a Deriv axiom
+
+Add to `BRA.Deriv.agda`:
+```agda
+axThmTSub :
+  (n : Nat) (tT y codeP : Term) ->
+  Deriv (atomic (eqn (ap1 thmT y) codeP)) ->
+  Deriv (atomic (eqn
+    (ap1 thmT (ap2 Pair tagCode_ruleInst
+                (ap2 Pair (reify (code (var n))) (ap2 Pair y tT))))
+    (ap2 subT (ap2 Pair (reify (code (var n))) tT) codeP)))
 ```
-ap1 thmT (Pair tagCode_ruleInst (Pair varCode0T (Pair (reify t_term) (ap1 cor x))))
-  =  ap2 subT (Pair varCode0T (ap1 cor x)) (ap1 thmT (reify t_term))
-```
 
-Then by `t_witness` (lifted under  P ): `ap1 thmT (reify t_term) =
-reify (codeFormula t_formula)` — closed.
+This is Definition 12 line 2 stated as a Deriv constructor.  Justified
+because it IS the definition (Guard treats it as primitive).
 
-Then we need to identify `subT (Pair varCode0T (ap1 cor x)) (reify
-(codeFormula t_formula))` with `reify (codeFormula (substF 0 (ap1 cor
-x) t_formula))` .  This is `subTDef` + `codeCommutesFormula` , the
-SAME pattern thmTDispRuleInst_param 's body uses internally.  But
-`code (ap1 cor x)` for arbitrary  x  is stuck, so the
-`codedSubst (code (ap1 cor x)) (code (var 0)) (codeFormula t_formula)`
-form also is stuck.
+**Blocker**:  `Deriv.agda` currently imports only `BRA.Term` and
+`BRA.Formula`.  `thmT` lives in `BRA.Thm.ThmT` and `subT` in
+`BRA.SubT`.  To state the axiom in `Deriv.agda`, we'd need to move
+`thmT`'s and `subT`'s definitions into `Deriv.agda` (or create a
+shared base file).  Major refactor.
 
-The cor-bridge says: for canonical inputs, `cor (reify v) = reify
-(code (reify v))` .  When step5 is later instantiated at `x := var 1`
-in the closure, `cor (var 1)` does NOT reduce — it stays as
-`ap1 cor (var 1)` .  However, the closure ruleInst-s at `(var 1)` and
-inserts the canonical witness later via `subIIeqcG` , so the cor-bridge
-is invoked at the closed-instance level.
+**Alternative**:  Define `axThmTSub` as an `abstract` lemma in a new
+file `BRA/AxThmTSub.agda` after thmT/subT are defined.  But the body
+must DERIVE it — which is the original blocker (impossible without
+xShape).  So this option requires either (a) postulating (against
+`--safe`), (b) leveraging Fix 1, or (c) reverting to the closed-form
+restriction.
 
-**Recommended approach**: parameterise the chain over a
-substituent-handling lemma `corBridge : (x : Term) -> Deriv (...)`
-which is supplied at the call site (where  x  is canonical OR known to
-be `var k` with a Pair-shape proof from `MaxVar.pickFresh` ).  See
-`BRA/MaxVar.agda` for fresh-variable pickers.
+### Fix 3: Add new tag + body to the cascade
 
-### Files / commits to expect
+Add `tagSb` (a 41st tag) with `body_sb` using the Lift+Comp(thmT, ...)
+form.  Re-encode K_part etc. to use `tagSb` instead of `tagRuleInst`.
 
-  * `BRA/Thm14Phase_C.agda` — main file, ~600-800 LoC.  Commit per
-    sub-step (step3_l, step4_l, step5_inner, step5_l).
-  * Possibly a small helper file `BRA/Thm14CorBridge.agda` if the
-    cor-bridge layer ends up >100 LoC.
-  * `BRA/GoedelIIFinal.agda` — Phase D headline (~30 LoC).
+**Cost**:  Add to `BRA/Thm/Tag.agda` (one new tag), `BRA/Thm/TagCodes.agda`
+(one new code), and to `BRA/Thm/ThmT.agda`: extend the cascade by one
+level (~40 lines), add 40 new `skipAtTag` invocations (one in each
+existing dispatch lemma), prove the new dispatch lemma.  Total:
+~500-800 LoC.
 
-### Recommended attack order
+## Recommended path
 
-1. **(2 hr) step3_l** .  This is the most complex step (3-deep
-   ruleInst chain inside f_part + 2 mp wraps).  If you can get this
-   to typecheck, the rest follow the same pattern.  Commit on
-   completion.
+**Fix 1** is the cleanest and most faithful to Guard's mathematics.
+The resolution (mutual block) is straightforward in principle but
+requires care in re-proving body_ruleInst_eval.
 
-2. **(1 hr) step4_l** .  Single ruleInst at K_part .  The
-   `Thm14Step4Test.agda` work is directly applicable.  Commit.
+**Fix 2** is conceptually simplest (just add an axiom) but blocked by
+the import structure of `Deriv.agda`.
 
-3. **(2-3 hr) step5_inner + step5_l** .  Two outer mp's combining
-   step3_l, step4_l, and the lifted t'-witness chain.  Commit.
+**Fix 3** is most conservative (no existing code changes) but most
+verbose.
 
-4. **(15 min) Phase D** .  Open `BRA/GoedelIIFinal.agda` and write
-   one module instantiation:
-   ```agda
-   module Final = BRA.GoedelII.Compose constr5 step5_l
-   godelII : Deriv Con -> Deriv bot
-   godelII = Final.godelII
-   ```
+I recommend Fix 1.  Estimated effort: one focused 4-6 hour session
+for the surgery + re-proofs.  After Fix 1 lands, Phase C's
+`step3_l..step5_l` chain follows mechanically (~600-800 LoC) and Phase
+D is one line.
 
-### Stopping criteria
+## What's already in place
 
-If a sub-step >2 hours of stuck shape obligations, write a
-sub-step prompt and stop.  The Phase C chain has many small obligations,
-and grinding through unsuccessfully for >2 hours is the explicit
-warning in NEXT-SESSION-THM14-CONSTR5.md .
-
-### What to update on success
-
-  * `MEMORY.md` add  `project_godelII_unconditional.md` .
-  * `BRA/THM14-OBSTRUCTIONS.md` mark all PINNED items as RESOLVED.
-  * Delete this file (now superseded).
-  * `BRA/Thm14Final.agda` (or `BRA/GoedelIIFinal.agda` ) becomes the
-    canonical Goedel II chain entry point.
+  * `BRA/Thm14Numerals.agda` (committed 60b3119) — Phase A.
+  * `BRA/Thm14Constr5Final.agda` (committed 8b11e3b) — Phase B.
+  * `BRA/Th14Constr5.agda` — `step1_l, step2_l` already lifted.
+  * `BRA/SbRuntime.agda` — `Df_F1_I_runtime` exhibits the pattern
+    with closed proof-index (where xShape is trivially derivable).
+  * `BRA/Thm14Step4Test.agda` — confirms the xShape obstruction
+    exists for parametric proof-index.
 
 ## Constraints
 
   * ASCII only.
   * `{-# OPTIONS --safe --without-K --exact-split #-}` .
   * No postulates, no holes, no with-abstraction, no dot patterns.
-  * No new `Deriv` constructors, no new tagged dispatchers in
-    `BRA/Thm/ThmT.agda` .
-  * Do not weaken any other theorem.
+  * Fix 1 is allowed (it does not add new Deriv axioms; only
+    restructures existing code).
+  * Fix 2 would require lifting "no new Deriv axioms" — discuss
+    before committing.
 
 ## See also
 
-  * `BRA/NEXT-SESSION-THM14-CONSTR5.md` — the parent prompt; Phase C
-    instructions section (~lines 130-180) is the canonical recipe.
-  * `BRA/Thm14Step4Test.agda` — proven prototype for the K_part step.
-  * `BRA/Thm.ThmT.agda:8838` — `thmTDispRuleInst_param` (parametric
-    Term substituent).
-  * `BRA/Thm.ThmT.agda:5575` — `thmTDispMp` (closed-form mp dispatch);
-    parametric variant `thmTDispMp_param` lives at the same module
-    layer if needed.
-  * `BRA/Thm.EvalHelpers.agda` — `liftAxiom / liftedRuleTrans /
-    liftedCong1 / liftedCongL / liftedCongR` and their two-layer
-    variants used at every chain node.
-  * `BRA/COR-AT-SB-LOAD-BEARING.md` — the cor-bridge analysis;
-    identifies the 6 sb-substituent positions in Guard's chain that
-    need num's specification.
+  * `BRA/THM14-OBSTRUCTIONS.md` — historical pitfalls.
+  * `BRA/Thm/ThmT.agda:347` — `body_ruleInst` definition.
+  * `BRA/Thm/ThmT.agda:8511` — `body_ruleInst_eval` (closed form,
+    needs re-proof under Fix 1).
+  * `BRA/Thm/ThmT.agda:8729` — `body_ruleInst_eval_param` (parametric
+    with xShape, removed under Fix 1 in favor of shape-free version).
+  * `BRA/Thm/ThmT.agda:8838` — `thmTDispRuleInst_param` (the
+    xShape-requiring lemma; replaced under Fix 1).

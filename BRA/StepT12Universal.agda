@@ -85,6 +85,7 @@ noRec1_KT (ap2 (Fan h1 h2 h) a b) = nr_Z
 noRec1_KT (ap2 IfLf a b)          = nr_Z
 noRec1_KT (ap2 TreeEq a b)        = nr_Z
 noRec1_KT (ap2 (RecP s) a b)      = nr_Z
+noRec1_KT (ap2 (treeRec f s) a b) = nr_Z
 
 ------------------------------------------------------------------------
 -- Universal dispatchers, mutually recursive over Fun1/Fun2 + NoRec witness.

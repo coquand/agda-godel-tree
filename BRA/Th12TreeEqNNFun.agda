@@ -3,19 +3,31 @@
 -- BRA.Th12TreeEqNNFun -- closed Fun2 for the (Pair, Pair) NN case of
 -- Theorem 12 for TreeEq.
 --
--- Phase 2 of the schematic Theorem 12 for TreeEq programme (the
--- ruleIndBT2 path).  See BRA/NEXT-SESSION-TREEEQ-CONT.md.
+-- Redesigned (Phase 4 close): emits a chain Df at NN input.
 --
--- Provides:
---   * D_TreeEq_NN_fun : Fun2  -- closed.
---   * D_TreeEq_NN_closed       -- substF2 commutativity (trivially refl).
---   * D_TreeEq_NN_reduce_NN    -- BRA-eq reduction at (Pair v1 v2)(Pair w1 w2).
+--   ap2 D_TreeEq_NN_fun (Pair v1 v2)(Pair v3 v4) =BRA
+--     Pair tagCode_ruleTrans (Pair y1T y2T)
 --
--- The chain Df emitted at NN input is the basic axTreeEqNN-encoded
--- payload:  Pair tagCode_axTreeEqNN (Pair v1 (Pair v2 (Pair w1 w2))) .
--- The basePP_imp proof in a follow-up file bridges this to
--- codeFTeq2Asym TreeEq (Pair v1 v2)(Pair w1 w2) using diagonal cross-IHs
--- + ruleTrans + cor reductions.
+-- where:
+--   y1T = parEncAxTreeEqNN (cor v1)(cor v2)(cor v3)(cor v4)
+--       = encoded axTreeEqNN dispatch payload (cor-wrapped args).
+--   y2T = ap2 D_IfLf (ap2 TreeEq v1 v3)
+--                    (ap2 Pair (ap2 TreeEq v2 v4)(ap2 Pair O O))
+--       = opaque-applied-form Fun2-image whose thmT-image comes from
+--         Th12_F2_IfLf at (TreeEq v1 v3, Pair (TreeEq v2 v4)(Pair O O)).
+--
+-- The chain Df dispatches via thmTDispRuleTrans_param to give
+-- Pair u1 u4 where:
+--   u1 = parOutAxTreeEqNN's LHS slot at the cor-wrapped inputs
+--      = mkAp2T cf2 (mkAp2T pCT (cor v1)(cor v2))(mkAp2T pCT (cor v3)(cor v4))
+--      = mkAp2T cf2 (cor (Pair v1 v2))(cor (Pair v3 v4))      [via corOfPair x2]
+--      = LHS slot of codeFTeq2_TreeEq (Pair v1 v2)(Pair v3 v4)
+--   u4 = cor (IfLf (TreeEq v1 v3)(Pair (TreeEq v2 v4)(Pair O O)))
+--      = cor (TreeEq (Pair v1 v2)(Pair v3 v4))                [via cong1 cor (ruleSym axTreeEqNN)]
+--
+-- This file delivers D_TreeEq_NN_fun + closure only.  The reduction
+-- proof at NN input lives in BRA/Th12TreeEqNNReduce.agda; the basePP_imp
+-- proof in BRA/Th12TreeEqBasePP.agda.
 --
 -- No postulates, no holes, --safe --without-K --exact-split.
 
@@ -25,143 +37,114 @@ open import BRA.Base
 open import BRA.Term
 open import BRA.Formula
 open import BRA.Deriv
-open import BRA.Thm.Tag using (tagAxTreeEqNN)
-open import BRA.Thm.ThmT using (tagCode_axTreeEqNN)
+open import BRA.Cor
+open import BRA.Thm.Tag using (tagAxTreeEqNN ; tagRuleTrans)
+open import BRA.Thm.ThmT using (tagCode_axTreeEqNN ; tagCode_ruleTrans)
+open import BRA.Thm12.Parts.IfLf using (D_IfLf)
 
 ------------------------------------------------------------------------
--- Closed Fun2 emitting axTreeEqNN-encoded payload at NN input.
---
--- At runtime input  (orig = Pair v1 v2, recs = Pair w1 w2) :
---   ap2 D_TreeEq_NN_fun orig recs
---     = Pair tagCode_axTreeEqNN (Pair v1 (Pair v2 recs))    [BRA-eq]
---     = Pair tagCode_axTreeEqNN (Pair v1 (Pair v2 (Pair w1 w2))) .
---
--- Construction:
---   inner_payload = Fan (Lift Fst)                       -- v1
---                       (Fan (Lift Snd) (Post Snd Pair)
---                            Pair)                        -- (Pair v2 recs)
---                       Pair                              -- assembles Pair v1 _
---   D_TreeEq_NN_fun = Fan (Lift (KT tagCode_axTreeEqNN))  -- emits the tag
---                          inner_payload                    -- emits the payload
---                          Pair
---
--- The recs slot stays as recs (not unpacked into Pair w1 w2) because
--- the input arrives as Pair w1 w2 already and downstream consumers
--- match on the Pair shape directly.
+-- Fun2 building blocks.
 
-inner_payload_NN : Fun2
-inner_payload_NN =
-  Fan (Lift Fst)
-      (Fan (Lift Snd) (Post Snd Pair) Pair)
-      Pair
+-- Project second arg of Fun2: ap2 sndProj x v = v.
+sndProj : Fun2
+sndProj = Post Snd Pair
+
+-- Plain extractors (return v_i = i-th projection of (orig, recs)).
+ev1 : Fun2
+ev1 = Lift Fst                  -- ap2 _ x v = Fst x
+
+ev2 : Fun2
+ev2 = Lift Snd                  -- ap2 _ x v = Snd x
+
+ev3 : Fun2
+ev3 = Post Fst sndProj          -- ap2 _ x v = Fst v
+
+ev4 : Fun2
+ev4 = Post Snd sndProj          -- ap2 _ x v = Snd v
+
+-- cor-wrapped extractors.
+ecv1 : Fun2
+ecv1 = Lift (Comp cor Fst)      -- ap2 _ x v = cor (Fst x)
+
+ecv2 : Fun2
+ecv2 = Lift (Comp cor Snd)      -- ap2 _ x v = cor (Snd x)
+
+ecv3 : Fun2
+ecv3 = Post (Comp cor Fst) sndProj  -- ap2 _ x v = cor (Fst v)
+
+ecv4 : Fun2
+ecv4 = Post (Comp cor Snd) sndProj  -- ap2 _ x v = cor (Snd v)
+
+------------------------------------------------------------------------
+-- y1Generator: at (Pair v1 v2, Pair v3 v4), produces
+--   Pair tagCode_axTreeEqNN
+--        (Pair (cor v1) (Pair (cor v2) (Pair (cor v3) (cor v4))))
+-- = parEncAxTreeEqNN (cor v1)(cor v2)(cor v3)(cor v4).
+
+innerPair34 : Fun2
+innerPair34 = Fan ecv3 ecv4 Pair
+
+innerPair234 : Fun2
+innerPair234 = Fan ecv2 innerPair34 Pair
+
+innerPair1234 : Fun2
+innerPair1234 = Fan ecv1 innerPair234 Pair
+
+KT_tagAxTreeEqNN : Fun2
+KT_tagAxTreeEqNN = Lift (KT tagCode_axTreeEqNN)
+
+y1Generator : Fun2
+y1Generator = Fan KT_tagAxTreeEqNN innerPair1234 Pair
+
+------------------------------------------------------------------------
+-- y2Generator: at (Pair v1 v2, Pair v3 v4), produces
+--   ap2 D_IfLf (ap2 TreeEq v1 v3)
+--              (ap2 Pair (ap2 TreeEq v2 v4)(ap2 Pair O O))
+
+TreeEq_v1v3_gen : Fun2
+TreeEq_v1v3_gen = Fan ev1 ev3 TreeEq
+
+TreeEq_v2v4_gen : Fun2
+TreeEq_v2v4_gen = Fan ev2 ev4 TreeEq
+
+pairOO : Term
+pairOO = ap2 Pair O O
+
+KT_pairOO : Fun2
+KT_pairOO = Lift (KT pairOO)
+
+innerPair_TreeEqv2v4_pairOO : Fun2
+innerPair_TreeEqv2v4_pairOO = Fan TreeEq_v2v4_gen KT_pairOO Pair
+
+y2Generator : Fun2
+y2Generator = Fan TreeEq_v1v3_gen innerPair_TreeEqv2v4_pairOO D_IfLf
+
+------------------------------------------------------------------------
+-- Inner dispatch: combines y1Generator and y2Generator with Pair.
+
+inner_dispatch : Fun2
+inner_dispatch = Fan y1Generator y2Generator Pair
+
+------------------------------------------------------------------------
+-- D_TreeEq_NN_fun: outer wrapper with tagCode_ruleTrans head.
+--
+-- ap2 D_TreeEq_NN_fun (Pair v1 v2)(Pair v3 v4) =BRA
+--   Pair tagCode_ruleTrans (Pair y1T y2T)
+-- where y1T = parEncAxTreeEqNN(cor v1)(cor v2)(cor v3)(cor v4)
+--       y2T = ap2 D_IfLf (TreeEq v1 v3)(Pair (TreeEq v2 v4)(Pair O O))
+
+KT_tagRuleTrans : Fun2
+KT_tagRuleTrans = Lift (KT tagCode_ruleTrans)
 
 D_TreeEq_NN_fun : Fun2
-D_TreeEq_NN_fun =
-  Fan (Lift (KT tagCode_axTreeEqNN))
-      inner_payload_NN
-      Pair
+D_TreeEq_NN_fun = Fan KT_tagRuleTrans inner_dispatch Pair
 
 ------------------------------------------------------------------------
--- Closure: D_TreeEq_NN_fun is a closed Fun2 (no free vars), so substF2
--- on any (x, r) returns it unchanged.
+-- Closure: D_TreeEq_NN_fun has no free variables.  All components
+-- (Fan/Lift/Post/Comp/Fst/Snd/Pair/IfLf/TreeEq, cor, KT of closed
+-- Terms, D_IfLf) are themselves substF-invariant by definitional
+-- reduction.  refl suffices.
 
 D_TreeEq_NN_closed : (x : Nat) (r : Term) ->
   Eq (substF2 x r D_TreeEq_NN_fun) D_TreeEq_NN_fun
 D_TreeEq_NN_closed x r = refl
-
-------------------------------------------------------------------------
--- Reduction at NN input.
---
--- ap2 D_TreeEq_NN_fun (ap2 Pair v1 v2) (ap2 Pair w1 w2)
---   =BRA Pair tagCode_axTreeEqNN (Pair v1 (Pair v2 (Pair w1 w2))) .
-
-D_TreeEq_NN_reduce : (v1 v2 w1 w2 : Term) ->
-  Deriv (atomic (eqn
-    (ap2 D_TreeEq_NN_fun (ap2 Pair v1 v2) (ap2 Pair w1 w2))
-    (ap2 Pair tagCode_axTreeEqNN
-              (ap2 Pair v1
-                        (ap2 Pair v2 (ap2 Pair w1 w2))))))
-D_TreeEq_NN_reduce v1 v2 w1 w2 =
-  let
-    orig : Term
-    orig = ap2 Pair v1 v2
-
-    recs : Term
-    recs = ap2 Pair w1 w2
-
-    -- Outer Fan: ap2 D_TreeEq_NN_fun orig recs
-    --   = Pair (ap2 (Lift (KT tagCode_axTreeEqNN)) orig recs)
-    --          (ap2 inner_payload_NN orig recs).
-    s_fan : Deriv (atomic (eqn
-              (ap2 D_TreeEq_NN_fun orig recs)
-              (ap2 Pair (ap2 (Lift (KT tagCode_axTreeEqNN)) orig recs)
-                        (ap2 inner_payload_NN orig recs))))
-    s_fan = axFan (Lift (KT tagCode_axTreeEqNN)) inner_payload_NN Pair orig recs
-
-    -- (Lift (KT tagCode_axTreeEqNN)) orig recs = tagCode_axTreeEqNN.
-    s_tag_lift : Deriv (atomic (eqn
-              (ap2 (Lift (KT tagCode_axTreeEqNN)) orig recs)
-              (ap1 (KT tagCode_axTreeEqNN) orig)))
-    s_tag_lift = axLift (KT tagCode_axTreeEqNN) orig recs
-
-    s_tag_kt : Deriv (atomic (eqn
-              (ap1 (KT tagCode_axTreeEqNN) orig)
-              tagCode_axTreeEqNN))
-    s_tag_kt = axKT (natCode tagAxTreeEqNN) orig
-
-    s_tag : Deriv (atomic (eqn
-              (ap2 (Lift (KT tagCode_axTreeEqNN)) orig recs)
-              tagCode_axTreeEqNN))
-    s_tag = ruleTrans s_tag_lift s_tag_kt
-
-    -- inner_payload_NN orig recs = Pair v1 (Pair v2 recs).
-    s_inner_fan : Deriv (atomic (eqn
-              (ap2 inner_payload_NN orig recs)
-              (ap2 Pair (ap2 (Lift Fst) orig recs)
-                        (ap2 (Fan (Lift Snd) (Post Snd Pair) Pair) orig recs))))
-    s_inner_fan = axFan (Lift Fst)
-                       (Fan (Lift Snd) (Post Snd Pair) Pair)
-                       Pair orig recs
-
-    -- (Lift Fst) orig recs = ap1 Fst orig = Fst (Pair v1 v2) = v1.
-    s_v1 : Deriv (atomic (eqn (ap2 (Lift Fst) orig recs) v1))
-    s_v1 = ruleTrans (axLift Fst orig recs) (axFst v1 v2)
-
-    -- (Fan (Lift Snd) (Post Snd Pair) Pair) orig recs = Pair v2 recs.
-    s_inner2_fan : Deriv (atomic (eqn
-              (ap2 (Fan (Lift Snd) (Post Snd Pair) Pair) orig recs)
-              (ap2 Pair (ap2 (Lift Snd) orig recs)
-                        (ap2 (Post Snd Pair) orig recs))))
-    s_inner2_fan = axFan (Lift Snd) (Post Snd Pair) Pair orig recs
-
-    s_v2 : Deriv (atomic (eqn (ap2 (Lift Snd) orig recs) v2))
-    s_v2 = ruleTrans (axLift Snd orig recs) (axSnd v1 v2)
-
-    -- (Post Snd Pair) orig recs = ap1 Snd (ap2 Pair orig recs) = Snd (Pair orig recs) = recs.
-    s_recs : Deriv (atomic (eqn (ap2 (Post Snd Pair) orig recs) recs))
-    s_recs = ruleTrans (axPost Snd Pair orig recs) (axSnd orig recs)
-
-    -- Combine: Pair v2 recs.
-    s_inner2 : Deriv (atomic (eqn
-              (ap2 (Fan (Lift Snd) (Post Snd Pair) Pair) orig recs)
-              (ap2 Pair v2 recs)))
-    s_inner2 = ruleTrans s_inner2_fan
-                  (ruleTrans (congL Pair (ap2 (Post Snd Pair) orig recs) s_v2)
-                             (congR Pair v2 s_recs))
-
-    -- Combine: Pair v1 (Pair v2 recs).
-    s_inner : Deriv (atomic (eqn
-              (ap2 inner_payload_NN orig recs)
-              (ap2 Pair v1 (ap2 Pair v2 recs))))
-    s_inner = ruleTrans s_inner_fan
-                  (ruleTrans (congL Pair (ap2 (Fan (Lift Snd) (Post Snd Pair) Pair) orig recs) s_v1)
-                             (congR Pair v1 s_inner2))
-
-    -- Final: Pair tagCode_axTreeEqNN (Pair v1 (Pair v2 recs)).
-    s_final : Deriv (atomic (eqn
-              (ap2 D_TreeEq_NN_fun orig recs)
-              (ap2 Pair tagCode_axTreeEqNN (ap2 Pair v1 (ap2 Pair v2 recs)))))
-    s_final = ruleTrans s_fan
-                (ruleTrans (congL Pair (ap2 inner_payload_NN orig recs) s_tag)
-                           (congR Pair tagCode_axTreeEqNN s_inner))
-  in s_final

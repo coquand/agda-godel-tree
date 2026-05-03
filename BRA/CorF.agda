@@ -70,10 +70,10 @@ trivialF2 : (g : Fun2) (x v : Term) -> CorF2Result g x v
 trivialF2 g x v = mkCorF2 (ap1 cor (ap2 g x v)) (axRefl (ap1 cor (ap2 g x v)))
 
 ------------------------------------------------------------------------
--- Cor on O reduces to O (via axRecLf, since cor = Rec O stepCor).
+-- Cor on O reduces to O (via axRecLf, since cor = Rec stepCor).
 
 corO_eq : Deriv (atomic (eqn (ap1 cor O) O))
-corO_eq = axRecLf O stepCor
+corO_eq = axRecLf stepCor
 
 ------------------------------------------------------------------------
 -- Mutual recursion.
@@ -105,7 +105,7 @@ corF1 Fst (ap2 (Post _ _) a b) = trivialF1 Fst (ap2 (Post _ _) a b)
 corF1 Fst (ap2 (Fan _ _ _) a b) = trivialF1 Fst (ap2 (Fan _ _ _) a b)
 corF1 Fst (ap2 IfLf a b)       = trivialF1 Fst (ap2 IfLf a b)
 corF1 Fst (ap2 TreeEq a b)     = trivialF1 Fst (ap2 TreeEq a b)
-corF1 Fst (ap2 (RecP _) a b)   = trivialF1 Fst (ap2 (RecP _) a b)
+corF1 Fst (ap2 (treeRec _ _) a b) = trivialF1 Fst (ap2 (treeRec _ _) a b)
 
 -- Snd: shape-dispatched.
 corF1 Snd O =
@@ -120,7 +120,7 @@ corF1 Snd (ap2 (Post _ _) a b) = trivialF1 Snd (ap2 (Post _ _) a b)
 corF1 Snd (ap2 (Fan _ _ _) a b) = trivialF1 Snd (ap2 (Fan _ _ _) a b)
 corF1 Snd (ap2 IfLf a b)       = trivialF1 Snd (ap2 IfLf a b)
 corF1 Snd (ap2 TreeEq a b)     = trivialF1 Snd (ap2 TreeEq a b)
-corF1 Snd (ap2 (RecP _) a b)   = trivialF1 Snd (ap2 (RecP _) a b)
+corF1 Snd (ap2 (treeRec _ _) a b) = trivialF1 Snd (ap2 (treeRec _ _) a b)
 
 -- Comp f g: ap1 (Comp f g) x = ap1 f (ap1 g x).
 -- cor (Comp f g x) = cor (f (g x)) = corF1 f (g x).
@@ -146,40 +146,10 @@ corF1 (Comp2 h f g) x =
     bridge = cong1 cor (axComp2 h f g x)
   in mkCorF1 (result2 sub) (ruleTrans bridge (proof2 sub))
 
--- Rec z s: shape-dispatched on x.
-corF1 (Rec z s) O =
-  mkCorF1 (ap1 cor z) (cong1 cor (axRecLf z s))
-corF1 (Rec z s) (ap2 Pair a b) =
-  let
-    pairT : Term
-    pairT = ap2 Pair a b
-
-    rec_a : Term
-    rec_a = ap1 (Rec z s) a
-
-    rec_b : Term
-    rec_b = ap1 (Rec z s) b
-
-    rec_pair : Term
-    rec_pair = ap2 Pair rec_a rec_b
-
-    -- ap1 (Rec z s) (Pair a b) = s pairT rec_pair  (via axRecNd).
-    bridge : Deriv (atomic (eqn (ap1 cor (ap1 (Rec z s) pairT))
-                                 (ap1 cor (ap2 s pairT rec_pair))))
-    bridge = cong1 cor (axRecNd z s a b)
-
-    sub : CorF2Result s pairT rec_pair
-    sub = corF2 s pairT rec_pair
-  in mkCorF1 (result2 sub) (ruleTrans bridge (proof2 sub))
-corF1 (Rec z s) (var n)         = trivialF1 (Rec z s) (var n)
-corF1 (Rec z s) (ap1 f' x')     = trivialF1 (Rec z s) (ap1 f' x')
-corF1 (Rec z s) (ap2 Const a b)        = trivialF1 (Rec z s) (ap2 Const a b)
-corF1 (Rec z s) (ap2 (Lift _) a b)     = trivialF1 (Rec z s) (ap2 (Lift _) a b)
-corF1 (Rec z s) (ap2 (Post _ _) a b)   = trivialF1 (Rec z s) (ap2 (Post _ _) a b)
-corF1 (Rec z s) (ap2 (Fan _ _ _) a b)  = trivialF1 (Rec z s) (ap2 (Fan _ _ _) a b)
-corF1 (Rec z s) (ap2 IfLf a b)         = trivialF1 (Rec z s) (ap2 IfLf a b)
-corF1 (Rec z s) (ap2 TreeEq a b)       = trivialF1 (Rec z s) (ap2 TreeEq a b)
-corF1 (Rec z s) (ap2 (RecP _) a b)     = trivialF1 (Rec z s) (ap2 (RecP _) a b)
+-- Rec is now an Agda function ( Rec s = Comp2 (treeRec Z s) Z I ); the
+-- old per-Rec dispatch clauses are unreachable / not pattern-matchable
+-- and have been deleted.  The Comp2 / treeRec sub-cases handle the
+-- structure transparently when needed by callers.
 
 ------------------------------------------------------------------------
 -- corF2 cases.
@@ -249,7 +219,7 @@ corF2 IfLf O (ap2 (Post _ _) a b)    = trivialF2 IfLf O (ap2 (Post _ _) a b)
 corF2 IfLf O (ap2 (Fan _ _ _) a b)   = trivialF2 IfLf O (ap2 (Fan _ _ _) a b)
 corF2 IfLf O (ap2 IfLf a b)          = trivialF2 IfLf O (ap2 IfLf a b)
 corF2 IfLf O (ap2 TreeEq a b)        = trivialF2 IfLf O (ap2 TreeEq a b)
-corF2 IfLf O (ap2 (RecP _) a b)      = trivialF2 IfLf O (ap2 (RecP _) a b)
+corF2 IfLf O (ap2 (treeRec _ _) a b) = trivialF2 IfLf O (ap2 (treeRec _ _) a b)
 corF2 IfLf (ap2 Pair x y) O =
   mkCorF2 O (ruleTrans (cong1 cor (axIfLfNL x y)) corO_eq)
 corF2 IfLf (ap2 Pair x y) (ap2 Pair c d) =
@@ -262,7 +232,7 @@ corF2 IfLf (ap2 Pair x y) (ap2 (Post _ _) a b)    = trivialF2 IfLf (ap2 Pair x y
 corF2 IfLf (ap2 Pair x y) (ap2 (Fan _ _ _) a b)   = trivialF2 IfLf (ap2 Pair x y) (ap2 (Fan _ _ _) a b)
 corF2 IfLf (ap2 Pair x y) (ap2 IfLf a b)          = trivialF2 IfLf (ap2 Pair x y) (ap2 IfLf a b)
 corF2 IfLf (ap2 Pair x y) (ap2 TreeEq a b)        = trivialF2 IfLf (ap2 Pair x y) (ap2 TreeEq a b)
-corF2 IfLf (ap2 Pair x y) (ap2 (RecP _) a b)      = trivialF2 IfLf (ap2 Pair x y) (ap2 (RecP _) a b)
+corF2 IfLf (ap2 Pair x y) (ap2 (treeRec _ _) a b) = trivialF2 IfLf (ap2 Pair x y) (ap2 (treeRec _ _) a b)
 corF2 IfLf (var n)        v                  = trivialF2 IfLf (var n) v
 corF2 IfLf (ap1 f' x')    v                  = trivialF2 IfLf (ap1 f' x') v
 corF2 IfLf (ap2 Const a b)        v          = trivialF2 IfLf (ap2 Const a b) v
@@ -271,7 +241,7 @@ corF2 IfLf (ap2 (Post _ _) a b)   v          = trivialF2 IfLf (ap2 (Post _ _) a 
 corF2 IfLf (ap2 (Fan _ _ _) a b)  v          = trivialF2 IfLf (ap2 (Fan _ _ _) a b) v
 corF2 IfLf (ap2 IfLf a b)         v          = trivialF2 IfLf (ap2 IfLf a b) v
 corF2 IfLf (ap2 TreeEq a b)       v          = trivialF2 IfLf (ap2 TreeEq a b) v
-corF2 IfLf (ap2 (RecP _) a b)     v          = trivialF2 IfLf (ap2 (RecP _) a b) v
+corF2 IfLf (ap2 (treeRec _ _) a b) v         = trivialF2 IfLf (ap2 (treeRec _ _) a b) v
 
 -- TreeEq: shape-dispatched on (a, b).  Uses axTreeEq{LL, LN, NL, NN}.
 -- For NN inputs, axTreeEqNN gives an IfLf-form result that further
@@ -290,7 +260,7 @@ corF2 TreeEq O (ap2 (Post _ _) a b)    = trivialF2 TreeEq O (ap2 (Post _ _) a b)
 corF2 TreeEq O (ap2 (Fan _ _ _) a b)   = trivialF2 TreeEq O (ap2 (Fan _ _ _) a b)
 corF2 TreeEq O (ap2 IfLf a b)          = trivialF2 TreeEq O (ap2 IfLf a b)
 corF2 TreeEq O (ap2 TreeEq a b)        = trivialF2 TreeEq O (ap2 TreeEq a b)
-corF2 TreeEq O (ap2 (RecP _) a b)      = trivialF2 TreeEq O (ap2 (RecP _) a b)
+corF2 TreeEq O (ap2 (treeRec _ _) a b) = trivialF2 TreeEq O (ap2 (treeRec _ _) a b)
 corF2 TreeEq (ap2 Pair a b) O =
   mkCorF2 (ap1 cor (ap2 Pair O O)) (cong1 cor (axTreeEqNL a b))
 corF2 TreeEq (ap2 Pair a1 a2) (ap2 Pair b1 b2) =
@@ -306,7 +276,7 @@ corF2 TreeEq (ap2 Pair x y) (ap2 (Post _ _) a b)    = trivialF2 TreeEq (ap2 Pair
 corF2 TreeEq (ap2 Pair x y) (ap2 (Fan _ _ _) a b)   = trivialF2 TreeEq (ap2 Pair x y) (ap2 (Fan _ _ _) a b)
 corF2 TreeEq (ap2 Pair x y) (ap2 IfLf a b)          = trivialF2 TreeEq (ap2 Pair x y) (ap2 IfLf a b)
 corF2 TreeEq (ap2 Pair x y) (ap2 TreeEq a b)        = trivialF2 TreeEq (ap2 Pair x y) (ap2 TreeEq a b)
-corF2 TreeEq (ap2 Pair x y) (ap2 (RecP _) a b)      = trivialF2 TreeEq (ap2 Pair x y) (ap2 (RecP _) a b)
+corF2 TreeEq (ap2 Pair x y) (ap2 (treeRec _ _) a b) = trivialF2 TreeEq (ap2 Pair x y) (ap2 (treeRec _ _) a b)
 corF2 TreeEq (var n) v                              = trivialF2 TreeEq (var n) v
 corF2 TreeEq (ap1 f' x') v                          = trivialF2 TreeEq (ap1 f' x') v
 corF2 TreeEq (ap2 Const a b) v                      = trivialF2 TreeEq (ap2 Const a b) v
@@ -315,45 +285,22 @@ corF2 TreeEq (ap2 (Post _ _) a b) v                 = trivialF2 TreeEq (ap2 (Pos
 corF2 TreeEq (ap2 (Fan _ _ _) a b) v                = trivialF2 TreeEq (ap2 (Fan _ _ _) a b) v
 corF2 TreeEq (ap2 IfLf a b) v                       = trivialF2 TreeEq (ap2 IfLf a b) v
 corF2 TreeEq (ap2 TreeEq a b) v                     = trivialF2 TreeEq (ap2 TreeEq a b) v
-corF2 TreeEq (ap2 (RecP _) a b) v                   = trivialF2 TreeEq (ap2 (RecP _) a b) v
+corF2 TreeEq (ap2 (treeRec _ _) a b) v              = trivialF2 TreeEq (ap2 (treeRec _ _) a b) v
 
--- RecP s: shape-dispatched on the second arg.
---   axRecPLf : RecP s p O = O.
---   axRecPNd : RecP s p (Pair a b) = s (Pair p (Pair a b))
---                                       (Pair (RecP s p a) (RecP s p b)).
-corF2 (RecP s) p O =
-  mkCorF2 O (ruleTrans (cong1 cor (axRecPLf s p)) corO_eq)
-corF2 (RecP s) p (ap2 Pair a b) =
-  let
-    pairT : Term
-    pairT = ap2 Pair a b
+-- RecP is now an Agda function ( RecP s = treeRec Z s ); see the
+-- treeRec branch below for how callers see RecP-applications at runtime.
 
-    p_pair : Term
-    p_pair = ap2 Pair p pairT
-
-    rp_a : Term
-    rp_a = ap2 (RecP s) p a
-
-    rp_b : Term
-    rp_b = ap2 (RecP s) p b
-
-    rp_pair : Term
-    rp_pair = ap2 Pair rp_a rp_b
-
-    -- ap2 (RecP s) p (Pair a b) = s p_pair rp_pair (via axRecPNd).
-    bridge : Deriv (atomic (eqn (ap1 cor (ap2 (RecP s) p (ap2 Pair a b)))
-                                 (ap1 cor (ap2 s p_pair rp_pair))))
-    bridge = cong1 cor (axRecPNd s p a b)
-
-    sub : CorF2Result s p_pair rp_pair
-    sub = corF2 s p_pair rp_pair
-  in mkCorF2 (result2 sub) (ruleTrans bridge (proof2 sub))
-corF2 (RecP s) p (var n)            = trivialF2 (RecP s) p (var n)
-corF2 (RecP s) p (ap1 f' x')        = trivialF2 (RecP s) p (ap1 f' x')
-corF2 (RecP s) p (ap2 Const a b)         = trivialF2 (RecP s) p (ap2 Const a b)
-corF2 (RecP s) p (ap2 (Lift _) a b)      = trivialF2 (RecP s) p (ap2 (Lift _) a b)
-corF2 (RecP s) p (ap2 (Post _ _) a b)    = trivialF2 (RecP s) p (ap2 (Post _ _) a b)
-corF2 (RecP s) p (ap2 (Fan _ _ _) a b)   = trivialF2 (RecP s) p (ap2 (Fan _ _ _) a b)
-corF2 (RecP s) p (ap2 IfLf a b)          = trivialF2 (RecP s) p (ap2 IfLf a b)
-corF2 (RecP s) p (ap2 TreeEq a b)        = trivialF2 (RecP s) p (ap2 TreeEq a b)
-corF2 (RecP s) p (ap2 (RecP _) a b)      = trivialF2 (RecP s) p (ap2 (RecP _) a b)
+-- treeRec f s: shape-dispatched on the second arg.  Until  axRLf, axRNd
+-- are added to BRA.Deriv, all  treeRec  cases are trivial fall-throughs.
+-- See BRA/NEXT-SESSION-R-UNIFICATION.md.
+corF2 (treeRec f s) p O                     = trivialF2 (treeRec f s) p O
+corF2 (treeRec f s) p (ap2 Pair a b)        = trivialF2 (treeRec f s) p (ap2 Pair a b)
+corF2 (treeRec f s) p (var n)               = trivialF2 (treeRec f s) p (var n)
+corF2 (treeRec f s) p (ap1 f' x')           = trivialF2 (treeRec f s) p (ap1 f' x')
+corF2 (treeRec f s) p (ap2 Const a b)       = trivialF2 (treeRec f s) p (ap2 Const a b)
+corF2 (treeRec f s) p (ap2 (Lift _) a b)    = trivialF2 (treeRec f s) p (ap2 (Lift _) a b)
+corF2 (treeRec f s) p (ap2 (Post _ _) a b)  = trivialF2 (treeRec f s) p (ap2 (Post _ _) a b)
+corF2 (treeRec f s) p (ap2 (Fan _ _ _) a b) = trivialF2 (treeRec f s) p (ap2 (Fan _ _ _) a b)
+corF2 (treeRec f s) p (ap2 IfLf a b)        = trivialF2 (treeRec f s) p (ap2 IfLf a b)
+corF2 (treeRec f s) p (ap2 TreeEq a b)      = trivialF2 (treeRec f s) p (ap2 TreeEq a b)
+corF2 (treeRec f s) p (ap2 (treeRec _ _) a b) = trivialF2 (treeRec f s) p (ap2 (treeRec _ _) a b)

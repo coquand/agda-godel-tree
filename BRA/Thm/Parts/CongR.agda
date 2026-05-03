@@ -13,13 +13,11 @@ open import BRA.Term
 open import BRA.Formula
 open import BRA.Thm.Tag using (tagCongR)
 
--- Payload order: y_h sits in the inner-pair head so the second-level
--- inner-pair distribution discharges via y_h's shape proof.  See the
--- corresponding note in  BRA.Thm.Parts.CongL .
+-- New layout (Finding 1): see CongL.
 encCongR : Fun2 -> Term -> Tree -> Tree
 encCongR g x y_h = nd (natCode tagCongR)
-                      (nd (codeF2 g)
-                          (nd y_h (code x)))
+                      (nd (nd (codeF2 g) (code x))
+                          y_h)
 
 outCongR : Fun2 -> Term -> Term -> Term -> Tree
 outCongR g x t u = codeFormula (atomic (eqn (ap2 g x t) (ap2 g x u)))

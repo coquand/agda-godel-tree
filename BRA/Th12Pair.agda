@@ -243,14 +243,22 @@ Th12_F2_Pair_at_pair x v =
     argsPair : Term
     argsPair = ap2 Pair (ap2 Pair K2 tA) (ap2 Pair K3 tB)
 
-    s3 : Deriv (atomic (eqn (ap1 thmT runtimeTree)
-                             (ap2 subT2 argsPair (ap1 thmT K4))))
-    s3 = thmTDispRuleInst2_param zero (suc zero) tA tB K4 xShape_K4
-
     -- (3) thmT K4 = reify (outAxRefl (Pair (var 0) (var 1))).
+    -- Pair-shape derived from outAxRefl t = codeFormula (atomic (eqn t t)) for the
+    -- soundified  thmTDispRuleInst2_param .
     s4 : Deriv (atomic (eqn (ap1 thmT K4)
                              (reify (outAxRefl (ap2 Pair (var zero) (var (suc zero)))))))
     s4 = thmTDispAxRefl (ap2 Pair (var zero) (var (suc zero)))
+
+    codePfpPair : Term
+    codePfpPair = reify (code (ap2 Pair (var zero) (var (suc zero))))
+    codePspPair : Term
+    codePspPair = reify (code (ap2 Pair (var zero) (var (suc zero))))
+
+    s3 : Deriv (atomic (eqn (ap1 thmT runtimeTree)
+                             (ap2 subT2 argsPair (ap1 thmT K4))))
+    s3 = thmTDispRuleInst2_param zero (suc zero) tA tB K4 xShape_K4
+                                  codePfpPair codePspPair s4
 
     s5 : Deriv (atomic (eqn (ap2 subT2 argsPair (ap1 thmT K4))
                              (ap2 subT2 argsPair

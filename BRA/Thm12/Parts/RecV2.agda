@@ -264,7 +264,7 @@ module ConstructionV2
   bridgeO : Deriv (atomic (eqn (parOutAxRecLf zT sT) (codeFTeq1_Rec_zs z s O)))
   bridgeO =
     let cor_O : Deriv (atomic (eqn (ap1 cor O) O))
-        cor_O = axRecLf O stepCor
+        cor_O = axRecLf stepCor
         recLf_eq : Deriv (atomic (eqn (ap1 (Rec z s) O) z))
         recLf_eq = axRecLf z s
         cor_recLf_zT : Deriv (atomic (eqn (ap1 cor (ap1 (Rec z s) O)) zT))

@@ -32,7 +32,11 @@ open import BRA.Thm.Parts.RuleInst public
 ------------------------------------------------------------------------
 -- Term-level encoder.
 --
--- parEncRuleInst xT yT tT = ap2 Pair tagCode_ruleInst (Pair xT (Pair yT tT))
+-- parEncRuleInst xT yT tT = ap2 Pair tagCode_ruleInst
+--                              (ap2 Pair (ap2 Pair xT tT) yT)
+--
+-- (refactor 2026-05-02: closed (xT, tT) pair at inner Fst,
+-- OPEN proof yT at outer Snd; matches encRuleInst.)
 --
 -- xT  encodes  reify (code (var x))  -- the variable being substituted.
 -- yT  encodes the proof of P (typically reify y_h for a Tree y_h).
@@ -40,7 +44,7 @@ open import BRA.Thm.Parts.RuleInst public
 
 parEncRuleInst : Term -> Term -> Term -> Term
 parEncRuleInst xT yT tT =
-  ap2 Pair tagCode_ruleInst (ap2 Pair xT (ap2 Pair yT tT))
+  ap2 Pair tagCode_ruleInst (ap2 Pair (ap2 Pair xT tT) yT)
 
 ------------------------------------------------------------------------
 -- Encoded conclusion: the encoded substituted formula.

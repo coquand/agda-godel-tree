@@ -31,6 +31,8 @@ open import BRA.Thm12.Param.AxIfLfLL
   using (parEncAxIfLfLL ; parOutAxIfLfLL ; parDispAxIfLfLL)
 open import BRA.Thm12.Param.AxIfLfNL
   using (parEncAxIfLfNL ; parOutAxIfLfNL ; parDispAxIfLfNL)
+open import BRA.MaxVar
+  using (pickFresh ; subst_pickFresh ; pickFresh_natEq_one' ; natEq_refl)
 
 ------------------------------------------------------------------------
 codeFTeq2_IfLf : Term -> Term -> Term
@@ -469,7 +471,8 @@ private
   corPairUnfold a b =
     let recs = ap2 Pair (ap1 cor a) (ap1 cor b)
         orig = ap2 Pair a b
-    in ruleTrans (axRecNd O stepCor a b) (stepCorRed orig recs)
+        origW = ap2 Pair O orig
+    in ruleTrans (axRecNd stepCor a b) (stepCorRed origW recs)
 
 -- Bridge at (O, O): parOutAxIfLfLL = codeFTeq2_IfLf O O.
 -- parOutAxIfLfLL = reify outAxIfLfLL = reify (codeFormula (atomic (eqn (ap2 IfLf O O) O)))
@@ -480,7 +483,7 @@ private
 
 bridgeLL : Deriv (atomic (eqn parOutAxIfLfLL (codeFTeq2_IfLf O O)))
 bridgeLL =
-  let cor_O = axRecLf O stepCor
+  let cor_O = axRecLf stepCor
       iflfLL_eq : Deriv (atomic (eqn (ap2 IfLf O O) O))
       iflfLL_eq = axIfLfLL
       cor_iflfLL : Deriv (atomic (eqn (ap1 cor (ap2 IfLf O O)) O))
@@ -532,7 +535,7 @@ bridgeLL =
 bridgeLN : (a b : Term) ->
   Deriv (atomic (eqn (parOutAxIfLfL (ap1 cor a) (ap1 cor b)) (codeFTeq2_IfLf O (ap2 Pair a b))))
 bridgeLN a b =
-  let cor_O = axRecLf O stepCor
+  let cor_O = axRecLf stepCor
       cpu = corPairUnfold a b
       iflfL_eq = axIfLfL a b
       cor_iflfL : Deriv (atomic (eqn (ap1 cor (ap2 IfLf O (ap2 Pair a b))) (ap1 cor a)))
@@ -611,7 +614,7 @@ bridgeLN a b =
 bridgeNL : (p q : Term) ->
   Deriv (atomic (eqn (parOutAxIfLfNL (ap1 cor p) (ap1 cor q)) (codeFTeq2_IfLf (ap2 Pair p q) O)))
 bridgeNL p q =
-  let cor_O = axRecLf O stepCor
+  let cor_O = axRecLf stepCor
       cpu = corPairUnfold p q
       iflfNL_eq : Deriv (atomic (eqn (ap2 IfLf (ap2 Pair p q) O) O))
       iflfNL_eq = axIfLfNL p q
@@ -956,35 +959,125 @@ private
 D_correct2_IfLf_univ : Deriv P_outer
 D_correct2_IfLf_univ = ruleIndBT P_outer v1OuterNat v2OuterNat outer_base_proof outer_step_imp
 
--- Specialised Theorem 12 case for IfLf at terms x, v that contain neither
--- var 0 nor var 1.  Caller provides the substitution-invariance proofs.
+-- Universal Theorem 12 case for IfLf at arbitrary x, v -- no closure
+-- argument.  Strategy (BRA/NEXT-SESSION-THM12-IFLF.md):
 --
--- The Goedel II glue passes closed Terms (e.g. cor of closed numerals);
--- in that case x_no_var0 = refl and similar for v.
+-- Pick k = pickFresh v (k >= 2 and k not in v).  Three ruleInst's:
+--   (1) ruleInst zero (var k)   -- rename var 0 (= x slot) to fresh var k
+--   (2) ruleInst (suc zero) v   -- substitute v in the v slot
+--   (3) ruleInst k x            -- substitute x in the var-k slot
+--
+-- Step (3)'s recursion through v is harmless because v has no var k
+-- (subst_pickFresh).  This avoids the original two-step ruleInst
+-- artifact where the second substitution disturbed x.
 
-D_correct2_IfLf : (x v : Term)
-  (x_no_var0 : Eq (subst zero x x) x)                -- substitute var 0 in x with x
-  (v_no_var0 : Eq (subst zero x v) v)                -- v has no var 0
-  (v_no_var1 : Eq (subst (suc zero) v v) v)          -- substitute var 1 in v with v
-  (x_no_var1 : Eq (subst (suc zero) v x) x) ->        -- x has no var 1
+D_correct2_IfLf : (x v : Term) ->
   Deriv (atomic (eqn (ap1 thmT (ap2 D_IfLf x v)) (codeFTeq2_IfLf x v)))
-D_correct2_IfLf x v xeq0 veq0 veq1 xeq1 =
-  let stage1 : Deriv (substF zero x P_outer)
-      stage1 = ruleInst zero x D_correct2_IfLf_univ
+D_correct2_IfLf x v =
+  let k : Nat
+      k = pickFresh v
 
-      stage2 : Deriv (substF (suc zero) v (substF zero x P_outer))
-      stage2 = ruleInst (suc zero) v stage1
+      -- Step 1: rename var 0 (= x slot) to var k.
+      stage1 : Deriv (substF zero (var k) P_outer)
+      stage1 = ruleInst zero (var k) D_correct2_IfLf_univ
 
-      -- Goal: Deriv (atomic (eqn (ap1 thmT (ap2 D_IfLf x v)) (codeFTeq2_IfLf x v))).
-      -- stage2 has type after-double-substitution; we transport through 4 eqSubst's:
-      --   thmT-fixity (twice), x-fixity, v-fixity.
-  in eqSubst (\ fT -> Deriv (atomic (eqn (ap1 fT (ap2 D_IfLf x v)) (codeFTeq2_IfLf x v))))
-       (thClosed (suc zero) v)
-       (eqSubst (\ fT -> Deriv (atomic (eqn (ap1 (substF1 (suc zero) v fT) (ap2 D_IfLf x v))
-                                            (codeFTeq2_IfLf x v))))
-         (thClosed zero x)
-         (eqSubst (\ xT -> Deriv (atomic (eqn (ap1 (substF1 (suc zero) v (substF1 zero x thmT))
-                                                   (ap2 D_IfLf xT v))
-                                              (codeFTeq2_IfLf xT v))))
-           xeq1
-           stage2))
+      -- Clean substF1 zero (var k) thmT  ->  thmT  via thClosed.
+      stage1_clean :
+        Deriv (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf (var k) (var (suc zero))))
+          (codeFTeq2_IfLf (var k) (var (suc zero)))))
+      stage1_clean =
+        eqSubst (\ tT -> Deriv (atomic (eqn
+                  (ap1 tT (ap2 D_IfLf (var k) (var (suc zero))))
+                  (codeFTeq2_IfLf (var k) (var (suc zero))))))
+                (thClosed zero (var k))
+                stage1
+
+      -- Step 2: substitute v in the v slot.
+      stage2 :
+        Deriv (substF (suc zero) v (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf (var k) (var (suc zero))))
+          (codeFTeq2_IfLf (var k) (var (suc zero))))))
+      stage2 = ruleInst (suc zero) v stage1_clean
+
+      -- subst (suc zero) v (var k) = var k  because k >= 2, so k != 1.
+      eq_kSlot1 : Eq (subst (suc zero) v (var k)) (var k)
+      eq_kSlot1 =
+        eqCong (\ b -> boolCase b v (var k)) (pickFresh_natEq_one' v)
+
+      -- Clean substF1 (suc zero) v thmT  ->  thmT.
+      stage2_thmT :
+        Deriv (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf (subst (suc zero) v (var k)) v))
+          (codeFTeq2_IfLf (subst (suc zero) v (var k)) v)))
+      stage2_thmT =
+        eqSubst (\ tT -> Deriv (atomic (eqn
+                  (ap1 tT (ap2 D_IfLf (subst (suc zero) v (var k)) v))
+                  (codeFTeq2_IfLf (subst (suc zero) v (var k)) v))))
+                (thClosed (suc zero) v)
+                stage2
+
+      -- Replace (subst (suc zero) v (var k)) by (var k) in the formula.
+      stage2_clean :
+        Deriv (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf (var k) v))
+          (codeFTeq2_IfLf (var k) v)))
+      stage2_clean =
+        eqSubst (\ Y -> Deriv (atomic (eqn
+                  (ap1 thmT (ap2 D_IfLf Y v))
+                  (codeFTeq2_IfLf Y v))))
+                eq_kSlot1
+                stage2_thmT
+
+      -- Step 3: substitute x in the var-k slot.
+      stage3 :
+        Deriv (substF k x (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf (var k) v))
+          (codeFTeq2_IfLf (var k) v))))
+      stage3 = ruleInst k x stage2_clean
+
+      -- subst k x (var k) = x  because natEq k k = true.
+      eq_kk_x : Eq (subst k x (var k)) x
+      eq_kk_x =
+        eqCong (\ b -> boolCase b x (var k)) (natEq_refl k)
+
+      -- subst k x v = v  because k = pickFresh v is fresh in v.
+      eq_kv_v : Eq (subst k x v) v
+      eq_kv_v = subst_pickFresh x v
+
+      -- Clean substF1 k x thmT  ->  thmT.
+      stage3_thmT :
+        Deriv (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf (subst k x (var k)) (subst k x v)))
+          (codeFTeq2_IfLf (subst k x (var k)) (subst k x v))))
+      stage3_thmT =
+        eqSubst (\ tT -> Deriv (atomic (eqn
+                  (ap1 tT (ap2 D_IfLf (subst k x (var k)) (subst k x v)))
+                  (codeFTeq2_IfLf (subst k x (var k)) (subst k x v)))))
+                (thClosed k x)
+                stage3
+
+      -- Replace (subst k x (var k)) by x.
+      stage3_x :
+        Deriv (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf x (subst k x v)))
+          (codeFTeq2_IfLf x (subst k x v))))
+      stage3_x =
+        eqSubst (\ Y -> Deriv (atomic (eqn
+                  (ap1 thmT (ap2 D_IfLf Y (subst k x v)))
+                  (codeFTeq2_IfLf Y (subst k x v)))))
+                eq_kk_x
+                stage3_thmT
+
+      -- Replace (subst k x v) by v.
+      stage3_xv :
+        Deriv (atomic (eqn
+          (ap1 thmT (ap2 D_IfLf x v))
+          (codeFTeq2_IfLf x v)))
+      stage3_xv =
+        eqSubst (\ V -> Deriv (atomic (eqn
+                  (ap1 thmT (ap2 D_IfLf x V))
+                  (codeFTeq2_IfLf x V))))
+                eq_kv_v
+                stage3_x
+  in stage3_xv

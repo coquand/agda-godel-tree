@@ -1,0 +1,351 @@
+\documentclass[11pt]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{verbatim}
+\usepackage{url}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\Deriv}{\mathsf{Deriv}}
+\newcommand{\thmT}{\mathsf{thmT}}
+\newcommand{\Con}{\mathsf{Con}}
+\newcommand{\bot}{\mathsf{bot}}
+\newcommand{\Tree}{\mathsf{Tree}}
+\newcommand{\Term}{\mathsf{Term}}
+\newcommand{\FunOne}{\mathsf{Fun_1}}
+\newcommand{\FunTwo}{\mathsf{Fun_2}}
+\newcommand{\Formula}{\mathsf{Formula}}
+\newcommand{\Pair}{\mathsf{Pair}}
+\newcommand{\Fst}{\mathsf{Fst}}
+\newcommand{\Snd}{\mathsf{Snd}}
+\newcommand{\IfLf}{\mathsf{IfLf}}
+\newcommand{\Lift}{\mathsf{Lift}}
+\newcommand{\Comp}{\mathsf{Comp}}
+\newcommand{\Fan}{\mathsf{Fan}}
+\newcommand{\Post}{\mathsf{Post}}
+\newcommand{\KT}{\mathsf{KT}}
+\newcommand{\reify}{\mathsf{reify}}
+\newcommand{\code}{\mathsf{code}}
+\newcommand{\codeFormula}{\mathsf{codeFormula}}
+\newcommand{\codeTriv}{\mathsf{codeTriv}}
+\newcommand{\falseT}{\mathsf{falseT}}
+\newcommand{\subT}{\mathsf{subT}}
+\newcommand{\subTT}{\mathsf{subT_2}}
+\newcommand{\imp}{\Rightarrow}
+
+\title{G\"odel's Second Incompleteness Theorem\\
+  for Binary Recursive Arithmetic in Agda}
+\author{Thierry Coquand}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We formalize G\"odel's second incompleteness theorem (G\"odel~II) for
+\emph{Binary Recursive Arithmetic} (BRA), a Rose/Guard-style equational
+system on binary trees with explicit substitution and primitive
+recursion.  The development is in Agda with
+\verb|--safe --without-K --exact-split|, ASCII-only, no postulates, no
+holes.  The headline result is
+\(\thmT \text{ is sound, and } \Deriv\,\Con \to \Deriv\,\bot.\)
+The proof is constructive and consists of an internalised proof
+checker $\thmT$ (Theorem~11), a Theorem~12 closure expressing that all
+primitive-recursive functions of BRA are reflected in $\thmT$, a
+Theorem~14 closure linking $\thmT$ to BRA's encoding of provability,
+and a final Compose module producing $\Deriv\,\Con \to \Deriv\,\bot$.
+\end{abstract}
+
+%% ============================================================
+\section{Overview}
+%% ============================================================
+
+The BRA codebase lives in \texttt{BRA/}; this document summarises its
+main result.  The chain is
+
+\[
+\text{Thm 11 (concrete)} \;\to\;
+\text{Thm 12 (parametric)} \;\to\;
+\text{Thm 13} \;\to\;
+\text{Thm 14} \;\to\;
+\text{Compose} \;\to\;
+\text{godelII}
+\]
+
+assembled in
+\verb|BRA/GoedelIIFull.agda|, whose top-level statement is
+\begin{verbatim}
+godelII : Deriv Con -> Deriv bot
+\end{verbatim}
+
+After the soundification work described in
+Section~\ref{sec:sound}, the meaning of $\Con$ is robust: every
+output of $\thmT$ on a syntactically well-formed proof tree is either
+a valid encoded formula $\codeFormula(P)$ or the explicit safe default
+$\codeTriv = \falseT = \codeFormula(0=0)$, so $\Con \equiv \neg
+\Pr(\codeFormula(\bot))$ truly expresses BRA's consistency.
+
+%% ============================================================
+\section{The base system}
+%% ============================================================
+
+\subsection{Trees, terms, formulas}
+
+\begin{definition}[Tree]
+\(\Tree ::= \mathsf{lf} \mid \mathsf{nd}\;\Tree\;\Tree.\)
+\end{definition}
+
+\begin{definition}[Term, Functors]
+$\Term$ has constructors $\mathsf{O}$, $\mathsf{var}\;n$ for $n :
+\mathbb{N}$, $\mathsf{ap_1}\;f\;t$ for $f : \FunOne$, and
+$\mathsf{ap_2}\;g\;t_1\;t_2$ for $g : \FunTwo$.  $\FunOne$ and
+$\FunTwo$ are inductive types: $\Fst, \Snd, \Lift\,g, \Comp\,f\,g,
+\KT\,t \in \FunOne$; $\Pair, \IfLf, \Fan\,f\,g\,h, \Post\,f\,g \in
+\FunTwo$, etc.
+\end{definition}
+
+\begin{definition}[Formula]
+$\Formula ::= \mathsf{atomic}\,(\mathsf{eqn}\,t_l\,t_r) \mid
+\mathsf{not}\,P \mid P \mathbin{\mathsf{imp}} Q.$
+\end{definition}
+
+\subsection{Derivability}
+
+$\Deriv : \Formula \to \mathsf{Set}$ is an inductive predicate with
+explicit constructors for the BRA axioms (axI, axFst, axSnd,
+axComp, axComp2, axLift, axPost, axFan, axKT, axIfLfL, axIfLfN,
+axTreeEq[LL/LN/NL/NN], axGoodstein, axRefl, axK, axS, axNeg,
+axContrapos, axExFalso, axEqTrans, axEqCong[1/L/R], axRecLf, axRecNd,
+axRecPLf, axRecPNd, axFstLf, axSndLf, axIfLfLL, axIfLfNL, axConst)
+and the inductive rules
+$\mathsf{ruleSym},\,\mathsf{ruleTrans},\,\mathsf{cong_1},\,\mathsf{cong_L},\,
+\mathsf{cong_R},\,\mathsf{mp},\,\mathsf{ruleInst},\,\mathsf{ruleInst_2},\,
+\mathsf{ruleIndBT}$.
+
+\subsection{Encoding and reify}
+
+Each $\Term$ has a tree code $\code : \Term \to \Tree$; each
+$\Formula$ has a code $\codeFormula : \Formula \to \Tree$.  Trees lift
+to terms via $\reify : \Tree \to \Term$.  The compositions
+$\reify \circ \code$ and $\code \circ \reify$ are not the identity in
+general, but $\reify \circ \codeFormula\,P$ is always Pair-shaped
+because $\codeFormula(P) = \mathsf{nd}\;\_\;\_$ for every $P$.
+
+%% ============================================================
+\section{Theorem 11: the proof checker $\thmT$}
+%% ============================================================
+
+\begin{definition}[\thmT]
+$\thmT : \FunOne$ is a one-argument BRA function, defined inside the
+$\mathsf{abstract}$ block of \verb|BRA/Thm/ThmT.agda| via a
+treeRec--style fold over its proof-tree input.  At each tag
+$\mathsf{tagCode}_X$, $\thmT$ dispatches to a body $\mathsf{body}_X :
+\FunTwo$ that computes the equation code from the proof's payload and
+sub-proof images.
+\end{definition}
+
+\begin{theorem}[Thm 11, the dispatchers]
+For every BRA derivation rule $X$ with encoder $\mathsf{enc}_X$ and
+result $\mathsf{out}_X$, there is a closed-form lemma
+\verb|thmTDispX| in \verb|BRA/Thm/ThmT.agda| of the shape
+\[
+  \forall\; (\text{IH-equations}),\;
+  \Deriv\big((\mathsf{ap_1}\;\thmT\;\reify(\mathsf{enc}_X\,\ldots)) =
+            \reify(\mathsf{out}_X\,\ldots)\big).
+\]
+Each $\mathsf{thmTDispX}$ proves that $\thmT$ at the encoded proof
+tree reduces to the encoded conclusion, given the IHs supplied for
+the sub-proof trees.
+\end{theorem}
+
+%% ============================================================
+\section{Soundification of $\thmT$}
+\label{sec:sound}
+%% ============================================================
+
+The original $\mathsf{body}_X$ definitions (modelled on Guard
+section~3.3) are \emph{unconditional}: they extract sub-proof images
+from the input pair $(a,bb)$ via $\mathsf{Lift}/\mathsf{Comp}/\mathsf{Post}$
+combinators and assemble the conclusion.  For a malformed input proof
+tree, the unconditional bodies can produce arbitrary terms via
+safe-default fallbacks (\verb|axFstLf|, \verb|axSndLf|), risking
+$\thmT(y_{\text{bad}}) = \codeFormula(\bot)$ for some adversarial
+$y_{\text{bad}}$, which would refute $\Con$ in the meta-theory and
+make $\mathsf{godelII}$ vacuous.
+
+\subsection{Verifying-body design}
+
+For each premise-consuming dispatcher $X$, we replace
+$\mathsf{body}_X$ with a verifying variant
+$\mathsf{body}_X^v$ of the form
+\[
+\mathsf{body}_X^v \;=\; \Post\;\mathsf{verifier}_X\;\Pair,
+\]
+where $\mathsf{verifier}_X$ is a $\FunOne$ over $t = \Pair\,a\,bb$:
+\[
+\mathsf{verifier}_X
+\;=\;\Comp_2\;\IfLf\;\langle\text{discriminant}\rangle\;
+              (\Comp_2\;\Pair\;(\KT\;\codeTriv)\;\langle\text{assembly}\rangle).
+\]
+The discriminant is whichever sub-proof image (or encoding-level
+projection) the body would otherwise unsafely use.  On the leaf
+($\mathsf{O}$) branch the body outputs $\codeTriv = \falseT$; on the
+Pair branch it executes the original assembly.  The eval-pass lemma
+$\mathsf{body}_X^v\!.\mathsf{eval\_pass}$ takes a Pair-shape
+witness for the IH and discharges the IfLf via $\mathsf{axIfLfN}$.
+
+\subsection{Coverage}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{lll}
+\hline
+Dispatcher & Proto / VProof file & Variants delivered \\
+\hline
+mp           & \verb|BRA/SoundMpProto.agda|         & closed + lifted \\
+ruleInst     & \verb|BRA/SoundRuleInstProto.agda|   & closed + lifted \\
+ruleSym      & \verb|BRA/SoundRuleSymProto.agda|    & closed + lifted \\
+cong$_1$     & \verb|BRA/SoundCong1Proto.agda|      & closed \\
+cong$_L$     & \verb|BRA/SoundCongLProto.agda|      & closed + lifted + dl \\
+cong$_R$     & \verb|BRA/SoundCongRProto.agda|     & closed + lifted + dl \\
+ruleTrans    & \verb|BRA/SoundRuleTransProto.agda|  & closed + lifted + dl \\
+ruleInst$_2$ & \verb|BRA/SoundRuleInst2Proto.agda|  & closed + parametric \\
+ruleIndBT    & \verb|BRA/SoundRuleIndBTProto.agda|  & closed + closed-param \\
+\hline
+\end{tabular}
+\end{center}
+
+For each row the body in \verb|BRA/Thm/ThmT.agda| reads
+$\mathsf{body}_X = \mathsf{body}_X^v$ and the dispatchers
+$\mathsf{thmTDisp}X$, $\mathsf{thmTDisp}X\_\mathsf{param}$,
+\ldots\ route through the corresponding $\mathsf{body}_X^v\!.\mathsf{eval\_pass}$
+variants supplied with the appropriate Pair-shape witness.
+
+\begin{theorem}[Soundness of $\thmT$]
+\label{thm:sound}
+For every closed proof tree $y$, $\thmT(y)$ is either $\reify
+\circ \codeFormula(P)$ for some $P$, or the explicit safe default
+$\codeTriv = \codeFormula(0=0)$.  In particular, $\thmT(y)
+\neq \codeFormula(\bot)$ for any $y$ unless BRA is actually
+inconsistent.
+\end{theorem}
+
+\begin{remark}[Lifted variants]
+Several Theorem~12 schematic proofs (Parts/Comp2, Parts/Fan, etc.)
+require Pair-shape hypotheses inside $P \imp \cdot$ contexts (singly or
+doubly lifted).  We provide
+$\mathsf{body}_X^v\!.\mathsf{eval\_pass\_l}$ and
+$\mathsf{body}_X^v\!.\mathsf{eval\_pass\_dl}$ for cong$_L$, cong$_R$,
+ruleTrans, mp, ruleInst, ruleSym; the closed pass suffices for cong$_1$
+and ruleIndBT.
+\end{remark}
+
+%% ============================================================
+\section{Theorem 12: parametric closure}
+%% ============================================================
+
+For each primitive-recursive function $f$ definable in BRA, Theorem~12
+internalises the equation $\thmT(\mathsf{D}_f(x)) = \mathsf{th}(f(x))$
+inside BRA itself.  The implementation uses 15 modular pairs of
+``Param'' wrappers (\verb|BRA/Thm12/Param/AxX.agda|) and ``Parts''
+glue (\verb|BRA/Thm12/Parts/X.agda|), assembled into the
+\verb|FromBridges| record in \verb|BRA/Thm12.agda|.
+
+\begin{theorem}[Thm 12 result records]
+The records $\mathsf{Thm12\_F_1\_Result}\;\thmT$ and
+$\mathsf{Thm12\_F_2\_Result}\;\mathsf{sub}$ in
+\verb|BRA/Thm12.agda| are inhabited unconditionally by
+$\mathsf{FromBridges.thm12\_F_1}$ and
+$\mathsf{FromBridges.thm12\_F_2}$.
+\end{theorem}
+
+%% ============================================================
+\section{Theorem 14 and the Compose module}
+%% ============================================================
+
+Theorem~14 packages the steps 1--5 of Guard's section~3.5 into a
+contract on a single function $\mathsf{constr_5} : \FunOne$ together
+with a parametric internal implication
+\[
+\mathsf{step_5}(x) :
+  \Deriv\Big((\thmT(x) = c_G) \imp (\thmT(\mathsf{constr_5}\,x) = \codeFormula(\bot))\Big)
+\]
+where $c_G = \reify(\codeFormula(G))$ is the code of the G\"odel
+sentence.  The concrete $\mathsf{constr_5\_final}$ and
+$\mathsf{step_5\_l}$ live in \verb|BRA/Th14Step5.agda|.  The Compose
+module (\verb|BRA/GoedelII.agda|) then produces
+
+\begin{theorem}[godelII]
+\label{thm:godelII}
+$\Deriv\,\Con \to \Deriv\,\bot$,
+where $\Con = \neg\,(\mathsf{ap_1}\,\thmT\,(\mathsf{var}\,0) =
+\reify(\codeFormula(\bot)))$ universally closed in $\mathsf{var}\,0$.
+\end{theorem}
+
+The headline file \verb|BRA/GoedelIIFull.agda| instantiates Compose with
+$\mathsf{constr_5\_final}$ and $\mathsf{step_5\_l}$, plugs in
+$\mathsf{r_{12}\_th} = \mathsf{FromBridges.thm12\_F_1}\,\thmT$ and
+$\mathsf{r_{12}\_sub} = \mathsf{FromBridges.thm12\_F_2}\,\mathsf{sub}$,
+and exports
+
+\begin{verbatim}
+godelII : Deriv Con -> Deriv bot
+godelII = Final.godelII
+\end{verbatim}
+
+unconditionally.
+
+%% ============================================================
+\section{Implementation notes}
+%% ============================================================
+
+\begin{itemize}
+\item \textbf{Build}.  Cold rebuild of \verb|BRA/GoedelIIFull.agda|
+  takes \(\sim\!32\)s.  Cached typechecks of the headline file and
+  \verb|BRA/Thm/ThmT.agda| are under 1.2\,s each.
+
+\item \textbf{Discipline}.  Throughout BRA we use only
+  \verb|--safe --without-K --exact-split|.  No postulates, no holes,
+  no \verb|with|-abstraction, no dot patterns.  Every let-binding uses
+  camelCase to avoid Agda's mid-identifier underscore mixfix grammar.
+
+\item \textbf{Soundification scope}.  All 9 inductive
+  premise-consuming dispatchers in \verb|BRA/Thm/ThmT.agda| now have
+  $\mathsf{body}_X = \mathsf{body}_X^v$.  No further dispatcher reads
+  sub-proof images without an IfLf gate.
+
+\item \textbf{Encoding-level safety}.  \verb|ruleIndBT|'s body extracts
+  $\codeFormula(P)$ directly from the encoding (no IH consumed); its
+  verifying variant gates on the encoding's outer $\Snd$ being
+  Pair-shaped, so a forged leaf payload is mapped to $\codeTriv$.
+\end{itemize}
+
+%% ============================================================
+\section{Files}
+%% ============================================================
+
+The complete BRA codebase is in the \verb|BRA/| subdirectory of the
+project repository.  Headline files:
+
+\begin{itemize}
+\item \verb|BRA/GoedelIIFull.agda| --- top-level
+  $\mathsf{godelII} : \Deriv\,\Con \to \Deriv\,\bot$.
+\item \verb|BRA/GoedelII.agda| --- Compose module taking the
+  Theorem~14 contract and producing $\mathsf{godelII}$.
+\item \verb|BRA/Thm14Abstract.agda| --- abstract Theorem~14 tower.
+\item \verb|BRA/Thm14Step5.agda| --- concrete
+  $\mathsf{constr_5\_final}$ + $\mathsf{step_5\_l}$.
+\item \verb|BRA/Thm12.agda|, \verb|BRA/Thm12/| --- Theorem~12 closure
+  (15 Param + Parts pairs).
+\item \verb|BRA/Thm/ThmT.agda| --- $\thmT$ definition and all
+  $\mathsf{thmTDisp}X$ dispatchers (the abstract block).
+\item \verb|BRA/Sound*Proto.agda|,
+      \verb|BRA/Sound*VProof.agda| --- verifying bodies and their
+  eval-pass lemmas (Section~\ref{sec:sound}).
+\end{itemize}
+
+\end{document}

@@ -50,10 +50,15 @@ compRed f g t = axComp f g t
 
 ------------------------------------------------------------------------
 -- Rec unfolding for nd
+--
+-- Rec is now an Agda function defined as  Rec s = Comp2 (treeRec Z s) Z I
+-- (no z parameter; only z = O is ever used).  The unfolding equation
+-- has an extra  Pair O ...  in the first argument to s , reflecting
+-- the  Comp2 ... Z I  encoding's  Z -branch supplying the leaf carrier.
 
-recNdRed : (z : Term) (s : Fun2) (a b : Term) ->
-  Deriv (atomic (eqn (ap1 (Rec z s) (ap2 Pair a b))
-                      (ap2 s (ap2 Pair a b)
-                             (ap2 Pair (ap1 (Rec z s) a)
-                                       (ap1 (Rec z s) b)))))
-recNdRed z s a b = axRecNd z s a b
+recNdRed : (s : Fun2) (a b : Term) ->
+  Deriv (atomic (eqn (ap1 (Rec s) (ap2 Pair a b))
+                      (ap2 s (ap2 Pair O (ap2 Pair a b))
+                             (ap2 Pair (ap1 (Rec s) a)
+                                       (ap1 (Rec s) b)))))
+recNdRed s a b = axRecNd s a b

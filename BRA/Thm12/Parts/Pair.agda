@@ -107,13 +107,16 @@ corPairUnfold x v =
       orig : Term
       orig = ap2 Pair x v
 
-      s1 : Deriv (atomic (eqn (ap1 cor orig)
-                              (ap2 stepCor orig recs)))
-      s1 = axRecNd O stepCor x v
+      origW : Term
+      origW = ap2 Pair O orig
 
-      s2 : Deriv (atomic (eqn (ap2 stepCor orig recs)
+      s1 : Deriv (atomic (eqn (ap1 cor orig)
+                              (ap2 stepCor origW recs)))
+      s1 = axRecNd stepCor x v
+
+      s2 : Deriv (atomic (eqn (ap2 stepCor origW recs)
                               (ap2 Pair tagAp2T (ap2 Pair pairCodeF2T recs))))
-      s2 = stepCorRed orig recs
+      s2 = stepCorRed origW recs
   in ruleTrans s1 s2
 
 ------------------------------------------------------------------------

@@ -1,13 +1,38 @@
+# Build artefacts (anywhere in the tree).
 *.agdai
 *.aux
 *.log
 *.out
 *~
 
-# Only BRA/ directory is tracked going forward.
-# Guard/ is frozen history: still present on disk and in git history
-# up through commit d2ababb, but no longer tracked.  Do not consult
-# Guard/*.agda for the BRA/ rebuild — work from guard15 directly.
+# Whitelist policy: only the following files/dirs are tracked.
+#   /BRA/                  -- the active Agda codebase
+#   /bra-godelII.tex       -- the project paper / writeup
+#   /bra-godelII.pdf       -- the compiled paper
+#   /CLAUDE.md             -- project instructions
+#   /README.md             -- project README (if present)
+#   /Rose.pdf, /Rose1.pdf, /Ryan.pdf, /Simmons.pdf
+#                          -- Rose-style reference PDFs cited by BRA
+#   /guard15.pdf, /guard-lecture_notes_on_recursive_arithmetic-1963.pdf
+#                          -- Guard 1963 reference PDFs
+#   /Chwistek-FormalProofGdels-1939.pdf
+#                          -- Chwistek 1939 historical reference
+#
+# Everything else (including /old/ which holds legacy Agda, tex, notes,
+# scratch, and the prior Guard/ frozen codebase) is untracked.
+
 /*
-!/BRA/
+
 !/.gitignore
+!/BRA/
+!/bra-godelII.tex
+!/bra-godelII.pdf
+!/CLAUDE.md
+!/README.md
+!/Rose.pdf
+!/Rose1.pdf
+!/Ryan.pdf
+!/Simmons.pdf
+!/guard15.pdf
+!/guard-lecture_notes_on_recursive_arithmetic-1963.pdf
+!/Chwistek-FormalProofGdels-1939.pdf

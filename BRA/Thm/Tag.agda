@@ -64,22 +64,14 @@ tagAxKT      : Nat
 tagAxKT      = suc tagAxFan
 
 ------------------------------------------------------------------------
--- Tree recursion + IfLf (6 tags, 11..16).
-
-tagAxRecLf   : Nat
-tagAxRecLf   = suc tagAxKT
-
-tagAxRecNd   : Nat
-tagAxRecNd   = suc tagAxRecLf
-
-tagAxRecPLf  : Nat
-tagAxRecPLf  = suc tagAxRecNd
-
-tagAxRecPNd  : Nat
-tagAxRecPNd  = suc tagAxRecPLf
+-- IfLf (2 tags, after tagAxKT).
+--
+-- tagAxRecLf and tagAxRecNd were deleted when  axRecLf  and  axRecNd
+-- were demoted to derived top-level lemmas (see BRA/Deriv.agda).
+-- The chain skips directly from  tagAxKT  to  tagAxIfLfL .
 
 tagAxIfLfL   : Nat
-tagAxIfLfL   = suc tagAxRecPNd
+tagAxIfLfL   = suc tagAxKT
 
 tagAxIfLfN   : Nat
 tagAxIfLfN   = suc tagAxIfLfL
@@ -207,6 +199,20 @@ tagRuleInst2 = suc tagAxIfLfNL
 
 tagRuleIndBT2 : Nat
 tagRuleIndBT2 = suc tagRuleInst2
+
+------------------------------------------------------------------------
+-- Unified tree recursor (2 tags, 46..47).
+--
+-- Replaces the misdesigned Rec/RecP split.  RecP has been demoted to
+-- an Agda definition (RecP s = treeRec Z s); the corresponding
+-- tagAxRecPLf / tagAxRecPNd were deleted.  Rec demotion is the next
+-- planned step.  See BRA/ARCHITECTURE-FINDINGS.md.
+
+tagAxTreeRecLf : Nat
+tagAxTreeRecLf = suc tagRuleIndBT2
+
+tagAxTreeRecNd : Nat
+tagAxTreeRecNd = suc tagAxTreeRecLf
 
 ------------------------------------------------------------------------
 -- Schema F (ruleF) was a primitive Deriv constructor demotable to

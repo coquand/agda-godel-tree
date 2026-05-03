@@ -50,23 +50,28 @@ corOfPair x y =
     orig : Term
     orig = ap2 Pair x y
 
+    -- New axRecNd's RHS first arg is  Pair O orig  (extra wrapper from
+    -- the  Comp2 ... Z I  encoding of Rec).
+    origW : Term
+    origW = ap2 Pair O orig
+
     recs : Term
     recs = ap2 Pair (ap1 cor x) (ap1 cor y)
 
     -- Step 1: axRecNd unfolds cor at the Pair-input.
     s1 : Deriv (atomic (eqn (ap1 cor (ap2 Pair x y))
-                             (ap2 stepCor orig recs)))
-    s1 = axRecNd O stepCor x y
+                             (ap2 stepCor origW recs)))
+    s1 = axRecNd stepCor x y
 
-    -- Step 2: stepCorRed reduces stepCor at (orig, recs).
-    --   ap2 stepCor orig recs
+    -- Step 2: stepCorRed reduces stepCor at (origW, recs).
+    --   ap2 stepCor origW recs
     --     = ap2 Pair tagAp2T (ap2 Pair pairCodeF2T recs)
     --     = mkAp2T (reify (codeF2 Pair)) (cor x) (cor y)
-    -- (mkAp2T's expansion = ap2 Pair tagAp2T (ap2 Pair fCodeT (ap2 Pair aCodeT bCodeT)),
-    --  which agrees with stepCor's output structure.)
-    s2 : Deriv (atomic (eqn (ap2 stepCor orig recs)
+    -- (stepCor's defining shape ignores the first arg's Pair structure;
+    -- only the Snd-extracted recs flow through.)
+    s2 : Deriv (atomic (eqn (ap2 stepCor origW recs)
                              (mkAp2T (reify (codeF2 Pair)) (ap1 cor x) (ap1 cor y))))
-    s2 = stepCorRed orig recs
+    s2 = stepCorRed origW recs
 
   in ruleTrans s1 s2
 

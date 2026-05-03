@@ -355,11 +355,11 @@ Th12_F1_Fst_at_lf_v2 =
     -- to codeFTeq1Asym Fst O  = mkEqT (mkAp1T (codeF1 Fst) (cor O)) (cor (Fst O)).
 
     bridgeInner : Deriv (atomic (eqn O (ap1 cor O)))
-    bridgeInner = ruleSym (axRecLf O stepCor)
+    bridgeInner = ruleSym (axRecLf stepCor)
 
     bridgeRHS : Deriv (atomic (eqn O (ap1 cor (ap1 Fst O))))
     bridgeRHS =
-      ruleSym (ruleTrans (cong1 cor axFstLf) (axRecLf O stepCor))
+      ruleSym (ruleTrans (cong1 cor axFstLf) (axRecLf stepCor))
 
     bridgeLHS : Deriv (atomic (eqn (mkAp1T (reify (codeF1 Fst)) O)
                                     (mkAp1T (reify (codeF1 Fst)) (ap1 cor O))))
@@ -441,13 +441,21 @@ Th12_F1_Fst_at_pair v1 v2 =
     argsPair : Term
     argsPair = ap2 Pair (ap2 Pair K2 tA) (ap2 Pair K3 tB)
 
+    -- (4) thmT K4 = reify (outAxFst (var 0) (var 1)).
+    -- Pair-shape derived from outAxFst x y = codeFormula(...) for the
+    -- soundified  thmTDispRuleInst2_param .
+    s4 : Deriv (atomic (eqn (ap1 thmT K4) (reify (outAxFst (var zero) (var (suc zero))))))
+    s4 = thmTDispAxFst (var zero) (var (suc zero))
+
+    codePfpFst : Term
+    codePfpFst = reify (code (ap1 Fst (ap2 Pair (var zero) (var (suc zero)))))
+    codePspFst : Term
+    codePspFst = reify (code (var zero))
+
     s3 : Deriv (atomic (eqn (ap1 thmT runtimeTree)
                              (ap2 subT2 argsPair (ap1 thmT K4))))
     s3 = thmTDispRuleInst2_param zero (suc zero) tA tB K4 xShape_K4
-
-    -- (4) thmT K4 = reify (outAxFst (var 0) (var 1)).
-    s4 : Deriv (atomic (eqn (ap1 thmT K4) (reify (outAxFst (var zero) (var (suc zero))))))
-    s4 = thmTDispAxFst (var zero) (var (suc zero))
+                                  codePfpFst codePspFst s4
 
     s5 : Deriv (atomic (eqn (ap2 subT2 argsPair (ap1 thmT K4))
                              (ap2 subT2 argsPair

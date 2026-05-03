@@ -363,11 +363,12 @@ module ConstructionBase
     corPairUnfold a b =
       let recs = ap2 Pair (ap1 cor a) (ap1 cor b)
           orig = ap2 Pair a b
-      in ruleTrans (axRecNd O stepCor a b) (stepCorRed orig recs)
+          origW = ap2 Pair O orig
+      in ruleTrans (axRecNd stepCor a b) (stepCorRed origW recs)
 
   bridgeLL : Deriv (atomic (eqn parOutAxTreeEqLL (codeFTeq2_TreeEq O O)))
   bridgeLL =
-    let cor_O = axRecLf O stepCor
+    let cor_O = axRecLf stepCor
         treqLL_eq : Deriv (atomic (eqn (ap2 TreeEq O O) O))
         treqLL_eq = axTreeEqLL
         cor_treqLL : Deriv (atomic (eqn (ap1 cor (ap2 TreeEq O O)) O))
@@ -406,7 +407,7 @@ module ConstructionBase
   bridgeLN : (a b : Term) ->
     Deriv (atomic (eqn (parOutAxTreeEqLN (ap1 cor a) (ap1 cor b)) (codeFTeq2_TreeEq O (ap2 Pair a b))))
   bridgeLN a b =
-    let cor_O = axRecLf O stepCor
+    let cor_O = axRecLf stepCor
         cpu_ab = corPairUnfold a b
 
         treqLN_eq : Deriv (atomic (eqn (ap2 TreeEq O (ap2 Pair a b)) (ap2 Pair O O)))
@@ -484,7 +485,7 @@ module ConstructionBase
   bridgeNL : (p q : Term) ->
     Deriv (atomic (eqn (parOutAxTreeEqNL (ap1 cor p) (ap1 cor q)) (codeFTeq2_TreeEq (ap2 Pair p q) O)))
   bridgeNL p q =
-    let cor_O = axRecLf O stepCor
+    let cor_O = axRecLf stepCor
         cpu_pq = corPairUnfold p q
 
         treqNL_eq : Deriv (atomic (eqn (ap2 TreeEq (ap2 Pair p q) O) (ap2 Pair O O)))

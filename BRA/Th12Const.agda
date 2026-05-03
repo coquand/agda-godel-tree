@@ -242,14 +242,23 @@ Th12_F2_Const_at_pair x v =
     argsPair : Term
     argsPair = ap2 Pair (ap2 Pair K2 tA) (ap2 Pair K3 tB)
 
-    s3 : Deriv (atomic (eqn (ap1 thmT runtimeTree)
-                             (ap2 subT2 argsPair (ap1 thmT K4))))
-    s3 = thmTDispRuleInst2_param zero (suc zero) tA tB K4 xShape_K4
-
     -- (3) thmT K4 = reify (outAxConst (var 0) (var 1)).
+    -- outAxConst x y = codeFormula (atomic (eqn (Const x y) x)) is
+    -- structurally Pair-shaped after reify; supply it as the codePShape
+    -- witness for thmTDispRuleInst2_param.
     s4 : Deriv (atomic (eqn (ap1 thmT K4)
                              (reify (outAxConst (var zero) (var (suc zero))))))
     s4 = thmTDispAxConst (var zero) (var (suc zero))
+
+    codePfpC : Term
+    codePfpC = reify (code (ap2 Const (var zero) (var (suc zero))))
+    codePspC : Term
+    codePspC = reify (code (var zero))
+
+    s3 : Deriv (atomic (eqn (ap1 thmT runtimeTree)
+                             (ap2 subT2 argsPair (ap1 thmT K4))))
+    s3 = thmTDispRuleInst2_param zero (suc zero) tA tB K4 xShape_K4
+                                  codePfpC codePspC s4
 
     s5 : Deriv (atomic (eqn (ap2 subT2 argsPair (ap1 thmT K4))
                              (ap2 subT2 argsPair

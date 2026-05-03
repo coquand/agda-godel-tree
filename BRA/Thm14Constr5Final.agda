@@ -42,7 +42,7 @@ open import BRA.Thm.TagCodes
 open import BRA.Thm12
   using (Thm12_F1_Result ; Thm12_F2_Result)
 
-open import BRA.GoedelII using (i ; cG)
+open import BRA.GoedelII using (i ; cG ; G)
 open import BRA.Thm14Numerals using (t_term ; t'_term)
 
 ----------------------------------------------------------------------
@@ -115,59 +115,85 @@ module Th14Constr5Final
   --------------------------------------------------------------------
   -- Closed Term-encoded constants for the sb-chain "+1" steps.
   --
+  -- After Approach A redesign (2026-05-02): substituents are encoded
+  -- mixed-form Pairs (Guard's "th(x_)", "sub(i,i)" forms) so that
+  -- subT^3 produces antecedents matching D_thmT and D_sub_at_ii's
+  -- encoded values (per Theorem 13).
+  --
   -- The substituents of f_part 's three sb headers are:
-  --   var 0  ->  ap1 cor x      (depends on x)
-  --   var 1  ->  reify (code (reify (codeFormula sub_ii_form)))   (closed)
-  --   var 2  ->  i               (closed)
-  --
-  -- For the "var 1" position we substitute the numeral "sub(i,i)" 's
-  -- code (= reify (code (reify (codeFormula <sub(i,i)=...>)))).  This
-  -- is closed; we expose it as  sub_ii_subst  so the per-step proofs
-  -- can refer to it by name.
-  --
-  -- The exact closed Term used depends on Guard's Definition 12
-  -- "underlined" convention (the substituent at var 1 is the Term
-  -- whose Goedel code is "sub(i,i)" 's coding number).  Per
-  -- corOfReify the canonical choice is  ap1 cor (ap2 sub i i) .
-  -- (Computationally  cor  of a canonical reify-of-Tree input is
-  -- equal to  reify (code <input>) ; see BRA/Cor.agda for the full
-  -- specification.)
+  --   var 0  ->  encoded_th_x x   (= Pair tagAp1 (Pair (codeF1 thmT) (cor x)))
+  --              -- depends on x via cor x at the deepest leaf;
+  --              -- analog of Guard's "th(x_)" (Def 12 underlined-x).
+  --   var 1  ->  encoded_sub_ii   (= Pair tagAp2 (Pair (codeF2 sub) (Pair (cor i) (cor i))))
+  --              -- closed; analog of Guard's "sub(i,i)".
+  --   var 2  ->  sub_ii_subst     (= reify (code cG) = cor cG)
+  --              -- closed; analog of Guard's num(j).
 
+  -- CANONICAL Term form: reify (code cG) — closed reify-of-Tree so
+  -- that  KT sub_ii_subst  reduces via the canonical KT clause.
   sub_ii_subst : Term
-  sub_ii_subst = ap1 cor (ap2 sub i i)
+  sub_ii_subst = reify (code (reify (codeFormula G)))
+
+  -- encoded_sub_ii : the closed Term encoding the term sub(i,i).
+  -- CANONICAL Term form: reify (code (sub i i)) — closed reify-of-Tree
+  -- so that KT encoded_sub_ii reduces via the canonical KT clause.
+  -- Structurally equal to Pair (reify tagAp2) (Pair (reify (codeF2 sub))
+  --                              (Pair (cor i) (cor i)))
+  -- modulo closed corOfReify identities (cor i = reify (code i) since i
+  -- is closed reify-of-Tree).
+  -- Matches D_sub_at_ii's encoded RHS (Theorem 13 form, after closed
+  -- corOfReify bridging).
+  encoded_sub_ii : Term
+  encoded_sub_ii = reify (code (ap2 sub i i))
+
+  -- encoded_th_x : Fun1 such that applied to x gives
+  -- Pair (reify tagAp1) (Pair (reify (codeF1 thmT)) (cor x)).
+  -- Constructed as a Comp2-Pair tower of two closed KT's and  cor .
+  encoded_th_x : Fun1
+  encoded_th_x =
+    pairF1 (constTermF1 (reify tagAp1))
+           (pairF1 (constTermF1 (reify (codeF1 thmT))) cor)
 
   --------------------------------------------------------------------
-  -- f_part : the inner sb-chain on Guard's transitivity numeral t_term .
+  -- f_part : the sb-chain on Guard's transitivity numeral t_term .
   --
-  -- Encoded as the 3-deep ruleInst chain
-  --   ruleInst 2 i (ruleInst 1 sub_ii_subst (ruleInst 0 (ap1 cor x) t_term))
+  -- Encoded as the 3-deep ruleInst chain matching Guard p.17 f(x):
+  --   ruleInst 0 (encoded_th_x x) (ruleInst 1 encoded_sub_ii
+  --                                   (ruleInst 2 sub_ii_subst t_term))
   --
-  -- which at the Term level is
-  --   Pair tagCode_ruleInst (Pair varCode2T (Pair inner1(x) i))
+  -- LAYOUT (Approach A 2026-05-02): sb-chain ordered to match Guard's
+  -- f(x) at p.17 (var 0 outermost = chronologically LAST).  Substituents
+  -- are the Goedel-encoded mixed-form Pairs that Guard uses
+  -- ("th(x_)" / "sub(i,i)" / "j"), so that subT^3 of t_formula
+  -- produces antecedents matching D_thmT's and D_sub_at_ii's encoded
+  -- values (per Theorem 13).
+  --
+  -- At the Term level:
+  --   Pair tagCode_ruleInst (Pair (Pair varCode0T (encoded_th_x x)) inner1(x))
   -- with
-  --   inner1(x) = Pair tagCode_ruleInst (Pair varCode1T (Pair inner2(x) sub_ii_subst))
-  --   inner2(x) = Pair tagCode_ruleInst (Pair varCode0T (Pair (reify t_term) (cor x)))
+  --   inner1(x) = Pair tagCode_ruleInst (Pair (Pair varCode1T encoded_sub_ii)
+  --                                            inner2(x))
+  --   inner2(x) = Pair tagCode_ruleInst (Pair (Pair varCode2T sub_ii_subst)
+  --                                            (reify t_term))
 
   f_part_inner2 : Fun1
   f_part_inner2 =
     pairF1 (constTermF1 tagCode_ruleInst)
-           (pairF1 (constTermF1 varCode0T)
-                   (pairF1 (constTermF1 (reify t_term))
-                           cor))
+           (pairF1 (pairF1 (constTermF1 varCode2T) (constTermF1 sub_ii_subst))
+                   (constTermF1 (reify t_term)))
 
   f_part_inner1 : Fun1
   f_part_inner1 =
     pairF1 (constTermF1 tagCode_ruleInst)
-           (pairF1 (constTermF1 varCode1T)
-                   (pairF1 f_part_inner2
-                           (constTermF1 sub_ii_subst)))
+           (pairF1 (pairF1 (constTermF1 varCode1T)
+                           (constTermF1 encoded_sub_ii))
+                   f_part_inner2)
 
   f_part : Fun1
   f_part =
     pairF1 (constTermF1 tagCode_ruleInst)
-           (pairF1 (constTermF1 varCode2T)
-                   (pairF1 f_part_inner1
-                           (constTermF1 i)))
+           (pairF1 (pairF1 (constTermF1 varCode0T) encoded_th_x)
+                   f_part_inner1)
 
   --------------------------------------------------------------------
   -- g_part : encMp ( encMp ( f_part(x), Dth(x) ), Dsub(i,i) ) .
@@ -201,11 +227,14 @@ module Th14Constr5Final
   -- Guard's "th(x) = j" -bearing variable); the substituent slot is
   -- ap1 cor x .
 
+  -- NEW LAYOUT (refactor 2026-05-02):
+  --   K_part(x) = Pair tagCode_ruleInst (Pair (Pair varCode1T (cor x)) x)
+  -- closed (varCode1T, cor x) at inner Fst, OPEN proof-index x at outer Snd.
   K_part : Fun1
   K_part =
     pairF1 (constTermF1 tagCode_ruleInst)
-           (pairF1 (constTermF1 varCode1T)
-                   (pairF1 I cor))
+           (pairF1 (pairF1 (constTermF1 varCode1T) cor)
+                   I)
 
   --------------------------------------------------------------------
   -- h_part : analogous to f_part / g_part but on the ex-falso numeral
@@ -216,19 +245,23 @@ module Th14Constr5Final
   -- Only TWO sb-headers (versus f_part 's three) since t' has free
   -- variables  x_0 , x_1  only.
 
+  -- LAYOUT (Approach A 2026-05-02): substituents are encoded mixed-form
+  -- Pairs matching Guard's "th(x_)" / "sub(i,i)" so that subT^2 of
+  -- t'_formula produces the antecedents matching step 3's RHS and
+  -- step 4's negated form.  sb-order inversion: var 1 (closed) inner,
+  -- var 0 (encoded_th_x x) outer.
   h_part_inner1 : Fun1
   h_part_inner1 =
     pairF1 (constTermF1 tagCode_ruleInst)
-           (pairF1 (constTermF1 varCode0T)
-                   (pairF1 (constTermF1 (reify t'_term))
-                           cor))
+           (pairF1 (pairF1 (constTermF1 varCode1T)
+                           (constTermF1 encoded_sub_ii))
+                   (constTermF1 (reify t'_term)))
 
   h_part_skel : Fun1
   h_part_skel =
     pairF1 (constTermF1 tagCode_ruleInst)
-           (pairF1 (constTermF1 varCode1T)
-                   (pairF1 h_part_inner1
-                           (constTermF1 sub_ii_subst)))
+           (pairF1 (pairF1 (constTermF1 varCode0T) encoded_th_x)
+                   h_part_inner1)
 
   -- Outer mp's: combine h_part_skel with Dth(x) and Dsub(i,i) to
   -- internalise the ex-falso conclusion  "(th(cor x) = sub(i,i)) ⊃ ((th(cor x) ≠ sub(i,i)) ⊃ (0 = 1))" .

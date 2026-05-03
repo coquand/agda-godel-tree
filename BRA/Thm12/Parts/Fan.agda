@@ -66,12 +66,6 @@ module FanCase
                    (ap2 Pair (reify (codeF2 h))
                              (ap2 Pair (ap1 cor x) (ap1 cor v))))
          (ap1 cor (ap2 h x v))))))
-  (D2_h1_shape : (x v : Term) ->
-     Sigma Term (\ y' -> Sigma Term (\ x' ->
-       Deriv (atomic (eqn (ap1 Fst (ap2 D2_h1 x v)) (ap2 Pair x' y'))))))
-  (D2_h2_shape : (x v : Term) ->
-     Sigma Term (\ y' -> Sigma Term (\ x' ->
-       Deriv (atomic (eqn (ap1 Fst (ap2 D2_h2 x v)) (ap2 Pair x' y'))))))
   where
 
   ----------------------------------------------------------------------
@@ -134,14 +128,14 @@ module FanCase
     enc_h2_num : Fun2
     enc_h2_num = Fan (Lift (KT (reify tagAp2))) enc_h2_num_inner Pair
 
-    -- y2a_part : Fun2.
+    -- y2a_part : Fun2 (new layout, Finding 1).
     --   ap2 y2a_part x v = parEncCongL h (D2_h1 x v) (enc_h2_num x v)
-    --                    = Pair tagCode_congL (Pair cF2h (Pair (D2_h1 x v) (enc_h2_num x v))).
-    y2a_inner3 : Fun2
-    y2a_inner3 = Fan D2_h1 enc_h2_num Pair
+    --                    = Pair tagCode_congL (Pair (Pair cF2h (enc_h2_num x v)) (D2_h1 x v)).
+    y2a_inner_inner : Fun2
+    y2a_inner_inner = Fan (Lift (KT cF2h)) enc_h2_num Pair
 
     y2a_inner2 : Fun2
-    y2a_inner2 = Fan (Lift (KT cF2h)) y2a_inner3 Pair
+    y2a_inner2 = Fan y2a_inner_inner D2_h1 Pair
 
     y2a_part : Fun2
     y2a_part = Fan (Lift (KT BRA.Thm.ThmT.tagCode_congL)) y2a_inner2 Pair
@@ -150,14 +144,14 @@ module FanCase
     corF1_h1 : Fun2
     corF1_h1 = Post cor h1
 
-    -- y2b_part : Fun2.
+    -- y2b_part : Fun2 (new layout, Finding 1).
     --   ap2 y2b_part x v = parEncCongR h (D2_h2 x v) (cor (h1 x v))
-    --                    = Pair tagCode_congR (Pair cF2h (Pair (D2_h2 x v) (cor (h1 x v)))).
-    y2b_inner3 : Fun2
-    y2b_inner3 = Fan D2_h2 corF1_h1 Pair
+    --                    = Pair tagCode_congR (Pair (Pair cF2h (cor (h1 x v))) (D2_h2 x v)).
+    y2b_inner_inner : Fun2
+    y2b_inner_inner = Fan (Lift (KT cF2h)) corF1_h1 Pair
 
     y2b_inner2 : Fun2
-    y2b_inner2 = Fan (Lift (KT cF2h)) y2b_inner3 Pair
+    y2b_inner2 = Fan y2b_inner_inner D2_h2 Pair
 
     y2b_part : Fun2
     y2b_part = Fan (Lift (KT BRA.Thm.ThmT.tagCode_congR)) y2b_inner2 Pair
@@ -287,29 +281,30 @@ module FanCase
                (ruleTrans (congL Pair (ap2 enc_h2_num_inner x v) s2)
                           (congR Pair (reify tagAp2) red_enc_h2_num_inner))
 
-        -- y2a_inner3 reduces to Pair (D2_h1 x v) (enc_h2_num x v).
-        red_y2a_inner3 : Deriv (atomic (eqn (ap2 y2a_inner3 x v)
-                          (ap2 Pair (ap2 D2_h1 x v)
+        -- y2a_inner_inner reduces to Pair cF2h (enc_h2_num x v).
+        red_y2a_inner_inner : Deriv (atomic (eqn (ap2 y2a_inner_inner x v)
+                          (ap2 Pair cF2h
                             (ap2 Pair (reify tagAp2)
                               (ap2 Pair cF2h2
                                 (ap2 Pair (ap1 cor x) (ap1 cor v)))))))
-        red_y2a_inner3 =
-          let s1 = axFan D2_h1 enc_h2_num Pair x v
-          in ruleTrans s1 (congR Pair (ap2 D2_h1 x v) red_enc_h2_num)
-
-        red_y2a_inner2 : Deriv (atomic (eqn (ap2 y2a_inner2 x v)
-                          (ap2 Pair cF2h
-                            (ap2 Pair (ap2 D2_h1 x v)
-                              (ap2 Pair (reify tagAp2)
-                                (ap2 Pair cF2h2
-                                  (ap2 Pair (ap1 cor x) (ap1 cor v))))))))
-        red_y2a_inner2 =
-          let s1 = axFan (Lift (KT cF2h)) y2a_inner3 Pair x v
+        red_y2a_inner_inner =
+          let s1 = axFan (Lift (KT cF2h)) enc_h2_num Pair x v
               s2 : Deriv (atomic (eqn (ap2 (Lift (KT cF2h)) x v) cF2h))
               s2 = ruleTrans (axLift (KT cF2h) x v) (axKT (codeF2 h) x)
           in ruleTrans s1
-               (ruleTrans (congL Pair (ap2 y2a_inner3 x v) s2)
-                          (congR Pair cF2h red_y2a_inner3))
+               (ruleTrans (congL Pair (ap2 enc_h2_num x v) s2)
+                          (congR Pair cF2h red_enc_h2_num))
+
+        red_y2a_inner2 : Deriv (atomic (eqn (ap2 y2a_inner2 x v)
+                          (ap2 Pair
+                            (ap2 Pair cF2h
+                              (ap2 Pair (reify tagAp2)
+                                (ap2 Pair cF2h2
+                                  (ap2 Pair (ap1 cor x) (ap1 cor v)))))
+                            (ap2 D2_h1 x v))))
+        red_y2a_inner2 =
+          let s1 = axFan y2a_inner_inner D2_h1 Pair x v
+          in ruleTrans s1 (congL Pair (ap2 D2_h1 x v) red_y2a_inner_inner)
 
         red_y2a : Deriv (atomic (eqn (ap2 y2a_part x v)
                           (parEncCongL h (ap2 D2_h1 x v)
@@ -331,23 +326,23 @@ module FanCase
         red_corF1_h1 : Deriv (atomic (eqn (ap2 corF1_h1 x v) (ap1 cor (ap2 h1 x v))))
         red_corF1_h1 = axPost cor h1 x v
 
-        -- y2b_inner3 reduces to Pair (D2_h2 x v) (cor (h1 x v)).
-        red_y2b_inner3 : Deriv (atomic (eqn (ap2 y2b_inner3 x v)
-                          (ap2 Pair (ap2 D2_h2 x v) (ap1 cor (ap2 h1 x v)))))
-        red_y2b_inner3 =
-          let s1 = axFan D2_h2 corF1_h1 Pair x v
-          in ruleTrans s1 (congR Pair (ap2 D2_h2 x v) red_corF1_h1)
-
-        red_y2b_inner2 : Deriv (atomic (eqn (ap2 y2b_inner2 x v)
-                          (ap2 Pair cF2h
-                            (ap2 Pair (ap2 D2_h2 x v) (ap1 cor (ap2 h1 x v))))))
-        red_y2b_inner2 =
-          let s1 = axFan (Lift (KT cF2h)) y2b_inner3 Pair x v
+        -- y2b_inner_inner reduces to Pair cF2h (cor (h1 x v)).
+        red_y2b_inner_inner : Deriv (atomic (eqn (ap2 y2b_inner_inner x v)
+                          (ap2 Pair cF2h (ap1 cor (ap2 h1 x v)))))
+        red_y2b_inner_inner =
+          let s1 = axFan (Lift (KT cF2h)) corF1_h1 Pair x v
               s2 : Deriv (atomic (eqn (ap2 (Lift (KT cF2h)) x v) cF2h))
               s2 = ruleTrans (axLift (KT cF2h) x v) (axKT (codeF2 h) x)
           in ruleTrans s1
-               (ruleTrans (congL Pair (ap2 y2b_inner3 x v) s2)
-                          (congR Pair cF2h red_y2b_inner3))
+               (ruleTrans (congL Pair (ap2 corF1_h1 x v) s2)
+                          (congR Pair cF2h red_corF1_h1))
+
+        red_y2b_inner2 : Deriv (atomic (eqn (ap2 y2b_inner2 x v)
+                          (ap2 Pair (ap2 Pair cF2h (ap1 cor (ap2 h1 x v)))
+                                    (ap2 D2_h2 x v))))
+        red_y2b_inner2 =
+          let s1 = axFan y2b_inner_inner D2_h2 Pair x v
+          in ruleTrans s1 (congL Pair (ap2 D2_h2 x v) red_y2b_inner_inner)
 
         red_y2b : Deriv (atomic (eqn (ap2 y2b_part x v)
                           (parEncCongR h (ap2 D2_h2 x v) (ap1 cor (ap2 h1 x v)))))
@@ -412,13 +407,11 @@ module FanCase
         u2_y2a = ap2 Pair (reify tagAp2)
                   (ap2 Pair cF2h (ap2 Pair u2_Dh1 ENC_H2NUM))
 
-        d_Dh1_shape = snd (snd (D2_h1_shape x v))
-
         d_y2a : Deriv (atomic (eqn
                   (ap1 thmT (parEncCongL h (ap2 D2_h1 x v) ENC_H2NUM))
                   (ap2 Pair u1_y2a u2_y2a)))
         d_y2a = parDispCongL h (ap2 D2_h1 x v) ENC_H2NUM
-                              u1_Dh1 u2_Dh1 _ _ d_Dh1_shape d_Dh1
+                              u1_Dh1 u2_Dh1 d_Dh1
 
         -- D_h2 image:
         u1_Dh2 : Term
@@ -439,13 +432,11 @@ module FanCase
         u2_y2b = ap2 Pair (reify tagAp2)
                   (ap2 Pair cF2h (ap2 Pair (ap1 cor (ap2 h1 x v)) u2_Dh2))
 
-        d_Dh2_shape = snd (snd (D2_h2_shape x v))
-
         d_y2b : Deriv (atomic (eqn
                   (ap1 thmT (parEncCongR h (ap2 D2_h2 x v) (ap1 cor (ap2 h1 x v))))
                   (ap2 Pair u1_y2b u2_y2b)))
         d_y2b = parDispCongR h (ap2 D2_h2 x v) (ap1 cor (ap2 h1 x v))
-                              u1_Dh2 u2_Dh2 _ _ d_Dh2_shape d_Dh2
+                              u1_Dh2 u2_Dh2 d_Dh2
 
         -- D2_h applied at (h1 x v, h2 x v):
         u1_D2h : Term

@@ -93,7 +93,7 @@ thm12_Z_param =
     -- Bridge RHS subterm:  O  ->  cor (Z (var 0)) .
     --   axZ (var 0)            : Z (var 0) = O
     --   cong1 cor              : cor (Z (var 0)) = cor O
-    --   axRecLf O stepCor      : cor O = O
+    --   axRecLf stepCor      : cor O = O
     --   ruleTrans + ruleSym    : O = cor (Z (var 0)) .
 
     bR_axZ : Deriv (atomic (eqn (ap1 Z (var zero)) O))
@@ -103,7 +103,7 @@ thm12_Z_param =
     bR_cong = cong1 cor bR_axZ
 
     bR_corO : Deriv (atomic (eqn (ap1 cor O) O))
-    bR_corO = axRecLf O stepCor
+    bR_corO = axRecLf stepCor
 
     bR_combined : Deriv (atomic (eqn (ap1 cor (ap1 Z (var zero))) O))
     bR_combined = ruleTrans bR_cong bR_corO
@@ -329,7 +329,7 @@ thm12_FstLf_at_O =
     -- of (Fst O = O), via cor (Fst O) reductions.
 
     cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-    cor_O = ruleSym (axRecLf O stepCor)
+    cor_O = ruleSym (axRecLf stepCor)
 
     -- LHS subterm bridge:  O  ->  ap1 cor O .
     bL_inner : Deriv (atomic (eqn
@@ -349,7 +349,7 @@ thm12_FstLf_at_O =
     --   ruleSym       : O = cor (Fst O) .
 
     bR_combined : Deriv (atomic (eqn (ap1 cor (ap1 Fst O)) O))
-    bR_combined = ruleTrans (cong1 cor axFstLf) (axRecLf O stepCor)
+    bR_combined = ruleTrans (cong1 cor axFstLf) (axRecLf stepCor)
 
     bR : Deriv (atomic (eqn O (ap1 cor (ap1 Fst O))))
     bR = ruleSym bR_combined
@@ -393,7 +393,7 @@ thm12_SndLf_at_O =
     disp = thmTDispAxSndLf_param O
 
     cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-    cor_O = ruleSym (axRecLf O stepCor)
+    cor_O = ruleSym (axRecLf stepCor)
 
     bL_inner : Deriv (atomic (eqn
                 (ap2 Pair (reify (codeF1 Snd)) O)
@@ -406,7 +406,7 @@ thm12_SndLf_at_O =
     bL = congR Pair (reify tagAp1) bL_inner
 
     bR_combined : Deriv (atomic (eqn (ap1 cor (ap1 Snd O)) O))
-    bR_combined = ruleTrans (cong1 cor axSndLf) (axRecLf O stepCor)
+    bR_combined = ruleTrans (cong1 cor axSndLf) (axRecLf stepCor)
 
     bR : Deriv (atomic (eqn O (ap1 cor (ap1 Snd O))))
     bR = ruleSym bR_combined
@@ -498,7 +498,7 @@ module IfLfLCase (v1 v2 : Nat) where
       -- with cor O = O and cor (Pair v1 v2) = (above).
 
       cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-      cor_O = ruleSym (axRecLf O stepCor)
+      cor_O = ruleSym (axRecLf stepCor)
 
       bridge_LHS_innermost : Deriv (atomic (eqn
                   (ap2 Pair O
@@ -603,7 +603,7 @@ thm12_IfLfLL_at_OO =
     disp = thmTDispAxIfLfLL_param O
 
     cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-    cor_O = ruleSym (axRecLf O stepCor)
+    cor_O = ruleSym (axRecLf stepCor)
 
     -- Bridge LHS subterm:  mkAp2T (codeF2 IfLf) O O  ->  with cor O cor O.
     bL_inner_a : Deriv (atomic (eqn
@@ -629,7 +629,7 @@ thm12_IfLfLL_at_OO =
            (ruleTrans bL_inner_a bL_inner_b)
 
     bR_combined : Deriv (atomic (eqn (ap1 cor (ap2 IfLf O O)) O))
-    bR_combined = ruleTrans (cong1 cor axIfLfLL) (axRecLf O stepCor)
+    bR_combined = ruleTrans (cong1 cor axIfLfLL) (axRecLf stepCor)
 
     bR : Deriv (atomic (eqn O (ap1 cor (ap2 IfLf O O))))
     bR = ruleSym bR_combined
@@ -674,7 +674,7 @@ thm12_TreeEqLL_at_OO =
     disp = thmTDispAxTreeEqLL_param O
 
     cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-    cor_O = ruleSym (axRecLf O stepCor)
+    cor_O = ruleSym (axRecLf stepCor)
 
     bL_inner : Deriv (atomic (eqn
                   (ap2 Pair (reify (codeF2 TreeEq))
@@ -691,7 +691,7 @@ thm12_TreeEqLL_at_OO =
     bL = congR Pair (reify tagAp2) bL_inner
 
     bR_combined : Deriv (atomic (eqn (ap1 cor (ap2 TreeEq O O)) O))
-    bR_combined = ruleTrans (cong1 cor axTreeEqLL) (axRecLf O stepCor)
+    bR_combined = ruleTrans (cong1 cor axTreeEqLL) (axRecLf stepCor)
 
     bR : Deriv (atomic (eqn O (ap1 cor (ap2 TreeEq O O))))
     bR = ruleSym bR_combined
@@ -827,7 +827,7 @@ module IfLfNLCase (v1 v2 : Nat) where
         in ruleTrans axNd stRed
 
       cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-      cor_O = ruleSym (axRecLf O stepCor)
+      cor_O = ruleSym (axRecLf stepCor)
 
       -- LHS subterm bridge to mkAp2T (codeF2 IfLf) (cor (Pair v1 v2)) (cor O).
       bL_innermost : Deriv (atomic (eqn
@@ -865,7 +865,7 @@ module IfLfNLCase (v1 v2 : Nat) where
 
       -- RHS subterm bridge:  O  ->  cor (IfLf (Pair v1 v2) O).
       bR_combined : Deriv (atomic (eqn (ap1 cor (ap2 IfLf pairT O)) O))
-      bR_combined = ruleTrans (cong1 cor (axIfLfNL v1T v2T)) (axRecLf O stepCor)
+      bR_combined = ruleTrans (cong1 cor (axIfLfNL v1T v2T)) (axRecLf stepCor)
 
       bR : Deriv (atomic (eqn O (ap1 cor (ap2 IfLf pairT O))))
       bR = ruleSym bR_combined
@@ -1055,7 +1055,7 @@ module TreeEqLNCase (v1 v2 : Nat) where
         in ruleTrans (axRecNd O stepCor v1T v2T) (stepCorRed pair12 recs)
 
       cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-      cor_O = ruleSym (axRecLf O stepCor)
+      cor_O = ruleSym (axRecLf stepCor)
 
       -- LHS bridge:  reach cor O on first slot, cor pair12 on second.
       bL_innermost : Deriv (atomic (eqn
@@ -1140,7 +1140,7 @@ module TreeEqNLCase (v1 v2 : Nat) where
         in ruleTrans (axRecNd O stepCor v1T v2T) (stepCorRed pair12 recs)
 
       cor_O : Deriv (atomic (eqn O (ap1 cor O)))
-      cor_O = ruleSym (axRecLf O stepCor)
+      cor_O = ruleSym (axRecLf stepCor)
 
       bL_innermost : Deriv (atomic (eqn
                       (ap2 Pair (ap2 Pair (reify tagAp2)

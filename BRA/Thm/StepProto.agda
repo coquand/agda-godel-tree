@@ -119,8 +119,44 @@ abstract
   stepProto : Fun2
   stepProto = Fan discComb branchesTop IfLf
 
+  -- Wrapper to absorb the  Pair O ...  prefix introduced by  Rec  (now
+  -- defined as  Comp2 (treeRec Z s) Z I , so axRecNd RHS first arg =
+  --   Pair O (input) ).  Equationally:
+  --   ap2 stepProtoWrapped (Pair O input) recs
+  --     = ap2 stepProto (Snd (Pair O input)) recs = ap2 stepProto input recs
+  stepProtoWrapped : Fun2
+  stepProtoWrapped = Fan (Lift Snd) (Post Snd Pair) stepProto
+
   thmTProto : Fun1
-  thmTProto = Rec O stepProto
+  thmTProto = Rec stepProtoWrapped
+
+  -- Bridge: thmTProto (Pair u v) = stepProto (Pair u v) recs
+  --   where recs = Pair (thmTProto u) (thmTProto v).
+  thmTProtoUnfoldStep : (u v : Term) ->
+    Deriv (atomic (eqn (ap1 thmTProto (ap2 Pair u v))
+                       (ap2 stepProto (ap2 Pair u v)
+                                       (ap2 Pair (ap1 thmTProto u)
+                                                 (ap1 thmTProto v)))))
+  thmTProtoUnfoldStep u v =
+    let a : Term
+        a = ap2 Pair u v
+        b : Term
+        b = ap2 Pair (ap1 thmTProto u) (ap1 thmTProto v)
+        aW : Term
+        aW = ap2 Pair O a
+        e1a : Deriv (atomic (eqn (ap1 thmTProto a) (ap2 stepProtoWrapped aW b)))
+        e1a = axRecNd stepProtoWrapped u v
+        unfoldFan : Deriv (atomic (eqn (ap2 stepProtoWrapped aW b)
+                                       (ap2 stepProto (ap2 (Lift Snd) aW b)
+                                                       (ap2 (Post Snd Pair) aW b))))
+        unfoldFan = axFan (Lift Snd) (Post Snd Pair) stepProto aW b
+        leftRed : Deriv (atomic (eqn (ap2 (Lift Snd) aW b) a))
+        leftRed = ruleTrans (axLift Snd aW b) (axSnd O a)
+        rightRed : Deriv (atomic (eqn (ap2 (Post Snd Pair) aW b) b))
+        rightRed = ruleTrans (axPost Snd Pair aW b) (axSnd aW b)
+        congLft = congL stepProto (ap2 (Post Snd Pair) aW b) leftRed
+        congRgt = congR stepProto a rightRed
+    in ruleTrans e1a (ruleTrans unfoldFan (ruleTrans congLft congRgt))
 
   ------------------------------------------------------------------
   -- TreeEq reductions on the two concrete tag codes.
@@ -592,7 +628,7 @@ abstract
         P2 = ap2 Pair (ap1 thmTProto y1T) (ap1 thmTProto y2T)
         -- axRecNd: ap1 (Rec O stepProto) (Pair y1T y2T) = stepProto P1 P2.
         e1 : Deriv (atomic (eqn (ap1 thmTProto (ap2 Pair y1T y2T)) (ap2 stepProto P1 P2)))
-        e1 = axRecNd O stepProto y1T y2T
+        e1 = thmTProtoUnfoldStep y1T y2T
         -- Fst(Fst P1) = Fst(y1T) = Pair (reify y1aL) (reify y1aR)
         --   y1T = Pair (Pair (reify y1aL) (reify y1aR)) (reify y1ar)
         --   so Fst(y1T) = Pair (reify y1aL) (reify y1aR)
@@ -627,7 +663,7 @@ abstract
                                  (ap2 stepProto (ap2 Pair tagCode1 pT)
                                                 (ap2 Pair (ap1 thmTProto tagCode1)
                                                           (ap1 thmTProto pT)))))
-        e1 = axRecNd O stepProto tagCode1 pT
+        e1 = thmTProtoUnfoldStep tagCode1 pT
         e2 : Deriv (atomic (eqn (ap2 stepProto (ap2 Pair tagCode1 pT)
                                                  (ap2 Pair (ap1 thmTProto tagCode1)
                                                            (ap1 thmTProto pT))) pT))
@@ -663,7 +699,7 @@ abstract
                                  (ap2 stepProto (ap2 Pair tagCode2 payT)
                                                  (ap2 Pair (ap1 thmTProto tagCode2)
                                                            (ap1 thmTProto payT)))))
-        e1 = axRecNd O stepProto tagCode2 payT
+        e1 = thmTProtoUnfoldStep tagCode2 payT
         -- stepProto (Pair tagCode2 payT) (Pair _ thmT_payT) = Fst (Snd (Pair _ thmT_payT)) = Fst thmT_payT
         e2 : Deriv (atomic (eqn (ap2 stepProto (ap2 Pair tagCode2 payT)
                                                   (ap2 Pair (ap1 thmTProto tagCode2)

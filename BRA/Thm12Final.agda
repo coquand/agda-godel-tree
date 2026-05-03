@@ -163,19 +163,18 @@ D_correct2_TreeEq_NN_pt_C p q a b xeq0 veq0 veq1 xeq1 =
   in ruleTrans (ruleSym s_thmT_reduce) univ
 
 ------------------------------------------------------------------------
--- P1: D_correct2_IfLf_univ_C -- IfLf universal correctness with closure
--- args (mirrors D_correct2_TreeEq_univ_C).  Just an alias for the
--- closure-arg-parametric form already proved in BRA.Thm12.Parts.IfLf.
+-- P1: D_correct2_IfLf_univ_C -- IfLf universal correctness, now closure-
+-- free thanks to D_correct2_IfLf delivering the truly universal form
+-- via the pickFresh trick.  The legacy xeq1 parameter is silently
+-- discarded so existing TreeEq-side callers (which pass refl) still
+-- compile.
 
 D_correct2_IfLf_univ_C :
   (x v : Term)
-  (xeq0 : Eq (subst zero x x) x)
-  (veq0 : Eq (subst zero x v) v)
-  (veq1 : Eq (subst (suc zero) v v) v)
   (xeq1 : Eq (subst (suc zero) v x) x) ->
   Deriv (atomic (eqn (ap1 thmT (ap2 D_IfLf x v))
                      (codeFTeq2_IfLf x v)))
-D_correct2_IfLf_univ_C = D_correct2_IfLf
+D_correct2_IfLf_univ_C x v _ = D_correct2_IfLf x v
 
 ------------------------------------------------------------------------
 -- P2: z_corLemma_for_O -- closed-Tree restriction of z_corLemma.
