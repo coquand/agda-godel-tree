@@ -190,14 +190,8 @@ data Deriv : Formula -> Set where
   axNeg      : (P Q : Formula) ->
                Deriv ((not P) imp ((not Q) imp (Q imp P)))
 
-  -- Ex falso quodlibet:  P ⊃ ~P ⊃ Q .
-  --
-  -- CLASSICALLY DERIVABLE from axK / axS / axNeg / mp.  Added as a
-  -- primitive so that downstream tPrime-style derivations are
-  -- one-line axiom instances rather than inline classical
-  -- derivations.  Philosophically redundant but not unsound.
-  axExFalso  : (P Q : Formula) ->
-               Deriv (P imp ((not P) imp Q))
+  -- (Ex falso  axExFalso : P ⊃ ~P ⊃ Q  has been demoted to a derived
+  -- top-level lemma below; see the section "Derived  axExFalso".)
 
   -- Classical contrapositive:  (P ⊃ Q) ⊃ (~Q ⊃ ~P) .
   --
@@ -405,6 +399,72 @@ axRecNd s a b =
                                                (ap1 (Rec s) b)))))
       e4 = congR s (ap2 Pair O pab) e3
   in ruleTrans e1 (ruleTrans e2 e4)
+
+------------------------------------------------------------------------
+-- Derived  axExFalso  (formerly a Deriv constructor).
+--
+-- Classically derivable from  axK / axS / axNeg / axContrapos / mp
+-- via Carneiro-style deduction-theorem simulation (cf. Frege's S
+-- axiom; see ndw2 slides on Automath vs Metamath).
+--
+-- Strategy: under hypotheses  P  and  ~P , derive  Q  via
+--   1.  axContrapos Q P  +  axK P Q  =>  P -> ~P -> ~Q
+--   2.  axNeg Q P (= ~Q -> ~P -> P -> Q)  applied with the ~Q from (1)
+--       and the hypotheses ~P and P discharges to  Q .
+-- The chain is threaded through with the local Hilbert helpers
+--  identP / liftP / bComb / bCombTwo  defined in  private  below.
+
+private
+  identP : (P : Formula) -> Deriv (P imp P)
+  identP P =
+    mp (mp (axS P (P imp P) P) (axK P (P imp P))) (axK P P)
+
+  liftP : (R : Formula) {Q : Formula} -> Deriv Q -> Deriv (R imp Q)
+  liftP R D = mp (axK _ R) D
+
+  bComb : {P Q R : Formula} ->
+          Deriv (P imp (Q imp R)) ->
+          Deriv (P imp Q) ->
+          Deriv (P imp R)
+  bComb {P} {Q} {R} D1 D2 = mp (mp (axS P Q R) D1) D2
+
+  bCombTwo : {P1 P2 Q R : Formula} ->
+             Deriv (P1 imp (P2 imp (Q imp R))) ->
+             Deriv (P1 imp (P2 imp Q)) ->
+             Deriv (P1 imp (P2 imp R))
+  bCombTwo {P1} {P2} {Q} {R} D1 D2 =
+    bComb (bComb (liftP P1 (axS P2 Q R)) D1) D2
+
+axExFalso : (P Q : Formula) -> Deriv (P imp ((not P) imp Q))
+axExFalso P Q =
+  let
+    -- Under hypothesis P, derive ~P -> ~Q via axK + axContrapos.
+    --   axContrapos Q P : (Q -> P) -> ~P -> ~Q
+    --   axK P Q         : P -> Q -> P
+    -- Composing under hypothesis P gives  P -> ~P -> ~Q .
+    step1 : Deriv (P imp ((not P) imp (not Q)))
+    step1 = bComb (liftP P (axContrapos Q P)) (axK P Q)
+
+    -- Lift  axNeg Q P : ~Q -> ~P -> P -> Q  under {P, ~P}.
+    axNegLift : Deriv (P imp ((not P) imp ((not Q) imp ((not P) imp (P imp Q)))))
+    axNegLift = liftP P (liftP (not P) (axNeg Q P))
+
+    -- Feed in ~Q from step1.
+    step2 : Deriv (P imp ((not P) imp ((not P) imp (P imp Q))))
+    step2 = bCombTwo axNegLift step1
+
+    -- Feed in the hypothesis ~P  (= identP (not P)  lifted under P).
+    hypNP : Deriv (P imp ((not P) imp (not P)))
+    hypNP = liftP P (identP (not P))
+
+    step3 : Deriv (P imp ((not P) imp (P imp Q)))
+    step3 = bCombTwo step2 hypNP
+
+    -- Feed in the hypothesis P  (= axK P (~P)).
+    hypP : Deriv (P imp ((not P) imp P))
+    hypP = axK P (not P)
+  in
+    bCombTwo step3 hypP
 
 ------------------------------------------------------------------------
 -- Consistency (hyp-less form).

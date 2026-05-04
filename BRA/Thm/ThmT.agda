@@ -10932,9 +10932,11 @@ module WithDispatch
   encodeRich (axNeg P Q) =
     mkR ((not P) imp ((not Q) imp (Q imp P))) tagAxS
         (nd (codeFormula P) (codeFormula Q)) (thmTDispAxNeg P Q)
-  encodeRich (axExFalso P Q) =
-    mkR (P imp ((not P) imp Q)) tagAxNeg
-        (nd (codeFormula P) (codeFormula Q)) (thmTDispAxExFalso P Q)
+  -- (axExFalso clause removed: axExFalso is now a derived lemma built
+  -- from mp / axS / axK / axNeg / axContrapos, so encoding flows through
+  -- the existing clauses for those constructors.  body_axExFalso /
+  -- thmTDispAxExFalso / tagAxExFalso are now unreached dead code in the
+  -- dispatcher cascade, kept to preserve cascade depth and tag values.)
   encodeRich (axContrapos P Q) =
     mkR ((P imp Q) imp ((not Q) imp (not P))) tagAxExFalso
         (nd (codeFormula P) (codeFormula Q)) (thmTDispAxContrapos P Q)
