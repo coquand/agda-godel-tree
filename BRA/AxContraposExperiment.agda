@@ -18,8 +18,23 @@
 --
 -- This is a pure feasibility check.  No postulates, no holes.
 --
--- Result: see the bottom of this file for what was derivable and where
--- the chain blocks (Frege's law / double-negation lift).
+-- RESULT: derivation succeeds.  The full chain
+--    axK + axS + axNG + mp  =>  axContrapos_mt
+-- typechecks (~0.15s).  The breakdown:
+--   (3) DNE  ¬¬A -> A , 21-step transcription of the Lukasiewicz proof
+--       (https://www.maths.tcd.ie/~stalker/22C00/notes/3.9-the-
+--       %C5%82ukasiewicz-system.html).
+--   (4) compI : implication composition (1-line helper).
+--   (5) Q_to_dNeg :  Q -> ¬¬Q  via axNG and DNE-at-¬Q (1 line).
+--   (6) dNeg_lift :  (P -> Q) -> (¬¬P -> ¬¬Q)  via DNE_P + Q_to_dNeg
+--       and Carneiro-lifted composition (~12 lines).
+--   (7) axContrapos_mt = compI (dNeg_lift P Q) (axNG (¬P) (¬Q))  (1 line).
+--
+-- Implication for the BRA refactor: the codebase's current curried
+-- axNeg `~P -> ~Q -> Q -> P` should be REPLACED by the implicational
+-- form  `(~P -> ~Q) -> (Q -> P)`  (matching guard15.pdf).  Then
+-- axContrapos becomes a derived lemma (this file proves it), and one
+-- of the two classical primitives is eliminated.
 
 module BRA.AxContraposExperiment where
 
@@ -125,57 +140,197 @@ module Experiment
       step_b
 
   ----------------------------------------------------------------------
-  -- (3) BLOCKER: getting from  innerLemma  to  axContrapos_mt .
+  -- (3) DNE  ¬¬A → A , transcribed from the Lukasiewicz textbook chain.
   --
-  -- innerLemma  gives  Deriv ((P imp Q) imp ((not Q) imp (P imp (not P)))) .
-  -- We want    Deriv ((P imp Q) imp ((not Q) imp (not P))) .
-  -- The difference: discharge the inner  P  -- i.e., from the chain
-  -- ending in  (P imp (not P))  produce the conclusion  (not P)  alone.
+  -- Notation:
+  --   H = ¬¬A , U = ¬A , V = ¬¬¬A , W = ¬¬¬¬A .
   --
-  -- This is exactly Frege's law:  (P imp (not P)) imp (not P) .
+  -- Then  ¬V = W , ¬U = H , ¬H = V , ¬A = U  (definitionally), so axNG
+  -- instantiations unfold cleanly.
+
+  DNE : (A : Formula) -> Deriv ((not (not A)) imp A)
+  DNE A =
+    let
+      H : Formula
+      H = not (not A)
+
+      U : Formula
+      U = not A
+
+      V : Formula
+      V = not (not (not A))
+
+      W : Formula
+      W = not (not (not (not A)))
+
+      -- Step 1:  axNG V U  :  (¬V → ¬U) → (U → V)  =  (W → H) → (U → V)
+      s1 : Deriv ((W imp H) imp (U imp V))
+      s1 = axNG V U
+
+      -- Step 2:  axK
+      s2 : Deriv (((W imp H) imp (U imp V)) imp (H imp ((W imp H) imp (U imp V))))
+      s2 = axK ((W imp H) imp (U imp V)) H
+
+      -- Step 3:  mp 2,1
+      s3 : Deriv (H imp ((W imp H) imp (U imp V)))
+      s3 = mp s2 s1
+
+      -- Step 4:  axS
+      s4 : Deriv ((H imp ((W imp H) imp (U imp V)))
+                    imp ((H imp (W imp H)) imp (H imp (U imp V))))
+      s4 = axS H (W imp H) (U imp V)
+
+      -- Step 5:  mp 4,3
+      s5 : Deriv ((H imp (W imp H)) imp (H imp (U imp V)))
+      s5 = mp s4 s3
+
+      -- Step 6:  axK
+      s6 : Deriv (H imp (W imp H))
+      s6 = axK H W
+
+      -- Step 7:  mp 5,6
+      s7 : Deriv (H imp (U imp V))
+      s7 = mp s5 s6
+
+      -- Step 8:  axNG A H : (¬A → ¬H) → (H → A) = (U → V) → (H → A)
+      s8 : Deriv ((U imp V) imp (H imp A))
+      s8 = axNG A H
+
+      -- Step 9:  axK
+      s9 : Deriv (((U imp V) imp (H imp A)) imp (H imp ((U imp V) imp (H imp A))))
+      s9 = axK ((U imp V) imp (H imp A)) H
+
+      -- Step 10:  mp 9,8
+      s10 : Deriv (H imp ((U imp V) imp (H imp A)))
+      s10 = mp s9 s8
+
+      -- Step 11:  axS
+      s11 : Deriv ((H imp ((U imp V) imp (H imp A)))
+                     imp ((H imp (U imp V)) imp (H imp (H imp A))))
+      s11 = axS H (U imp V) (H imp A)
+
+      -- Step 12:  mp 11,10
+      s12 : Deriv ((H imp (U imp V)) imp (H imp (H imp A)))
+      s12 = mp s11 s10
+
+      -- Step 13:  mp 12,7
+      s13 : Deriv (H imp (H imp A))
+      s13 = mp s12 s7
+
+      -- Step 14:  axK
+      s14 : Deriv (H imp ((H imp H) imp H))
+      s14 = axK H (H imp H)
+
+      -- Step 15:  axK
+      s15 : Deriv (H imp (H imp H))
+      s15 = axK H H
+
+      -- Step 16:  axS
+      s16 : Deriv ((H imp ((H imp H) imp H)) imp ((H imp (H imp H)) imp (H imp H)))
+      s16 = axS H (H imp H) H
+
+      -- Step 17:  mp 16,14
+      s17 : Deriv ((H imp (H imp H)) imp (H imp H))
+      s17 = mp s16 s14
+
+      -- Step 18:  mp 17,15
+      s18 : Deriv (H imp H)
+      s18 = mp s17 s15
+
+      -- Step 19:  axS
+      s19 : Deriv ((H imp (H imp A)) imp ((H imp H) imp (H imp A)))
+      s19 = axS H H A
+
+      -- Step 20:  mp 19,13
+      s20 : Deriv ((H imp H) imp (H imp A))
+      s20 = mp s19 s13
+
+      -- Step 21:  mp 20,18
+      s21 : Deriv (H imp A)
+      s21 = mp s20 s18
+    in s21
+
+  ----------------------------------------------------------------------
+  -- (4) Helper: implication composition
+  --     compI : Deriv (X imp Y) -> Deriv (Y imp Z) -> Deriv (X imp Z) .
+
+  compI : {X Y Z : Formula} ->
+          Deriv (X imp Y) -> Deriv (Y imp Z) -> Deriv (X imp Z)
+  compI {X} {Y} {Z} h1 h2 = bComb (liftP X h2) h1
+
+  ----------------------------------------------------------------------
+  -- (5) Q -> ~~Q  (the "unit" of double negation).
   --
-  -- Frege's law from  {axK, axS, axExFalso, axNG, mp}  alone is the
-  -- block.  Two attempts and the negation-depth recursion they hit:
+  -- axNG (not (not Q)) Q : (¬¬¬Q → ¬Q) → (Q → ¬¬Q) .
+  -- The antecedent is exactly DNE applied at ¬Q.
+
+  Q_to_dNeg : (Q : Formula) -> Deriv (Q imp (not (not Q)))
+  Q_to_dNeg Q = mp (axNG (not (not Q)) Q) (DNE (not Q))
+
+  ----------------------------------------------------------------------
+  -- (6) Double-negation lift:
+  --       (P imp Q) imp ((not (not P)) imp (not (not Q))) .
   --
-  -- Attempt A: axNG (not P) (P imp (not P))
-  --                : ((not (not P)) imp (not (P imp (not P)))) imp
-  --                  ((P imp (not P)) imp (not P))
-  --   gives Frege's law given  (not (not P)) imp (not (P imp (not P))) .
-  --   The latter requires:
-  --     - from  not (not P)  derive  not (P imp (not P)) , which
-  --     - in turn requires  P  AND  not P  under hypothesis  not (not P) ,
-  --     - which is exactly DNE  (not (not P) imp P) , unprovable from our
-  --       axiom set without bootstrapping.
+  -- Construction under hypothesis H : P imp Q:
+  --   DNE P     : ¬¬P → P
+  --   compose with H :  ¬¬P → Q
+  --   compose with Q_to_dNeg Q :  ¬¬P → ¬¬Q
+  -- All under H using bCombTwo / liftP.
+
+  dNeg_lift : (P Q : Formula) ->
+              Deriv ((P imp Q) imp ((not (not P)) imp (not (not Q))))
+  dNeg_lift P Q =
+    let
+      H : Formula
+      H = P imp Q
+
+      NNP : Formula
+      NNP = not (not P)
+
+      NNQ : Formula
+      NNQ = not (not Q)
+
+      -- Under {H, NNP}: derive P via DNE.
+      --   D1 : Deriv (H imp (NNP imp (NNP imp P)))    = DNE_P  lifted twice
+      --   D2 : Deriv (H imp (NNP imp NNP))            = identP NNP  lifted under H
+      --   bCombTwo D1 D2 : Deriv (H imp (NNP imp P))
+      D1 : Deriv (H imp (NNP imp (NNP imp P)))
+      D1 = liftP H (liftP NNP (DNE P))
+
+      D2 : Deriv (H imp (NNP imp NNP))
+      D2 = liftP H (identP NNP)
+
+      P_avail : Deriv (H imp (NNP imp P))
+      P_avail = bCombTwo D1 D2
+
+      -- Under {H, NNP}: H is available (= P imp Q under both hypotheses).
+      H_avail : Deriv (H imp (NNP imp (P imp Q)))
+      H_avail = axK H NNP
+
+      -- Under {H, NNP}: derive Q via mp H_avail P_avail (at the inner level).
+      Q_avail : Deriv (H imp (NNP imp Q))
+      Q_avail = bCombTwo H_avail P_avail
+
+      -- Under {H, NNP}: Q_to_dNeg Q : Q imp NNQ , available.
+      QtoNNQ_avail : Deriv (H imp (NNP imp (Q imp NNQ)))
+      QtoNNQ_avail = liftP H (liftP NNP (Q_to_dNeg Q))
+
+      -- bCombTwo to compose: under {H, NNP}, derive NNQ.
+      NNQ_avail : Deriv (H imp (NNP imp NNQ))
+      NNQ_avail = bCombTwo QtoNNQ_avail Q_avail
+    in NNQ_avail
+
+  ----------------------------------------------------------------------
+  -- (7) THE GOAL: axContrapos modus-tollens form.
   --
-  -- Attempt B: derive  (P imp (not P)) imp (not (not P) imp not P)
-  --   via axNG, but this just produces the contrapositive in the wrong
-  --   direction; collapsing it back needs  axN-Guard  applied recursively
-  --   at deeper nestings -- doesn't terminate.
+  --   axContrapos_mt P Q : (P imp Q) imp ((not Q) imp (not P)) .
   --
-  -- The standard textbook derivation of Frege's law in Hilbert calc with
-  -- axNG (Lukasiewicz) requires DNE  (not (not P) imp P)  as an
-  -- intermediate -- which itself recurses through deeper negations using
-  -- axNG and never bottoms out without an additional axiom (Frege's F4 in
-  -- the Frege-Lukasiewicz axiomatization, or a direct DNE primitive).
-  --
-  -- CONCLUSION OF THE EXPERIMENT:
-  --
-  -- Replacing axContrapos with axN-Guard alone is NOT sufficient.  To
-  -- derive the modus-tollens form  (P -> Q) -> ~Q -> ~P  cleanly, we
-  -- additionally need either:
-  --   (a) DNE  ~~P -> P  as a primitive (Frege's F4 form), OR
-  --   (b) Mendelson A3  (~B -> ~A) -> ((~B -> A) -> B)  as a primitive
-  --       (which is strictly stronger than axN-Guard), OR
-  --   (c) accept that  axContrapos  (modus-tollens) is itself a primitive
-  --       even when the system has  axN-Guard  (i.e., have BOTH  axN-Guard
-  --       and  axContrapos  as primitives).
-  --
-  -- Option (c) is what guard15.pdf actually does (separate "negation"
-  -- and "contraposition" axioms).  Option (b) is Mendelson's choice.
-  -- Option (a) is the cleanest if we want a single classical primitive.
-  --
-  -- For the BRA refactor: keeping  axContrapos  (in its current modus-
-  -- tollens form) and ADDITIONALLY adding  axN-Guard  to match Guard's
-  -- presentation more faithfully is the most faithful path -- but it
-  -- adds an axiom rather than reducing.  Replacing  axContrapos  with
-  -- axN-Guard saves nothing because the dispatcher cost is the same.
+  -- Construction:
+  --   dNeg_lift P Q : (P imp Q) imp ((¬¬P) imp (¬¬Q)).
+  --   axNG (not P) (not Q)  : ((¬¬P) imp (¬¬Q)) imp ((¬Q) imp (¬P)).
+  --   compose them.
+
+  axContrapos_mt : (P Q : Formula) ->
+                   Deriv ((P imp Q) imp ((not Q) imp (not P)))
+  axContrapos_mt P Q =
+    compI (dNeg_lift P Q) (axNG (not P) (not Q))
