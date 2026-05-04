@@ -210,6 +210,63 @@ becomes underivable.  The asymmetric form $f(\underline{x}) =
 \underline{f(x)}$ is therefore not a presentational choice but a load-bearing
 feature of the proof.
 
+\subsection{Reading the slot \texttt{cor u} in encoded shapes}
+\label{subsec:cor-slot-reading}
+
+A second subtlety hidden by Guard's underline notation concerns the
+slot occupied by \texttt{cor u}.  Pure \verb|code| of a BRA term is
+defined by
+\begin{verbatim}
+  code (ap1 f u) = nd tagAp1 (nd (codeF1 f) (code u)),
+\end{verbatim}
+whereas Guard's $\widehat{f(\underline{u})}$ uses \verb|cor| in the
+inner slot:
+\begin{verbatim}
+  code "f u_"   = nd tagAp1 (nd (codeF1 f) (cor u)).
+\end{verbatim}
+The notation tempts the reader to think this Tree is itself
+\verb|code t| for some BRA term \verb|t|, but in general it is not.
+
+\emph{When the slot is filled by a syntactic \texttt{ap1 cor x} for a
+free variable \texttt{x}.}  This is the form that actually appears in
+the Theorem~14 chain (e.g.\ \verb|encoded_th_x_at| in
+\verb|BRA/Th14Step3.agda|, with \verb|x : Term| held abstract,
+typically \verb|x = var 0|).  Read syntactically, the assembled
+expression IS \verb|code t| for
+\[
+  t \;=\; \mathit{ap}_1\,f\,(\mathit{ap}_1\,\mathit{cor}\,x):
+\]
+the BRA term ``$f$ applied to $\mathit{cor}\,x$'' --- $\mathit{cor}$
+kept syntactic, the variable position passed through unevaluated.
+This is the only sense in which $\widehat{f(\underline{u})}$ at a
+\emph{variable} $u$ literally encodes a single BRA term.
+
+\emph{An example where the slot expression is not \texttt{code t} for
+any \texttt{t}.}  Trees of the same outer shape need not be codes of
+BRA terms.  Take e.g.\
+\begin{verbatim}
+  nd tagAp1 (nd (codeF1 f) (nd tagAp1 lf)).
+\end{verbatim}
+For \verb|nd tagAp1 lf| to be \verb|code t'|, we would need
+\verb|t' = ap1 g s| with \verb|nd (codeF1 g) (code s) = lf|, which is
+impossible (the payload is never \verb|lf|).  So the inner slot
+\verb|nd tagAp1 lf| is not the code of any BRA term, and consequently
+the whole Tree above is not \verb|code| of anything.  Non-code Trees
+of this kind do arise as intermediate values inside the \verb|thmT|
+dispatcher cascade --- the encoding-shape is not protected against
+them by the type alone.
+
+\emph{Bridging the two readings.}  At a closed numeric Tree \verb|u|,
+\verb|corOfReify| (\verb|BRA/Cor.agda|) gives
+\verb|cor u = code (reify u)| internally as a \texttt{Deriv}, so under
+that reading the assembled Tree equals \verb|code (ap1 f (reify u))|
+--- a \emph{different} \verb|t| (the term ``$f$ applied to the numeral
+of $u$'') from the variable reading above.  Theorem 12 is precisely
+the BRA-internal lemma that equates the two: the equation
+$\mathit{ap}_1\,f\,(\mathit{cor}\,x) = \mathit{cor}\,(f\,x)$ is the
+internal version of ``the syntactic-variable reading and the
+evaluated-numeral reading agree''.
+
 \subsection{Theorem 12 --- the encoded ``$\mathit{th}\;f$'' clause}
 
 For every $\mathit{Fun}_1$-functor $f$, Theorem~12 produces a $\mathit{Fun}_1$
@@ -255,6 +312,55 @@ where the conclusion replaces the ``$\mathit{cor}\;(f\;x)$'' slot of
 $\mathit{codeFTeq}_1$ by $\mathit{cor}\;y$.  One line: $\mathit{ruleTrans}$ on
 $r_{12}.\mathit{proof}\;x$ with $\mathit{cong}_R$~$\mathit{Pair}$ on $\mathit{cong}_1\;\mathit{cor}$ of the hypothesis.
 \end{lemma}
+
+\subsection{The function \texttt{sb} beyond its specification}
+\label{subsec:sb-nonstandard}
+
+Guard (\cite{guard1963}, p.~14, Exercise~24~[4]) specifies
+\verb|sb| as a substitution function only on encoded arguments:
+\[
+  \mathit{sb}\big(J(\ulcorner T\urcorner, n),\, \ulcorner P\urcorner\big)
+    \;=\; \ulcorner P[T/x_n]\urcorner.
+\]
+That is, the lecture notes describe \verb|sb| only when the first slot
+is the code $\ulcorner T\urcorner$ of a BRA term \verb|T|.  In our
+formalisation \verb|sb : Fun2| is defined uniformly via the underlying
+tree-level substitutor \verb|codedSubst| of \verb|BRA/Term.agda|:
+\begin{verbatim}
+  codedSubst : Tree -> Tree -> Tree -> Tree
+  codedSubst repl varCode lf       = lf
+  codedSubst repl varCode (nd a b) = boolCase (treeEq varCode (nd a b))
+                                       repl
+                                       (nd (codedSubst repl varCode a)
+                                           (codedSubst repl varCode b))
+\end{verbatim}
+The substituent \verb|repl| here is just \emph{any} Tree; nothing in
+\verb|codedSubst| relies on \verb|repl = code T| for some BRA term
+\verb|T|.  The corresponding spec (\verb|BRA/Sb.agda|, \verb|sb_def|)
+\begin{verbatim}
+  ap2 sb (ap2 Pair (reify codeA) (reify (natCode n))) (reify codeP)
+    = reify (codedSubst codeA (code (var n)) codeP)
+\end{verbatim}
+holds for any Tree \verb|codeA|, not just for \verb|codeA = code T|.
+Guard's lecture notes do not state this generalisation.
+
+\emph{Crucial use in Theorems 13--14.}  In \verb|BRA/Th14Step4.agda|
+the substituent slot is filled by \verb|ap1 cor x| with
+\verb|x : Term| held abstract:
+\begin{verbatim}
+  ap2 sb (ap2 Pair (ap1 cor x) varCode1T) (reify (codeFormula G)).
+\end{verbatim}
+By Section~\ref{subsec:cor-slot-reading} the value \verb|cor x| at a
+closed numeric \verb|x| is \emph{not} \verb|code T| for any BRA term
+\verb|T|: it is a numeral encoding produced by \verb|cor|'s recursion
+on the binary-tree shape.  Yet \verb|sb| processes it cleanly,
+walking \verb|codeFormula G| and replacing each subtree equal to
+\verb|code (var 1)| by the raw Tree \verb|cor x|.  The whole
+construction of $K\_\mathit{part}$, $g\_\mathit{part}$, and
+$\mathit{constr5}$ in Theorem~14 (Section~\ref{thm:godel-II} below)
+depends essentially on this --- the Definition~12 line~2 of $\mathit{th}$
+(\verb|guard15.pdf| p.\ 15) substitutes a \emph{numeral} into a coded
+formula, and a numeral is not the code of any BRA term.
 
 \subsection{Theorem 14 --- the consistency-to-bot construction}
 
