@@ -25,3 +25,11 @@ encCongL g x y_h = nd (natCode tagCongL)
 
 outCongL : Fun2 -> Term -> Term -> Term -> Tree
 outCongL g x t u = codeFormula (atomic (eqn (ap2 g t x) (ap2 g u x)))
+
+open import BRA.SoundCongLVProof using (body_congL_v)
+
+------------------------------------------------------------------------
+-- body_congL (alias for the verifying body in BRA.SoundCongLVProof).
+
+body_congL : Fun2
+body_congL = body_congL_v

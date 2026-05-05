@@ -51,3 +51,11 @@ encRuleInst2 xA xB tA tB y_h =
 outRuleInst2 : Nat -> Nat -> Term -> Term -> Formula -> Tree
 outRuleInst2 xA xB tA tB P =
   codeFormula (substF xA tA (substF xB tB P))
+
+open import BRA.SoundRuleInst2VProof using (body_ruleInst2_v)
+
+------------------------------------------------------------------------
+-- body_ruleInst2 (alias for the verifying body in BRA.SoundRuleInst2VProof).
+
+body_ruleInst2 : Fun2
+body_ruleInst2 = body_ruleInst2_v

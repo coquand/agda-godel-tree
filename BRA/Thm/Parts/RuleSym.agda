@@ -23,9 +23,16 @@ open import BRA.Base
 open import BRA.Term
 open import BRA.Formula
 open import BRA.Thm.Tag using (tagRuleSym)
+open import BRA.SoundRuleSymVProof using (body_ruleSym_v)
 
 encRuleSym : Tree -> Tree
 encRuleSym y_h = nd (natCode tagRuleSym) y_h
 
 outRuleSym : Term -> Term -> Tree
 outRuleSym t u = codeFormula (atomic (eqn u t))
+
+------------------------------------------------------------------------
+-- body_ruleSym (alias for the verifying body in SoundRuleSymVProof).
+
+body_ruleSym : Fun2
+body_ruleSym = body_ruleSym_v

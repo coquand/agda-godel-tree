@@ -43,3 +43,11 @@ encRuleInst x t y_h = nd (natCode tagRuleInst)
 
 outRuleInst : Nat -> Term -> Formula -> Tree
 outRuleInst x t P = codeFormula (substF x t P)
+
+open import BRA.SoundRuleInstVProof using (body_ruleInst_v)
+
+------------------------------------------------------------------------
+-- body_ruleInst (alias for the verifying body in BRA.SoundRuleInstVProof).
+
+body_ruleInst : Fun2
+body_ruleInst = body_ruleInst_v

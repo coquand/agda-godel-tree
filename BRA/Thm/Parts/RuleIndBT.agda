@@ -34,3 +34,11 @@ encRuleIndBT P v1 v2 y_base y_step =
 
 outRuleIndBT : Formula -> Tree
 outRuleIndBT P = codeFormula P
+
+open import BRA.SoundRuleIndBTVProof using (body_ruleIndBT_v)
+
+------------------------------------------------------------------------
+-- body_ruleIndBT (alias for the verifying body in BRA.SoundRuleIndBTVProof).
+
+body_ruleIndBT : Fun2
+body_ruleIndBT = body_ruleIndBT_v

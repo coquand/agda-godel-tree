@@ -24,3 +24,11 @@ encRuleTrans y1 y2 = nd (natCode tagRuleTrans) (nd y1 y2)
 
 outRuleTrans : Term -> Term -> Tree
 outRuleTrans t v = codeFormula (atomic (eqn t v))
+
+open import BRA.SoundRuleTransVProof using (body_ruleTrans_v)
+
+------------------------------------------------------------------------
+-- body_ruleTrans (alias for the verifying body in BRA.SoundRuleTransVProof).
+
+body_ruleTrans : Fun2
+body_ruleTrans = body_ruleTrans_v

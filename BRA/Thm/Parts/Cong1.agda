@@ -20,3 +20,11 @@ encCong1 f y_h = nd (natCode tagCong1) (nd (codeF1 f) y_h)
 
 outCong1 : Fun1 -> Term -> Term -> Tree
 outCong1 f t u = codeFormula (atomic (eqn (ap1 f t) (ap1 f u)))
+
+open import BRA.SoundCong1VProof using (body_cong1_v)
+
+------------------------------------------------------------------------
+-- body_cong1 (alias for the verifying body in BRA.SoundCong1VProof).
+
+body_cong1 : Fun2
+body_cong1 = body_cong1_v

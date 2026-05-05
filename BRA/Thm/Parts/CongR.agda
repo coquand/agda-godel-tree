@@ -21,3 +21,11 @@ encCongR g x y_h = nd (natCode tagCongR)
 
 outCongR : Fun2 -> Term -> Term -> Term -> Tree
 outCongR g x t u = codeFormula (atomic (eqn (ap2 g x t) (ap2 g x u)))
+
+open import BRA.SoundCongRVProof using (body_congR_v)
+
+------------------------------------------------------------------------
+-- body_congR (alias for the verifying body in BRA.SoundCongRVProof).
+
+body_congR : Fun2
+body_congR = body_congR_v

@@ -61,3 +61,11 @@ encMp y1 y2 = nd (natCode tagMp) (nd y1 y2)
 
 outMp : Formula -> Tree
 outMp Q = codeFormula Q
+
+open import BRA.SoundMpVProof using (body_mp_v)
+
+------------------------------------------------------------------------
+-- body_mp (alias for the verifying body in BRA.SoundMpVProof).
+
+body_mp : Fun2
+body_mp = body_mp_v
