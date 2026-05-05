@@ -24,12 +24,66 @@ open import BRA.Thm.EvalHelpers
         ; liftedCongL ; liftedCongLTwo
         ; liftedCongR ; liftedCongRTwo )
 
-open import BRA.SoundCongLProto
-  using ( body_congL_v ; verifierCLF1 ; doAssemblyF1
-        ; assemblyLeftF1 ; assemblyRightF1
-        ; getInnerArgs ; getPayG ; getPayX
-        ; getIH ; getFstIH ; getSndIH ; codeTriv )
+----------------------------------------------------------------------
+-- Body and helpers (formerly in BRA.SoundCongLProto).
 
+----------------------------------------------------------------------
+codeTriv : Term
+codeTriv = reify (codeFormula (atomic (eqn O O)))
+
+----------------------------------------------------------------------
+-- Extractors over t = Pair a bb.
+--   Snd a            = Snd(Fst t)
+--   Fst(Snd a)       = Fst(Snd(Fst t))   -- this is (Pair payG payX)
+--   Fst(Fst(Snd a))  = Fst(Fst(Snd(Fst t))) = payG
+--   Snd(Fst(Snd a))  = Snd(Fst(Snd(Fst t))) = payX
+--   Snd(Snd bb)      = Snd(Snd(Snd t))   -- the IH
+
+getInnerArgs : Fun1
+getInnerArgs = Comp Fst (Comp Snd Fst)
+  -- ap1 t = Fst(Snd(Fst t)) = Fst(Snd a) = (Pair payG payX)
+
+getPayG : Fun1
+getPayG = Comp Fst getInnerArgs
+
+getPayX : Fun1
+getPayX = Comp Snd getInnerArgs
+
+getIH : Fun1
+getIH = Comp Snd (Comp Snd Snd)
+
+getFstIH : Fun1
+getFstIH = Comp Fst getIH
+
+getSndIH : Fun1
+getSndIH = Comp Snd getIH
+
+----------------------------------------------------------------------
+-- Half-assemblers : Pair tagAp2 (Pair payG (Pair partIH payX))
+-- where partIH is either Fst(IH) or Snd(IH).
+
+assemblyHalfL : Fun1 -> Fun1
+assemblyHalfL getPart =
+  Comp2 Pair (KT (reify tagAp2))
+    (Comp2 Pair getPayG
+      (Comp2 Pair getPart getPayX))
+
+assemblyLeftF1 : Fun1
+assemblyLeftF1 = assemblyHalfL getFstIH
+
+assemblyRightF1 : Fun1
+assemblyRightF1 = assemblyHalfL getSndIH
+
+doAssemblyF1 : Fun1
+doAssemblyF1 = Comp2 Pair assemblyLeftF1 assemblyRightF1
+
+verifierCLF1 : Fun1
+verifierCLF1 =
+  Comp2 IfLf getIH
+    (Comp2 Pair (KT codeTriv) doAssemblyF1)
+
+body_congL_v : Fun2
+body_congL_v = Post verifierCLF1 Pair
 ----------------------------------------------------------------------
 -- Helper: extract Snd(Fst t) = Snd a (via getInnerArgs's intermediate).
 -- Reused for payG, payX, both built atop getInnerArgs.

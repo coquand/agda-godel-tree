@@ -2,13 +2,22 @@
 
 -- BRA.SoundRuleIndBTVProof
 --
--- Evaluation proof for body_ruleIndBT_v.  No IH consumed; only an
--- encoding-level Pair-shape on  Snd a  is required.
+-- Verifying body  body_ruleIndBT_v  + its evaluation proof.
 --
--- Hypothesis:
---   * encShape : ap1 Snd a = ap2 Pair codeFP rest
--- Conclusion:
---   ap2 body_ruleIndBT_v a bb = codeFP
+-- (Merged from former  SoundRuleIndBTProto + SoundRuleIndBTVProof  pair.)
+--
+-- Body shape (no IH consumed; only an encoding-level Pair-shape on
+-- Snd a is required):
+--
+--   body_ruleIndBT_v = Post verifierBTF1 Pair
+--
+--   verifierBTF1 = Comp2 IfLf getDisc
+--                    (Comp2 Pair (KT codeTriv) getCodeFP)
+--
+-- where the discriminant getDisc extracts  Snd a  and the assembly
+-- getCodeFP extracts  Fst (Snd a) = codeFP .  Soundification IfLf-gates
+-- on  Snd a  being Pair-shaped.  On pass: output codeFP .  On fail:
+-- output codeTriv .
 
 module BRA.SoundRuleIndBTVProof where
 
@@ -17,8 +26,33 @@ open import BRA.Term
 open import BRA.Formula
 open import BRA.Deriv
 
-open import BRA.SoundRuleIndBTProto
-  using ( body_ruleIndBT_v ; verifierBTF1 ; getDisc ; getCodeFP ; codeTriv )
+----------------------------------------------------------------------
+-- Body and helpers (formerly in SoundRuleIndBTProto).
+
+codeTriv : Term
+codeTriv = reify (codeFormula (atomic (eqn O O)))
+
+codeTriv_eq_falseT : Eq codeTriv falseT
+codeTriv_eq_falseT = refl
+
+-- Extractors over t = Pair a bb.
+--   Fst t            = a
+--   Snd(Fst t)       = Snd a               -- the discriminant
+--   Fst(Snd(Fst t))  = Fst(Snd a)         -- = codeFP
+
+getDisc : Fun1
+getDisc = Comp Snd Fst
+
+getCodeFP : Fun1
+getCodeFP = Comp Fst getDisc
+
+verifierBTF1 : Fun1
+verifierBTF1 =
+  Comp2 IfLf getDisc
+    (Comp2 Pair (KT codeTriv) getCodeFP)
+
+body_ruleIndBT_v : Fun2
+body_ruleIndBT_v = Post verifierBTF1 Pair
 
 body_ruleIndBT_v_eval_pass :
   (a bb : Term) (codeFP rest : Term) ->

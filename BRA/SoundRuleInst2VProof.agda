@@ -21,10 +21,56 @@ open import BRA.Formula
 open import BRA.Deriv
 open import BRA.Sb2 using (subT2)
 
-open import BRA.SoundRuleInst2Proto
-  using ( body_ruleInst2_v ; argsExtractor ; codepExtractor
-        ; verifyAndRun2 ; verifierRI2F1 ; codeTriv )
+----------------------------------------------------------------------
+-- Body and helpers (formerly in BRA.SoundRuleInst2Proto).
 
+----------------------------------------------------------------------
+codeTriv : Term
+codeTriv = reify (codeFormula (atomic (eqn O O)))
+
+codeTriv_eq_falseT : Eq codeTriv falseT
+codeTriv_eq_falseT = refl
+
+----------------------------------------------------------------------
+-- argsExtractor : Fun2 over (a, bb).  Returns  Pair (Pair payVarA payTA)
+-- (Pair payVarB payTB) .  Closed extractor (depends only on a).
+
+argsExtractor : Fun2
+argsExtractor =
+  Fan
+    (Fan (Lift (Comp Fst Snd))
+         (Lift (Comp Fst (Comp Snd (Comp Snd (Comp Snd Snd)))))
+         Pair)
+    (Fan (Lift (Comp Fst (Comp Snd Snd)))
+         (Lift (Comp Snd (Comp Snd (Comp Snd (Comp Snd Snd)))))
+         Pair)
+    Pair
+
+----------------------------------------------------------------------
+-- codepExtractor : Fun2 over (a, bb).  Returns  thmT y_h_r .
+
+codepExtractor : Fun2
+codepExtractor =
+  Post (Comp (Comp Fst Snd) (Comp Snd (Comp Snd Snd))) Pair
+
+----------------------------------------------------------------------
+-- The verifying inner combinator.  Fun1 over t' = (Pair argsPair codeFP).
+--
+--   ap1 verifierRI2F1 t'
+--     = ap2 IfLf (Snd t') (Pair codeTriv (subT2 (Fst t') (Snd t')))
+
+verifierRI2F1 : Fun1
+verifierRI2F1 =
+  Comp2 IfLf Snd
+    (Comp2 Pair (KT codeTriv) (Comp2 subT2 Fst Snd))
+
+verifyAndRun2 : Fun2
+verifyAndRun2 = Post verifierRI2F1 Pair
+
+----------------------------------------------------------------------
+body_ruleInst2_v : Fun2
+body_ruleInst2_v =
+  Fan argsExtractor codepExtractor verifyAndRun2
 body_ruleInst2_v_eval_pass :
   (a bb : Term) (argsPair codeFP fstPart sndPart : Term) ->
   Deriv (atomic (eqn (ap2 argsExtractor a bb) argsPair)) ->

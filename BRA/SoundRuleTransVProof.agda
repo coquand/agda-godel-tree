@@ -27,10 +27,41 @@ open import BRA.Thm.EvalHelpers
         ; liftedCongL ; liftedCongLTwo
         ; liftedCongR ; liftedCongRTwo )
 
-open import BRA.SoundRuleTransProto
-  using ( body_ruleTrans_v ; verifierRTF1 ; doAssemblyF1
-        ; getDisc ; getU1 ; getU4 ; codeTriv )
+----------------------------------------------------------------------
+-- Body and helpers (formerly in BRA.SoundRuleTransProto).
 
+----------------------------------------------------------------------
+codeTriv : Term
+codeTriv = reify (codeFormula (atomic (eqn O O)))
+
+----------------------------------------------------------------------
+-- Extractors over t = Pair a bb.
+--   Snd t            = bb
+--   Snd(Snd t)       = Snd bb               -- the IH distribution
+--   Fst(Snd(Snd t))  = Fst(Snd bb) = tjY1
+--   Fst(Fst(Snd(Snd t))) = Fst tjY1 = u1
+--   Snd(Snd(Snd t))  = Snd(Snd bb) = tjY2
+--   Snd(Snd(Snd(Snd t))) = Snd tjY2 = u4
+
+getDisc : Fun1
+getDisc = Comp Snd Snd
+
+getU1 : Fun1
+getU1 = Comp Fst (Comp Fst getDisc)
+
+getU4 : Fun1
+getU4 = Comp Snd (Comp Snd getDisc)
+
+doAssemblyF1 : Fun1
+doAssemblyF1 = Comp2 Pair getU1 getU4
+
+verifierRTF1 : Fun1
+verifierRTF1 =
+  Comp2 IfLf getDisc
+    (Comp2 Pair (KT codeTriv) doAssemblyF1)
+
+body_ruleTrans_v : Fun2
+body_ruleTrans_v = Post verifierRTF1 Pair
 ----------------------------------------------------------------------
 -- Common helper: ap1 (Comp Snd Snd) (Pair a bb) = Snd bb .
 private
