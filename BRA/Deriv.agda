@@ -186,21 +186,17 @@ data Deriv : Formula -> Set where
                Deriv ((P imp (Q imp R))
                        imp ((P imp Q) imp (P imp R)))
 
-  -- Ax 13 (classical contraposition):  ~P ⊃ ~Q ⊃ . Q ⊃ P .
+  -- Ax 13 (Lukasiewicz CCNpNqCqp = guard15.pdf p.10 implicational form):
+  --    (~P ⊃ ~Q) ⊃ (Q ⊃ P) .
+  -- This is THE single classical primitive on top of axK, axS, mp; from
+  -- it we derive DNE, Frege's law, modus-tollens contraposition, and
+  -- ex falso (see the "Derived classical lemmas" section below).
   axNeg      : (P Q : Formula) ->
-               Deriv ((not P) imp ((not Q) imp (Q imp P)))
+               Deriv (((not P) imp (not Q)) imp (Q imp P))
 
-  -- (Ex falso  axExFalso : P ⊃ ~P ⊃ Q  has been demoted to a derived
-  -- top-level lemma below; see the section "Derived  axExFalso".)
-
-  -- Classical contrapositive:  (P ⊃ Q) ⊃ (~Q ⊃ ~P) .
-  --
-  -- Classical tautology.  The curried  axNeg  above is intuitionistically
-  -- derivable from  axExFalso , so it is too weak to derive this.  Added
-  -- as a primitive so that transport-inside-a-negation steps (used in
-  -- the Thm 11 diagonal) are one-line axiom instances.
-  axContrapos : (P Q : Formula) ->
-                Deriv ((P imp Q) imp ((not Q) imp (not P)))
+  -- (Ex falso  axExFalso : P ⊃ ~P ⊃ Q  and classical contraposition
+  --  axContrapos : (P ⊃ Q) ⊃ (~Q ⊃ ~P)  have been demoted to derived
+  --  top-level lemmas below; see "Derived classical lemmas".)
 
   ------------------------------------------------------------------
   -- Rules of inference (no side conditions).
@@ -401,18 +397,14 @@ axRecNd s a b =
   in ruleTrans e1 (ruleTrans e2 e4)
 
 ------------------------------------------------------------------------
--- Derived  axExFalso  (formerly a Deriv constructor).
+-- Derived classical lemmas.
 --
--- Classically derivable from  axK / axS / axNeg / axContrapos / mp
--- via Carneiro-style deduction-theorem simulation (cf. Frege's S
--- axiom; see ndw2 slides on Automath vs Metamath).
---
--- Strategy: under hypotheses  P  and  ~P , derive  Q  via
---   1.  axContrapos Q P  +  axK P Q  =>  P -> ~P -> ~Q
---   2.  axNeg Q P (= ~Q -> ~P -> P -> Q)  applied with the ~Q from (1)
---       and the hypotheses ~P and P discharges to  Q .
--- The chain is threaded through with the local Hilbert helpers
---  identP / liftP / bComb / bCombTwo  defined in  private  below.
+-- All of  axExFalso , DNE , Frege's law , and  axContrapos  derive from
+-- axK + axS + axNeg (Lukasiewicz form  (~P -> ~Q) -> (Q -> P) ) + mp .
+-- The chain follows the standard Lukasiewicz textbook derivation
+-- (https://www.maths.tcd.ie/~stalker/22C00/notes/3.9-the-
+--  %C5%82ukasiewicz-system.html); see also  ndw2.pdf  on the
+-- Carneiro deduction-theorem trick used to thread hypotheses.
 
 private
   identP : (P : Formula) -> Deriv (P imp P)
@@ -435,36 +427,169 @@ private
   bCombTwo {P1} {P2} {Q} {R} D1 D2 =
     bComb (bComb (liftP P1 (axS P2 Q R)) D1) D2
 
+  compI : {X Y W : Formula} ->
+          Deriv (X imp Y) -> Deriv (Y imp W) -> Deriv (X imp W)
+  compI {X} {Y} {W} h1 h2 = bComb (liftP X h2) h1
+
+------------------------------------------------------------------------
+-- DNE :  ~~A -> A  (Lukasiewicz transcription, 21 mp/axiom steps).
+--
+-- Notation:  H = ~~A , U = ~A , V = ~~~A , W = ~~~~A ; then  ~V = W ,
+--  ~U = H , ~H = V , ~A = U  (definitionally), so the axNeg
+-- instantiations unfold cleanly.
+
+DNE : (A : Formula) -> Deriv ((not (not A)) imp A)
+DNE A =
+  let
+    H : Formula
+    H = not (not A)
+
+    U : Formula
+    U = not A
+
+    V : Formula
+    V = not (not (not A))
+
+    W : Formula
+    W = not (not (not (not A)))
+
+    s1  : Deriv ((W imp H) imp (U imp V))
+    s1  = axNeg V U
+
+    s2  : Deriv (((W imp H) imp (U imp V)) imp (H imp ((W imp H) imp (U imp V))))
+    s2  = axK ((W imp H) imp (U imp V)) H
+
+    s3  : Deriv (H imp ((W imp H) imp (U imp V)))
+    s3  = mp s2 s1
+
+    s4  : Deriv ((H imp ((W imp H) imp (U imp V)))
+                   imp ((H imp (W imp H)) imp (H imp (U imp V))))
+    s4  = axS H (W imp H) (U imp V)
+
+    s5  : Deriv ((H imp (W imp H)) imp (H imp (U imp V)))
+    s5  = mp s4 s3
+
+    s6  : Deriv (H imp (W imp H))
+    s6  = axK H W
+
+    s7  : Deriv (H imp (U imp V))
+    s7  = mp s5 s6
+
+    s8  : Deriv ((U imp V) imp (H imp A))
+    s8  = axNeg A H
+
+    s9  : Deriv (((U imp V) imp (H imp A)) imp (H imp ((U imp V) imp (H imp A))))
+    s9  = axK ((U imp V) imp (H imp A)) H
+
+    s10 : Deriv (H imp ((U imp V) imp (H imp A)))
+    s10 = mp s9 s8
+
+    s11 : Deriv ((H imp ((U imp V) imp (H imp A)))
+                  imp ((H imp (U imp V)) imp (H imp (H imp A))))
+    s11 = axS H (U imp V) (H imp A)
+
+    s12 : Deriv ((H imp (U imp V)) imp (H imp (H imp A)))
+    s12 = mp s11 s10
+
+    s13 : Deriv (H imp (H imp A))
+    s13 = mp s12 s7
+
+    s14 : Deriv (H imp ((H imp H) imp H))
+    s14 = axK H (H imp H)
+
+    s15 : Deriv (H imp (H imp H))
+    s15 = axK H H
+
+    s16 : Deriv ((H imp ((H imp H) imp H)) imp ((H imp (H imp H)) imp (H imp H)))
+    s16 = axS H (H imp H) H
+
+    s17 : Deriv ((H imp (H imp H)) imp (H imp H))
+    s17 = mp s16 s14
+
+    s18 : Deriv (H imp H)
+    s18 = mp s17 s15
+
+    s19 : Deriv ((H imp (H imp A)) imp ((H imp H) imp (H imp A)))
+    s19 = axS H H A
+
+    s20 : Deriv ((H imp H) imp (H imp A))
+    s20 = mp s19 s13
+  in mp s20 s18
+
+------------------------------------------------------------------------
+-- Q_to_dNeg :  Q -> ~~Q  (the unit of the double-negation monad).
+
+private
+  Q_to_dNeg : (Q : Formula) -> Deriv (Q imp (not (not Q)))
+  Q_to_dNeg Q = mp (axNeg (not (not Q)) Q) (DNE (not Q))
+
+  -- Double-negation lift:  (P -> Q) -> (~~P -> ~~Q) .
+  dNeg_lift : (P Q : Formula) ->
+              Deriv ((P imp Q) imp ((not (not P)) imp (not (not Q))))
+  dNeg_lift P Q =
+    let
+      H   : Formula
+      H   = P imp Q
+      NNP : Formula
+      NNP = not (not P)
+      NNQ : Formula
+      NNQ = not (not Q)
+
+      D1 : Deriv (H imp (NNP imp (NNP imp P)))
+      D1 = liftP H (liftP NNP (DNE P))
+
+      D2 : Deriv (H imp (NNP imp NNP))
+      D2 = liftP H (identP NNP)
+
+      P_avail : Deriv (H imp (NNP imp P))
+      P_avail = bCombTwo D1 D2
+
+      H_avail : Deriv (H imp (NNP imp (P imp Q)))
+      H_avail = axK H NNP
+
+      Q_avail : Deriv (H imp (NNP imp Q))
+      Q_avail = bCombTwo H_avail P_avail
+
+      QtoNNQ_avail : Deriv (H imp (NNP imp (Q imp NNQ)))
+      QtoNNQ_avail = liftP H (liftP NNP (Q_to_dNeg Q))
+    in bCombTwo QtoNNQ_avail Q_avail
+
+------------------------------------------------------------------------
+-- axContrapos :  (P -> Q) -> (~Q -> ~P)  (modus-tollens form).
+--
+-- Compose  dNeg_lift  with  axNeg (~P) (~Q) , which gives
+--    ((not (not P)) imp (not (not Q))) imp ((not Q) imp (not P)) .
+
+axContrapos : (P Q : Formula) ->
+              Deriv ((P imp Q) imp ((not Q) imp (not P)))
+axContrapos P Q =
+  compI (dNeg_lift P Q) (axNeg (not P) (not Q))
+
+------------------------------------------------------------------------
+-- axExFalso :  P -> ~P -> Q  (ex falso quodlibet).
+--
+-- Direct from new axNeg + axK: under hypothesis ~P, axK gives ~Q -> ~P;
+-- axNeg Q P gives ((~Q -> ~P) -> (P -> Q)); then apply hypothesis P.
+
 axExFalso : (P Q : Formula) -> Deriv (P imp ((not P) imp Q))
 axExFalso P Q =
   let
-    -- Under hypothesis P, derive ~P -> ~Q via axK + axContrapos.
-    --   axContrapos Q P : (Q -> P) -> ~P -> ~Q
-    --   axK P Q         : P -> Q -> P
-    -- Composing under hypothesis P gives  P -> ~P -> ~Q .
-    step1 : Deriv (P imp ((not P) imp (not Q)))
-    step1 = bComb (liftP P (axContrapos Q P)) (axK P Q)
+    -- Under {P, ~P}: ~Q -> ~P  via axK lifted.
+    nq_to_np : Deriv (P imp ((not P) imp ((not Q) imp (not P))))
+    nq_to_np = liftP P (axK (not P) (not Q))
 
-    -- Lift  axNeg Q P : ~Q -> ~P -> P -> Q  under {P, ~P}.
-    axNegLift : Deriv (P imp ((not P) imp ((not Q) imp ((not P) imp (P imp Q)))))
-    axNegLift = liftP P (liftP (not P) (axNeg Q P))
+    -- Under {P, ~P}: axNeg Q P : ((~Q -> ~P) -> (P -> Q)) , lifted.
+    axNegLifted : Deriv (P imp ((not P) imp (((not Q) imp (not P)) imp (P imp Q))))
+    axNegLifted = liftP P (liftP (not P) (axNeg Q P))
 
-    -- Feed in ~Q from step1.
-    step2 : Deriv (P imp ((not P) imp ((not P) imp (P imp Q))))
-    step2 = bCombTwo axNegLift step1
+    -- Apply: P -> ~P -> (P -> Q).
+    pq_avail : Deriv (P imp ((not P) imp (P imp Q)))
+    pq_avail = bCombTwo axNegLifted nq_to_np
 
-    -- Feed in the hypothesis ~P  (= identP (not P)  lifted under P).
-    hypNP : Deriv (P imp ((not P) imp (not P)))
-    hypNP = liftP P (identP (not P))
-
-    step3 : Deriv (P imp ((not P) imp (P imp Q)))
-    step3 = bCombTwo step2 hypNP
-
-    -- Feed in the hypothesis P  (= axK P (~P)).
+    -- Apply hypothesis P (= axK P (~P)).
     hypP : Deriv (P imp ((not P) imp P))
     hypP = axK P (not P)
-  in
-    bCombTwo step3 hypP
+  in bCombTwo pq_avail hypP
 
 ------------------------------------------------------------------------
 -- Consistency (hyp-less form).

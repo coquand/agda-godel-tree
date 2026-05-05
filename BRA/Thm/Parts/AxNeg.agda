@@ -2,8 +2,8 @@
 
 -- BRA.Thm.Parts.AxNeg
 --
--- Proof-code vocabulary for Guard's Ax 13 (curried contraposition):
---   axNeg : Deriv ((not P) imp ((not Q) imp (Q imp P))) .
+-- Proof-code vocabulary for Guard's Ax 13 (Lukasiewicz CCNpNqCqp form):
+--   axNeg : Deriv (((not P) imp (not Q)) imp (Q imp P)) .
 
 module BRA.Thm.Parts.AxNeg where
 
@@ -16,4 +16,4 @@ encAxNeg : Formula -> Formula -> Tree
 encAxNeg P Q = nd (natCode tagAxNeg) (nd (codeFormula P) (codeFormula Q))
 
 outAxNeg : Formula -> Formula -> Tree
-outAxNeg P Q = codeFormula ((not P) imp ((not Q) imp (Q imp P)))
+outAxNeg P Q = codeFormula (((not P) imp (not Q)) imp (Q imp P))

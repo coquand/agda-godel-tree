@@ -187,23 +187,23 @@ abstract
   -- body_axEqCongR and body_axEqCongR_eval moved to BRA.Thm.Parts.AxEqCongR .
   -- body_axK and body_axK_eval moved to BRA.Thm.Parts.AxK .
   -- body_axS and body_axS_eval moved to BRA.Thm.Parts.AxS .
-  -- axNeg P Q : conclusion = (not P) imp ((not Q) imp (Q imp P)).
+  -- axNeg P Q : conclusion = ((not P) imp (not Q)) imp (Q imp P).
   --   payT depth 2: Pair payP payQ.
   body_axNeg       : Fun2
   body_axNeg       =
     Fan (Lift (KT (reify tagImp)))
-        (Fan (Fan (Lift (KT (reify tagNeg)))
-                  (Lift (Comp Fst Snd))
-                  Pair)
-             (Fan (Lift (KT (reify tagImp)))
+        (Fan (Fan (Lift (KT (reify tagImp)))
                   (Fan (Fan (Lift (KT (reify tagNeg)))
+                            (Lift (Comp Fst Snd))
+                            Pair)
+                       (Fan (Lift (KT (reify tagNeg)))
                             (Lift (Comp Snd Snd))
                             Pair)
-                       (Fan (Lift (KT (reify tagImp)))
-                            (Fan (Lift (Comp Snd Snd))
-                                 (Lift (Comp Fst Snd))
-                                 Pair)
-                            Pair)
+                       Pair)
+                  Pair)
+             (Fan (Lift (KT (reify tagImp)))
+                  (Fan (Lift (Comp Snd Snd))
+                       (Lift (Comp Fst Snd))
                        Pair)
                   Pair)
              Pair)
@@ -3710,61 +3710,60 @@ abstract
         K_neg  = reify K_negV
         ext_p  = liftCompFstSnd_evalPair tagCode_axNeg payP payQ bb
         ext_q  = liftCompSndSnd_evalPair tagCode_axNeg payP payQ bb
+        -- LHS of outer imp:  ((~P) imp (~Q))
+        --   = Pair tagImp (Pair (Pair tagNeg payP) (Pair tagNeg payQ))
+        negP   = pairOfConst_eval K_negV (Lift (Comp Fst Snd)) a bb payP ext_p
+        negQ   = pairOfConst_eval K_negV (Lift (Comp Snd Snd)) a bb payQ ext_q
+        negP_negQ = pairOfFan_eval
+                      (Fan (Lift (KT K_neg)) (Lift (Comp Fst Snd)) Pair)
+                      (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
+                      a bb
+                      (ap2 Pair K_neg payP)
+                      (ap2 Pair K_neg payQ)
+                      negP negQ
+        impNegPNegQ = pairOfConst_eval K_impV
+                        (Fan (Fan (Lift (KT K_neg)) (Lift (Comp Fst Snd)) Pair)
+                             (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
+                             Pair)
+                        a bb
+                        (ap2 Pair (ap2 Pair K_neg payP) (ap2 Pair K_neg payQ))
+                        negP_negQ
+        -- RHS of outer imp:  (Q imp P)
+        --   = Pair tagImp (Pair payQ payP)
         qP     = pairOfFan_eval (Lift (Comp Snd Snd)) (Lift (Comp Fst Snd))
                    a bb payQ payP ext_q ext_p
         impQP  = pairOfConst_eval K_impV
                    (Fan (Lift (Comp Snd Snd)) (Lift (Comp Fst Snd)) Pair)
                    a bb (ap2 Pair payQ payP) qP
-        negQ   = pairOfConst_eval K_negV (Lift (Comp Snd Snd)) a bb payQ ext_q
-        negQ_impQP = pairOfFan_eval
-                       (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
-                       (Fan (Lift (KT K_imp))
-                            (Fan (Lift (Comp Snd Snd))
-                                 (Lift (Comp Fst Snd)) Pair) Pair)
-                       a bb
-                       (ap2 Pair K_neg payQ)
-                       (ap2 Pair K_imp (ap2 Pair payQ payP))
-                       negQ impQP
-        impNegQ = pairOfConst_eval K_impV
-                    (Fan (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
-                         (Fan (Lift (KT K_imp))
-                              (Fan (Lift (Comp Snd Snd))
-                                   (Lift (Comp Fst Snd)) Pair) Pair)
+        -- Combine LHS and RHS of outer imp.
+        lhs_rhs = pairOfFan_eval
+                    (Fan (Lift (KT K_imp))
+                         (Fan (Fan (Lift (KT K_neg)) (Lift (Comp Fst Snd)) Pair)
+                              (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
+                              Pair)
+                         Pair)
+                    (Fan (Lift (KT K_imp))
+                         (Fan (Lift (Comp Snd Snd)) (Lift (Comp Fst Snd)) Pair)
                          Pair)
                     a bb
-                    (ap2 Pair (ap2 Pair K_neg payQ)
-                               (ap2 Pair K_imp (ap2 Pair payQ payP)))
-                    negQ_impQP
-        negP   = pairOfConst_eval K_negV (Lift (Comp Fst Snd)) a bb payP ext_p
-        negP_imp = pairOfFan_eval
-                     (Fan (Lift (KT K_neg)) (Lift (Comp Fst Snd)) Pair)
-                     (Fan (Lift (KT K_imp))
-                          (Fan (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
-                               (Fan (Lift (KT K_imp))
-                                    (Fan (Lift (Comp Snd Snd))
-                                         (Lift (Comp Fst Snd)) Pair) Pair)
-                               Pair) Pair)
-                     a bb
-                     (ap2 Pair K_neg payP)
-                     (ap2 Pair K_imp
-                       (ap2 Pair (ap2 Pair K_neg payQ)
-                                  (ap2 Pair K_imp (ap2 Pair payQ payP))))
-                     negP impNegQ
+                    (ap2 Pair K_imp (ap2 Pair (ap2 Pair K_neg payP) (ap2 Pair K_neg payQ)))
+                    (ap2 Pair K_imp (ap2 Pair payQ payP))
+                    impNegPNegQ impQP
     in pairOfConst_eval K_impV
-         (Fan (Fan (Lift (KT K_neg)) (Lift (Comp Fst Snd)) Pair)
+         (Fan (Fan (Lift (KT K_imp))
+                   (Fan (Fan (Lift (KT K_neg)) (Lift (Comp Fst Snd)) Pair)
+                        (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
+                        Pair)
+                   Pair)
               (Fan (Lift (KT K_imp))
-                   (Fan (Fan (Lift (KT K_neg)) (Lift (Comp Snd Snd)) Pair)
-                        (Fan (Lift (KT K_imp))
-                             (Fan (Lift (Comp Snd Snd))
-                                  (Lift (Comp Fst Snd)) Pair) Pair)
-                        Pair) Pair)
+                   (Fan (Lift (Comp Snd Snd)) (Lift (Comp Fst Snd)) Pair)
+                   Pair)
               Pair)
          a bb
-         (ap2 Pair (ap2 Pair K_neg payP)
-           (ap2 Pair K_imp
-             (ap2 Pair (ap2 Pair K_neg payQ)
-                        (ap2 Pair K_imp (ap2 Pair payQ payP)))))
-         negP_imp
+         (ap2 Pair
+           (ap2 Pair K_imp (ap2 Pair (ap2 Pair K_neg payP) (ap2 Pair K_neg payQ)))
+           (ap2 Pair K_imp (ap2 Pair payQ payP)))
+         lhs_rhs
 
   thmTDispAxNeg : (P Q : Formula) ->
     Deriv (atomic (eqn (ap1 thmT (reify (encAxNeg P Q))) (reify (outAxNeg P Q))))
@@ -10930,16 +10929,18 @@ module WithDispatch
         (nd (codeFormula P) (nd (codeFormula Q) (codeFormula R)))
         (thmTDispAxS P Q R)
   encodeRich (axNeg P Q) =
-    mkR ((not P) imp ((not Q) imp (Q imp P))) tagAxS
+    mkR (((not P) imp (not Q)) imp (Q imp P)) tagAxS
         (nd (codeFormula P) (codeFormula Q)) (thmTDispAxNeg P Q)
   -- (axExFalso clause removed: axExFalso is now a derived lemma built
   -- from mp / axS / axK / axNeg / axContrapos, so encoding flows through
   -- the existing clauses for those constructors.  body_axExFalso /
   -- thmTDispAxExFalso / tagAxExFalso are now unreached dead code in the
   -- dispatcher cascade, kept to preserve cascade depth and tag values.)
-  encodeRich (axContrapos P Q) =
-    mkR ((P imp Q) imp ((not Q) imp (not P))) tagAxExFalso
-        (nd (codeFormula P) (codeFormula Q)) (thmTDispAxContrapos P Q)
+  -- (axContrapos clause removed: axContrapos is now a derived lemma
+  -- built from axNeg-Lukasiewicz + axK + axS + mp via the chain
+  -- DNE -> dNeg_lift -> axContrapos.  body_axContrapos /
+  -- thmTDispAxContrapos / tagAxContrapos remain as unreached dead code
+  -- in the dispatcher cascade.)
 
   -- Group V (4 safe-default axioms).
   encodeRich axFstLf =
