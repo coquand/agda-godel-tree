@@ -266,8 +266,7 @@ abstract
   -- body_axFstLf and body_axFstLf_eval moved to BRA.Thm.Parts.AxFstLf .
   -- body_axSndLf and body_axSndLf_eval moved to BRA.Thm.Parts.AxSndLf .
 
-  body_axIfLfLL    : Fun2
-  body_axIfLfLL    = Lift (KT (reify outAxIfLfLL))
+  -- body_axIfLfLL and body_axIfLfLL_eval moved to BRA.Thm.Parts.AxIfLfLL .
 
   -- axIfLfNL x y : LHS = ap2 IfLf (ap2 Pair x y) O , RHS = O .
   --   payT = Pair payX payY.  Extract payT directly via Lift Snd (no need to split).
@@ -4733,13 +4732,7 @@ abstract
        (ruleTrans s36 (ruleTrans s37 (ruleTrans s38 (ruleTrans s39
        (ruleTrans s40 (ruleTrans hh be)))))))))))))))))))))))))))))))))))))
 
-  -- axIfLfLL : 0 args; closed output.
-  body_axIfLfLL_eval : (b : Term) ->
-    Deriv (atomic (eqn
-      (ap2 body_axIfLfLL (ap2 Pair tagCode_axIfLfLL O) b)
-      (reify outAxIfLfLL)))
-  body_axIfLfLL_eval b =
-    liftKT_eval outAxIfLfLL (ap2 Pair tagCode_axIfLfLL O) b
+  -- body_axIfLfLL_eval moved to BRA.Thm.Parts.AxIfLfLL .
 
   thmTDispAxIfLfLL :
     Deriv (atomic (eqn (ap1 thmT (reify encAxIfLfLL)) (reify outAxIfLfLL)))
