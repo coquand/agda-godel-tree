@@ -159,6 +159,51 @@ where $\mathit{Con} := \neg\big(\mathit{thmT}\;(v_0) = \mathit{reify}\;(\mathit{
 
 The construction follows Guard's pages~16--17 step by step.
 
+\subsection{Caveat: only the \emph{coded} form is a well-defined BRA object}
+\label{subsec:underline-caveat}
+
+A structurally crucial point, easy to miss in Guard's notation, is that
+the expression
+\[
+  f(\underline{x}) \;=\; \underline{f(x)}
+\]
+is \textbf{not} a BRA formula.  Guard's underline $\underline{(\cdot)}$
+takes a value and returns its numeral term, an operation that is
+well-defined only at the meta-level for closed numerical inputs.  For
+a variable $x$ --- which is precisely the case Theorems~12--14 actually
+need --- neither $\underline{x}$ nor $\underline{f(x)}$ has any BRA
+referent: there is no operator in BRA's term language that, given an
+arbitrary $\mathrm{Term}$, returns ``the numeral of its value.''  No
+attempt at writing the equation directly as
+$\mathit{atomic}\;(\mathit{eqn}\;\ldots\;\ldots)$ for a variable $x$
+succeeds, because the slots cannot be filled with BRA terms.
+
+The only formal object that \emph{does} correspond to Guard's
+expression is its \emph{code} --- the Tree
+\[
+  \ulcorner f(\underline{x}) \;=\; \underline{f(x)} \urcorner,
+\]
+which Definition~12 of \texttt{guard15.pdf} \emph{defines} by
+stipulation.  In our Agda development this Tree is built parametrically
+as $\mathit{codeFTeq}_1\;f\;x$, with $\mathit{cor}\;x$ filling the slot
+for the code of $x$'s numeral and $\mathit{cor}\;(f\,x)$ filling the
+slot for the code of $f(x)$'s numeral.
+
+\textbf{Consequence for Theorem~12's statement.}  When we write
+\[
+  \mathit{Deriv}\,\big(\mathit{thmT}\;(D_f\;x)
+       \;=\; \mathit{codeFTeq}_1\;f\;x\big),
+\]
+the right-hand side is a \emph{specific Tree}, not a BRA formula.  The
+colloquial reading ``BRA-internally, $f(\underline{x}) =
+\underline{f(x)}$'' is shorthand for ``BRA proves that the proof-checker
+$\mathit{thmT}$ applied to $D_f\;x$ equals the Tree named by
+Definition~12.''  Throughout the rest of this section, every occurrence
+of $f(\underline{x}) = \underline{f(x)}$ (and the analogous
+$f(\underline{x}) = \underline{y}$ form used in Theorem~13) should be
+read as a name for the defined Tree, never as a free-standing BRA
+formula.
+
 \subsection{Numerals: the asymmetry $f(\underline{x})$ vs.\ $\underline{f(x)}$}
 \label{subsec:num-cor}
 
@@ -192,16 +237,22 @@ every $f : \mathit{Fun}_1$ it builds a $D_f : \mathit{Fun}_1$ such that
   \mathit{Deriv}\;\big(\mathit{thmT}\;(D_f\;x)
        \;=\; \mathit{codeFTeq}_1\;f\;x\big),
 \]
-where the right-hand side $\mathit{codeFTeq}_1\;f\;x$ is the encoded
-equation
-$\mathit{ap}_1\;f\;(\mathit{cor}\;x) = \mathit{cor}\;(f\;x)$, i.e.\ the
-encoded form of $f(\underline{x}) = \underline{f(x)}$.  In other
-words: BRA itself proves the bridge between the syntactic side
-(left-hand: a code-of-term) and the semantic side (right-hand: the
-numeral of the value).  This is what licenses every subsequent step of
-Goedel~II: it lets the internal $\mathit{thmT}$ predicate move between
-the two encodings exactly where Guard's pencil-and-paper argument
-tacitly does so.
+where the right-hand side $\mathit{codeFTeq}_1\;f\;x$ is the Tree
+defined by Guard's Definition~12 as the code of
+$f(\underline{x}) = \underline{f(x)}$ --- recall from
+Section~\ref{subsec:underline-caveat} that this Tree, not the
+unquoted equation, is the formal object.  Its outer shape is a
+$\mathit{Pair}$ of the code-of-LHS (encoding ``$\mathit{ap}_1\;f$
+applied to the code of $x$'s numeral'', with $\mathit{cor}\;x$ in
+the inner slot) and the code-of-RHS (the code of $f(x)$'s numeral,
+which is $\mathit{cor}\;(f\,x)$).
+
+In other words: BRA itself proves that the proof-checker
+$\mathit{thmT}$, applied to $D_f\;x$, equals the Tree named by
+Guard's Definition~12.  This is what licenses every subsequent step
+of Goedel~II: it lets the internal $\mathit{thmT}$ predicate move
+between the syntactic and semantic sides of the encoded equation
+exactly where Guard's pencil-and-paper argument tacitly does so.
 
 A symmetric variant in which both sides are coded the same way
 ($\mathit{code}\;(f\;x)$ on both sides, say) collapses: the resulting
