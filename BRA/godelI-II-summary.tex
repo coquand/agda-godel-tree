@@ -34,7 +34,12 @@ Recursive Arithmetic (BRA), executed in Agda~2.8 with
 \verb|--safe --without-K --exact-split|. The development contains
 \textbf{zero postulates and zero holes}; every per-file solo
 typecheck completes in under one second (with one historical
-exception, the 16k-line dispatcher cascade for $\mathit{thmT}$).
+exception, an $\sim$11k-line dispatcher cascade for $\mathit{thmT}$).
+The development is organized as a three-layer staged calculus
+(object terms / codes / object-level operations on codes; see
+Section~\ref{subsec:layers}), with explicit typed maps between layers
+and a code-quote convention $\ulcorner \cdot \urcorner$ for the
+Layer-2 trees that name Layer-1 syntactic objects.
 
 The headline results are:
 \begin{itemize}
@@ -59,23 +64,109 @@ Arithmetic}~\cite{guard1963}.  The intent is to avoid historical
 baggage (G\"odel numbering of Hilbert proofs, primitive recursive
 arithmetic with explicit numerals, ``encoded'' substitution as a
 Hilbert-system meta theorem) by working inside a small tree-based
-equational system from the outset:
+equational system from the outset.
 
+\subsection{Three-layer staging}
+\label{subsec:layers}
+
+The development is organized around three syntactically distinct
+layers, with explicit typed maps between them.  Keeping these layers
+separate eliminates the level-conflations that plague Guard's
+pen-and-paper notation (especially around ``underlining''
+$\underline{x}$ for numerals; see Section~\ref{subsec:underline-caveat}).
+
+\paragraph{Layer 1 --- Object language (terms, formulas, derivations).}
+The classical layer where Goedel I/II are eventually stated.
 \begin{itemize}
-  \item Terms are built from $O$ (leaf), $\mathit{var}\;n$, $\mathit{ap}_1\;f\;t$, $\mathit{ap}_2\;g\;t_1\;t_2$.
+  \item $\mathit{Term}$: built from $O$ (leaf), $\mathit{var}\;n$,
+        $\mathit{ap}_1\;f\;t$, $\mathit{ap}_2\;g\;t_1\;t_2$.
   \item Function symbols come in two arities: $\mathit{Fun}_1$ and $\mathit{Fun}_2$, with primitive constants
         $\{I, \mathit{Fst}, \mathit{Snd}, \mathit{Comp}, \mathit{Comp}_2, \mathit{Z}, \mathit{KT}\,\_\}$ and
         $\{\mathit{Pair}, \mathit{Const}, \mathit{Lift}, \mathit{Post}, \mathit{Fan}, \mathit{IfLf}, \mathit{TreeEq}, \mathit{treeRec}\}$.
-  \item Equations are objects $\mathit{eqn}\;\ell\;r$ between terms; formulas $\mathit{Formula}$ extend equations with $\mathit{not}$ and $\mathit{imp}$.
-  \item Provability is an inductive type $\mathit{Deriv}\;F$ with constructors for the algebraic axioms ($\mathit{ax}_*$), the equality axioms,
-        the propositional axioms ($\mathit{ax}_K, \mathit{ax}_S, \mathit{ax}_{\mathit{Neg}}, \mathit{ax}_{\mathit{ExFalso}}, \mathit{ax}_{\mathit{Contrapos}}$), modus ponens ($\mathit{mp}$),
+  \item $\mathit{Formula}$: atomic equations $\mathit{atomic}\;(\mathit{eqn}\;\ell\;r)$, plus $\mathit{not}$ and $\mathit{imp}$.
+  \item $\mathit{Deriv}\;F$: an Agda inductive family of derivations.
+        Constructors for the algebraic axioms ($\mathit{ax}_*$), the
+        equality axioms (Guard's Ax~4--7), three propositional
+        axioms ($\mathit{axK}, \mathit{axS}, \mathit{axNeg}$, Lukasiewicz form), modus ponens ($\mathit{mp}$),
         substitution ($\mathit{ruleInst}$), and binary tree induction ($\mathit{ruleIndBT}$).
+        Classical $\mathit{axContrapos}$ and $\mathit{axExFalso}$ are derived
+        lemmas, not constructors.
 \end{itemize}
 
-The natural numbers are represented as binary trees ($\mathit{lf}$ for $0$, $\mathit{nd}\;\mathit{lf}\;n$ for the successor in unary).
-The encoding $\mathit{reify} : \mathit{Tree} \to \mathit{Term}$ maps $\mathit{lf} \mapsto O$ and $\mathit{nd}\;a\;b \mapsto \mathit{ap}_2\;\mathit{Pair}\;(\mathit{reify}\;a)\;(\mathit{reify}\;b)$.
+\paragraph{Layer 2 --- Code datatype.}
+A separate use of $\mathit{Tree}$ as the datatype of \emph{codes}
+(``G\"odel numbers,'' but trees instead of integers).
+\begin{itemize}
+  \item $\mathit{Tree}$: built from $\mathit{lf}$ and $\mathit{nd}\;a\;b$.
+  \item Typed encoding maps:
+    \[
+      \mathit{code} : \mathit{Term} \to \mathit{Tree}, \qquad
+      \mathit{codeFormula} : \mathit{Formula} \to \mathit{Tree},
+    \]
+    \[
+      \mathit{codeF}_1 : \mathit{Fun}_1 \to \mathit{Tree}, \qquad
+      \mathit{codeF}_2 : \mathit{Fun}_2 \to \mathit{Tree},
+    \]
+    each producing a tag-prefixed tree (e.g.\
+    $\mathit{code}\;(\mathit{ap}_2\;g\;t_1\;t_2) =
+     \mathit{nd}\;\mathit{tagAp}_2\;(\mathit{nd}\;(\mathit{codeF}_2\;g)\;
+        (\mathit{nd}\;(\mathit{code}\;t_1)\;(\mathit{code}\;t_2)))$).
+  \item Reverse map (numeralisation):
+    \[
+      \mathit{reify} : \mathit{Tree} \to \mathit{Term}
+    \]
+    sending $\mathit{lf} \mapsto O$ and
+    $\mathit{nd}\;a\;b \mapsto \mathit{ap}_2\;\mathit{Pair}\;(\mathit{reify}\;a)\;(\mathit{reify}\;b)$.
+    Natural numbers are represented as right-spine trees:
+    $\mathit{lf}$ for $0$, $\mathit{nd}\;\mathit{lf}\;n$ for the successor.
+\end{itemize}
+
+\paragraph{Layer 3 --- Reflection (object-level operations on codes).}
+$\mathit{Fun}_1$ and $\mathit{Fun}_2$ combinators that operate on codes
+\emph{within} the object language, allowing BRA to reason about its
+own syntax internally:
+\begin{itemize}
+  \item $\mathit{cor} : \mathit{Fun}_1$: the ``code-of-numeral'' map.
+        Spec: $\mathit{cor}\;x = \mathit{code}\;(\mathit{reify}\;x)$
+        (BRA-derivable via $\mathit{corOfReify}$).  See
+        Section~\ref{subsec:cor-naming-remark} for a naming proposal.
+  \item $\mathit{sub} : \mathit{Fun}_2$, $\mathit{subT} : \mathit{Fun}_2$:
+        coded substitution, lifting the meta-level $\mathit{substF}$
+        to operate on coded terms/formulas.
+  \item $\mathit{thmT} : \mathit{Fun}_1$: the proof-checker.  See
+        Section~\ref{sec:thmT}.
+\end{itemize}
+
+\paragraph{Reflection theorem (encoding-soundness).}
+The link between layers is provided by
+\[
+  \mathit{encode} : (P : \mathit{Formula}) \to \mathit{Deriv}\;P \to
+    \Sigma\;\mathit{Tree}\;\bigl(\lambda y.\;\mathit{Deriv}\;
+      \bigl(\mathit{thmT}\;(\mathit{reify}\;y) =
+            \mathit{reify}\;(\mathit{codeFormula}\;P)\bigr)\bigr).
+\]
+Given any object-level derivation, $\mathit{encode}$ produces an
+encoded proof tree $y$ together with an object-level proof that
+$\mathit{thmT}$ on $y$ evaluates to the code of $P$.  Layer~3 reflects
+Layer~1 through Layer~2's coding.
+
+\subsection{Notational convention: code-quotes}
+\label{subsec:codequote}
+
+We use $\ulcorner E \urcorner$ throughout for ``the code (Layer~2 tree) of
+$E$.''  Concretely:
+\[
+  \ulcorner t \urcorner := \mathit{code}\;t \quad (t : \mathit{Term}), \qquad
+  \ulcorner F \urcorner := \mathit{codeFormula}\;F \quad (F : \mathit{Formula}).
+\]
+Whenever a Guard-style expression mixes object-level and encoded
+material (e.g.\ $f(\underline{x})$), we keep the code-quote explicit:
+the formal object is the Tree $\ulcorner f(\underline{x}) =
+\underline{f(x)}\urcorner$, never the unquoted equation.  See
+Section~\ref{subsec:underline-caveat} for the full caveat.
 
 \section{The provability predicate $\mathit{thmT}$}
+\label{sec:thmT}
 
 The G\"odel-style ``$\mathit{th}$'' provability predicate is realized in BRA by a single $\mathit{Fun}_1$-functor:
 \[
@@ -204,32 +295,62 @@ $f(\underline{x}) = \underline{y}$ form used in Theorem~13) should be
 read as a name for the defined Tree, never as a free-standing BRA
 formula.
 
+\subsection{Naming remark: \texttt{cor} would be more honestly named \texttt{numeralCode}}
+\label{subsec:cor-naming-remark}
+
+The combinator $\mathit{cor} : \mathit{Fun}_1$ is named after Guard's
+``$\mathrm{cor}$'' (Exercise~24~[7] of \texttt{guard15.pdf}), but its
+operational role in our staging is more specific.  Recall that
+$\mathit{cor}\;x = \mathit{code}\;(\mathit{reify}\;x)$ provably in
+BRA.  In the three-layer terminology of
+Section~\ref{subsec:layers}:
+\begin{itemize}
+  \item $\mathit{reify} : \mathit{Tree} \to \mathit{Term}$ converts a
+        Layer-2 tree to a Layer-1 numeral term.
+  \item $\mathit{code} \circ \mathit{reify} : \mathit{Tree} \to \mathit{Tree}$
+        composes that with the Layer-1-to-Layer-2 encoding.
+  \item $\mathit{cor}$ is the Layer-3 \emph{combinator} that realizes
+        $\mathit{code} \circ \mathit{reify}$ inside BRA's term language.
+\end{itemize}
+A cleaner name would therefore be $\mathit{numeralCode}$ (or
+$\mathit{numCode}$): ``the code of the numeral term naming $x$.''  We
+retain $\mathit{cor}$ in the Agda code for continuity with Guard, but
+the reader is encouraged to mentally substitute
+$\mathit{numeralCode}$ throughout.  In particular, $\mathit{cor}\;x$
+is \textbf{not} the numeral of $x$; it is one encoding-step further,
+namely the Layer-2 tree that codes the Layer-1 term that names $x$.
+This is the source of the level-mismatch worries in
+Sections~\ref{subsec:underline-caveat}--\ref{subsec:cor-slot-reading}.
+
 \subsection{Numerals: the asymmetry $f(\underline{x})$ vs.\ $\underline{f(x)}$}
 \label{subsec:num-cor}
 
-A crucial feature of the Theorem~12--14 chain, easy to miss in the
-formalisation, is the \emph{asymmetric} role of the numeral function.
-In Guard's notation~\cite{guard1963} the underline $\underline{x}$
-denotes the \emph{numeral} of $x$: a closed BRA term whose value is
-$x$.  In our Agda development this is the primitive-recursive function
-\[
-  \mathit{num} \;=\; \mathit{cor} \;:\; \mathit{Tree} \to \mathit{Tree},
-\]
-which sends a tree $x$ to the code of the BRA term that \emph{names}
-$x$.  We use $\mathit{num}$ and $\mathit{cor}$ interchangeably with
-Guard's $\underline{x}$.
+A crucial feature of the Theorem~12--14 chain is the \emph{asymmetric}
+treatment of the two cor-occurrences in the encoded equation.  In
+Guard's notation~\cite{guard1963} the underline $\underline{x}$
+denotes the \emph{numeral term} naming $x$ --- a Layer-1 closed term
+whose value is $x$ (Section~\ref{subsec:layers}).  Our Layer-3
+combinator $\mathit{cor}$ realizes the composite
+\emph{code-of-numeral-term}, i.e.\ the Layer-2 tree corresponding to
+$\underline{x}$ via the Layer-1-to-Layer-2 encoding (see
+Section~\ref{subsec:cor-naming-remark}).
 
-The asymmetry is this: for any $\mathit{Fun}_1$-functor $f$ and tree $x$,
+The two cor-slots in the conclusion of Theorem~12 play different
+roles:
 \begin{itemize}
-  \item $\mathit{ap}_1\;f\;(\mathit{num}\;x)$, i.e.\ $f(\underline{x})$,
-        \emph{is} the code of a BRA term --- specifically the term
-        ``$f$ applied to the numeral of $x$'';
-  \item $\mathit{num}\;(f\;x)$, i.e.\ $\underline{f(x)}$, \emph{is generally not}
-        the code of any such syntactic term --- it is the code of the numeral
-        naming the \emph{value} $f\;x$.
+  \item LHS slot $\mathit{ap}_1\;\mathit{cor}\;x$ in
+        $\ulcorner f(\underline{x}) \urcorner$: encodes the input to
+        $f$ as a numeral-code, parametric in $x$.  When $x$ is a
+        free Layer-1 variable, this slot is a literal syntactic
+        $\mathit{ap}_1\;\mathit{cor}\;x$ Term.
+  \item RHS slot $\mathit{ap}_1\;\mathit{cor}\;(\mathit{ap}_1\;f\;x)$ in
+        $\ulcorner \underline{f(x)} \urcorner$: encodes the
+        \emph{value} $f\;x$ as a numeral-code.  Here $\mathit{cor}$
+        is composed with $f$, so the slot has the form
+        ``$\mathit{cor}\;\circ\;f$ at $x$.''
 \end{itemize}
 The two trees disagree in general; they agree only after BRA proves
-them equal.
+them equal --- which is exactly Theorem~12's content.
 
 Theorem~12 is precisely the internalisation of that equation: for
 every $f : \mathit{Fun}_1$ it builds a $D_f : \mathit{Fun}_1$ such that
