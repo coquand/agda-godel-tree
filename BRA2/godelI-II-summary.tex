@@ -544,44 +544,73 @@ A naive declarative reading would assert
 \]
 This is the soundness reading at well-typed inputs.  But it is
 \emph{not} what BRA's $\mathit{thmT}$ actually computes, and it is
-not what step~3 uses.  The actual specification is purely projective
-on Term shape:
+not what step~3 uses.  The actual specification is the
+verifying-body cascade in BRA2/SoundMpVProof.agda:
 
 \begin{quote}
   Given a coded proof tree
   $\mathit{arg} = \mathit{ap}_2\;\mathit{Pair}\;\mathit{tagMp}\;
    (\mathit{ap}_2\;\mathit{Pair}\;y_1\;y_2)$,
-  $\mathit{thmT}(\mathit{arg})$ dispatches to
-  $\mathit{Snd}(\mathit{Snd}(\mathit{thmT}\,y_1))$, provided the
-  outer-shape discriminant on $\mathit{thmT}\,y_1$ matches
-  $\mathit{ap}_2\;\mathit{Pair}\;\mathit{tagImp}\;(\mathit{ap}_2\;
-   \mathit{Pair}\;X\;Y)$ for some Terms $X, Y$; otherwise it returns
-  $\mathit{codeTriv}$.
+  $\mathit{thmT}(\mathit{arg})$ dispatches via
+  $\mathit{body\_mp\_v}(a, b) = \mathit{Post}\;\mathit{verifierF}_1\;\mathit{Pair}\;a\;b$
+  where $\mathit{verifierF}_1$ first computes
+  $\mathit{thmT}\,y_1$ and $\mathit{thmT}\,y_2$, then performs
+  \emph{two} $\mathit{TreeEq}$ checks:
+  \begin{enumerate}
+    \item $\mathit{outerCheck}$:
+          $\mathit{Fst}(\mathit{thmT}\,y_1) \stackrel{?}{=} \mathit{tagImp}$,
+    \item $\mathit{innerCheck}$:
+          $\mathit{thmT}\,y_2 \stackrel{?}{=} \mathit{Fst}(\mathit{Snd}(\mathit{thmT}\,y_1))$.
+  \end{enumerate}
+  If both succeed, the verifier returns $\mathit{Snd}(\mathit{Snd}
+  (\mathit{thmT}\,y_1))$, the consequent slot.  If either fails, it
+  returns $\mathit{codeTriv} = \mathit{falseT}$, the safe default.
 \end{quote}
 
-The discriminant only inspects the outer $\mathit{Fst}$/$\mathit{Snd}$
-projections.  Whatever sits in the inner slots --- $\mathit{codeFormula}\,P$
-and $\mathit{codeFormula}\,Q$, or $\mathit{cor}\,x$ interleaved with
-tag constants, or arbitrary value-shaped Terms with the right outer
-shape --- gets carried through the $\mathit{Snd} \circ \mathit{Snd}$
-projection unchanged.
+\paragraph{Soundness.}  The two $\mathit{TreeEq}$ checks together
+ensure that the consequent extracted is the consequent of \emph{this
+specific implication} applied to \emph{this specific antecedent}.
+Without the inner check $\mathit{thmT}\,y_2 = \mathit{Fst}(\mathit{Snd}
+(\mathit{thmT}\,y_1))$, BRA's $\mathit{mp}$-dispatch would project
+the second slot of an arbitrary $\mathit{tagImp}$-headed Term, with
+no relation to $y_2$, and $\mathit{thmT}$ would fail to be a sound
+proof-checker (the encoding-soundness lemma in
+BRA2/Thm/ThmT.agda's $\mathit{encodeRich}$ would not go through).
+The inner check is what makes the $\mathit{mp}$ clause of
+$\mathit{encodeRich}$ valid: it certifies, equationally inside BRA,
+that the two sub-proofs $y_1, y_2$ are compatible at the
+expected antecedent.
 
-This is exactly what makes step~3 work.  The substituted-code
-$\widehat{\mathit{th}\,\hat x = \mathit{sub}\,j\,j}$ has outer shape
-$\mathit{ap}_2\;\mathit{Pair}\;\mathit{tagImp}\;(\mathit{ap}_2\;
- \mathit{Pair}\;\_\;\_)$ even though it is not $\mathit{codeFormula}\,P$
-for any $P$.  The $\mathit{mp}$-dispatch consults only the outer
-$\mathit{Fst}$/$\mathit{Snd}$ projections; the $\mathit{cor}\,x$
-sitting in some inner slot is \emph{carried} by the projection, not
-\emph{understood} by it.  The chain's two $\mathit{mp}$-internalised
-steps inside $g\_\mathit{part}$ produce a Term of the form
+\paragraph{Why this still works on substituted-codes.}  The two
+$\mathit{TreeEq}$ checks are \emph{equational comparisons on Terms},
+not type-checks on Formulas.  Whatever sits in the inner slots of
+$\mathit{thmT}\,y_1$ and $\mathit{thmT}\,y_2$ --- $\mathit{codeFormula}\,P$
+and $\mathit{codeFormula}\,Q$, or $\mathit{cor}\,x$ interleaved with
+tag constants, or any value-shaped Term --- only matters in that
+the inner check fires correctly: the antecedent slot of
+$\mathit{thmT}\,y_1$ must be $\mathit{TreeEq}$-equal to
+$\mathit{thmT}\,y_2$.
+
+In step~3 of Theorem~14, the equational chain is set up precisely so
+that this match holds: each $\mathit{mp}$-internalised step ensures,
+via the previous step's $\mathit{Deriv}$, that the antecedent slot of
+the current implication's substituted-code is exactly the consequent
+of the previous step.  So the two $\mathit{TreeEq}$ checks both fire
+\emph{equationally}, with both sides being substituted-codes, and
+the dispatch returns the consequent's substituted-code.  The chain
+composes precisely because both readings of $\mathit{mp}$ --- the
+``well-typed Formula'' and ``well-shaped substituted-code'' cases ---
+are handled by the same projective primitive-recursive computation.
+
+The result is again a substituted-code, fed into the next step the
+same way:
 \[
   \mathit{mp\text{-}body}\big(\text{substituted-code-of-implication},
                               \text{substituted-code-of-antecedent}\big)
    \;=\; \text{substituted-code-of-consequent},
 \]
-equationally, with no claim about Formula content.  The result is
-again a substituted-code, and feeds into the next step the same way.
+equationally, with no claim about Formula content but with the
+soundness-relevant antecedent-match certified by $\mathit{TreeEq}$.
 
 The two readings of $\mathit{mp}$'s specification stand in a clear
 hierarchy:
