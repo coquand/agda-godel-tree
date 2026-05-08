@@ -644,21 +644,56 @@ soundness theorem is invoked.
 
 The only previous machine formalisation of G\"odel's \emph{Second}
 Incompleteness Theorem we are aware of is Paulson's Isabelle/HOL
-development of hereditarily finite set theory~\cite{paulson2014}.
-Other formalisations (O'Connor in Coq, Han in Lean, Carneiro's metamath
+development of hereditarily finite set theory~\cite{paulson2014},
+following \'{S}wierczkowski~\cite{swierczkowski2003}.  Other
+formalisations (O'Connor in Coq, Han in Lean, Carneiro's metamath
 work) target G\"odel's \emph{First} theorem only.
 
 Paulson's development uses HF set theory and full G\"odel numbering of
 Hilbert-style proofs, with encoded substitution treated as an external
-soundness theorem.  The present development by contrast follows
-Guard~\cite{guard1963}: the ``provability predicate''
-$\mathit{thmT}$ is itself a primitive-recursive combinator built from
-$\mathit{Rec} + \mathit{Fan} + \mathit{Lift} + \mathit{IfLf}$; encoded
-substitution is performed by an explicit primitive recursive function
-$\mathit{sub} : \mathit{Fun}_2$; the entire chain stays first-order;
-and the proof is equational at the encoded layer rather than
-provability-logical at the formula layer
-(Section~\ref{sec:internal}).
+soundness theorem.  Bound variables in the formal language (HF has
+$\exists$ and $\forall$ as primitive binders, with bound variables
+significant for inductive proofs over formula structure) are handled
+via \emph{Nominal Isabelle}~\cite{urbankaliszyk2012}: a non-standard
+extension of Isabelle/HOL that quotients binding constructions
+modulo $\alpha$-equivalence, with permutations on names as the
+underlying mechanism.  Paulson reports that the nominal framework
+is essential to make induction over formula structure tractable
+(O'Connor's first-incompleteness Coq formalisation needed roughly
+1900 lines for a single substitution lemma without nominal support);
+the cost is that any function defined on formulas must be proved to
+use bound variables ``sensibly,'' a property whose proofs are
+demanding and required dedicated assistance from Christian Urban.
+For coding, Paulson separately uses de~Bruijn indices and proves a
+correspondence with the nominal syntax.
+
+The present development sidesteps this entire issue.  BRA's
+$\mathit{Formula}$ type has no quantifiers --- only atomic equations,
+$\neg$, and $\supset$ --- so there are no bound variables in the
+formal language at all; what appears in $\mathit{atomic}\;
+(\mathit{eqn}\;\ell\;r)$ are just object-level Terms, with free
+variables denoted $\mathit{var}\;n$ for $n : \mathbb N$.  Universal
+closure of an open formula is expressed implicitly via the BRA rule
+$\mathit{ruleInst}$ (substitution into a derived formula), without
+any meta-level renaming.  Substitution at the term level is the
+ordinary primitive-recursive $\mathit{subst} : \mathbb N \to
+\mathit{Term} \to \mathit{Term} \to \mathit{Term}$, capture-free by
+construction (no binder under which to capture).  Coded substitution
+$\mathit{sub} : \mathit{Fun}_2$ is itself a BRA functor; its
+correctness is the equational $\mathit{codeCommutesFormula}$ lemma,
+not a metatheoretic substitution-lemma proof.  In short, what
+required Nominal Isabelle in Paulson's HF formalisation is for us a
+non-issue, because Guard's BRA was designed without binding
+constructors in the first place.
+
+The present development follows Guard~\cite{guard1963}: the
+``provability predicate'' $\mathit{thmT}$ is itself a
+primitive-recursive combinator built from $\mathit{Rec} + \mathit{Fan}
++ \mathit{Lift} + \mathit{IfLf}$; encoded substitution is performed by
+the explicit primitive recursive functor $\mathit{sub} :
+\mathit{Fun}_2$; the entire chain stays first-order; and the proof is
+equational at the encoded layer rather than provability-logical at
+the formula layer (Section~\ref{sec:internal}).
 
 \begin{thebibliography}{9}
 
@@ -671,6 +706,16 @@ J.~R.~Guard,
 L.~C.~Paulson,
 \newblock \emph{A machine-assisted proof of G\"odel's incompleteness theorems for the theory of hereditarily finite sets},
 \newblock Review of Symbolic Logic, vol.~7 no.~3, 2014, pp.~484--498.
+
+\bibitem{swierczkowski2003}
+S.~\'{S}wierczkowski,
+\newblock \emph{Finite sets and G\"odel's incompleteness theorems},
+\newblock Dissertationes Mathematicae, vol.~422, Polish Academy of Sciences, 2003.
+
+\bibitem{urbankaliszyk2012}
+C.~Urban and C.~Kaliszyk,
+\newblock \emph{General bindings and alpha-equivalence in Nominal Isabelle},
+\newblock Logical Methods in Computer Science, vol.~8 no.~2, 2012.
 
 \bibitem{daviespfenning2001}
 R.~Davies and F.~Pfenning,
