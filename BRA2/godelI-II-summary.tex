@@ -686,6 +686,76 @@ required Nominal Isabelle in Paulson's HF formalisation is for us a
 non-issue, because Guard's BRA was designed without binding
 constructors in the first place.
 
+\paragraph{Paulson's ``mistake'' in Boolos--\'{S}wierczkowski, and
+Guard's analogous construction.}
+Paulson devotes \S6 of his paper to identifying a presentational
+flaw in Boolos~\cite{boolos1993} and \'{S}wierczkowski's expositions
+of the second incompleteness theorem in HF.  Both sources describe
+the internal substitution as $\mathrm{Pf}\lfloor\alpha\rfloor_V(Q)$,
+read informally as ``$\alpha$ with each free variable $x_i$ replaced
+by the formal term $Q(x_i)$,'' where $Q$ is a ``pseudo-function''
+mapping a value to its name in the formal language.  Paulson's
+critique: $Q$ is not a function of the formal language (HF has only
+one function symbol, $\mathord{\lhd}$), and any version of the
+substitution that leaves the original variables $x$ free in the
+transformed formula does not work --- because $x$ ranges over all
+HF sets, including codes of formulas, and the supposed equation
+$Q(x) = $ ``the numeral of $x$'' has no formal status.  Paulson's
+corrected version introduces \emph{new} free variables $x'$ that
+appear in the transformed formula, constrained by relational
+antecedents $\mathrm{QR}(x, x')$ on the left of the turnstile.  In
+\S7 he further shows that \'{S}wierczkowski's earlier attempt to
+define such a $Q$ via a total ordering on the HF universe has a
+significant gap, which Paulson closes by working with the relation
+$\mathrm{QR}$ throughout instead of the function $Q$.
+
+The same conceptual issue arises in Guard's notation in
+\verb|guard15.pdf|.  Guard writes the encoded equational defining
+clause for a primitive functor $f$ as
+\[
+  \mathit{th}(D_f\,x) \;=\; \ulcorner f(\underline{x}) \;=\; \underline{f(x)}\urcorner,
+\]
+where the underline $\underline{(\cdot)}$ takes a value to its
+numeral term --- exactly Boolos--\'{S}wierczkowski's pseudo-function
+$Q$ at a different name.  At a free variable $x$ this notation is
+not a BRA expression: there is no operator in BRA's term language
+that, given an arbitrary $\mathrm{Term}$, returns ``the numeral of
+its value'' (Section~\ref{subsec:underline-caveat}).  Read
+literally, Guard's $\underline{x}$ would be the same kind of
+pseudo-function Paulson criticises.
+
+The BRA chain treats this rigorously the way Paulson treats his
+$\mathrm{QR}$.  The combinator $\mathit{cor} : \mathit{Fun}_1$ is a
+genuine BRA functor (Layer~3, BRA2/Cor.agda) with a primitive
+recursive defining equation; for value-shaped inputs $x$ it satisfies
+$\mathit{ap}_1\;\mathit{cor}\;x \;=\; \mathit{code}\;x$
+internally (the lemma $\mathit{corOfReify}$).  At free variables it
+does \emph{not} reduce, just as Paulson's $\mathrm{QR}(x, x')$ does
+not equate $x$ with anything specific: instead it constrains $x'$
+relationally.  Theorem~14 step~3 in our development then proves
+internal-implication statements
+\[
+  \mathit{thmT}\,x = \mathit{codeFormula}\,G \;\;\to\;\;
+  \mathit{thmT}\,(g\_\mathit{part}\,x) = \widehat{\mathit{th}\,\hat x = \mathit{sub}\,j\,j},
+\]
+parametric in $x$, with the $\hat x = \mathit{cor}\,x$ slot left
+syntactic and the closure transporting it to $\mathit{code}\,x$ only
+at the value-shaped instantiation step (the encode-witness, certified
+by $\mathit{IsValue}$).  This is structurally the same move as
+Paulson's: introduce parametric new variables, constrain by relation
+on the antecedent side, never assert ``$\hat x$ equals the numeral of
+$x$'' as an unconditional formal claim.
+
+A further connection to Paulson's \S7: \'{S}wierczkowski needed an
+ordering on the HF universe to define $Q$ by recursion on rank, and
+the resulting construction had a gap.  In Guard's BRA, $\mathit{cor}$
+requires no such ordering --- it is built directly as $\mathit{Rec}\;
+\mathit{stepCor}$ from BRA's primitive-recursion combinator on binary
+trees (BRA2/Cor.agda), with $\mathit{stepCor}$ a compact $\mathit{Fan}
++ \mathit{Lift} + \mathit{KT} + \mathit{Post} + \mathit{Pair}$
+expression.  The primitive-recursive structure of trees is enough;
+no recursion on rank, no ordering, no gap.
+
 The present development follows Guard~\cite{guard1963}: the
 ``provability predicate'' $\mathit{thmT}$ is itself a
 primitive-recursive combinator built from $\mathit{Rec} + \mathit{Fan}
@@ -711,6 +781,11 @@ L.~C.~Paulson,
 S.~\'{S}wierczkowski,
 \newblock \emph{Finite sets and G\"odel's incompleteness theorems},
 \newblock Dissertationes Mathematicae, vol.~422, Polish Academy of Sciences, 2003.
+
+\bibitem{boolos1993}
+G.~S.~Boolos,
+\newblock \emph{The Logic of Provability},
+\newblock Cambridge University Press, 1993.
 
 \bibitem{urbankaliszyk2012}
 C.~Urban and C.~Kaliszyk,
