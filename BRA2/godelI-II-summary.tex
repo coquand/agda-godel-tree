@@ -20,8 +20,7 @@
 \newtheorem{proposition}[theorem]{Proposition}
 
 \title{Formalization of G\"odel's Incompleteness Theorems\\
-  in Basic Recursive Arithmetic (BRA)\\
-  \large{BRA2 collapsed-Tree edition}}
+  in Basic Recursive Arithmetic (BRA)}
 \author{Summary of an Agda development}
 \date{May 2026}
 
@@ -36,15 +35,12 @@ Recursive Arithmetic (BRA), executed in Agda~2.8 with
 \textbf{zero postulates and zero holes}; \verb|godelII : Deriv Con -> Deriv bot|
 typechecks end-to-end against the abstract Goedel~II skeleton.
 
-This is the BRA2 edition.  Compared with the earlier BRA development,
-the Layer-1/Layer-2 split has been collapsed: there is now a single
-\verb|Term| datatype (no separate \verb|Tree| datatype), and ``codes''
-are exactly the value-shaped Terms certified by an
-\verb|IsValue : Term -> Set| predicate (built only from $O$ and
-\verb|ap2 Pair|).  The map \verb|reify : Tree -> Term| of the prior
-edition becomes the identity; every place the old code wrote
-\verb|reify y| is now just \verb|y|.  The substantive math is unchanged;
-the bookkeeping is uniform.
+There is a single \verb|Term| datatype (no separate \verb|Tree|
+datatype), and ``codes'' are exactly the value-shaped Terms certified
+by an \verb|IsValue : Term -> Set| predicate (built only from $O$ and
+\verb|ap2 Pair|).  The map \verb|reify : Tree -> Term|, written
+explicitly throughout the codebase for clarity at code/term
+boundaries, is the identity.
 
 The headline results are:
 \begin{itemize}
@@ -100,8 +96,7 @@ In BRA2 there is one syntactic layer.
 \end{itemize}
 
 \paragraph{Codes are value-shaped Terms.}
-``Codes'' (formerly Layer~2 \verb|Tree|s) are now Terms whose value-shape
-is certified by
+``Codes'' are Terms whose value-shape is certified by
 \[
   \mathit{IsValue} : \mathit{Term} \to \mathit{Set},
 \]
@@ -122,19 +117,16 @@ $\mathit{codeF}_2\_\mathit{isValue}$, and $\mathit{natCode\_isValue}$
 (BRA2/Term.agda, BRA2/Formula.agda).  Every primitive constructor of an
 encoding produces a value-shaped Term.
 
-\paragraph{The legacy \texttt{Tree}, \texttt{lf}, \texttt{nd}, \texttt{reify}.}
-For continuity with Guard's prose and with the BRA edition,
-BRA2/Term.agda exposes
+\paragraph{Notational aliases \texttt{Tree}, \texttt{lf}, \texttt{nd}, \texttt{reify}.}
+For continuity with Guard's prose, BRA2/Term.agda exposes
 \[
   \mathit{Tree} \;:=\; \mathit{Term}, \quad
   \mathit{lf} \;:=\; O, \quad
   \mathit{nd}\;a\;b \;:=\; \mathit{ap}_2\;\mathit{Pair}\;a\;b, \quad
   \mathit{reify}\;t \;:=\; t.
 \]
-Old code that wrote ``\verb|reify y|'' for $y : \mathrm{Tree}$ now
-literally evaluates to $y$.  Conceptually the Layer-1/Layer-2 split is
-preserved as the $\mathit{IsValue}$ predicate; syntactically the layers
-are unified.
+The Layer-1/Layer-2 distinction is recorded as the $\mathit{IsValue}$
+predicate; syntactically the layers are unified.
 
 \paragraph{Reflection layer (object-level operations on codes).}
 Functors that reason about BRA syntax internally:
@@ -159,12 +151,11 @@ Functors that reason about BRA syntax internally:
       \Sigma\;(\mathit{IsValue}\;y)\;\bigl(\lambda \_.\;\mathit{Deriv}\;
         (\mathit{thmT}\;y = \mathit{codeFormula}\;P)\bigr)\bigr).
 \]
-The new $\mathit{IsValue}\;y$ field is a structural strengthening over
-the BRA edition: every encoded proof tree is now certified value-shaped,
-so $\mathit{cor}\;y$ provably reduces to $\mathit{code}\;y$ at the witness
-returned by $\mathit{encode}$.  This certification is exactly what
-discharges the parametric \verb|cor x| in the chain at the closure
-(see Section~\ref{sec:internal}).
+The $\mathit{IsValue}\;y$ field certifies that every encoded proof
+tree is value-shaped, so $\mathit{cor}\;y$ provably reduces to
+$\mathit{code}\;y$ at the witness returned by $\mathit{encode}$.  This
+certification is exactly what discharges the parametric \verb|cor x|
+in the chain at the closure (see Section~\ref{sec:internal}).
 
 \subsection{Notational convention: code-quotes}
 \label{subsec:codequote}
@@ -567,13 +558,13 @@ without reference to any specific formula:
         ``provability'' interpretation recovered only at the closure.
 \end{enumerate}
 
-The cost is the bookkeeping the BRA edition (and now BRA2) make
-explicit: the substituted-code RHS at variable $x$ requires
-$\mathit{IsValue}$ certificates (on $j$, on encode-witnesses, on
-$t\_term$/$t'\_term$) propagated through to the closure.  These
-certificates are the formal counterpart of Guard's silent assumption
-that ``$x_$'' for variable $x$ is sensible because $x$ will eventually
-be instantiated at a closed numeral.
+The cost is bookkeeping that the development makes explicit: the
+substituted-code RHS at variable $x$ requires $\mathit{IsValue}$
+certificates (on $j$, on encode-witnesses, on $t\_term$/$t'\_term$)
+propagated through to the closure.  These certificates are the formal
+counterpart of Guard's silent assumption that ``$x_$'' for variable
+$x$ is sensible because $x$ will eventually be instantiated at a
+closed numeral.
 
 In short: \emph{Goedel~II in BRA is an equational proof at the code
 layer, internalised via primitive recursion, with the
@@ -582,18 +573,6 @@ formulation has this character intrinsically; HBL-style proofs do not.
 The Agda dev makes the distinction visible.
 
 \section{Methodology}
-
-\subsection{Tree=Term collapse}
-
-The collapse from a separate $\mathit{Tree}$ datatype to
-$\mathit{Tree} = \mathit{Term}$ + $\mathit{IsValue}$ predicate was
-executed mechanically in May 2026 following BRA2/COLLAPSE-PLAN.md.  All
-40-odd files in BRA2/Thm/Parts/, BRA2/Thm12/Parts/, BRA2/Thm12/Param/
-were updated by bulk Python transforms to thread $\mathit{IsValue}$
-arguments to $\mathit{axKT}$, $\mathit{ktRed}$, $\mathit{constF}_2\mathit{Red}$,
-$\mathit{subTDef}$, $\mathit{treeEqRed}$, $\mathit{corOfReify}$,
-$\mathit{reifyClosed}$.  The $\mathit{encode}$ contract was strengthened
-to expose $\mathit{IsValue}\;y$ alongside the encoded proof tree.
 
 \subsection{Constraints maintained throughout}
 
@@ -646,7 +625,7 @@ work) target G\"odel's \emph{First} theorem only.
 
 Paulson's development uses HF set theory and full G\"odel numbering of
 Hilbert-style proofs, with encoded substitution treated as an external
-soundness theorem.  The BRA / BRA2 development by contrast follows
+soundness theorem.  The present development by contrast follows
 Guard~\cite{guard1963}: the ``provability predicate''
 $\mathit{thmT}$ is itself a primitive-recursive combinator built from
 $\mathit{Rec} + \mathit{Fan} + \mathit{Lift} + \mathit{IfLf}$; encoded
