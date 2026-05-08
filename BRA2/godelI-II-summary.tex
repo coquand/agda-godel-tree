@@ -212,17 +212,18 @@ Following Guard, define
 \begin{align*}
   F_{\mathrm{pre}} \;&:=\; \neg \big(\mathit{thmT}\;v_1 \;=\; \mathit{sub}\;v_0\;v_0\big),\\
   j \;&:=\; \mathit{codeFormula}\;F_{\mathrm{pre}} \quad \text{(a closed value-shaped Term)},\\
-  G \;&:=\; F_{\mathrm{pre}}[v_0 := j],
+  i \;&:=\; \mathit{reify}\;j \;=\; j,\\
+  G \;&:=\; F_{\mathrm{pre}}[v_0 := i].
 \end{align*}
-with $i := j$ (since $\mathit{reify} = \mathrm{id}$ in BRA2).  The
-sentence $G$ has $v_1$ free; informally, $G$ asserts of itself that no
-proof tree $v_1$ proves the formula whose code is $j[v_0 := j]$.
+The sentence $G$ has $v_1$ free; informally, $G$ asserts of itself
+that no proof tree $v_1$ proves the formula whose code is
+$j[v_0 := i]$.
 
-The new ingredient compared to BRA: $j\_\mathit{isValue} :
-\mathit{IsValue}\;j$ is exposed inside the
-\verb|Diagonal| abstract block (BRA2/Thm11Diagonal.agda).  This
-certificate propagates through $\mathit{Outer.GodelII}$ and is what
-makes \verb|corOfReify j j_isValue| usable downstream.
+The certificate $j\_\mathit{isValue} : \mathit{IsValue}\;j$ is
+exposed inside the \verb|Diagonal| abstract block
+(BRA2/Thm11Diagonal.agda).  It propagates through
+$\mathit{Outer.GodelII}$ and is what makes
+\verb|corOfReify j j_isValue| usable downstream.
 
 \subsection{Theorem 11}
 
