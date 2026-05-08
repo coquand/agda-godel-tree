@@ -6,8 +6,8 @@ equational system on binary trees with explicit substitution and
 primitive recursion (Guard, *Lecture notes on recursive arithmetic*,
 Argonne, 1963).
 
-The headline results, in `BRA/GoedelIIFull.agda` (and
-`BRA/Thm11.agda`):
+The headline results, in `BRA2/GoedelIIFull.agda` (and
+`BRA2/Thm11.agda`):
 
 ```agda
 thm11   : Deriv G   -> Deriv bot   -- Goedel I
@@ -26,37 +26,60 @@ BRA term (the term "`f` applied to the numeral of `x`"), but
 \*not\* the code of any such syntactic term.  Theorem 12 internalises
 the equation between these two trees inside BRA, and that bridge is
 what makes the whole Goedel II chain go through.  See
-`BRA/godelI-II-summary.tex`, section "Numerals: the asymmetry…".
+`BRA2/godelI-II-summary.tex`, section "Numerals: the asymmetry…".
 
-For the mathematical write-up see `BRA/godelI-II-summary.tex` (compile
+A further conceptual point is that intermediate steps of Theorem 14
+prove `Deriv (atomic (eqn (thmT t) u))` where `u` is *not*
+`codeFormula P` for any formula `P` — the chain manipulates
+substituted-codes (with `cor x` placed in variable slots) through
+ordinary BRA equational reasoning, only collapsing to a literal
+`codeFormula bot` at the closure.  See `BRA2/godelI-II-summary.tex`,
+section "What is going on at the encoded layer: a remarkable internal
+proof".
+
+For the mathematical write-up see `BRA2/godelI-II-summary.tex` (compile
 to `godelI-II-summary.pdf`).
+
+## Edition
+
+This repository tracks the **BRA2 edition** of the development.  BRA2
+collapses the prior Layer-1 / Layer-2 split (separate `Term` and
+`Tree` datatypes) into a single `Term` datatype with an
+`IsValue : Term -> Set` predicate certifying value-shape (codes are
+exactly value-shaped Terms).  The map `reify : Tree -> Term` of the
+prior edition is now the identity; substantive math is unchanged.
+
+The legacy BRA edition is preserved on disk under `BRA/` for
+reference but is not tracked in git.
 
 ## Discipline
 
 - `--safe --without-K --exact-split` on every file.
 - ASCII only.
-- Zero postulates, zero holes, no `with`-abstraction, no dot patterns.
+- Zero postulates, zero holes, no `with`-abstraction, no dot patterns
+  (one exception: `.O` / `.a .b` in `IsValue` pattern matches, the
+  canonical syntax for matching against an indexed family's index).
 - camelCase for every let-binding (mid-identifier `_` collides with
   Agda's mixfix grammar).
 
-## What's in `BRA/`
+## What's in `BRA2/`
 
-The Agda development sits entirely under `BRA/`.  Headline modules:
+The Agda development sits entirely under `BRA2/`.  Headline modules:
 
 | File                                    | Role                                                          |
 |-----------------------------------------|---------------------------------------------------------------|
-| `BRA/GoedelIIFull.agda`                 | Top-level `godelII : Deriv Con -> Deriv bot` (unconditional). |
-| `BRA/GoedelII.agda`                     | Compose module: takes the Theorem 14 contract, produces godelII. |
-| `BRA/Thm14Abstract.agda`                | Abstract Theorem 14 tower (Guard's section 3.5).              |
-| `BRA/Th14Step5.agda`                    | Concrete `constr5_final` + `step5_l`.                         |
-| `BRA/Thm12.agda`, `BRA/Thm12/…`         | Theorem 12 closure (15 Param + Parts pairs).                  |
-| `BRA/Thm/ThmT.agda`                     | The proof checker `thmT` and all `thmTDispX` dispatchers.     |
-| `BRA/Sound*Proto.agda`, `Sound*VProof.agda` | Verifying bodies + eval-pass lemmas (sound `thmT`).       |
-| `BRA/Base.agda`, `Term.agda`, `Formula.agda`, `Deriv.agda` | Base system: trees, terms, formulas, derivability. |
+| `BRA2/GoedelIIFull.agda`                | Top-level `godelII : Deriv Con -> Deriv bot` (unconditional). |
+| `BRA2/GoedelII.agda`                    | Compose module: takes the Theorem 14 contract, produces godelII. |
+| `BRA2/Thm14Abstract.agda`               | Abstract Theorem 14 tower (Guard's section 3.5).              |
+| `BRA2/Th14Step5.agda`                   | Concrete `constr5_final` + `step5_l`.                         |
+| `BRA2/Thm12.agda`, `BRA2/Thm12/…`       | Theorem 12 closure (15 Param + Parts pairs).                  |
+| `BRA2/Thm/ThmT.agda`                    | The proof checker `thmT` and all `thmTDispX` dispatchers.     |
+| `BRA2/Sound*VProof.agda`                | Verifying bodies + eval-pass lemmas (sound `thmT`).           |
+| `BRA2/Base.agda`, `Term.agda`, `Formula.agda`, `Deriv.agda` | Base system: terms, formulas, derivability, the `IsValue` predicate. |
 
 ### Sound `thmT`
 
-The verifying-body cascade in `BRA/Sound*` ensures that for every
+The verifying-body cascade in `BRA2/Sound*` ensures that for every
 inductive premise-consuming dispatcher `X` (`mp`, `ruleInst`,
 `ruleSym`, `cong1`, `congL`, `congR`, `ruleTrans`, `ruleInst2`,
 `ruleIndBT`), the body `body_X` is a verifying variant `body_X_v` of
@@ -81,20 +104,26 @@ Requires Agda 2.7+ (the development is checked under both 2.7 and
 2.9.0).
 
 ```sh
-agda BRA/GoedelIIFull.agda
+agda --safe BRA2/GoedelIIFull.agda
 ```
 
-Cold rebuild takes ~32 s on a recent laptop; cached typechecks of the
-headline file are under 1 s.
+Cold rebuild takes ~30 s on a recent laptop; cached typechecks of the
+headline file are under 1 s.  No postulates, no holes:
+
+```sh
+$ grep -rn '^postulate' BRA2/   # empty
+$ ls BRA2/GoedelIIFull.agdai    # exists after build
+```
 
 ## Repository layout
 
-| Path                  | Status                                                             |
-|-----------------------|--------------------------------------------------------------------|
-| `BRA/`                            | The active codebase (tracked).                         |
-| `BRA/godelI-II-summary.tex`       | Project paper (tracked).                               |
-| `README.md`                       | This file (tracked).                                   |
-| `old/`                | Legacy Agda, tex, notes, scratch — not tracked, kept on disk only. |
+| Path                              | Status                                                             |
+|-----------------------------------|--------------------------------------------------------------------|
+| `BRA2/`                           | The active codebase (tracked).                                     |
+| `BRA2/godelI-II-summary.tex`      | Project paper (tracked).                                           |
+| `README.md`                       | This file (tracked).                                               |
+| `BRA/`                            | Legacy BRA edition (untracked, kept on disk for reference).        |
+| `old/`                            | Legacy Agda, tex, notes, scratch — not tracked, kept on disk only. |
 
 The reference PDFs (Rose, Ryan, Simmons, guard15, Guard 1963 lecture
 notes, Chwistek 1939) sit at the repository root but are not tracked

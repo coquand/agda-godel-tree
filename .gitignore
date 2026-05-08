@@ -10,16 +10,17 @@
 *.md
 
 # Whitelist policy: only the following files/dirs are tracked.
-#   /BRA/            -- the active Agda codebase (incl. BRA/godelI-II-summary.pdf)
+#   /BRA2/           -- the active Agda codebase (incl. BRA2/godelI-II-summary.pdf)
 #   /bra-godelII.tex -- the project paper / writeup
 #   /README.md       -- public project README
 #
-# Everything else (including CLAUDE.md, BRA/*.md handoff notes,
-# root-level reference PDFs, build artefacts, and /old/) is untracked.
+# Everything else (including CLAUDE.md, BRA/ legacy edition, BRA2/*.md
+# handoff notes, root-level reference PDFs, build artefacts, and /old/)
+# is untracked.
 
 /*
 
 !/.gitignore
-!/BRA/
+!/BRA2/
 !/bra-godelII.tex
 !/README.md
