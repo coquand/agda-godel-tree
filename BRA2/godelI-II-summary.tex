@@ -527,6 +527,103 @@ chains, collapse at the closure --- is what lets the proof be
 parametric over $(x : \mathit{Term})$ rather than meta-iterated over
 closed numerals.
 
+\subsection{The projective specification of $\mathit{mp}$}
+\label{subsec:mp-projective-spec}
+
+A natural question raised by the chain is: what \emph{exactly} is the
+specification of $\mathit{mp}$ as embedded in $\mathit{thmT}$, given
+that step~3 applies $\mathit{mp}$-internalisation to inputs that are
+not $\mathit{codeFormula}\,(P \mathrel{\mathit{imp}} Q)$ for any
+$P, Q : \mathit{Formula}$?
+
+A naive declarative reading would assert
+\[
+  \mathit{mp}\big(\mathit{codeFormula}\,(P \mathrel{\mathit{imp}} Q),
+                  \mathit{codeFormula}\,P\big)
+   \;=\; \mathit{codeFormula}\,Q.
+\]
+This is the soundness reading at well-typed inputs.  But it is
+\emph{not} what BRA's $\mathit{thmT}$ actually computes, and it is
+not what step~3 uses.  The actual specification is purely projective
+on Term shape:
+
+\begin{quote}
+  Given a coded proof tree
+  $\mathit{arg} = \mathit{ap}_2\;\mathit{Pair}\;\mathit{tagMp}\;
+   (\mathit{ap}_2\;\mathit{Pair}\;y_1\;y_2)$,
+  $\mathit{thmT}(\mathit{arg})$ dispatches to
+  $\mathit{Snd}(\mathit{Snd}(\mathit{thmT}\,y_1))$, provided the
+  outer-shape discriminant on $\mathit{thmT}\,y_1$ matches
+  $\mathit{ap}_2\;\mathit{Pair}\;\mathit{tagImp}\;(\mathit{ap}_2\;
+   \mathit{Pair}\;X\;Y)$ for some Terms $X, Y$; otherwise it returns
+  $\mathit{codeTriv}$.
+\end{quote}
+
+The discriminant only inspects the outer $\mathit{Fst}$/$\mathit{Snd}$
+projections.  Whatever sits in the inner slots --- $\mathit{codeFormula}\,P$
+and $\mathit{codeFormula}\,Q$, or $\mathit{cor}\,x$ interleaved with
+tag constants, or arbitrary value-shaped Terms with the right outer
+shape --- gets carried through the $\mathit{Snd} \circ \mathit{Snd}$
+projection unchanged.
+
+This is exactly what makes step~3 work.  The substituted-code
+$\widehat{\mathit{th}\,\hat x = \mathit{sub}\,j\,j}$ has outer shape
+$\mathit{ap}_2\;\mathit{Pair}\;\mathit{tagImp}\;(\mathit{ap}_2\;
+ \mathit{Pair}\;\_\;\_)$ even though it is not $\mathit{codeFormula}\,P$
+for any $P$.  The $\mathit{mp}$-dispatch consults only the outer
+$\mathit{Fst}$/$\mathit{Snd}$ projections; the $\mathit{cor}\,x$
+sitting in some inner slot is \emph{carried} by the projection, not
+\emph{understood} by it.  The chain's two $\mathit{mp}$-internalised
+steps inside $g\_\mathit{part}$ produce a Term of the form
+\[
+  \mathit{mp\text{-}body}\big(\text{substituted-code-of-implication},
+                              \text{substituted-code-of-antecedent}\big)
+   \;=\; \text{substituted-code-of-consequent},
+\]
+equationally, with no claim about Formula content.  The result is
+again a substituted-code, and feeds into the next step the same way.
+
+The two readings of $\mathit{mp}$'s specification stand in a clear
+hierarchy:
+\begin{description}
+  \item[Projective (what BRA actually computes).]  The $\mathit{Fst}$/
+        $\mathit{Snd}$ projection above, parametric in the inner
+        Terms.  Total on all Term inputs of the right outer shape,
+        producing a Term output by syntactic projection.
+  \item[Declarative (what soundness justifies).]  At literal
+        $\mathit{codeFormula}\,(P \mathrel{\mathit{imp}} Q)$ inputs, the
+        projective behaviour delivers $\mathit{codeFormula}\,Q$.  This
+        is what makes $\mathit{thmT}$ a sound proof-checker
+        ($\mathit{encodeRich}$'s $\mathit{mp}$ clause).
+\end{description}
+The soundness reading factors through the projective reading: BRA's
+$\mathit{mp}$ primitive only knows about Term shape, and Formula-content
+correctness is the \emph{consequence} for the well-shaped subset of
+inputs.  Theorem~14 step~3 uses the projective reading directly; the
+final closure converts to the declarative reading by instantiating at
+a value-shape witness.
+
+The same observation lifts to the other ``soundified'' rule
+dispatchers in the chain ($\mathit{ruleSym}$, $\mathit{cong}_1$,
+$\mathit{cong}_L$, $\mathit{cong}_R$, $\mathit{ruleTrans}$,
+$\mathit{ruleInst}$, $\mathit{ruleInst}_2$, $\mathit{ruleIndBT}$).
+Each is specified as a primitive-recursive Term projection on a
+shape-discriminated input; each delivers a Formula-content
+interpretation only on its well-shaped subset.  The
+verifying-body construction
+($\mathit{body\_X\_v} = \mathit{Post}\,\mathit{verifierX}\,\mathit{Pair}$,
+Section~``Sound $\mathit{thmT}$'' of \verb|README.md|) is precisely
+what enforces the safe default $\mathit{codeTriv}$ on malformed inputs
+without spoiling the projective behaviour on well-shaped ones.
+
+In one line: \emph{BRA's $\mathit{mp}$ is a Term projection that
+happens to internalise Formula modus ponens at well-typed inputs}.
+The chain in step~3 uses the projection-on-Term reading; the
+internal-modus-ponens reading is what justifies it semantically at
+the value-shape closure.  Both readings are valid specifications;
+the projective one is strictly more general and is what makes the
+chain compose at variable $x$.
+
 \subsection{Comparison with Hilbert--Bernays--L\"ob}
 
 Standard textbook G\"odel~II proofs go through provability statements:
