@@ -157,9 +157,10 @@ $\mathit{code}\;y$ at the witness returned by $\mathit{encode}$.  This
 certification is exactly what discharges the parametric \verb|cor x|
 in the chain at the closure (see Section~\ref{sec:internal}).
 
-\subsection{Notational convention: code-quotes}
+\subsection{Notational convention: code-quotes and hats}
 \label{subsec:codequote}
 
+\paragraph{Code-quotes $\ulcorner \cdot \urcorner$.}
 We use $\ulcorner E \urcorner$ throughout for ``the code (value-shaped
 Term) of $E$'':
 \[
@@ -171,6 +172,26 @@ material (e.g.\ $f(\underline{x})$), we keep the code-quote explicit:
 the formal object is the Term $\ulcorner f(\underline{x}) =
 \underline{f(x)}\urcorner$, never the unquoted equation.  See
 Section~\ref{subsec:underline-caveat} for the full caveat.
+
+\paragraph{Hats $\hat\,$ and $\widehat{\,}$.}
+We write $\hat x$ as a shorthand for $\mathit{cor}\;x$, the
+numeral-encoding combinator applied to a Term $x$.  This lets us write
+e.g.\ $\mathit{th}\;\hat x$ for $\mathit{ap}_1\;\mathit{thmT}\;(\mathit{ap}_1\;\mathit{cor}\;x)$
+and $\mathit{sub}\;\hat x\;\hat y$ for $\mathit{ap}_2\;\mathit{sub}\;
+(\mathit{ap}_1\;\mathit{cor}\;x)\;(\mathit{ap}_1\;\mathit{cor}\;y)$.
+
+For a Guard-style expression $E$, $\widehat{E}$ denotes the
+\emph{substituted-code} of $E$: the Term obtained by taking the code
+of $E$'s pattern (with variable slots in place of $\hat{}$-marked
+positions) and $\mathit{sb}$-substituting the $\hat\,$-encoded numerals
+into those slots.  E.g.\ $\widehat{\mathit{th}\;\hat x} =
+\mathit{ap}_2\;\mathit{Pair}\;\mathit{tagAp}_1\;
+(\mathit{ap}_2\;\mathit{Pair}\;(\mathit{codeF}_1\;\mathit{thmT})\;
+(\mathit{ap}_1\;\mathit{cor}\;x))$.  At a free Term variable $x$, this
+substituted-code is in general not $\ulcorner P\urcorner$ for any
+$P : \mathit{Formula}$ (Section~\ref{sec:internal} discusses this in
+detail); for value-shaped $x$ it BRA-reduces to a genuine
+codeFormula via $\mathit{corOfReify}$.
 
 \section{The provability predicate $\mathit{thmT}$}
 \label{sec:thmT}
@@ -212,18 +233,21 @@ Following Guard, define
 \begin{align*}
   F_{\mathrm{pre}} \;&:=\; \neg \big(\mathit{thmT}\;v_1 \;=\; \mathit{sub}\;v_0\;v_0\big),\\
   j \;&:=\; \mathit{codeFormula}\;F_{\mathrm{pre}} \quad \text{(a closed value-shaped Term)},\\
-  i \;&:=\; \mathit{reify}\;j \;=\; j,\\
-  G \;&:=\; F_{\mathrm{pre}}[v_0 := i].
+  G \;&:=\; F_{\mathrm{pre}}[v_0 := j].
 \end{align*}
 The sentence $G$ has $v_1$ free; informally, $G$ asserts of itself
 that no proof tree $v_1$ proves the formula whose code is
-$j[v_0 := i]$.
+$j[v_0 := j]$.
 
 The certificate $j\_\mathit{isValue} : \mathit{IsValue}\;j$ is
 exposed inside the \verb|Diagonal| abstract block
 (BRA2/Thm11Diagonal.agda).  It propagates through
 $\mathit{Outer.GodelII}$ and is what makes
 \verb|corOfReify j j_isValue| usable downstream.
+
+(For continuity with prior notation, the Agda codebase additionally
+defines \verb|i := reify j|; since \verb|reify| is the identity,
+$i = j$.  We use $j$ throughout this paper.)
 
 \subsection{Theorem 11}
 
@@ -376,7 +400,7 @@ The chain, paralleling Guard's page~17:
 (BRA2/Th14*.agda.)
 \begin{description}
   \item[Step 1 --- $\mathit{step1\_l}$] Theorem~13 applied to $\mathit{thmT}$.
-  \item[Step 2 --- $\mathit{step2\_l}$] Theorem~13 applied to $\mathit{sub}$ at $(i, i, \mathit{cor}\;G)$ under closed hypothesis $\mathit{subIIeqcG}$.
+  \item[Step 2 --- $\mathit{step2\_l}$] Theorem~13 applied to $\mathit{sub}$ at $(j, j, \mathit{cor}\;G)$ under closed hypothesis $\mathit{subIIeqcG}$.
   \item[Step 3 --- $\mathit{step3\_l}$] Three sb-applications on $t$, canonicalised, then two $\mathit{mp}$ dispatches.
   \item[Step 4 --- $K\_\mathit{part}\_l$] One sb-application at $v_1$ on $G_{\mathrm{norm}}$ via the $\mathit{PrAtX}\;x$ hypothesis to swap $\mathit{thmT}\;x \mapsto \mathit{cor}\;G$.
   \item[Step 5 --- $\mathit{step5\_l}$] Two outer $\mathit{mp}$ dispatches at $\mathit{constr5}_{\mathrm{inner,final}}$ and $\mathit{constr5}_{\mathrm{final}}$.
