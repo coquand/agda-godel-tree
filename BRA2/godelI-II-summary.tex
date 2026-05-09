@@ -871,6 +871,113 @@ fragment.  The audit (file inventory, $\mathit{treeRec}$ occurrence
 count, depth-2 nesting check) is a finite verification on the seven
 files listed above.
 
+\subsection{Induction calibration: atomic-predicate tree induction only}
+\label{subsec:atomic-ind}
+
+The function-class audit of Section~\ref{subsec:elementary} measures
+\emph{which functors} are needed.  A complementary audit measures
+\emph{which induction rules and at what predicate complexity} are
+needed.  This second audit is even sharper.
+
+BRA's primitive induction rule
+$\mathit{ruleIndBT}$ (and its diagonal variant
+$\mathit{ruleIndBT}_2$, used for $\mathit{TreeEq}$'s pair-of-pairs
+recursion; see BRA2/Deriv.agda lines~218--253) accepts an
+\emph{arbitrary} $\mathit{Formula}$ as the induction predicate ---
+atomic equations, negations, implications, and any nesting thereof.
+
+\paragraph{Inventory of induction call sites.}
+A clean recheck of \verb|BRA2/GoedelIIFull.agda| under
+\verb|--safe| (147 files in the closure) lists exactly three
+$\mathit{ruleIndBT}$ / $\mathit{ruleIndBT}_2$ call sites, with the
+following induction predicates.
+\begin{enumerate}
+  \item \verb|TreeEqReflParam.agda:158|.
+        $\mathit{motiveTreeEqRefl}
+        = \mathit{atomic}\;(\mathit{eqn}\;(\mathit{ap}_2\;\mathit{TreeEq}\;(\mathit{var}\;0)\;(\mathit{var}\;0))\;O)$.
+        \emph{Atomic equation.}
+  \item \verb|Th12TreeEqUniv.agda:72| ($\mathit{ruleIndBT}_2$).
+        $P_{\mathit{Th12\_TreeEq}}
+        = \mathit{atomic}\;(\mathit{eqn}\;
+              (\mathit{ap}_1\;\mathit{thmT}\;(\mathit{ap}_2\;D_{\mathit{TreeEq}}\;
+                  (\mathit{var}\;0)\;(\mathit{var}\;1)))\;
+              \mathit{codeFTeq}_2^{\mathit{TreeEq}}\;\ldots)$.
+        \emph{Atomic equation.}
+  \item \verb|Th12TreeRecInternal.agda:1786|.
+        $P_{\mathit{Th12\_treeRec}}
+        = \mathit{atomic}\;(\mathit{eqn}\;
+              (\mathit{ap}_1\;\mathit{thmT}\;(\mathit{ap}_2\;D_2^{\mathit{treeRec}_{f,s}}\;
+                  (\mathit{var}\;1)\;(\mathit{var}\;0)))\;
+              \mathit{codeFTeq}_2^{\mathit{treeRec}_{f,s}}\;\ldots)$.
+        \emph{Atomic equation.}
+\end{enumerate}
+
+\textbf{Every induction predicate in the closure is an atomic
+equation.}  No induction over an implication, no induction over a
+negation, no induction over a compound boolean combination, no
+nested predicate of any kind.  Restricting BRA's
+$\mathit{ruleIndBT}$ to the atomic-predicate fragment ---
+$\mathit{IndBT\text{-}atomic}$ --- the entire BRA2 proof of
+Goedel~II survives unchanged.
+
+\paragraph{Significance.}
+This is the BRA-language analog of \emph{open induction}
+(Shepherdson's $\mathrm{IOpen}$) / \emph{quantifier-free induction},
+specialised to BRA's vocabulary of primitive recursive functors.
+Since BRA has no quantifiers in its formula language at all, and the
+induction predicates here are not even disjunctions or implications
+but single equations between primitive-recursive Term-expressions,
+the relevant fragment sits \emph{strictly below} EFA = $I\Delta_0 +
+\mathrm{EXP}$ (which has $\Delta_0$-induction with bounded
+quantifiers) and considerably below PRA (full quantifier-free
+induction over arbitrary boolean combinations).
+
+\paragraph{Caveat: step rule still uses propositional logic.}
+While the induction \emph{predicate} is atomic in all three sites,
+the induction \emph{step} hypothesis fed to $\mathit{ruleIndBT}$
+has shape
+\[
+  P[O/v_1] \;\supset\; (P[O/v_2] \;\supset\; P[\mathit{Pair}(v_1, v_2)/0]),
+\]
+an implication of three substitution-instances of the atomic
+predicate.  Building and discharging it requires
+$\mathit{mp}$ and the propositional axioms ($\mathit{axK}$,
+$\mathit{axS}$).  Furthermore, the negation closure around
+$\mathit{Con}$ (which has shape
+$\mathit{not}\;(\mathit{atomic}\;\ldots)$) requires classical
+propositional axioms: $\mathit{axContrapos}$, $\mathit{axExFalso}$,
+$\mathit{axNeg}$, used in
+\verb|Thm11Diagonal.agda|, \verb|Thm14Abstract.agda|,
+\verb|Thm11.agda|, and \verb|Thm14Numerals.agda|.  These are not
+induction principles; they are classical propositional logic.
+
+\paragraph{Combined calibrated headline.}
+The two complementary audits give the following sharpened statement
+of the BRA2 result:
+\begin{quote}
+\textbf{Theorem (calibrated).}  G\"odel's second incompleteness
+theorem is provable in BRA using only:
+\begin{itemize}
+  \item \emph{Functions:} the ramified-elementary fragment, $\Omega^k\theta \to \theta$
+        with $k \le 2$ in Leivant's higher-type ramification --- equivalent
+        to Kalmar's elementary class $\mathcal{E}_3$;
+  \item \emph{Induction:} tree induction at atomic-equation predicates
+        only --- the BRA analog of open / quantifier-free induction;
+  \item \emph{Logic:} classical propositional logic (modus ponens,
+        $\mathit{axK}$, $\mathit{axS}$, $\mathit{axContrapos}$,
+        $\mathit{axExFalso}$, $\mathit{axNeg}$), equational
+        congruence, and Hilbert-style instantiation.
+\end{itemize}
+No use of higher-type primitive recursion beyond level~2; no
+induction over compound formulas; no quantifiers.
+\end{quote}
+The two fragment certificates are independent: the first restricts
+the function vocabulary (depth of $\mathit{treeRec}$ nesting), the
+second restricts the predicate vocabulary (formula complexity at the
+induction site).  Both are post-hoc certificates, observable by a
+finite \verb|grep| audit of the seven function-defining files plus
+the three induction call sites; no Agda re-proof is required.
+
 \subsection{Comparison with prior formalisations}
 
 The only previous machine formalisation of G\"odel's \emph{Second}
