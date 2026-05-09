@@ -601,6 +601,13 @@ abstract
   thmT = Rec stepProtoWrapped
 
   ------------------------------------------------------------------
+  -- thmT(O) reduces to O.  Used by BRA2.DecodeBot.  Provable inside
+  -- the abstract block via axRecLf on the underlying  Rec  primitive.
+
+  thmT_O_eval : Deriv (atomic (eqn (ap1 thmT O) O))
+  thmT_O_eval = axRecLf stepProtoWrapped
+
+  ------------------------------------------------------------------
   -- Structural specs of  thmT  needed by  BRA2.Thm11.Thm11 .
   --
   -- Both  thmT  and its tree-level encoding  codeF1 thmT  are closed
@@ -994,6 +1001,146 @@ abstract
         chk_to_eq : Deriv (atomic (eqn (ap2 chk a b) O))
         chk_to_eq = ruleTrans c1 (ruleTrans c5 (ruleTrans c6 (ruleTrans c7 eqProof)))
     in cascadeHit chk body nx a b chk_to_eq
+
+  ------------------------------------------------------------------
+  -- thmT(Pair O b) = O.  Used by BRA2.DecodeBot.
+  --
+  -- The input has tag-byte O, which matches no recognised tag.  All
+  -- 42 cascade levels skip; the cascade terminates at  fbBody = Lift
+  -- (KT O) , which evaluates to  O  on every input.
+
+  thmT_pairO_eval : (b : Term) ->
+    Deriv (atomic (eqn (ap1 thmT (ap2 Pair O b)) O))
+  thmT_pairO_eval b =
+    let
+      a    : Term
+      a    = ap2 Pair O b
+      recs : Term
+      recs = ap2 Pair (ap1 thmT O) (ap1 thmT b)
+      aW   : Term
+      aW   = ap2 Pair O a
+
+      -- Stage 1: thmT (Pair O b) = stepProto a recs.
+      e1a = axRecNd stepProtoWrapped O b
+      unfoldFan = axFan (Lift Snd) (Post Snd Pair) stepProto aW recs
+      leftRed = ruleTrans (axLift Snd aW recs) (axSnd O a)
+      rightRed = ruleTrans (axPost Snd Pair aW recs) (axSnd aW recs)
+      congLft = congL stepProto (ap2 (Post Snd Pair) aW recs) leftRed
+      congRgt = congR stepProto a rightRed
+      e1 : Deriv (atomic (eqn (ap1 thmT a) (ap2 stepProto a recs)))
+      e1 = ruleTrans e1a (ruleTrans unfoldFan (ruleTrans congLft congRgt))
+
+      -- Stage 2: stepProto a recs = dispatch a recs (via stepProto_top).
+      f1 = axFst O b
+      f2 = cong1 Fst f1
+      fstFstA : Deriv (atomic (eqn (ap1 Fst (ap1 Fst a)) O))
+      fstFstA = ruleTrans f2 axFstLf
+      e2 = stepProto_top a recs fstFstA
+
+      -- Stage 3: 42 skipAtTag's covering every tag in the cascade.
+      -- Each witness  axTreeEqNL O (reify (natCode k))  proves
+      --   TreeEq (natCode (suc k)) O = falseT
+      -- where natCode (suc k) = Pair O (natCode k).
+      s1   = skipAtTag (natCode tagAxI)         (natCode_isValue tagAxI)         O b recs body_axI         next_axI
+                (axTreeEqNL O (reify (natCode zero)))
+      s2   = skipAtTag (natCode tagAxFst)       (natCode_isValue tagAxFst)       O b recs body_axFst       next_axFst
+                (axTreeEqNL O (reify (natCode tagAxI)))
+      s3   = skipAtTag (natCode tagAxSnd)       (natCode_isValue tagAxSnd)       O b recs body_axSnd       next_axSnd
+                (axTreeEqNL O (reify (natCode tagAxFst)))
+      s4   = skipAtTag (natCode tagAxConst)     (natCode_isValue tagAxConst)     O b recs body_axConst     next_axConst
+                (axTreeEqNL O (reify (natCode tagAxSnd)))
+      s5   = skipAtTag (natCode tagAxComp)      (natCode_isValue tagAxComp)      O b recs body_axComp      next_axComp
+                (axTreeEqNL O (reify (natCode tagAxConst)))
+      s6   = skipAtTag (natCode tagAxComp2)     (natCode_isValue tagAxComp2)     O b recs body_axComp2     next_axComp2
+                (axTreeEqNL O (reify (natCode tagAxComp)))
+      s7   = skipAtTag (natCode tagAxLift)      (natCode_isValue tagAxLift)      O b recs body_axLift      next_axLift
+                (axTreeEqNL O (reify (natCode tagAxComp2)))
+      s8   = skipAtTag (natCode tagAxPost)      (natCode_isValue tagAxPost)      O b recs body_axPost      next_axPost
+                (axTreeEqNL O (reify (natCode tagAxLift)))
+      s9   = skipAtTag (natCode tagAxFan)       (natCode_isValue tagAxFan)       O b recs body_axFan       next_axFan
+                (axTreeEqNL O (reify (natCode tagAxPost)))
+      s10  = skipAtTag (natCode tagAxKT)        (natCode_isValue tagAxKT)        O b recs body_axZ         next_axKT
+                (axTreeEqNL O (reify (natCode tagAxFan)))
+      s15  = skipAtTag (natCode tagAxIfLfL)     (natCode_isValue tagAxIfLfL)     O b recs body_axIfLfL     next_axIfLfL
+                (axTreeEqNL O (reify (natCode tagAxKT)))
+      s16  = skipAtTag (natCode tagAxIfLfN)     (natCode_isValue tagAxIfLfN)     O b recs body_axIfLfN     next_axIfLfN
+                (axTreeEqNL O (reify (natCode tagAxIfLfL)))
+      s17  = skipAtTag (natCode tagAxTreeEqLL)  (natCode_isValue tagAxTreeEqLL)  O b recs body_axTreeEqLL  next_axTreeEqLL
+                (axTreeEqNL O (reify (natCode tagAxIfLfN)))
+      s18  = skipAtTag (natCode tagAxTreeEqLN)  (natCode_isValue tagAxTreeEqLN)  O b recs body_axTreeEqLN  next_axTreeEqLN
+                (axTreeEqNL O (reify (natCode tagAxTreeEqLL)))
+      s19  = skipAtTag (natCode tagAxTreeEqNL)  (natCode_isValue tagAxTreeEqNL)  O b recs body_axTreeEqNL  next_axTreeEqNL
+                (axTreeEqNL O (reify (natCode tagAxTreeEqLN)))
+      s20  = skipAtTag (natCode tagAxTreeEqNN)  (natCode_isValue tagAxTreeEqNN)  O b recs body_axTreeEqNN  next_axTreeEqNN
+                (axTreeEqNL O (reify (natCode tagAxTreeEqNL)))
+      s21  = skipAtTag (natCode tagAxGoodstein) (natCode_isValue tagAxGoodstein) O b recs body_axGoodstein next_axGoodstein
+                (axTreeEqNL O (reify (natCode tagAxTreeEqNN)))
+      s22  = skipAtTag (natCode tagAxRefl)      (natCode_isValue tagAxRefl)      O b recs body_axRefl      next_axRefl
+                (axTreeEqNL O (reify (natCode tagAxGoodstein)))
+      s23  = skipAtTag (natCode tagRuleSym)     (natCode_isValue tagRuleSym)     O b recs body_ruleSym     next_ruleSym
+                (axTreeEqNL O (reify (natCode tagAxRefl)))
+      s24  = skipAtTag (natCode tagRuleTrans)   (natCode_isValue tagRuleTrans)   O b recs body_ruleTrans   next_ruleTrans
+                (axTreeEqNL O (reify (natCode tagRuleSym)))
+      s25  = skipAtTag (natCode tagCong1)       (natCode_isValue tagCong1)       O b recs body_cong1       next_cong1
+                (axTreeEqNL O (reify (natCode tagRuleTrans)))
+      s26  = skipAtTag (natCode tagCongL)       (natCode_isValue tagCongL)       O b recs body_congL       next_congL
+                (axTreeEqNL O (reify (natCode tagCong1)))
+      s27  = skipAtTag (natCode tagCongR)       (natCode_isValue tagCongR)       O b recs body_congR       next_congR
+                (axTreeEqNL O (reify (natCode tagCongL)))
+      s28  = skipAtTag (natCode tagAxEqTrans)   (natCode_isValue tagAxEqTrans)   O b recs body_axEqTrans   next_axEqTrans
+                (axTreeEqNL O (reify (natCode tagCongR)))
+      s29  = skipAtTag (natCode tagAxEqCong1)   (natCode_isValue tagAxEqCong1)   O b recs body_axEqCong1   next_axEqCong1
+                (axTreeEqNL O (reify (natCode tagAxEqTrans)))
+      s30  = skipAtTag (natCode tagAxEqCongL)   (natCode_isValue tagAxEqCongL)   O b recs body_axEqCongL   next_axEqCongL
+                (axTreeEqNL O (reify (natCode tagAxEqCong1)))
+      s31  = skipAtTag (natCode tagAxEqCongR)   (natCode_isValue tagAxEqCongR)   O b recs body_axEqCongR   next_axEqCongR
+                (axTreeEqNL O (reify (natCode tagAxEqCongL)))
+      s32  = skipAtTag (natCode tagAxK)         (natCode_isValue tagAxK)         O b recs body_axK         next_axK
+                (axTreeEqNL O (reify (natCode tagAxEqCongR)))
+      s33  = skipAtTag (natCode tagAxS)         (natCode_isValue tagAxS)         O b recs body_axS         next_axS
+                (axTreeEqNL O (reify (natCode tagAxK)))
+      s34  = skipAtTag (natCode tagAxNeg)       (natCode_isValue tagAxNeg)       O b recs body_axNeg       next_axNeg
+                (axTreeEqNL O (reify (natCode tagAxS)))
+      s35  = skipAtTag (natCode tagAxExFalso)   (natCode_isValue tagAxExFalso)   O b recs body_axExFalso   next_axExFalso
+                (axTreeEqNL O (reify (natCode tagAxNeg)))
+      s36  = skipAtTag (natCode tagAxContrapos) (natCode_isValue tagAxContrapos) O b recs body_axContrapos next_axContrapos
+                (axTreeEqNL O (reify (natCode tagAxExFalso)))
+      s37  = skipAtTag (natCode tagMp)          (natCode_isValue tagMp)          O b recs body_mp          next_mp
+                (axTreeEqNL O (reify (natCode tagAxContrapos)))
+      s38  = skipAtTag (natCode tagRuleInst)    (natCode_isValue tagRuleInst)    O b recs body_ruleInst    next_ruleInst
+                (axTreeEqNL O (reify (natCode tagMp)))
+      s39  = skipAtTag (natCode tagRuleIndBT)   (natCode_isValue tagRuleIndBT)   O b recs body_ruleIndBT   next_ruleIndBT
+                (axTreeEqNL O (reify (natCode tagRuleInst)))
+      s40  = skipAtTag (natCode tagAxFstLf)     (natCode_isValue tagAxFstLf)     O b recs body_axFstLf     next_axFstLf
+                (axTreeEqNL O (reify (natCode tagRuleIndBT)))
+      s41  = skipAtTag (natCode tagAxSndLf)     (natCode_isValue tagAxSndLf)     O b recs body_axSndLf     next_axSndLf
+                (axTreeEqNL O (reify (natCode tagAxFstLf)))
+      s42  = skipAtTag (natCode tagAxIfLfLL)    (natCode_isValue tagAxIfLfLL)    O b recs body_axIfLfLL    next_axIfLfLL
+                (axTreeEqNL O (reify (natCode tagAxSndLf)))
+      s43  = skipAtTag (natCode tagAxIfLfNL)    (natCode_isValue tagAxIfLfNL)    O b recs body_axIfLfNL    next_axIfLfNL
+                (axTreeEqNL O (reify (natCode tagAxIfLfLL)))
+      s44  = skipAtTag (natCode tagRuleInst2)   (natCode_isValue tagRuleInst2)   O b recs body_ruleInst2   next_ruleInst2
+                (axTreeEqNL O (reify (natCode tagAxIfLfNL)))
+      s45  = skipAtTag (natCode tagAxTreeRecLf) (natCode_isValue tagAxTreeRecLf) O b recs body_axTreeRecLf next_axTreeRecLf
+                (axTreeEqNL O (reify (natCode tagRuleIndBT2)))
+      s46  = skipAtTag (natCode tagAxTreeRecNd) (natCode_isValue tagAxTreeRecNd) O b recs body_axTreeRecNd fbBody
+                (axTreeEqNL O (reify (natCode tagAxTreeRecLf)))
+
+      -- Stage 4: fbBody a recs = O via axLift + axZ (KT O = Z).
+      fbStep : Deriv (atomic (eqn (ap2 fbBody a recs) O))
+      fbStep = ruleTrans (axLift (KT O) a recs) (axZ a)
+
+    in ruleTrans e1 (ruleTrans e2 (ruleTrans s1 (ruleTrans s2 (ruleTrans s3
+       (ruleTrans s4 (ruleTrans s5 (ruleTrans s6 (ruleTrans s7
+       (ruleTrans s8 (ruleTrans s9 (ruleTrans s10 (ruleTrans s15
+       (ruleTrans s16 (ruleTrans s17 (ruleTrans s18 (ruleTrans s19
+       (ruleTrans s20 (ruleTrans s21 (ruleTrans s22 (ruleTrans s23
+       (ruleTrans s24 (ruleTrans s25 (ruleTrans s26 (ruleTrans s27
+       (ruleTrans s28 (ruleTrans s29 (ruleTrans s30 (ruleTrans s31
+       (ruleTrans s32 (ruleTrans s33 (ruleTrans s34 (ruleTrans s35
+       (ruleTrans s36 (ruleTrans s37 (ruleTrans s38 (ruleTrans s39
+       (ruleTrans s40 (ruleTrans s41 (ruleTrans s42 (ruleTrans s43
+       (ruleTrans s44 (ruleTrans s45 (ruleTrans s46 fbStep)))))))))))))))))))))))))))))))))))))))))))
 
   ------------------------------------------------------------------
   -- Group I dispatch lemmas (10 tags: axI, axFst, axSnd, axConst,

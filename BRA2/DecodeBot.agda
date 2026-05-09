@@ -38,7 +38,7 @@ open import BRA2.Th14SubTPushthrough using (treeEqRefl)
 open import BRA2.GoedelII using (bot)
 
 import BRA2.Thm.ThmT
-open BRA2.Thm.ThmT using (thmT)
+open BRA2.Thm.ThmT using (thmT ; thmT_O_eval ; thmT_pairO_eval)
 
 ----------------------------------------------------------------------
 -- The "false equation -> Deriv bot" bridge.
@@ -111,3 +111,38 @@ codeBot_isValue = codeFormula_isValue bot
 
 treeEq_O_codeBot_false : Eq (treeEq O codeBot) false
 treeEq_O_codeBot_false = refl
+
+----------------------------------------------------------------------
+-- The y = O case of decode_bot.
+--
+-- thmT(O) reduces to O via thmT_O_eval (which lives inside the
+-- BRA2.Thm.ThmT abstract block, applying axRecLf at the underlying
+-- Rec primitive).  The hypothesis  thmT O = codeFormula bot  then
+-- collapses via ineqLemma to Deriv bot.
+
+decode_bot_O :
+  Deriv (atomic (eqn (ap1 thmT O) (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_O h =
+  let
+    -- Replace  thmT O  by  O  using thmT_O_eval.
+    h' : Deriv (atomic (eqn O codeBot))
+    h' = ruleTrans (ruleSym thmT_O_eval) h
+  in ineqLemma O codeBot valO codeBot_isValue treeEq_O_codeBot_false h'
+
+----------------------------------------------------------------------
+-- The y = Pair O b case of decode_bot.
+--
+-- thmT(Pair O b) reduces to O via thmT_pairO_eval (cascade falls
+-- through all 42 levels and lands at fbBody = O).  Then ineqLemma
+-- between O and codeFormula bot.
+
+decode_bot_pairO :
+  (b : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair O b)) (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_pairO b h =
+  let
+    h' : Deriv (atomic (eqn O codeBot))
+    h' = ruleTrans (ruleSym (thmT_pairO_eval b)) h
+  in ineqLemma O codeBot valO codeBot_isValue treeEq_O_codeBot_false h'
