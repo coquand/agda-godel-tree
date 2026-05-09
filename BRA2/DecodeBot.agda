@@ -40,8 +40,10 @@ open import BRA2.GoedelII using (bot)
 import BRA2.Thm.ThmT
 open BRA2.Thm.ThmT using
   ( thmT ; thmT_O_eval ; thmT_pairO_eval
-  ; thmTDispAxI_param ; thmTDispAxRefl_param ; thmTDispAxFst_param )
-open import BRA2.Thm.TagCodes using (tagCode_axI ; tagCode_axRefl ; tagCode_axFst)
+  ; thmTDispAxI_param ; thmTDispAxRefl_param ; thmTDispAxFst_param
+  ; thmTDispAxSnd_param ; thmTDispAxConst_param )
+open import BRA2.Thm.TagCodes using
+  (tagCode_axI ; tagCode_axRefl ; tagCode_axFst ; tagCode_axSnd ; tagCode_axConst)
 
 ----------------------------------------------------------------------
 -- The "false equation -> Deriv bot" bridge.
@@ -278,6 +280,80 @@ decode_bot_axFst aT bT vaT vbT h =
           (valNd _ _ (codeF1_isValue Fst)
             (valNd _ _ tagAp2_isValue
               (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT)))))
+        vaT
+
+    treeEq_rhsT_codeBot_false : Eq (treeEq rhsT codeBot) false
+    treeEq_rhsT_codeBot_false = refl
+
+  in ineqLemma rhsT codeBot rhsT_iv codeBot_isValue
+       treeEq_rhsT_codeBot_false h'
+
+----------------------------------------------------------------------
+-- decode_bot_axSnd : y = Pair tagCode_axSnd (Pair aT bT).
+-- Mirror of decode_bot_axFst with bT in the result's Snd position.
+
+decode_bot_axSnd :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axSnd (ap2 Pair aT bT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axSnd aT bT vaT vbT h =
+  let
+    red = thmTDispAxSnd_param aT bT
+
+    rhsT : Term
+    rhsT = ap2 Pair
+             (ap2 Pair (reify tagAp1)
+               (ap2 Pair (reify (codeF1 Snd))
+                 (ap2 Pair (reify tagAp2)
+                   (ap2 Pair (reify (codeF2 Pair))
+                     (ap2 Pair aT bT)))))
+             bT
+
+    h' : Deriv (atomic (eqn rhsT codeBot))
+    h' = ruleTrans (ruleSym red) h
+
+    rhsT_iv : IsValue rhsT
+    rhsT_iv =
+      valNd _ bT
+        (valNd _ _ tagAp1_isValue
+          (valNd _ _ (codeF1_isValue Snd)
+            (valNd _ _ tagAp2_isValue
+              (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT)))))
+        vbT
+
+    treeEq_rhsT_codeBot_false : Eq (treeEq rhsT codeBot) false
+    treeEq_rhsT_codeBot_false = refl
+
+  in ineqLemma rhsT codeBot rhsT_iv codeBot_isValue
+       treeEq_rhsT_codeBot_false h'
+
+----------------------------------------------------------------------
+-- decode_bot_axConst : y = Pair tagCode_axConst (Pair aT bT).
+-- Result has Pair (Pair tagAp2 ...) aT structure.
+
+decode_bot_axConst :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axConst (ap2 Pair aT bT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axConst aT bT vaT vbT h =
+  let
+    red = thmTDispAxConst_param aT bT
+
+    rhsT : Term
+    rhsT = ap2 Pair (ap2 Pair (reify tagAp2)
+                              (ap2 Pair (reify (codeF2 Const))
+                                        (ap2 Pair aT bT))) aT
+
+    h' : Deriv (atomic (eqn rhsT codeBot))
+    h' = ruleTrans (ruleSym red) h
+
+    rhsT_iv : IsValue rhsT
+    rhsT_iv =
+      valNd _ aT
+        (valNd _ _ tagAp2_isValue
+          (valNd _ _ (codeF2_isValue Const) (valNd aT bT vaT vbT)))
         vaT
 
     treeEq_rhsT_codeBot_false : Eq (treeEq rhsT codeBot) false
