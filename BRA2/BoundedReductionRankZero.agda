@@ -30,16 +30,7 @@ open import BRA2.Term
 open import BRA2.Formula
 import BRA2.DerivT0      as O
 import BRA2.DerivTBounded as B
-
-------------------------------------------------------------------------
--- natMax decomposition lemma:  natMax a b = 0  iff  a = 0  and  b = 0 .
-
-natMaxZero : (a b : Nat) ->
-             Eq (B.natMax a b) zero ->
-             Sigma (Eq a zero) (\ _ -> Eq b zero)
-natMaxZero zero    zero    refl = mkSigma refl refl
-natMaxZero (suc _) zero    ()
-natMaxZero (suc _) (suc _) ()
+open import BRA2.NatMaxLemmas using (natMaxZero)
 
 ------------------------------------------------------------------------
 -- rankZeroAux : carry an explicit  Eq r zero  witness and structurally
