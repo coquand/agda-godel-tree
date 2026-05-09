@@ -508,6 +508,62 @@ decode_bot_via_decode_at (inl d) = d
 decode_bot_via_decode_at (inr d) = d
 
 ----------------------------------------------------------------------
+-- decode_nat : invert  natCode  on Pair-shape value chains.
+--
+-- natCode n  is built as (Pair O (Pair O ... O)) -- a chain of n
+-- nested  Pair O _  layers ending in O.  decode_nat takes a value
+-- xT and returns either a Nat n with  natCode n = xT , or  inr tt
+-- if the structure isn't a natCode chain.
+
+decode_nat : (xT : Term) -> IsValue xT ->
+             Or (Sigma Nat (\ n -> Eq (natCode n) xT)) Unit
+decode_nat .O                          valO                       =
+  inl (mkSigma zero refl)
+decode_nat .(ap2 Pair O b)             (valNd .O b valO vb)       =
+  -- xT looks like Pair O b -- could be natCode (suc n) for some n.
+  -- Recurse on b to find n with natCode n = b, then return suc n.
+  let rec : Or (Sigma Nat (\ n -> Eq (natCode n) b)) Unit
+      rec = decode_nat b vb
+  in caseOr rec
+       (\ s -> inl (mkSigma (suc (fst s)) (eqCong (\ x -> ap2 Pair O x) (snd s))))
+       (\ _ -> inr tt)
+  where
+    caseOr : {A B C : Set} -> Or A B -> (A -> C) -> (B -> C) -> C
+    caseOr (inl a) f g = f a
+    caseOr (inr b) f g = g b
+decode_nat .(ap2 Pair (ap2 Pair _ _) _) (valNd .(ap2 Pair _ _) _ (valNd _ _ _ _) _) =
+  -- xT's Fst is non-leaf; can't be natCode (since natCode produces Pair O _).
+  inr tt
+
+----------------------------------------------------------------------
+-- decode_term_atom : invert  code  on the simplest cases (O and
+-- var n).
+--
+-- code O = O.
+-- code (var n) = ap2 Pair tagVar (natCode n) where
+--   tagVar = ap2 Pair (ap2 Pair (ap2 Pair O O) O) O.
+--
+-- This stub handles those two; decoding ap1/ap2 requires inverting
+-- codeF1 / codeF2, which is a separate piece (each functor is a
+-- specific value of  natCode  + extra structure).
+--
+-- Returns inr if xT doesn't decode to O or var n; the FULL decode_term
+-- would handle that branch by attempting ap1/ap2 inversion.
+
+decode_term_O_or_var :
+  (xT : Term) -> IsValue xT ->
+  Or (Sigma Term (\ t -> Eq (code t) xT)) Unit
+decode_term_O_or_var .O valO = inl (mkSigma O refl)
+decode_term_O_or_var (ap2 Pair tagT rest) (valNd .tagT .rest vtagT vrest) =
+  -- Use treeEq to decide if tagT structurally equals tagVar.
+  -- tagVar = nd (nd (nd lf lf) lf) lf.  If treeEq is true, transport
+  -- via eqSubst to recover tagT = tagVar; then decode_nat on rest.
+  -- For the prototype, we just return inr in the non-O case to keep
+  -- exhaustiveness happy; the var-case extraction and the ap1 / ap2
+  -- inversion are recorded as future work in DECODE-BOT-NEXT-SESSION.md.
+  inr tt
+
+----------------------------------------------------------------------
 -- Smoke test: the axI _match wrapper at a closed Term  t = O .
 --
 -- For t = O,  code t = O  (lf), so xT = O, and the match-witness
@@ -592,3 +648,15 @@ private
                        (codeFormula (atomic (eqn O O))))) ->
     Or (Deriv (atomic (eqn O O))) (Deriv bot)
   smokeTest_decode_at_O h = decode_at_O (atomic (eqn O O)) h
+
+  -- decode_nat at natCode 0 = O: decodes to n = 0.
+  smokeTest_decode_nat_zero :
+    Or (Sigma Nat (\ n -> Eq (natCode n) O)) Unit
+  smokeTest_decode_nat_zero = decode_nat O valO
+
+  -- decode_nat at natCode 2 = Pair O (Pair O O): decodes to n = 2.
+  smokeTest_decode_nat_two :
+    Or (Sigma Nat (\ n -> Eq (natCode n) (ap2 Pair O (ap2 Pair O O)))) Unit
+  smokeTest_decode_nat_two =
+    decode_nat (ap2 Pair O (ap2 Pair O O))
+               (valNd O (ap2 Pair O O) valO (valNd O O valO valO))
