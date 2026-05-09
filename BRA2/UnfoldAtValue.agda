@@ -47,7 +47,7 @@ import BRA2.DerivT0 as O
 
 StepCombiner : Equation -> Set
 StepCombiner e =
-  (a b : Term) ->
+  (a b : Term) -> IsValue a -> IsValue b ->
   O.DerivT0 (atomic (substEq zero a e)) ->
   O.DerivT0 (atomic (substEq zero b e)) ->
   O.DerivT0 (atomic (substEq zero (ap2 Pair a b) e))
@@ -70,7 +70,7 @@ unfoldAtValue _ _    base .O                 valO              = base
 unfoldAtValue e step base .(ap2 Pair a b)    (valNd a b va vb) =
   let ih_a = unfoldAtValue e step base a va
       ih_b = unfoldAtValue e step base b vb
-  in step a b ih_a ih_b
+  in step a b va vb ih_a ih_b
 
 ------------------------------------------------------------------------
 -- The trivial stepCombiner for closed equations.
@@ -100,4 +100,4 @@ substEq_botEqn_inert _ _ = refl
 -- already has the desired type; just return it.
 
 botEqn_stepCombiner : StepCombiner botEqn
-botEqn_stepCombiner _ _ _ d_b = d_b
+botEqn_stepCombiner _ _ _ _ _ d_b = d_b
