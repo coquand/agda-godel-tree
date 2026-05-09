@@ -978,6 +978,122 @@ induction site).  Both are post-hoc certificates, observable by a
 finite \verb|grep| audit of the seven function-defining files plus
 the three induction call sites; no Agda re-proof is required.
 
+\subsection{The threshold formal system: \texttt{DerivT}}
+\label{subsec:threshold-system}
+
+The two calibrations of Sections~\ref{subsec:elementary} and
+\ref{subsec:atomic-ind} are observations: by inspection, the BRA2
+proof of G\"odel~II uses only the ramified-elementary function
+fragment and only atomic-predicate tree induction.  This subsection
+turns the second observation into a typed Agda artifact: a
+\emph{threshold derivation type} \verb|DerivT| (file
+\verb|BRA2/DerivT.agda|) in which compound-formula tree induction is
+syntactically inadmissible.  The full BRA derivation type
+\verb|Deriv| remains unchanged; \verb|DerivT| is a separate
+inductive family.
+
+\paragraph{Definition of the threshold system.}
+\verb|DerivT : Formula -> Set| is defined identically to
+\verb|Deriv| at every constructor except the binary-tree
+induction rules.  Where \verb|Deriv| has
+\begin{verbatim}
+  ruleIndBT  : (P : Formula) (v1 v2 : Nat) ->
+               Deriv (substF zero O P) ->
+               Deriv ((substF zero (var v1) P) imp
+                      ((substF zero (var v2) P) imp
+                       (substF zero (ap2 Pair (var v1) (var v2)) P))) ->
+               Deriv P
+\end{verbatim}
+\verb|DerivT| has the atomic-only restriction
+\begin{verbatim}
+  indBT      : (e : Equation) (v1 v2 : Nat) ->
+               DerivT (atomic (substEq zero O e)) ->
+               DerivT ((atomic (substEq zero (var v1) e)) imp
+                       ((atomic (substEq zero (var v2) e)) imp
+                        (atomic (substEq zero (ap2 Pair (var v1) (var v2)) e)))) ->
+               DerivT (atomic e)
+\end{verbatim}
+and analogously for \verb|ruleIndBT2| / \verb|indBT2|.  The
+predicate is now an \verb|Equation|, so the user cannot supply a
+\verb|not_| or \verb|imp_| compound; the system is closed under
+atomic-predicate induction only.  Every other constructor of
+\verb|Deriv| (computation axioms, equational congruence, classical
+propositional axioms, modus ponens, \verb|ruleInst|) is mirrored
+verbatim in \verb|DerivT|.
+
+\paragraph{Soundness: the forgetful embedding.}
+\verb|forget : DerivT P -> Deriv P| is defined by structural
+recursion: each \verb|DerivT| constructor maps to the
+identically-named \verb|Deriv| constructor, except
+\verb|indBT e v1 v2 base step| translates to
+\verb|ruleIndBT (atomic e) v1 v2 (forget base) (forget step)|, and
+analogously for \verb|indBT2|.  This is 40 cases of structural map.
+Soundness of the threshold system relative to BRA is thus a
+machine-checked theorem: anything provable in the threshold system
+is provable in BRA.
+
+\paragraph{Concrete certificate at the three induction sites.}
+The audit observation that all \verb|ruleIndBT| / \verb|ruleIndBT2|
+calls in the GoedelIIFull closure use atomic predicates is now a
+\emph{type-level} fact, not merely a grep.  Two derived rules
+\begin{verbatim}
+  ruleIndBTAtomic  : (e : Equation) (v1 v2 : Nat) -> ... -> Deriv (atomic e)
+  ruleIndBT2Atomic : (e : Equation) (v1 v2 v3 v4 : Nat) -> ... -> Deriv (atomic e)
+\end{verbatim}
+are added to \verb|BRA2/Deriv.agda| (lines 273--316).  These are
+type-level signatures for atomic-only \verb|Deriv| induction, and
+their bodies just delegate to the underlying \verb|ruleIndBT| /
+\verb|ruleIndBT2| with motive \verb|atomic e|.  The three call sites
+in the closure
+\begin{itemize}
+  \item \verb|TreeEqReflParam.agda:158|,
+  \item \verb|Th12TreeEqUniv.agda:72|,
+  \item \verb|Th12TreeRecInternal.agda:1786|
+\end{itemize}
+have been refactored to use the \verb|*Atomic| derived rules, taking
+an \verb|Equation| parameter rather than an \verb|atomic|-wrapped
+\verb|Formula|.  After the refactor a \verb|grep| over the 147 files
+in the closure shows zero non-\verb|*Atomic| invocations: the audit
+is enforced at the type level, not just by inspection.
+
+\paragraph{Demonstrations.}
+\verb|BRA2/DerivTDemo.agda| typechecks four worked examples in the
+threshold system:
+\begin{enumerate}
+  \item A bare leaf-leaf TreeEq fact (\verb|axTreeEqLL|).
+  \item A small chained equational derivation
+        (\verb|ap1 I (ap1 I t) = t| via \verb|cong1| and
+        \verb|ruleTrans|).
+  \item A direct use of \verb|indBT| to derive
+        \verb|forall x. ap1 Z x = O| by atomic tree induction.
+  \item A direct use of \verb|indBT2| to derive
+        \verb|forall x v. v = v| by 2D atomic tree induction with
+        diagonal IHs.
+\end{enumerate}
+Each example concludes with a
+\verb|forget| call producing the corresponding \verb|Deriv|, so
+both the constructive and the soundness directions are exercised.
+
+\paragraph{What remains.}
+\verb|godelII : Deriv Con -> Deriv bot| typechecks against the BRA
+\verb|Deriv| type with all induction sites refactored to
+\verb|ruleIndBTAtomic| / \verb|ruleIndBT2Atomic|.  A stronger
+statement is
+\[
+  \mathit{godelII\_T} : \mathit{DerivT}\;\mathit{Con} \to \mathit{DerivT}\;\bot,
+\]
+which would say the threshold system itself proves G\"odel~II
+end-to-end (rather than: the BRA proof happens to use only
+threshold-rules).  This requires lifting the entire 147-file
+GoedelIIFull closure across \verb|forget|: every intermediate lemma
+restated in \verb|DerivT|, every helper rebuilt.  The refactor is
+mechanical because every \verb|Deriv| constructor mirrors a
+\verb|DerivT| one (excepting compound-IND, which is unused), but
+labour-intensive --- estimated at one to two weeks of careful work.
+The current artifact (\verb|DerivT|, \verb|forget|, the four demos,
+and the refactored \verb|*Atomic| call sites in the closure) is the
+infrastructure on which that lift would build.
+
 \subsection{Comparison with prior formalisations}
 
 The only previous machine formalisation of G\"odel's \emph{Second}

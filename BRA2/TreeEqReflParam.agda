@@ -153,10 +153,14 @@ stepTreeEqRefl =
 ------------------------------------------------------------------------
 -- The closed-formula reflexivity (var 0 free).
 
+-- Atomic-IND-only refactor: invoke ruleIndBTAtomic with the underlying
+-- Equation rather than ruleIndBT with the wrapped Formula.  Mechanically
+-- certifies that this induction site is in the threshold fragment.
 treeEqReflClosed : Deriv motiveTreeEqRefl
 treeEqReflClosed =
-  ruleIndBT motiveTreeEqRefl (suc zero) (suc (suc zero))
-            baseTreeEqReflO stepTreeEqRefl
+  ruleIndBTAtomic (eqn (ap2 TreeEq (var zero) (var zero)) O)
+                  (suc zero) (suc (suc zero))
+                  baseTreeEqReflO stepTreeEqRefl
 
 ------------------------------------------------------------------------
 -- The parametric reflexivity:

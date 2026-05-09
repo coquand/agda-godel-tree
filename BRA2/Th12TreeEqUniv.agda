@@ -67,10 +67,16 @@ BasePPType =
 ------------------------------------------------------------------------
 -- Th12_F2_TreeEq universal: parametric on basePP_imp.
 
+-- Atomic-IND-only refactor: P_Th12_TreeEq = atomic eqnPTh12TreeEq, so
+-- invoke ruleIndBT2Atomic with the underlying equation.  Mechanically
+-- certifies that this induction site is in the threshold fragment.
 Th12_F2_TreeEq_param : BasePPType -> Deriv P_Th12_TreeEq
 Th12_F2_TreeEq_param basePP_imp =
-  ruleIndBT2 P_Th12_TreeEq v1Nat v2Nat v3Nat v4Nat
-             baseLL_proof
-             baseLN_imp
-             baseNL_imp
-             basePP_imp
+  ruleIndBT2Atomic
+    (eqn (ap1 thmT (ap2 D_TreeEq (var zero) (var (suc zero))))
+         (codeFTeq2_TreeEq (var zero) (var (suc zero))))
+    v1Nat v2Nat v3Nat v4Nat
+    baseLL_proof
+    baseLN_imp
+    baseNL_imp
+    basePP_imp

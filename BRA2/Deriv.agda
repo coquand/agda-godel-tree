@@ -271,6 +271,50 @@ axKT (ap2 Pair a b)   (valNd .a .b va vb)   x =
   in ruleTrans s1 (ruleTrans s2 s3)
 
 ------------------------------------------------------------------------
+-- Threshold induction rules (derived):  ruleIndBTAtomic  /
+--  ruleIndBT2Atomic  -- the atomic-predicate-only fragments of
+--  ruleIndBT  /  ruleIndBT2 .  Used to mechanically certify the
+-- audit observation that BRA2's GoedelII closure uses tree induction
+-- only at atomic equations (see godelI-II-summary.tex, Section
+-- "Induction calibration: atomic-predicate tree induction only").
+--
+-- These take an  Equation  parameter (rather than an arbitrary
+-- Formula ) and conclude  Deriv (atomic e) ; they invoke the underlying
+-- ruleIndBT / ruleIndBT2 with motive  atomic e .
+--
+-- Refactoring the three GoedelIIFull call sites
+-- (TreeEqReflParam.agda, Th12TreeEqUniv.agda, Th12TreeRecInternal.agda)
+-- to use these derived rules pins down the atomic-IND-only fragment
+-- at the type level, providing Agda-level evidence for the audit.
+
+ruleIndBTAtomic : (e : Equation) (v1 v2 : Nat) ->
+                  Deriv (atomic (substEq zero O e)) ->
+                  Deriv ((atomic (substEq zero (var v1) e)) imp
+                         ((atomic (substEq zero (var v2) e)) imp
+                          (atomic (substEq zero (ap2 Pair (var v1) (var v2)) e)))) ->
+                  Deriv (atomic e)
+ruleIndBTAtomic e v1 v2 base step = ruleIndBT (atomic e) v1 v2 base step
+
+ruleIndBT2Atomic :
+  (e : Equation) (v1 v2 v3 v4 : Nat) ->
+  Deriv (atomic (substEq (suc zero) O (substEq zero O e))) ->
+  Deriv ((atomic (substEq (suc zero) (var v3) (substEq zero O e))) imp
+         ((atomic (substEq (suc zero) (var v4) (substEq zero O e))) imp
+          (atomic (substEq (suc zero) (ap2 Pair (var v3) (var v4))
+                                       (substEq zero O e))))) ->
+  Deriv ((atomic (substEq (suc zero) O (substEq zero (var v1) e))) imp
+         ((atomic (substEq (suc zero) O (substEq zero (var v2) e))) imp
+          (atomic (substEq (suc zero) O
+                                       (substEq zero (ap2 Pair (var v1) (var v2)) e))))) ->
+  Deriv ((atomic (substEq (suc zero) (var v3) (substEq zero (var v1) e))) imp
+         ((atomic (substEq (suc zero) (var v4) (substEq zero (var v2) e))) imp
+          (atomic (substEq (suc zero) (ap2 Pair (var v3) (var v4))
+                                       (substEq zero (ap2 Pair (var v1) (var v2)) e))))) ->
+  Deriv (atomic e)
+ruleIndBT2Atomic e v1 v2 v3 v4 baseLL baseLN baseNL basePP =
+  ruleIndBT2 (atomic e) v1 v2 v3 v4 baseLL baseLN baseNL basePP
+
+------------------------------------------------------------------------
 -- Derived  axRecPLf  /  axRecPNd  (formerly  Deriv  constructors).
 --
 --  RecP s = treeRec Z s  definitionally, so  ap2 (RecP s) p _  reduces

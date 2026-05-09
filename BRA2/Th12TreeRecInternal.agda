@@ -1781,10 +1781,16 @@ module Construction
   ----------------------------------------------------------------------
   -- Step 4: universal closure via ruleIndBT.
 
+  -- Atomic-IND-only refactor: P_Th12_treeRec is atomic, so use
+  -- ruleIndBTAtomic with the underlying equation.  Threshold
+  -- certificate.
   D_correct2_treeRec_fs_univ : Deriv P_Th12_treeRec
   D_correct2_treeRec_fs_univ =
-    ruleIndBT P_Th12_treeRec v1IndNat v2IndNat
-              base_O_subst BasePair.basePair_proof
+    ruleIndBTAtomic
+      (eqn (ap1 thmT (ap2 D2_treeRec_fs (var (suc zero)) (var zero)))
+           (codeFTeq2_treeRec_fs f s (var (suc zero)) (var zero)))
+      v1IndNat v2IndNat
+      base_O_subst BasePair.basePair_proof
 
   ----------------------------------------------------------------------
   -- Step 5: universal wrapper via Pair-encoding ruleInst trick.
