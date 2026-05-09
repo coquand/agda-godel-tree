@@ -1,62 +1,88 @@
 {-# OPTIONS --safe --without-K --exact-split #-}
 
--- BRA2.BoundedReduction -- Step-3 signature stub for bounded
--- cut-elimination on the threshold derivation type.
+-- BRA2.BoundedReduction -- Step-3 signatures and decompositions for
+-- bounded cut-elimination on the threshold derivation type.
 --
--- This file pins the *signature* of the bounded-reflection theorem
--- without yet committing to a proof.  The signature itself is the
--- publishable artifact:
+-- The publishable claim is:
 --
 --   "Any bounded-rank threshold derivation of bot can be reduced to
 --    an open-fragment (induction-free) derivation of bot."
 --
--- Equivalently, taking contrapositives:
+-- We pin this claim as a Sigma type (BoundedReductionTheorem) so the
+-- file remains  --safe  and postulate-free.  The body of the theorem
+-- (the technical heart of Step 3 in BRA2/BOUNDED-REFLECTION-PLAN.md)
+-- is decomposed into two pieces:
 --
---   "Open-fragment consistency  OpenCon0  implies  ConBounded r l
---    for every r, l."
+--   (1)  RankDecrement   : (r : Nat) -> ... -> rank-(suc r) -> rank-r
+--        the *single indBT-elimination step* --- the actual hard part
+--   (2)  rankZero        : rank-0 -> DerivT0
+--        the trivial base case (already proved in
+--        BRA2.BoundedReductionRankZero)
 --
--- We deliberately avoid  postulate  (the codebase is postulate-free).
--- Instead, we expose the bounded-reduction theorem as a Sigma type
--- (BoundedReductionTheorem) and parameterise the headline corollary
--- on it.  Filling in BoundedSoundBot is the goal of Step 3 in
--- BRA2/BOUNDED-REFLECTION-PLAN.md.
---
--- The intended structure is structural recursion on the bounded
--- derivation:
---   * leaf cases (axioms)            : same axiom in DerivT0;
---   * mp / ruleInst                  : recurse on premises;
---   * indBT / indBT2 (the only       : unfold induction up to depth r
---     non-trivial case)                via case-split on trees + mp.
---
--- The complexity measure is induction rank by default (per
--- BOUNDED-REFLECTION-PLAN Section 2); switch to checker rank or
--- reflection rank if the indBT case fails to go through.
+-- Composing (1) by induction on r and discharging the base via (2)
+-- produces  BoundedReductionTheorem .  This decomposition is the
+-- main constructive content of this file.
 --
 -- Open technical questions (see plan Section 5):
 --   Q1: What does "unfold indBT to depth r" produce in DerivT0?
 --   Q2: Does the reduction commute with ruleInst and mp?
 --   Q3: What is the size blow-up?  (Stays inside epsilon_3?)
 --   Q4: Is the level index l necessary, or does r suffice?
---   Q5: What is the right base case (r=0, l=0)?
+--   Q5: What is the right base case (r=0, l=0)?  -- ANSWERED:
+--       see BRA2.BoundedReductionRankZero.
 
 module BRA2.BoundedReduction where
 
 open import BRA2.Base
 open import BRA2.Formula
-open import BRA2.DerivT0   using (DerivT0 ; bot)
+open import BRA2.DerivT0       using (DerivT0 ; bot)
 open import BRA2.DerivTBounded using (DerivTBounded ; ConBounded)
+import BRA2.DerivTBounded as B
+open import BRA2.BoundedReductionRankZero using (rankZero)
 
 ------------------------------------------------------------------------
--- The Step-3 proof obligation, as a (curried) type.
---
--- "BoundedReductionTheorem" reads:
---   for every rank r, level l, every bounded-rank threshold derivation
---   of bot can be normalised to an induction-free DerivT0 derivation
---   of bot.
+-- The Step-3 proof obligation, as a curried type.
 
 BoundedReductionTheorem : Set
 BoundedReductionTheorem =
   (r l : Nat) -> DerivTBounded r l bot -> DerivT0 bot
+
+------------------------------------------------------------------------
+-- The single rank-decrement obligation.
+--
+-- "Eliminate one layer of  indBT  /  indBT2  in a bounded-rank proof
+--  of bot, producing a strictly-smaller-rank proof of bot at some
+--  (possibly larger) level."
+--
+-- This is the genuine bounded-cut-elimination step.  Strategy in
+-- BRA2/BOUNDED-REFLECTION-PLAN.md Section 3 Step 3: identify the
+-- topmost  indBT  in the proof tree and unfold it via a finite
+-- case-split on trees, combined with mp-chains, all in
+-- DerivTBounded r l' bot for some l'.
+
+RankDecrement : Set
+RankDecrement =
+  (r : Nat) {l : Nat} ->
+  DerivTBounded (suc r) l bot ->
+  Sigma Nat (\ l' -> DerivTBounded r l' bot)
+
+------------------------------------------------------------------------
+-- Composition: RankDecrement implies the full BoundedReductionTheorem.
+--
+-- Proof: structural induction on the rank index r.
+--   r = 0:        directly apply rankZero (BoundedReductionRankZero).
+--   r = suc r':   apply the decrement once, recurse on the smaller
+--                 rank.
+
+boundedReductionFromRankDecrement :
+  RankDecrement -> BoundedReductionTheorem
+boundedReductionFromRankDecrement decr = go
+  where
+    go : (r l : Nat) -> DerivTBounded r l bot -> DerivT0 bot
+    go zero    l d = rankZero d
+    go (suc r) l d =
+      let pair = decr r d
+      in go r (fst pair) (snd pair)
 
 ------------------------------------------------------------------------
 -- Open consistency.
@@ -65,15 +91,21 @@ OpenCon0 : Set
 OpenCon0 = DerivT0 bot -> Empty
 
 ------------------------------------------------------------------------
--- Headline corollary.  Once BoundedSoundBot is supplied, open-fragment
--- consistency entails bounded consistency at every rank/level.
---
---   OpenCon0 -> forall r l, ConBounded r l .
---
--- Proof: contrapose BoundedSoundBot.
+-- Headline corollary.  Open-fragment consistency entails bounded
+-- consistency at every rank/level, modulo the rank-decrement
+-- obligation.
 
 openCon0ToConBounded :
   BoundedReductionTheorem ->
   OpenCon0 -> (r l : Nat) -> ConBounded r l
 openCon0ToConBounded reduce openCon r l dB =
   openCon (reduce r l dB)
+
+-- Convenience composition: rank-decrement directly implies the
+-- bounded-consistency-from-open-consistency corollary.
+
+openCon0ToConBoundedFromDecrement :
+  RankDecrement ->
+  OpenCon0 -> (r l : Nat) -> ConBounded r l
+openCon0ToConBoundedFromDecrement decr =
+  openCon0ToConBounded (boundedReductionFromRankDecrement decr)

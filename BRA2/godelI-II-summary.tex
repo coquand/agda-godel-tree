@@ -1176,8 +1176,28 @@ files (the Step~1--3-stub deliverables of
         together with the headline corollary
         $\mathit{BoundedReductionTheorem} \to \mathit{OpenCon}_0 \to
          \forall r\,l\, \mathit{ConBounded}\;r\;l$, proved in one
-        line by contraposition.  The body of the reduction theorem
-        is the technical heart of the programme and is left open.
+        line by contraposition.  The file further \emph{decomposes}
+        the theorem by rank-induction: it proves
+        $\mathit{RankDecrement} \to \mathit{BoundedReductionTheorem}$,
+        where
+        \[
+          \mathit{RankDecrement} \;:=\; \forall r\;l,\;
+          \mathit{DerivTBounded}\;(\mathit{suc}\;r)\;l\;\bot \to
+          \Sigma\,l'\!,\; \mathit{DerivTBounded}\;r\;l'\;\bot
+        \]
+        is the \emph{single-step} indBT-elimination at $\bot$.  The
+        body of $\mathit{RankDecrement}$ is the actual technical heart
+        of the programme and is left open.
+  \item \verb|BRA2/BoundedReductionRankZero.agda|: discharges the
+        base case $\mathit{rankZero} : \forall l\,P,\;
+         \mathit{DerivTBounded}\;0\;l\;P \to \mathit{DerivT}_0\;P$ by
+        structural recursion on the bounded derivation.  All atomic
+        axioms map directly; binary combiners ($\mathit{mp}$,
+        $\mathit{ruleTrans}$) use a $\mathit{natMaxZero}$ decomposition
+        lemma to extract $r_1 = r_2 = 0$ from $\max(r_1,r_2) = 0$;
+        $\mathit{indBT}/\mathit{indBT}_2$ are dismissed by absurdity
+        of $\mathit{Eq}\;(\mathit{suc}\,k)\;0$.  This answers Q5 of
+        plan Section 5.
 \end{itemize}
 
 The selection of complexity measure (induction rank, checker rank,
