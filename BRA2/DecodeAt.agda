@@ -508,6 +508,63 @@ decode_bot_via_decode_at (inl d) = d
 decode_bot_via_decode_at (inr d) = d
 
 ----------------------------------------------------------------------
+-- End-to-end demonstration: recover decode_bot from decode_at via
+-- the collapse helper.
+--
+-- This shows the intended composition pattern:
+--   decode_bot_X = decode_bot_via_decode_at (decode_at P D)
+-- once the full decode_at synthesis driver is in place.  Until then,
+-- only the y = O case is proved here as a working example.
+
+decode_bot_O_via_decode_at :
+  Deriv (atomic (eqn (ap1 thmT O) (codeFormula bot))) ->
+  Deriv bot
+decode_bot_O_via_decode_at D =
+  decode_bot_via_decode_at (decode_at_O bot D)
+
+----------------------------------------------------------------------
+-- decode_bot via decode_at + per-tag _nomatch wrappers.
+--
+-- Until the full synthesis driver dispatches automatically, callers
+-- can hand-pick the appropriate _nomatch wrapper.  The existing
+-- BRA2.DecodeBot.decode_bot_axI_v2 etc. use the same pattern; these
+-- are the decode_at-based equivalents.
+
+decode_bot_axI_via_decode_at :
+  (xT : Term) -> IsValue xT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axI xT)) (codeFormula bot))) ->
+  Deriv bot
+decode_bot_axI_via_decode_at xT vxT D =
+  decode_at_axI_nomatch xT vxT bot refl D
+
+-- axRefl is special: treeEq (Pair xT xT) codeBot = false depends on
+-- xT's IsValue structure (not refl in xT), so the meta-witness is a
+-- case-split helper.  Mirrors BRA2.DecodeBot.treeEq_axReflRhs_codeBot_false.
+
+private
+  treeEq_axRefl_v_codeBot_false :
+    (xT : Term) -> IsValue xT ->
+    Eq (treeEq (ap2 Pair xT xT) (codeFormula bot)) false
+  treeEq_axRefl_v_codeBot_false .O                 valO                = refl
+  treeEq_axRefl_v_codeBot_false (ap2 Pair a b)    (valNd .a .b va vb)  = refl
+
+decode_bot_axRefl_via_decode_at :
+  (xT : Term) -> IsValue xT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axRefl xT)) (codeFormula bot))) ->
+  Deriv bot
+decode_bot_axRefl_via_decode_at xT vxT D =
+  decode_at_nomatch_eval _ (eval_dispatch_axRefl xT vxT) bot
+    (treeEq_axRefl_v_codeBot_false xT vxT) D
+
+decode_bot_axFst_via_decode_at :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axFst (ap2 Pair aT bT)))
+                     (codeFormula bot))) ->
+  Deriv bot
+decode_bot_axFst_via_decode_at aT bT vaT vbT D =
+  decode_at_nomatch_eval _ (eval_dispatch_axFst aT bT vaT vbT) bot refl D
+
+----------------------------------------------------------------------
 -- decode_nat : invert  natCode  on Pair-shape value chains.
 --
 -- natCode n  is built as (Pair O (Pair O ... O)) -- a chain of n
