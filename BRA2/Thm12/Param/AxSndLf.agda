@@ -5,7 +5,7 @@ module BRA2.Thm12.Param.AxSndLf where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Thm.Parts.AxSndLf using (outAxSndLf)
 open import BRA2.Thm.ThmT
   using ( thmT ; tagCode_axSndLf ; thmTDispAxSndLf_param )

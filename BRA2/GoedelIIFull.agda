@@ -20,7 +20,7 @@ module BRA2.GoedelIIFull where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 
 open import BRA2.Sub using (sub)
 open import BRA2.Thm.ThmT using (thmT)
@@ -47,3 +47,17 @@ module Final = Compose Step5.constr5_final Step5.step5_l
 
 godelII : Deriv Con -> Deriv bot
 godelII = Final.godelII
+
+----------------------------------------------------------------------
+-- godelII_T : explicit threshold-system signature.
+--
+-- BRA2.DerivThreshold renames BRA2.DerivT.DerivT to Deriv, so
+--  godelII : Deriv Con -> Deriv bot   IS   godelII_T : DerivT Con -> DerivT bot
+-- with DerivT the threshold derivation type (atomic-IND only,
+-- BRA2.DerivT).  This alias exposes the threshold-typed signature
+-- explicitly without re-renaming.
+
+open import BRA2.DerivT using (DerivT)
+
+godelII_T : DerivT Con -> DerivT bot
+godelII_T = godelII

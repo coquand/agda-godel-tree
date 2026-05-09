@@ -17,7 +17,7 @@ module BRA2.Thm12.Parts.IfLf where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Thm.Tag
   using (tagAxIfLfL ; tagAxIfLfN ; tagAxIfLfLL ; tagAxIfLfNL)
@@ -818,9 +818,12 @@ private
 
   -- ----- Outer base: x = O. Inner ruleIndBT on v. -----
 
+  eq_baseO : Equation
+  eq_baseO = eqn (ap1 thmT (ap2 D_IfLf O (var zero)))
+                 (codeFTeq2_IfLf O (var zero))
+
   Q_baseO : Formula
-  Q_baseO = atomic (eqn (ap1 thmT (ap2 D_IfLf O (var zero)))
-                        (codeFTeq2_IfLf O (var zero)))
+  Q_baseO = atomic eq_baseO
 
   -- substF zero O Q_baseO => the formula at v = O.
   inner_base_O_proof : Deriv (substF zero O Q_baseO)
@@ -856,16 +859,19 @@ private
        inner_step_O_imp_inner
 
   univ_x_O : Deriv Q_baseO
-  univ_x_O = ruleIndBT Q_baseO v1InnerNat v2InnerNat inner_base_O_proof inner_step_O_imp
+  univ_x_O = ruleIndBTAtomic eq_baseO v1InnerNat v2InnerNat inner_base_O_proof inner_step_O_imp
 
   -- ruleInst zero (var 1): produces Deriv at v_OUTER = var 1.
   outer_base_proof_unsubst : Deriv (substF zero (var vOuterNat) Q_baseO)
   outer_base_proof_unsubst = ruleInst zero (var vOuterNat) univ_x_O
 
   -- Convert to substF zero O P_outer via eqSubst on thmT.
+  eq_outer : Equation
+  eq_outer = eqn (ap1 thmT (ap2 D_IfLf (var zero) (var vOuterNat)))
+                 (codeFTeq2_IfLf (var zero) (var vOuterNat))
+
   P_outer : Formula
-  P_outer = atomic (eqn (ap1 thmT (ap2 D_IfLf (var zero) (var vOuterNat)))
-                        (codeFTeq2_IfLf (var zero) (var vOuterNat)))
+  P_outer = atomic eq_outer
 
   outer_base_proof : Deriv (substF zero O P_outer)
   outer_base_proof =
@@ -884,9 +890,12 @@ private
   pairOuter : Term
   pairOuter = ap2 Pair (var v1OuterNat) (var v2OuterNat)
 
+  eq_stepP : Equation
+  eq_stepP = eqn (ap1 thmT (ap2 D_IfLf pairOuter (var zero)))
+                 (codeFTeq2_IfLf pairOuter (var zero))
+
   Q_stepP : Formula
-  Q_stepP = atomic (eqn (ap1 thmT (ap2 D_IfLf pairOuter (var zero)))
-                        (codeFTeq2_IfLf pairOuter (var zero)))
+  Q_stepP = atomic eq_stepP
 
   inner_base_P_proof : Deriv (substF zero O Q_stepP)
   inner_base_P_proof =
@@ -923,7 +932,7 @@ private
        inner_step_P_imp_inner
 
   univ_x_P : Deriv Q_stepP
-  univ_x_P = ruleIndBT Q_stepP v1InnerNat v2InnerNat inner_base_P_proof inner_step_P_imp
+  univ_x_P = ruleIndBTAtomic eq_stepP v1InnerNat v2InnerNat inner_base_P_proof inner_step_P_imp
 
   outer_step_concl_unsubst : Deriv (substF zero (var vOuterNat) Q_stepP)
   outer_step_concl_unsubst = ruleInst zero (var vOuterNat) univ_x_P
@@ -959,7 +968,7 @@ private
        outer_step_imp_inner
 
 D_correct2_IfLf_univ : Deriv P_outer
-D_correct2_IfLf_univ = ruleIndBT P_outer v1OuterNat v2OuterNat outer_base_proof outer_step_imp
+D_correct2_IfLf_univ = ruleIndBTAtomic eq_outer v1OuterNat v2OuterNat outer_base_proof outer_step_imp
 
 -- Universal Theorem 12 case for IfLf at arbitrary x, v -- no closure
 -- argument.  Strategy (BRA/NEXT-SESSION-THM12-IFLF.md):

@@ -23,7 +23,7 @@ module BRA2.Thm12.Parts.TreeEq where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Thm.Tag
   using (tagAxTreeEqLL ; tagAxTreeEqLN ; tagAxTreeEqNL ; tagAxTreeEqNN)
@@ -618,9 +618,12 @@ module Construction
     vOuterNat : Nat
     vOuterNat = suc zero
 
+    eq_baseO : Equation
+    eq_baseO = eqn (ap1 thmT (ap2 D_TreeEq O (var zero)))
+                   (codeFTeq2_TreeEq O (var zero))
+
     Q_baseO : Formula
-    Q_baseO = atomic (eqn (ap1 thmT (ap2 D_TreeEq O (var zero)))
-                          (codeFTeq2_TreeEq O (var zero)))
+    Q_baseO = atomic eq_baseO
 
     inner_base_O_proof : Deriv (substF zero O Q_baseO)
     inner_base_O_proof =
@@ -664,14 +667,17 @@ module Construction
          inner_step_O_imp_inner
 
     univ_x_O : Deriv Q_baseO
-    univ_x_O = ruleIndBT Q_baseO v1InnerNat v2InnerNat inner_base_O_proof inner_step_O_imp
+    univ_x_O = ruleIndBTAtomic eq_baseO v1InnerNat v2InnerNat inner_base_O_proof inner_step_O_imp
 
     outer_base_proof_unsubst : Deriv (substF zero (var vOuterNat) Q_baseO)
     outer_base_proof_unsubst = ruleInst zero (var vOuterNat) univ_x_O
 
+    eq_outer : Equation
+    eq_outer = eqn (ap1 thmT (ap2 D_TreeEq (var zero) (var vOuterNat)))
+                   (codeFTeq2_TreeEq (var zero) (var vOuterNat))
+
     P_outer : Formula
-    P_outer = atomic (eqn (ap1 thmT (ap2 D_TreeEq (var zero) (var vOuterNat)))
-                          (codeFTeq2_TreeEq (var zero) (var vOuterNat)))
+    P_outer = atomic eq_outer
 
     outer_base_proof : Deriv (substF zero O P_outer)
     outer_base_proof =
@@ -697,9 +703,12 @@ module Construction
     pairOuter : Term
     pairOuter = ap2 Pair (var v1OuterNat) (var v2OuterNat)
 
+    eq_stepP : Equation
+    eq_stepP = eqn (ap1 thmT (ap2 D_TreeEq pairOuter (var zero)))
+                   (codeFTeq2_TreeEq pairOuter (var zero))
+
     Q_stepP : Formula
-    Q_stepP = atomic (eqn (ap1 thmT (ap2 D_TreeEq pairOuter (var zero)))
-                          (codeFTeq2_TreeEq pairOuter (var zero)))
+    Q_stepP = atomic eq_stepP
 
     inner_base_P_proof : Deriv (substF zero O Q_stepP)
     inner_base_P_proof =
@@ -745,7 +754,7 @@ module Construction
          inner_step_P_imp_inner
 
     univ_x_P : Deriv Q_stepP
-    univ_x_P = ruleIndBT Q_stepP v1InnerNat v2InnerNat inner_base_P_proof inner_step_P_imp
+    univ_x_P = ruleIndBTAtomic eq_stepP v1InnerNat v2InnerNat inner_base_P_proof inner_step_P_imp
 
     outer_step_concl_unsubst : Deriv (substF zero (var vOuterNat) Q_stepP)
     outer_step_concl_unsubst = ruleInst zero (var vOuterNat) univ_x_P
@@ -790,7 +799,7 @@ module Construction
          outer_step_imp_inner
 
   D_correct2_TreeEq_univ : Deriv P_outer
-  D_correct2_TreeEq_univ = ruleIndBT P_outer v1OuterNat v2OuterNat outer_base_proof outer_step_imp
+  D_correct2_TreeEq_univ = ruleIndBTAtomic eq_outer v1OuterNat v2OuterNat outer_base_proof outer_step_imp
 
   D_correct2_TreeEq : (x v : Term)
     (x_no_var0 : Eq (subst zero x x) x)

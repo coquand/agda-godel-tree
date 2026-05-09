@@ -49,7 +49,7 @@ module BRA2.Thm.ThmT where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.SubT using (subT ; subTDef)
 open import BRA2.Sb2  using (subT2 ; subTDef2 ; codedSubst2)
 open import BRA2.SbParam using (codedSubstT)
@@ -82,7 +82,7 @@ open import BRA2.Thm.Parts.AxPost
 open import BRA2.Thm.Parts.AxFan
 open import BRA2.Thm.Parts.AxKT
 -- AxRecLf / AxRecNd Parts deleted: axRecLf and axRecNd demoted to
--- derived top-level lemmas in BRA2.Deriv (see refactor 2026-05-01).
+-- derived top-level lemmas in BRA2.DerivThreshold (see refactor 2026-05-01).
 open import BRA2.Thm.Parts.AxTreeRecLf
 open import BRA2.Thm.Parts.AxTreeRecNd
 open import BRA2.Thm.Parts.AxIfLfL
@@ -10869,8 +10869,10 @@ module WithDispatch
         shape_h = fst (snd (snd (snd rec)))
         d_h = snd (snd (snd (snd rec)))
     in mkR (substF x t P) tagMp (nd (nd (code (var x)) (code t)) y_h) (valNd (nd (code (var x)) (code t)) y_h (valNd (code (var x)) (code t) (code_isValue (var x)) (code_isValue t)) (y_h_iv)) (thmTDispRuleInst x t P y_h y_h' shape_h d_h)
-  encodeRich (ruleIndBT P v1 v2 pf_base pf_step) =
-    let r1 = encodeRich pf_base
+  encodeRich (ruleIndBTAtomic e v1 v2 pf_base pf_step) =
+    let P : Formula
+        P = atomic e
+        r1 = encodeRich pf_base
         r2 = encodeRich pf_step
         y_b = fst r1
         y_b_iv = fst (snd r1)
@@ -10879,8 +10881,10 @@ module WithDispatch
         d_b = snd (snd (snd (snd r1)))
         d_s = snd (snd (snd (snd r2)))
     in mkR P tagRuleInst (nd (codeFormula P) (nd (code (var v1)) (nd (code (var v2)) (nd y_b y_s)))) (valNd (codeFormula P) (nd (code (var v1)) (nd (code (var v2)) (nd y_b y_s))) (codeFormula_isValue P) (valNd (code (var v1)) (nd (code (var v2)) (nd y_b y_s)) (code_isValue (var v1)) (valNd (code (var v2)) (nd y_b y_s) (code_isValue (var v2)) (valNd y_b y_s (y_b_iv) (y_s_iv))))) (thmTDispRuleIndBT P v1 v2 y_b y_s d_b d_s)
-  encodeRich (ruleIndBT2 P v1 v2 v3 v4 pf_LL pf_LN pf_NL pf_PP) =
+  encodeRich (ruleIndBT2Atomic e v1 v2 v3 v4 pf_LL pf_LN pf_NL pf_PP) =
     let
+        P : Formula
+        P = atomic e
         r_LL = encodeRich pf_LL
         r_LN = encodeRich pf_LN
         r_NL = encodeRich pf_NL

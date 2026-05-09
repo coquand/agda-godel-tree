@@ -28,7 +28,7 @@ module BRA2.Cor where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.StepReduce
 open import BRA2.SubstClosure using (substF1_KT_of_reify)
 

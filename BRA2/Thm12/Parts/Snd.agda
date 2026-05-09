@@ -10,7 +10,7 @@ module BRA2.Thm12.Parts.Snd where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Thm.Tag using (tagAxSnd ; tagAxSndLf)
 open import BRA2.Thm.ThmT using (thmT ; tagCode_axSnd ; tagCode_axSndLf ; thClosed)
@@ -236,8 +236,11 @@ private
   v2Nat : Nat
   v2Nat = suc (suc zero)
 
+  eq_Snd : Equation
+  eq_Snd = eqn (ap1 thmT (ap1 D_Snd (var zero))) (codeFTeq1_Snd (var zero))
+
   P_Snd : Formula
-  P_Snd = atomic (eqn (ap1 thmT (ap1 D_Snd (var zero))) (codeFTeq1_Snd (var zero)))
+  P_Snd = atomic eq_Snd
 
   base_proof : Deriv (substF zero O P_Snd)
   base_proof =
@@ -270,7 +273,7 @@ private
        step_imp_inner
 
   univ : Deriv P_Snd
-  univ = ruleIndBT P_Snd v1Nat v2Nat base_proof step_imp
+  univ = ruleIndBTAtomic eq_Snd v1Nat v2Nat base_proof step_imp
 
 D_correct_Snd : (x : Term) ->
   Deriv (atomic (eqn (ap1 thmT (ap1 D_Snd x)) (codeFTeq1_Snd x)))

@@ -19,7 +19,7 @@ module BRA2.CorCGBridge where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor using (cor ; corOfReify)
 open import BRA2.GoedelII using (cG ; G)
 

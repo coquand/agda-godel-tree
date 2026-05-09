@@ -1074,25 +1074,53 @@ Each example concludes with a
 \verb|forget| call producing the corresponding \verb|Deriv|, so
 both the constructive and the soundness directions are exercised.
 
-\paragraph{What remains.}
-\verb|godelII : Deriv Con -> Deriv bot| typechecks against the BRA
-\verb|Deriv| type with all induction sites refactored to
-\verb|ruleIndBTAtomic| / \verb|ruleIndBT2Atomic|.  A stronger
-statement is
+\paragraph{The full lift, completed.}
+The threshold-system version
 \[
-  \mathit{godelII\_T} : \mathit{DerivT}\;\mathit{Con} \to \mathit{DerivT}\;\bot,
+  \mathit{godelII\_T} : \mathit{DerivT}\;\mathit{Con} \to \mathit{DerivT}\;\bot
 \]
-which would say the threshold system itself proves G\"odel~II
-end-to-end (rather than: the BRA proof happens to use only
-threshold-rules).  This requires lifting the entire 147-file
-GoedelIIFull closure across \verb|forget|: every intermediate lemma
-restated in \verb|DerivT|, every helper rebuilt.  The refactor is
-mechanical because every \verb|Deriv| constructor mirrors a
-\verb|DerivT| one (excepting compound-IND, which is unused), but
-labour-intensive --- estimated at one to two weeks of careful work.
-The current artifact (\verb|DerivT|, \verb|forget|, the four demos,
-and the refactored \verb|*Atomic| call sites in the closure) is the
-infrastructure on which that lift would build.
+has been formalised.  The closure of \verb|GoedelIIFull.agda| (147
+files) was migrated to a re-export module \verb|BRA2/DerivThreshold.agda|
+that imports \verb|BRA2.DerivT| with \verb|DerivT| renamed to
+\verb|Deriv| and \verb|indBT|/\verb|indBT2| renamed to
+\verb|ruleIndBTAtomic|/\verb|ruleIndBT2Atomic|, and re-ports all of
+\verb|Deriv.agda|'s derived lemmas (axKT, axRecLf, axRecNd,
+DNE, axContrapos, axExFalso, etc.) onto the threshold type.  Every
+\verb|open import BRA2.Deriv| in the closure was replaced by
+\verb|open import BRA2.DerivThreshold|; constructor names match, so
+no proof body required restructuring.  The eight remaining bare
+\verb|ruleIndBT| invocations in \verb|Thm12.Parts.{Fst,Snd,IfLf,TreeEq}|
+(all on atomic predicates, but using the compound-rule name) were
+refactored to \verb|ruleIndBTAtomic| with explicit \verb|Equation|
+witnesses.  The \verb|encodeRich| pattern matches in
+\verb|Thm.ThmT.agda| were updated to the \verb|*Atomic| constructors.
+
+\verb|GoedelIIFull.agda| now provides both signatures:
+\begin{verbatim}
+  godelII   : Deriv  Con -> Deriv  bot   -- via DerivThreshold's renaming;
+                                          -- semantically equivalent to godelII_T.
+  godelII_T : DerivT Con -> DerivT bot   -- explicit threshold-typed alias.
+\end{verbatim}
+Both typecheck under \verb|--safe --without-K --exact-split|.  The
+original BRA derivation type \verb|Deriv| in \verb|BRA2/Deriv.agda|
+is left unchanged for use by out-of-closure files
+(\verb|BRA2.DecodeAt|, the legacy \verb|BRA2.Thm12.*| dispatchers
+that pre-date the threshold migration); the two systems coexist.
+
+The conjunction of this lift and the function-class audit
+(Section~\ref{subsec:elementary}) is the formal threshold-system
+theorem:
+\begin{quote}
+\textbf{Theorem (machine-checked threshold).}  The threshold
+derivation type \verb|DerivT| --- BRA's quantifier-free equational
+calculus restricted to atomic-equation tree induction --- proves
+\[
+  \mathit{DerivT}\;\mathit{Con} \to \mathit{DerivT}\;\bot.
+\]
+The proof uses only the ramified-elementary fragment of the
+\verb|Fun1|/\verb|Fun2| primitives ($\Omega^k\theta \to \theta$
+with $k \le 2$ in Leivant's higher-type ramification).
+\end{quote}
 
 \subsection{Comparison with prior formalisations}
 

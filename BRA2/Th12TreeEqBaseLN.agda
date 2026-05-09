@@ -23,7 +23,7 @@ module BRA2.Th12TreeEqBaseLN where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Th12TreeEqNNFun using (D_TreeEq_NN_fun ; D_TreeEq_NN_closed)
 open import BRA2.Thm.ThmT using (thmT ; thClosed)

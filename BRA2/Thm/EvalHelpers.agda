@@ -27,7 +27,7 @@ module BRA2.Thm.EvalHelpers where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 
 ------------------------------------------------------------------------
 -- (1) Lift helpers (deduction-theorem combinators).

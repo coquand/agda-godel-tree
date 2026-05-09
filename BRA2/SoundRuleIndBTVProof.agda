@@ -24,7 +24,7 @@ module BRA2.SoundRuleIndBTVProof where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 
 ----------------------------------------------------------------------
 -- Body and helpers (formerly in SoundRuleIndBTProto).

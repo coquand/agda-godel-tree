@@ -22,7 +22,7 @@ module BRA2.Thm12.Parts.I where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Thm.Tag using (tagAxI)
 open import BRA2.Thm.ThmT using (thmT ; tagCode_axI)

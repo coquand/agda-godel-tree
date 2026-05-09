@@ -17,7 +17,7 @@ module BRA2.Thm12.Param.AxZ where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Thm.Tag
 open import BRA2.Thm.ThmT
   using ( thmT ; tagCode_axKT ; thmTDispAxZ_param )

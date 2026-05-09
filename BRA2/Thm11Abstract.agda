@@ -32,7 +32,7 @@ module BRA2.Thm11Abstract where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 
 module Godel
   (th : Fun1)

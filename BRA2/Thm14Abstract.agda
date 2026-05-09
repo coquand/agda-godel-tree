@@ -45,7 +45,7 @@ module BRA2.Thm14Abstract where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.ReifyClosed
 open import BRA2.Sub using (sub ; subDef)
 open import BRA2.Thm14CodeFTeq using (codeFTeq)

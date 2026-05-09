@@ -25,7 +25,7 @@ module BRA2.Thm12.Parts.Lift where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Thm.Tag using (tagAxLift ; tagRuleTrans)
 open import BRA2.Thm.ThmT using (thmT ; tagCode_axLift ; tagCode_ruleTrans)

@@ -25,7 +25,7 @@ module BRA2.GoedelII where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 
 import BRA2.Thm.ThmT
 import BRA2.Thm14Abstract

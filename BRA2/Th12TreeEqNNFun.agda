@@ -36,7 +36,7 @@ module BRA2.Th12TreeEqNNFun where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Thm.Tag using (tagAxTreeEqNN ; tagRuleTrans)
 open import BRA2.Thm.ThmT using (tagCode_axTreeEqNN ; tagCode_ruleTrans)

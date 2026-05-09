@@ -18,7 +18,7 @@ module BRA2.Thm12.Parts.Fst where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
-open import BRA2.Deriv
+open import BRA2.DerivThreshold
 open import BRA2.Cor
 open import BRA2.Thm.Tag using (tagAxFst ; tagAxFstLf)
 open import BRA2.Thm.ThmT using (thmT ; tagCode_axFst ; tagCode_axFstLf ; thClosed)
@@ -402,8 +402,11 @@ private
   v2Nat : Nat
   v2Nat = suc (suc zero)
 
+  eq_Fst : Equation
+  eq_Fst = eqn (ap1 thmT (ap1 D_Fst (var zero))) (codeFTeq1_Fst (var zero))
+
   P_Fst : Formula
-  P_Fst = atomic (eqn (ap1 thmT (ap1 D_Fst (var zero))) (codeFTeq1_Fst (var zero)))
+  P_Fst = atomic eq_Fst
 
   -- substF zero O P_Fst evaluates to atomic (eqn (ap1 (substF1 zero O thmT) (ap1 D_Fst O)) (codeFTeq1_Fst O))
   -- because thmT is in an abstract block; we transport via thClosed.
@@ -439,7 +442,7 @@ private
        step_imp_inner
 
   univ : Deriv P_Fst
-  univ = ruleIndBT P_Fst v1Nat v2Nat base_proof step_imp
+  univ = ruleIndBTAtomic eq_Fst v1Nat v2Nat base_proof step_imp
 
 D_correct_Fst : (x : Term) ->
   Deriv (atomic (eqn (ap1 thmT (ap1 D_Fst x)) (codeFTeq1_Fst x)))

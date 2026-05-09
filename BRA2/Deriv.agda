@@ -1,6 +1,6 @@
 {-# OPTIONS --safe --without-K --exact-split #-}
 
--- BRA2.Deriv -- hyp-less, formula-level derivation relation matching
+-- BRA2.DerivThreshold -- hyp-less, formula-level derivation relation matching
 -- Guard 1963 BRA (Def 7, lecture notes pp.9-10).
 --
 --   * No  hyp  parameter.  Guard's BRA has  ⊢ P ; hypothetical
