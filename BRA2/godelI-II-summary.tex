@@ -713,7 +713,7 @@ The cost is bookkeeping that the development makes explicit: the
 substituted-code RHS at variable $x$ requires $\mathit{IsValue}$
 certificates (on $j$, on encode-witnesses, on $t\_term$/$t'\_term$)
 propagated through to the closure.  These certificates are the formal
-counterpart of Guard's silent assumption that ``$x_$'' for variable
+counterpart of Guard's silent assumption that ``$\underline{x}$'' for variable
 $x$ is sensible because $x$ will eventually be instantiated at a
 closed numeral.
 
@@ -765,6 +765,111 @@ each is a closed combinator built from primitive $\mathit{Fun}_1$ /
 $\mathit{Fun}_2$ symbols, and each $\mathit{Deriv}$ derivation is given
 by an explicit equational proof in the BRA system.  No external
 soundness theorem is invoked.
+
+\subsection{Complexity calibration: ramified-elementary fragment}
+\label{subsec:elementary}
+
+Although BRA's term language admits unrestricted primitive recursion on
+binary trees (the $\mathit{treeRec}$ constructor of $\mathit{Fun}_2$),
+the entire chain reachable from
+\verb|godelII : Deriv Con -> Deriv bot| in BRA2/GoedelIIFull.agda lies
+within the \emph{ramified-elementary} fragment in the sense of
+Leivant~\cite{leivant1999ramified}.  Specifically, every functor used
+in the closure is well-typed under a stratification
+$\Omega^k\theta \to \theta$ with $k \le 2$, where $\theta$ is the base
+type of binary-tree-shaped Terms and $\Omega\theta$ is the type of
+data supporting recurrence over $\theta$ in Leivant's discipline
+(paper~III, Section~2.3, equation~(4)).
+
+\paragraph{Inventory of recurrence-using functors.}
+A grep over the closure confirms that across
+\verb|Cor.agda|, \verb|SubT.agda|, \verb|Sb.agda|, \verb|Thm/ThmT.agda|,
+\verb|Thm14Constr5Final.agda|, \verb|Th14Step5.agda|, and
+\verb|Th12TreeRecInternal.agda|, the constructor $\mathit{treeRec}$
+appears in exactly one syntactic definition
+(\verb|Th12TreeRecInternal.agda:396|), plus the derived combinators
+$\mathit{Rec}\;s = \mathit{Comp}_2\;(\mathit{treeRec}\;Z\;s)\;Z\;I$ and
+$\mathit{RecP}\;s = \mathit{treeRec}\;Z\;s$.  The headline functors
+unfold as follows.
+\begin{itemize}
+  \item $\mathit{cor} = \mathit{Rec}\;\mathit{stepCor}$: one
+        $\mathit{treeRec}$, level $\Omega\theta \to \theta$.
+        $\mathit{stepCor}$ is a $\mathit{Fan}/\mathit{Lift}/\mathit{KT}/\mathit{Post}/\mathit{Pair}$
+        composite, no recurrence.
+  \item $\mathit{subT} = \mathit{RecP}\;\mathit{stepSubT}$: one
+        $\mathit{treeRec}$, level
+        $\theta \times \Omega\theta \to \theta$.  $\mathit{stepSubT}$
+        uses only $\mathit{Fan}$, $\mathit{IfLf}$, $\mathit{Lift}$,
+        $\mathit{Post}$, $\mathit{Comp}$.
+  \item $\mathit{sb} = \mathit{Fan}\;\ldots\;\mathit{subT}$: a single
+        $\mathit{Fan}$ wrapping $\mathit{subT}$, level
+        $\theta \times \Omega\theta \to \theta$ via $\mathit{subT}$.
+  \item $\mathit{thmT} = \mathit{Rec}\;\mathit{stepProtoWrapped}$:
+        one $\mathit{treeRec}$, level $\Omega\theta \to \theta$.
+        $\mathit{stepProtoWrapped}$ is the 40-tag
+        $\mathit{IfLf}$/$\mathit{Fan}$/$\mathit{Lift}$/$\mathit{KT}$/$\mathit{TreeEq}$
+        cascade, no recurrence.
+  \item $D_{\mathit{thmT}} = \mathit{thm12\_F1}\;\mathit{thmT}.\mathit{Df}$:
+        depth-2 use of $\mathit{treeRec}$.  The outer
+        $\mathit{treeRec}\;\mathit{lf\_emitter}\;\mathit{step\_emitter}$
+        walks the input encoding; inside $\mathit{step\_emitter}$, the
+        original $\mathit{treeRec}\;f\;s$ is invoked as
+        $\mathit{Comp}_2\;(\mathit{treeRec}\;f\;s)\;\mathit{Fst}_1\;v_1^{\mathit{Fun1}}$,
+        i.e.\ on a $\mathit{Fst}$/$\mathit{Snd}$-extracted
+        \emph{critical sub-argument} of the outer recurrence argument
+        (BRA2/Th12TreeRecInternal.agda:222--226, 354--356).  This is
+        Leivant's allowed pattern: the critical args $\vec a$ in
+        $g_{c_i}(\vec x)(\vec a)(\ldots)$ live at type $\Omega\theta$
+        when the outer recurrence argument is at $\Omega\theta$, so
+        re-invoking $f : \ldots, \Omega\theta \to \theta$ on them is
+        well-typed.  Level: $\theta \times \Omega^2\theta \to \theta$
+        when seen one level higher; safely $\Omega\theta \to \theta$
+        when applied with the outer recurrence argument at
+        $\Omega^2\theta$.
+  \item $D_{\mathit{sub\_at\_ii}}$, $g_{\mathit{part}}$,
+        $h_{\mathit{part}}^{\mathit{skel}}$, $K_{\mathit{part}}$,
+        $\mathit{constr}_5^{\mathit{final}}$: $\mathit{Comp}_2$-of-$\mathit{Pair}$
+        / $\mathit{KT}$ compositions of the above.  No new
+        $\mathit{treeRec}$.
+\end{itemize}
+
+\paragraph{Maximum nesting depth: 2.}
+Across the entire closure, no $\mathit{treeRec}$ ever takes its
+recurrence argument from a recursion \emph{result} of another
+$\mathit{treeRec}$.  The single nested case
+($D_{\mathit{thmT}}$) is the structural-recursion-on-critical-arg form,
+which is well-typed at level $\Omega^2\theta \to \theta$ in Leivant's
+discipline.  Every functor in the closure terminates in time
+elementary in the size of its input.
+
+\paragraph{Implication: G\"odel~II in elementary BRA.}
+By Leivant's main theorem (Paper~III, Theorem at p.\,210), the
+functions definable by ramified higher-type recurrence at types of
+order at most $k$ are exactly the elementary (Kalmar) functions
+$\mathcal{E}_3$.  The BRA2 closure thus computes only elementary
+functions on Tree-codes.  This is sharp: by Wilkie--Paris and Buss's
+formalisation~\cite{wilkieparis1987}, elementary arithmetic
+$\mathit{EFA} = I\Delta_0 + \mathrm{EXP}$ already proves the second
+incompleteness theorem; nothing weaker than $\mathrm{EXP}$ suffices,
+because Hilbert--Bernays--L\"ob condition~D3 ($\Sigma_1$-completeness
+on closed numerical statements) requires at least exponential
+encoding-arithmetic.  BRA2 sits at exactly this threshold: enough to
+encode and substitute proofs, no stronger.  The headline result of
+the development can therefore be sharpened from ``G\"odel~II in BRA''
+to:
+\begin{quote}
+\textbf{Theorem (calibrated headline).}  G\"odel's second
+incompleteness theorem is provable in the ramified-elementary
+fragment of BRA --- the $\Omega^k\theta \to \theta$ fragment with
+$k \le 2$ in Leivant's higher-type ramification --- with no use of
+unrestricted higher-type primitive recursion.
+\end{quote}
+This calibration is a post-hoc certificate: it does not require any
+change to the existing \verb|--safe| Agda development, only the
+observation that none of the constructed functors exit the elementary
+fragment.  The audit (file inventory, $\mathit{treeRec}$ occurrence
+count, depth-2 nesting check) is a finite verification on the seven
+files listed above.
 
 \subsection{Comparison with prior formalisations}
 
@@ -922,6 +1027,17 @@ C.~Urban and C.~Kaliszyk,
 R.~Davies and F.~Pfenning,
 \newblock \emph{A modal analysis of staged computation},
 \newblock Journal of the ACM, vol.~48 no.~3, May 2001, pp.~555--604.
+
+\bibitem{leivant1999ramified}
+D.~Leivant,
+\newblock \emph{Ramified recurrence and computational complexity~III: Higher type recurrence and elementary complexity},
+\newblock Annals of Pure and Applied Logic, vol.~96 no.~1--3, 1999, pp.~209--229.
+
+\bibitem{wilkieparis1987}
+A.~J.~Wilkie and J.~B.~Paris,
+\newblock \emph{On the scheme of induction for bounded arithmetic formulas},
+\newblock Annals of Pure and Applied Logic, vol.~35, 1987, pp.~261--302.
+\newblock See also S.~R.~Buss, \emph{Bounded Arithmetic}, Bibliopolis, 1986.
 
 \end{thebibliography}
 
