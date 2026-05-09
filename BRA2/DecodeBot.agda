@@ -41,9 +41,32 @@ import BRA2.Thm.ThmT
 open BRA2.Thm.ThmT using
   ( thmT ; thmT_O_eval ; thmT_pairO_eval ; thmT_sndProj_eval
   ; thmTDispAxI_param ; thmTDispAxRefl_param ; thmTDispAxFst_param
-  ; thmTDispAxSnd_param ; thmTDispAxConst_param )
+  ; thmTDispAxSnd_param ; thmTDispAxConst_param
+  ; thmTDispAxComp_param ; thmTDispAxComp2_param
+  ; thmTDispAxLift_param ; thmTDispAxPost_param ; thmTDispAxFan_param
+  ; thmTDispAxZ_param
+  ; thmTDispAxIfLfL_param ; thmTDispAxIfLfN_param
+  ; thmTDispAxTreeEqLL_param ; thmTDispAxTreeEqLN_param
+  ; thmTDispAxTreeEqNL_param ; thmTDispAxTreeEqNN_param
+  ; thmTDispAxFstLf_param ; thmTDispAxSndLf_param
+  ; thmTDispAxIfLfLL_param ; thmTDispAxIfLfNL_param
+  ; thmTDispAxTreeRecLf_param ; thmTDispAxTreeRecNd_param
+  ; thmTDispCong1_param ; thmTDispCongL_param ; thmTDispCongR_param )
 open import BRA2.Thm.TagCodes using
-  (tagCode_axI ; tagCode_axRefl ; tagCode_axFst ; tagCode_axSnd ; tagCode_axConst)
+  ( tagCode_axI ; tagCode_axRefl ; tagCode_axFst ; tagCode_axSnd
+  ; tagCode_axConst ; tagCode_axComp ; tagCode_axComp2
+  ; tagCode_axLift ; tagCode_axPost ; tagCode_axFan ; tagCode_axKT
+  ; tagCode_axIfLfL ; tagCode_axIfLfN
+  ; tagCode_axTreeEqLL ; tagCode_axTreeEqLN
+  ; tagCode_axTreeEqNL ; tagCode_axTreeEqNN
+  ; tagCode_axFstLf ; tagCode_axSndLf
+  ; tagCode_axIfLfLL ; tagCode_axIfLfNL
+  ; tagCode_axTreeRecLf ; tagCode_axTreeRecNd
+  ; tagCode_cong1 ; tagCode_congL ; tagCode_congR )
+open import BRA2.Thm.Parts.AxFstLf using (outAxFstLf)
+open import BRA2.Thm.Parts.AxSndLf using (outAxSndLf)
+open import BRA2.Thm.Parts.AxIfLfLL using (outAxIfLfLL)
+open import BRA2.Thm.Parts.AxTreeEqLL using (outAxTreeEqLL)
 
 ----------------------------------------------------------------------
 -- The "false equation -> Deriv bot" bridge.
@@ -528,6 +551,335 @@ eval_dispatch_axFst aT bT vaT vbT =
   in mkSigma v (mkSigma v_iv (thmTDispAxFst_param aT bT))
 
 ----------------------------------------------------------------------
+-- More axiom dispatch evaluators.  Each is a thin wrapper around
+-- the existing thmTDispX_param.  Pattern: name v explicitly, build
+-- IsValue v via nested valNd, return mkSigma v (mkSigma v_iv eq).
+
+eval_dispatch_axSnd :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  EvalResult (ap2 Pair tagCode_axSnd (ap2 Pair aT bT))
+eval_dispatch_axSnd aT bT vaT vbT =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp1)
+            (ap2 Pair (reify (codeF1 Snd))
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair aT bT)))))
+          bT
+    v_iv : IsValue v
+    v_iv = valNd _ bT
+             (valNd _ _ tagAp1_isValue
+               (valNd _ _ (codeF1_isValue Snd)
+                 (valNd _ _ tagAp2_isValue
+                   (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT)))))
+             vbT
+  in mkSigma v (mkSigma v_iv (thmTDispAxSnd_param aT bT))
+
+eval_dispatch_axConst :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  EvalResult (ap2 Pair tagCode_axConst (ap2 Pair aT bT))
+eval_dispatch_axConst aT bT vaT vbT =
+  let
+    v : Term
+    v = ap2 Pair (ap2 Pair (reify tagAp2)
+                            (ap2 Pair (reify (codeF2 Const))
+                                      (ap2 Pair aT bT))) aT
+    v_iv : IsValue v
+    v_iv = valNd _ aT
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue Const) (valNd aT bT vaT vbT)))
+             vaT
+  in mkSigma v (mkSigma v_iv (thmTDispAxConst_param aT bT))
+
+----------------------------------------------------------------------
+-- axZ : single Term arg.  Output: Pair (Pair tagAp1 (Pair (codeF1 Z) xT)) O .
+-- Note: this dispatches at tagCode_axKT (since axZ shares tagAxKT).
+
+eval_dispatch_axZ :
+  (xT : Term) -> IsValue xT ->
+  EvalResult (ap2 Pair tagCode_axKT (ap2 Pair (reify (codeF1 Z)) xT))
+eval_dispatch_axZ xT vxT =
+  let
+    v : Term
+    v = ap2 Pair (ap2 Pair (reify tagAp1)
+                            (ap2 Pair (reify (codeF1 Z)) xT)) O
+    v_iv : IsValue v
+    v_iv = valNd _ O
+             (valNd _ _ tagAp1_isValue
+               (valNd _ _ (codeF1_isValue Z) vxT))
+             valO
+  in mkSigma v (mkSigma v_iv (thmTDispAxZ_param xT))
+
+----------------------------------------------------------------------
+-- axIfLfL : 2 Term args.
+
+eval_dispatch_axIfLfL :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  EvalResult (ap2 Pair tagCode_axIfLfL (ap2 Pair aT bT))
+eval_dispatch_axIfLfL aT bT vaT vbT =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 IfLf))
+              (ap2 Pair O
+                (ap2 Pair (reify tagAp2)
+                  (ap2 Pair (reify (codeF2 Pair))
+                    (ap2 Pair aT bT))))))
+          aT
+    v_iv : IsValue v
+    v_iv = valNd _ aT
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue IfLf)
+                 (valNd O _ valO
+                   (valNd _ _ tagAp2_isValue
+                     (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT))))))
+             vaT
+  in mkSigma v (mkSigma v_iv (thmTDispAxIfLfL_param aT bT))
+
+----------------------------------------------------------------------
+-- axIfLfN : 4 Term args.
+
+eval_dispatch_axIfLfN :
+  (xT yT aT bT : Term) -> IsValue xT -> IsValue yT -> IsValue aT -> IsValue bT ->
+  EvalResult (ap2 Pair tagCode_axIfLfN
+                (ap2 Pair xT (ap2 Pair yT (ap2 Pair aT bT))))
+eval_dispatch_axIfLfN xT yT aT bT vxT vyT vaT vbT =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 IfLf))
+              (ap2 Pair (ap2 Pair (reify tagAp2)
+                                  (ap2 Pair (reify (codeF2 Pair))
+                                            (ap2 Pair xT yT)))
+                        (ap2 Pair (reify tagAp2)
+                                  (ap2 Pair (reify (codeF2 Pair))
+                                            (ap2 Pair aT bT))))))
+          bT
+    v_iv : IsValue v
+    v_iv = valNd _ bT
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue IfLf)
+                 (valNd _ _
+                   (valNd _ _ tagAp2_isValue
+                     (valNd _ _ (codeF2_isValue Pair) (valNd xT yT vxT vyT)))
+                   (valNd _ _ tagAp2_isValue
+                     (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT))))))
+             vbT
+  in mkSigma v (mkSigma v_iv (thmTDispAxIfLfN_param xT yT aT bT))
+
+----------------------------------------------------------------------
+-- axIfLfNL : 2 Term args.
+
+eval_dispatch_axIfLfNL :
+  (xT yT : Term) -> IsValue xT -> IsValue yT ->
+  EvalResult (ap2 Pair tagCode_axIfLfNL (ap2 Pair xT yT))
+eval_dispatch_axIfLfNL xT yT vxT vyT =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 IfLf))
+              (ap2 Pair (ap2 Pair (reify tagAp2)
+                                  (ap2 Pair (reify (codeF2 Pair))
+                                            (ap2 Pair xT yT)))
+                        O)))
+          O
+    v_iv : IsValue v
+    v_iv = valNd _ O
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue IfLf)
+                 (valNd _ O
+                   (valNd _ _ tagAp2_isValue
+                     (valNd _ _ (codeF2_isValue Pair) (valNd xT yT vxT vyT)))
+                   valO)))
+             valO
+  in mkSigma v (mkSigma v_iv (thmTDispAxIfLfNL_param xT yT))
+
+----------------------------------------------------------------------
+-- axTreeEqLN, axTreeEqNL: outputs include  reify (code (ap2 Pair O O))
+-- which is value-shape (codeFormula of a closed Term).
+
+private
+  codePairOO : Term
+  codePairOO = reify (code (ap2 Pair O O))
+
+  codePairOO_isValue : IsValue codePairOO
+  codePairOO_isValue = code_isValue (ap2 Pair O O)
+
+eval_dispatch_axTreeEqLN :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  EvalResult (ap2 Pair tagCode_axTreeEqLN (ap2 Pair aT bT))
+eval_dispatch_axTreeEqLN aT bT vaT vbT =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 TreeEq))
+              (ap2 Pair O
+                (ap2 Pair (reify tagAp2)
+                  (ap2 Pair (reify (codeF2 Pair))
+                    (ap2 Pair aT bT))))))
+          codePairOO
+    v_iv : IsValue v
+    v_iv = valNd _ codePairOO
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue TreeEq)
+                 (valNd O _ valO
+                   (valNd _ _ tagAp2_isValue
+                     (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT))))))
+             codePairOO_isValue
+  in mkSigma v (mkSigma v_iv (thmTDispAxTreeEqLN_param aT bT))
+
+eval_dispatch_axTreeEqNL :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  EvalResult (ap2 Pair tagCode_axTreeEqNL (ap2 Pair aT bT))
+eval_dispatch_axTreeEqNL aT bT vaT vbT =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 TreeEq))
+              (ap2 Pair (ap2 Pair (reify tagAp2)
+                                  (ap2 Pair (reify (codeF2 Pair))
+                                            (ap2 Pair aT bT)))
+                        O)))
+          codePairOO
+    v_iv : IsValue v
+    v_iv = valNd _ codePairOO
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue TreeEq)
+                 (valNd _ O
+                   (valNd _ _ tagAp2_isValue
+                     (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT)))
+                   valO)))
+             codePairOO_isValue
+  in mkSigma v (mkSigma v_iv (thmTDispAxTreeEqNL_param aT bT))
+
+----------------------------------------------------------------------
+-- Closed-output axiom dispatchers (axFstLf, axSndLf, axIfLfLL,
+-- axTreeEqLL).  Each output is a closed  reify outAxX  =
+-- codeFormula of a specific closed equation, hence value-shape.
+
+eval_dispatch_axFstLf :
+  (payT : Term) ->
+  EvalResult (ap2 Pair tagCode_axFstLf payT)
+eval_dispatch_axFstLf payT =
+  mkSigma (reify outAxFstLf)
+    (mkSigma (codeFormula_isValue (atomic (eqn (ap1 Fst O) O)))
+             (thmTDispAxFstLf_param payT))
+
+eval_dispatch_axSndLf :
+  (payT : Term) ->
+  EvalResult (ap2 Pair tagCode_axSndLf payT)
+eval_dispatch_axSndLf payT =
+  mkSigma (reify outAxSndLf)
+    (mkSigma (codeFormula_isValue (atomic (eqn (ap1 Snd O) O)))
+             (thmTDispAxSndLf_param payT))
+
+eval_dispatch_axIfLfLL :
+  (payT : Term) ->
+  EvalResult (ap2 Pair tagCode_axIfLfLL payT)
+eval_dispatch_axIfLfLL payT =
+  mkSigma (reify outAxIfLfLL)
+    (mkSigma (codeFormula_isValue (atomic (eqn (ap2 IfLf O O) O)))
+             (thmTDispAxIfLfLL_param payT))
+
+eval_dispatch_axTreeEqLL :
+  (payT : Term) ->
+  EvalResult (ap2 Pair tagCode_axTreeEqLL payT)
+eval_dispatch_axTreeEqLL payT =
+  mkSigma (reify outAxTreeEqLL)
+    (mkSigma (codeFormula_isValue (atomic (eqn (ap2 TreeEq O O) O)))
+             (thmTDispAxTreeEqLL_param payT))
+
+----------------------------------------------------------------------
+-- cong1, congL, congR: NON-truly-recursive (their conclusion has
+-- Pair-shape Fst), but the dispatch lemma takes a sub-encoding's
+-- thmT-result hypothesis -- so the EvalResult signature must take a
+-- recursive sub-eval as a parameter.
+--
+-- For decode_bot at cong1 etc., the conclusion's Fst is
+-- (Pair tagAp1 ...) which never matches codeBot's  O  Fst, so
+-- ineqLemma discharges directly.  No actual recursion needed for
+-- the decode_bot specialisation.
+
+eval_dispatch_cong1 :
+  (f : Fun1) (y_h_T : Term) (u1 u2 : Term) ->
+  IsValue u1 -> IsValue u2 ->
+  Deriv (atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2))) ->
+  EvalResult (ap2 Pair tagCode_cong1 (ap2 Pair (reify (codeF1 f)) y_h_T))
+eval_dispatch_cong1 f y_h_T u1 u2 vu1 vu2 d_h =
+  let
+    v : Term
+    v = ap2 Pair (ap2 Pair (reify tagAp1)
+                            (ap2 Pair (reify (codeF1 f)) u1))
+                 (ap2 Pair (reify tagAp1)
+                            (ap2 Pair (reify (codeF1 f)) u2))
+    v_iv : IsValue v
+    v_iv = valNd _ _
+             (valNd _ _ tagAp1_isValue
+               (valNd _ _ (codeF1_isValue f) vu1))
+             (valNd _ _ tagAp1_isValue
+               (valNd _ _ (codeF1_isValue f) vu2))
+  in mkSigma v (mkSigma v_iv (thmTDispCong1_param f y_h_T u1 u2 d_h))
+
+eval_dispatch_congL :
+  (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term) ->
+  IsValue xT -> IsValue u1 -> IsValue u2 ->
+  Deriv (atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2))) ->
+  EvalResult (ap2 Pair tagCode_congL
+                (ap2 Pair (ap2 Pair (reify (codeF2 g)) xT) y_h_T))
+eval_dispatch_congL g xT y_h_T u1 u2 vxT vu1 vu2 d_h =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 g))
+              (ap2 Pair u1 xT)))
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 g))
+              (ap2 Pair u2 xT)))
+    v_iv : IsValue v
+    v_iv = valNd _ _
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue g)
+                 (valNd _ _ vu1 vxT)))
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue g)
+                 (valNd _ _ vu2 vxT)))
+  in mkSigma v (mkSigma v_iv (thmTDispCongL_param g xT y_h_T u1 u2 d_h))
+
+eval_dispatch_congR :
+  (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term) ->
+  IsValue xT -> IsValue u1 -> IsValue u2 ->
+  Deriv (atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2))) ->
+  EvalResult (ap2 Pair tagCode_congR
+                (ap2 Pair (ap2 Pair (reify (codeF2 g)) xT) y_h_T))
+eval_dispatch_congR g xT y_h_T u1 u2 vxT vu1 vu2 d_h =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 g))
+              (ap2 Pair xT u1)))
+          (ap2 Pair (reify tagAp2)
+            (ap2 Pair (reify (codeF2 g))
+              (ap2 Pair xT u2)))
+    v_iv : IsValue v
+    v_iv = valNd _ _
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue g)
+                 (valNd _ _ vxT vu1)))
+             (valNd _ _ tagAp2_isValue
+               (valNd _ _ (codeF2_isValue g)
+                 (valNd _ _ vxT vu2)))
+  in mkSigma v (mkSigma v_iv (thmTDispCongR_param g xT y_h_T u1 u2 d_h))
+
+----------------------------------------------------------------------
 -- decode_bot_axConst : y = Pair tagCode_axConst (Pair aT bT).
 -- Result has Pair (Pair tagAp2 ...) aT structure.
 
@@ -560,3 +912,177 @@ decode_bot_axConst aT bT vaT vbT h =
 
   in ineqLemma rhsT codeBot rhsT_iv codeBot_isValue
        treeEq_rhsT_codeBot_false h'
+
+----------------------------------------------------------------------
+-- decode_bot_at_eval : the unified discharge.
+--
+-- Given any EvalResult of an input y and a meta-level witness that
+-- the canonical value v differs from codeBot, the hypothesis
+--   thmT y = codeBot
+-- collapses via ineqLemma.  This is the universal pattern at every
+-- non-recursive axiom case (cong1/L/R included), and reduces each
+-- decode_bot_X to a 4-line wrapper that produces (ev, neq).
+
+decode_bot_at_eval :
+  (y : Term) (ev : EvalResult y) ->
+  Eq (treeEq (evalValue y ev) codeBot) false ->
+  Deriv (atomic (eqn (ap1 thmT y) (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_at_eval y ev neq h =
+  let
+    v : Term
+    v = evalValue y ev
+    v_iv : IsValue v
+    v_iv = evalIsValue y ev
+    eq_thmTy_v : Deriv (atomic (eqn (ap1 thmT y) v))
+    eq_thmTy_v = evalEq y ev
+    h' : Deriv (atomic (eqn v codeBot))
+    h' = ruleTrans (ruleSym eq_thmTy_v) h
+  in ineqLemma v codeBot v_iv codeBot_isValue neq h'
+
+----------------------------------------------------------------------
+-- Short-form decoders using decode_bot_at_eval + the corresponding
+-- eval_dispatch_X.  These supersede the standalone decode_bot_axI
+-- etc. above (which are kept as self-contained references).
+
+decode_bot_axI_v2 :
+  (xT : Term) -> IsValue xT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axI xT)) (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axI_v2 xT vxT h =
+  decode_bot_at_eval _ (eval_dispatch_axI xT vxT) refl h
+
+decode_bot_axSnd_v2 :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axSnd (ap2 Pair aT bT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axSnd_v2 aT bT vaT vbT h =
+  decode_bot_at_eval _ (eval_dispatch_axSnd aT bT vaT vbT) refl h
+
+decode_bot_axZ :
+  (xT : Term) -> IsValue xT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axKT (ap2 Pair (reify (codeF1 Z)) xT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axZ xT vxT h =
+  decode_bot_at_eval _ (eval_dispatch_axZ xT vxT) refl h
+
+decode_bot_axIfLfL :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axIfLfL (ap2 Pair aT bT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axIfLfL aT bT vaT vbT h =
+  decode_bot_at_eval _ (eval_dispatch_axIfLfL aT bT vaT vbT) refl h
+
+decode_bot_axIfLfN :
+  (xT yT aT bT : Term) ->
+  IsValue xT -> IsValue yT -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axIfLfN
+                                    (ap2 Pair xT (ap2 Pair yT (ap2 Pair aT bT)))))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axIfLfN xT yT aT bT vxT vyT vaT vbT h =
+  decode_bot_at_eval _ (eval_dispatch_axIfLfN xT yT aT bT vxT vyT vaT vbT) refl h
+
+decode_bot_axIfLfNL :
+  (xT yT : Term) -> IsValue xT -> IsValue yT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axIfLfNL (ap2 Pair xT yT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axIfLfNL xT yT vxT vyT h =
+  decode_bot_at_eval _ (eval_dispatch_axIfLfNL xT yT vxT vyT) refl h
+
+decode_bot_axTreeEqLN :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axTreeEqLN (ap2 Pair aT bT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axTreeEqLN aT bT vaT vbT h =
+  decode_bot_at_eval _ (eval_dispatch_axTreeEqLN aT bT vaT vbT) refl h
+
+decode_bot_axTreeEqNL :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axTreeEqNL (ap2 Pair aT bT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axTreeEqNL aT bT vaT vbT h =
+  decode_bot_at_eval _ (eval_dispatch_axTreeEqNL aT bT vaT vbT) refl h
+
+----------------------------------------------------------------------
+-- Closed-output decoders.
+
+decode_bot_axFstLf :
+  (payT : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axFstLf payT))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axFstLf payT h =
+  decode_bot_at_eval _ (eval_dispatch_axFstLf payT) refl h
+
+decode_bot_axSndLf :
+  (payT : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axSndLf payT))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axSndLf payT h =
+  decode_bot_at_eval _ (eval_dispatch_axSndLf payT) refl h
+
+decode_bot_axIfLfLL :
+  (payT : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axIfLfLL payT))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axIfLfLL payT h =
+  decode_bot_at_eval _ (eval_dispatch_axIfLfLL payT) refl h
+
+decode_bot_axTreeEqLL :
+  (payT : Term) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axTreeEqLL payT))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axTreeEqLL payT h =
+  decode_bot_at_eval _ (eval_dispatch_axTreeEqLL payT) refl h
+
+----------------------------------------------------------------------
+-- cong1/L/R decoders.  Output's outermost Fst is Pair-shape
+-- (Pair tagAp1 ... / Pair tagAp2 ...), so treeEq vs codeBot's O Fst
+-- is false definitionally.
+
+decode_bot_cong1 :
+  (f : Fun1) (y_h_T : Term) (u1 u2 : Term) ->
+  IsValue u1 -> IsValue u2 ->
+  Deriv (atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2))) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_cong1
+                                    (ap2 Pair (reify (codeF1 f)) y_h_T)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_cong1 f y_h_T u1 u2 vu1 vu2 d_h h =
+  decode_bot_at_eval _
+    (eval_dispatch_cong1 f y_h_T u1 u2 vu1 vu2 d_h) refl h
+
+decode_bot_congL :
+  (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term) ->
+  IsValue xT -> IsValue u1 -> IsValue u2 ->
+  Deriv (atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2))) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_congL
+                                    (ap2 Pair (ap2 Pair (reify (codeF2 g)) xT) y_h_T)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_congL g xT y_h_T u1 u2 vxT vu1 vu2 d_h h =
+  decode_bot_at_eval _
+    (eval_dispatch_congL g xT y_h_T u1 u2 vxT vu1 vu2 d_h) refl h
+
+decode_bot_congR :
+  (g : Fun2) (xT : Term) (y_h_T : Term) (u1 u2 : Term) ->
+  IsValue xT -> IsValue u1 -> IsValue u2 ->
+  Deriv (atomic (eqn (ap1 thmT y_h_T) (ap2 Pair u1 u2))) ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_congR
+                                    (ap2 Pair (ap2 Pair (reify (codeF2 g)) xT) y_h_T)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_congR g xT y_h_T u1 u2 vxT vu1 vu2 d_h h =
+  decode_bot_at_eval _
+    (eval_dispatch_congR g xT y_h_T u1 u2 vxT vu1 vu2 d_h) refl h
+
