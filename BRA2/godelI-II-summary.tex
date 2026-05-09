@@ -1122,6 +1122,81 @@ The proof uses only the ramified-elementary fragment of the
 with $k \le 2$ in Leivant's higher-type ramification).
 \end{quote}
 
+\subsection{Towards bounded consistency reflection}
+\label{subsec:bounded-reflection}
+
+The threshold system $\mathit{DerivT}$ proves
+$\mathit{DerivT}\;\mathit{Con} \to \mathit{DerivT}\;\bot$
+(Section~\ref{subsec:threshold-system}).  By G\"odel~II this rules out
+\emph{full} internal soundness: any putative
+$\mathit{decode\_at}: (P : \mathit{Formula}) \to
+ \mathit{DerivT}\;(\mathit{atomic}\;(\mathit{eqn}\;(\mathit{ap}_1\;
+ \mathit{thmT}\;\hat P)\;(\mathit{codeFormula}\;P))) \to \mathit{DerivT}\;P$
+would, composed with $\mathit{godelII\_T}$, yield internal
+inconsistency.  This blocks the strongest reflection statement.
+
+What is not blocked is \emph{bounded} reflection: a $\mathit{DerivT}$
+proof of $\bot$ whose proof-tree complexity is bounded by some
+syntactic measure can in principle be normalised to a proof of $\bot$
+in an induction-free sub-language.  Iterating the reduction lands in
+the open fragment, where consistency is observable.  This is Nelson's
+strategy~\cite{nelson1986,nelson2011}, deliberately stripped of his
+PA-inconsistency conjecture and stated for quantifier-free BRA.
+
+We have laid down the typed scaffolding for this programme in three
+files (the Step~1--3-stub deliverables of
+\verb|BRA2/BOUNDED-REFLECTION-PLAN.md|), all under
+\verb|--safe --without-K --exact-split| and postulate-free:
+
+\begin{itemize}
+  \item \verb|BRA2/DerivT0.agda|: the open fragment
+        $\mathit{DerivT}_0$, defined by mirroring every constructor of
+        $\mathit{DerivT}$ \emph{except} $\mathit{indBT}$ and
+        $\mathit{indBT}_2$.  A forgetful embedding
+        $\mathit{forget}_0 : \mathit{DerivT}_0\;P \to
+         \mathit{DerivT}\;P$ witnesses that open-fragment proofs lift
+        into the threshold system.  Open consistency is then
+        $\mathit{OpenCon}_0 \;:=\; \mathit{DerivT}_0\;\bot \to \emptyset$.
+  \item \verb|BRA2/DerivTBounded.agda|: an indexed family
+        $\mathit{DerivTBounded}\;r\;l\;P$ tracking induction rank $r$
+        and modus-ponens chain depth $l$.  Computation axioms have
+        rank $0$, level $0$; $\mathit{mp}$ takes $\max$ on $r$ and
+        increments $l$; $\mathit{indBT}/\mathit{indBT}_2$ take $\max$
+        on $l$ and increment $r$.  A forgetful embedding
+        $\mathit{forget}_B : \mathit{DerivTBounded}\;r\;l\;P \to
+         \mathit{DerivT}\;P$ drops the indices.  Bounded consistency
+        is $\mathit{ConBounded}\;r\;l \;:=\;
+         \mathit{DerivTBounded}\;r\;l\;\bot \to \emptyset$.
+  \item \verb|BRA2/BoundedReduction.agda|: the proof obligation
+        \emph{as a type},
+        \[
+          \mathit{BoundedReductionTheorem} \;:=\; (r\,l : \mathbb N)
+          \to \mathit{DerivTBounded}\;r\;l\;\bot \to \mathit{DerivT}_0\;\bot,
+        \]
+        together with the headline corollary
+        $\mathit{BoundedReductionTheorem} \to \mathit{OpenCon}_0 \to
+         \forall r\,l\, \mathit{ConBounded}\;r\;l$, proved in one
+        line by contraposition.  The body of the reduction theorem
+        is the technical heart of the programme and is left open.
+\end{itemize}
+
+The selection of complexity measure (induction rank, checker rank,
+reflection rank, or a Grzegorczyk-class rank tied to the function
+hierarchy of Section~\ref{subsec:elementary}) is itself the research
+question and must be made jointly with the proof attempt: the metric
+is the one the reduction procedure decreases.  The default starting
+point is the simple induction-rank bookkeeping shipped in
+\verb|DerivTBounded.agda|.
+
+If the bounded reduction theorem is proved with a measure tied to
+$\varepsilon_3$ resources (Section~\ref{subsec:elementary}) it
+remains inside the threshold fragment and the conclusion is itself a
+$\mathit{DerivT}$ theorem.  If the reduction requires
+super-elementary resources, the bound moves out of the threshold and
+the resulting consistency reflection becomes a meta-theorem only.
+This is the falsification criterion for the present complexity
+calibration.
+
 \subsection{Comparison with prior formalisations}
 
 The only previous machine formalisation of G\"odel's \emph{Second}
@@ -1283,6 +1358,18 @@ R.~Davies and F.~Pfenning,
 D.~Leivant,
 \newblock \emph{Ramified recurrence and computational complexity~III: Higher type recurrence and elementary complexity},
 \newblock Annals of Pure and Applied Logic, vol.~96 no.~1--3, 1999, pp.~209--229.
+
+\bibitem{nelson1986}
+E.~Nelson,
+\newblock \emph{Predicative Arithmetic},
+\newblock Mathematical Notes 32, Princeton University Press, 1986.
+
+\bibitem{nelson2011}
+E.~Nelson,
+\newblock \emph{Elements} (unfinished draft on inconsistency of
+  Peano Arithmetic, withdrawn after Tao--Tausk gap), 2011.
+\newblock Cited only for methodology; the substantive
+  PA-inconsistency claim is not endorsed.
 
 \bibitem{wilkieparis1987}
 A.~J.~Wilkie and J.~B.~Paris,
