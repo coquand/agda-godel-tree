@@ -704,6 +704,47 @@ decodeF1_I xT vxT =
     goI false _ = inr tt
 
 ----------------------------------------------------------------------
+-- decodeF1_atomic : recognise codeF1 X for X in {I, Fst, Snd, Z}.
+--
+-- Each atomic Fun1 has a specific codeF1 value (a Pair (natCode k) lf
+-- for a tag-specific k).  We try each via treeEq dispatch.  The
+-- recursive Comp / Comp2 cases are not in scope here -- they require
+-- recursive structural inversion of the inner functor codes, and live
+-- in a future decodeF1_full.
+
+decodeF1_atomic :
+  (xT : Term) -> IsValue xT ->
+  Or (Sigma Fun1 (\ f -> Eq (codeF1 f) xT)) Unit
+decodeF1_atomic xT vxT =
+  goI (treeEq xT (codeF1 I)) refl
+  where
+    matchHit : (f : Fun1) -> Eq (treeEq xT (codeF1 f)) true ->
+               Sigma Fun1 (\ g -> Eq (codeF1 g) xT)
+    matchHit f eq =
+      mkSigma f (eqSym (treeEq_true_implies_eq xT (codeF1 f)
+                          vxT (codeF1_isValue f) eq))
+
+    goZ : (b : Bool) -> Eq (treeEq xT (codeF1 Z)) b ->
+          Or (Sigma Fun1 (\ f -> Eq (codeF1 f) xT)) Unit
+    goZ true  eq = inl (matchHit Z eq)
+    goZ false _  = inr tt
+
+    goSnd : (b : Bool) -> Eq (treeEq xT (codeF1 Snd)) b ->
+            Or (Sigma Fun1 (\ f -> Eq (codeF1 f) xT)) Unit
+    goSnd true  eq = inl (matchHit Snd eq)
+    goSnd false _  = goZ (treeEq xT (codeF1 Z)) refl
+
+    goFst : (b : Bool) -> Eq (treeEq xT (codeF1 Fst)) b ->
+            Or (Sigma Fun1 (\ f -> Eq (codeF1 f) xT)) Unit
+    goFst true  eq = inl (matchHit Fst eq)
+    goFst false _  = goSnd (treeEq xT (codeF1 Snd)) refl
+
+    goI : (b : Bool) -> Eq (treeEq xT (codeF1 I)) b ->
+          Or (Sigma Fun1 (\ f -> Eq (codeF1 f) xT)) Unit
+    goI true  eq = inl (matchHit I eq)
+    goI false _  = goFst (treeEq xT (codeF1 Fst)) refl
+
+----------------------------------------------------------------------
 -- decode_term : full inversion of  code  on value-shape Terms.
 --
 -- This handles three of the four code clauses:
@@ -753,30 +794,34 @@ decode_term (ap2 Pair tagT (ap2 Pair restL restR))
         eqTagT_tagAp1 : Eq tagT tagAp1
         eqTagT_tagAp1 = treeEq_true_implies_eq tagT tagAp1 vtagT tagAp1_isValue eqTrue
 
-        codeF_decision : Or (Eq (codeF1 I) restL) Unit
-        codeF_decision = decodeF1_I restL vrestL
+        codeF_decision : Or (Sigma Fun1 (\ f -> Eq (codeF1 f) restL)) Unit
+        codeF_decision = decodeF1_atomic restL vrestL
 
         codeT_decision : Or (Sigma Term (\ t -> Eq (code t) restR)) Unit
         codeT_decision = decode_term restR vrestR
       in caseOr codeF_decision
-           (\ eq_codeF1I_restL ->
+           (\ sf ->
               caseOr codeT_decision
-                (\ s ->
+                (\ st ->
                    let
+                     f : Fun1
+                     f = fst sf
+                     eq_codeF1f_restL : Eq (codeF1 f) restL
+                     eq_codeF1f_restL = snd sf
+
                      t : Term
-                     t = fst s
-
+                     t = fst st
                      eq_code_t_restR : Eq (code t) restR
-                     eq_code_t_restR = snd s
+                     eq_code_t_restR = snd st
 
-                     -- code (ap1 I t) = ap2 Pair tagAp1 (ap2 Pair (codeF1 I) (code t)).
+                     -- code (ap1 f t) = ap2 Pair tagAp1 (ap2 Pair (codeF1 f) (code t)).
                      eq_codeAp1_xT :
-                       Eq (code (ap1 I t))
+                       Eq (code (ap1 f t))
                           (ap2 Pair tagT (ap2 Pair restL restR))
                      eq_codeAp1_xT =
                        eqCong2 (ap2 Pair) (eqSym eqTagT_tagAp1)
-                         (eqCong2 (ap2 Pair) eq_codeF1I_restL eq_code_t_restR)
-                   in inl (mkSigma (ap1 I t) eq_codeAp1_xT))
+                         (eqCong2 (ap2 Pair) eq_codeF1f_restL eq_code_t_restR)
+                   in inl (mkSigma (ap1 f t) eq_codeAp1_xT))
                 (\ _ -> inr tt))
            (\ _ -> inr tt)
 
@@ -930,3 +975,28 @@ private
         (valNd (codeF1 I) (code (ap1 I O)) (codeF1_isValue I)
           (valNd tagAp1 (ap2 Pair (codeF1 I) O) tagAp1_isValue
             (valNd (codeF1 I) O (codeF1_isValue I) valO))))
+
+  -- Full decode_term on  code (ap1 Fst O) : exercises the Fst branch
+  -- of decodeF1_atomic.
+  smokeTest_decode_term_apFst_O :
+    Or (Sigma Term (\ t -> Eq (code t) (code (ap1 Fst O)))) Unit
+  smokeTest_decode_term_apFst_O =
+    decode_term (code (ap1 Fst O))
+      (valNd tagAp1 (ap2 Pair (codeF1 Fst) O) tagAp1_isValue
+        (valNd (codeF1 Fst) O (codeF1_isValue Fst) valO))
+
+  -- ap1 Snd O : exercises the Snd branch.
+  smokeTest_decode_term_apSnd_O :
+    Or (Sigma Term (\ t -> Eq (code t) (code (ap1 Snd O)))) Unit
+  smokeTest_decode_term_apSnd_O =
+    decode_term (code (ap1 Snd O))
+      (valNd tagAp1 (ap2 Pair (codeF1 Snd) O) tagAp1_isValue
+        (valNd (codeF1 Snd) O (codeF1_isValue Snd) valO))
+
+  -- ap1 Z O : exercises the Z branch.
+  smokeTest_decode_term_apZ_O :
+    Or (Sigma Term (\ t -> Eq (code t) (code (ap1 Z O)))) Unit
+  smokeTest_decode_term_apZ_O =
+    decode_term (code (ap1 Z O))
+      (valNd tagAp1 (ap2 Pair (codeF1 Z) O) tagAp1_isValue
+        (valNd (codeF1 Z) O (codeF1_isValue Z) valO))
