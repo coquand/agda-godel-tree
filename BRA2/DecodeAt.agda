@@ -565,6 +565,50 @@ decode_bot_axFst_via_decode_at aT bT vaT vbT D =
   decode_at_nomatch_eval _ (eval_dispatch_axFst aT bT vaT vbT) bot refl D
 
 ----------------------------------------------------------------------
+-- Boolean / treeEq helpers.
+--
+-- boolAnd_true_split : if  boolAnd b1 b2 = true  then both halves are
+-- true.  Used to recover component equalities from  treeEq (Pair a b)
+-- (Pair c d) = true .
+
+boolAnd_true_split :
+  (b1 b2 : Bool) -> Eq (boolAnd b1 b2) true ->
+  Sigma (Eq b1 true) (\ _ -> Eq b2 true)
+boolAnd_true_split true  true  refl = mkSigma refl refl
+boolAnd_true_split true  false ()
+boolAnd_true_split false true  ()
+boolAnd_true_split false false ()
+
+----------------------------------------------------------------------
+-- treeEq_true_implies_eq : treeEq is correct on values.
+--
+-- For value-shape Terms u, v (built only from O and ap2 Pair),
+--   treeEq u v = true   <==>   Eq u v
+-- By induction on IsValue u and IsValue v.
+
+treeEq_true_implies_eq :
+  (u v : Term) -> IsValue u -> IsValue v ->
+  Eq (treeEq u v) true -> Eq u v
+treeEq_true_implies_eq .O                   .O                   valO              valO              _   = refl
+treeEq_true_implies_eq .O                   .(ap2 Pair _ _)      valO              (valNd _ _ _ _)   ()
+treeEq_true_implies_eq .(ap2 Pair _ _)      .O                   (valNd _ _ _ _)   valO              ()
+treeEq_true_implies_eq (ap2 Pair a b)       (ap2 Pair c d)       (valNd .a .b va vb) (valNd .c .d vc vd) eqp =
+  let split = boolAnd_true_split (treeEq a c) (treeEq b d) eqp
+      eqAC : Eq a c
+      eqAC = treeEq_true_implies_eq a c va vc (fst split)
+      eqBD : Eq b d
+      eqBD = treeEq_true_implies_eq b d vb vd (snd split)
+  in eqCong2 (ap2 Pair) eqAC eqBD
+
+----------------------------------------------------------------------
+-- Or eliminator (top-level, since where-bound helpers don't propagate
+-- to inner where-blocks in Agda).
+
+caseOr : {A B C : Set} -> Or A B -> (A -> C) -> (B -> C) -> C
+caseOr (inl a) f g = f a
+caseOr (inr b) f g = g b
+
+----------------------------------------------------------------------
 -- decode_nat : invert  natCode  on Pair-shape value chains.
 --
 -- natCode n  is built as (Pair O (Pair O ... O)) -- a chain of n
@@ -577,19 +621,10 @@ decode_nat : (xT : Term) -> IsValue xT ->
 decode_nat .O                          valO                       =
   inl (mkSigma zero refl)
 decode_nat .(ap2 Pair O b)             (valNd .O b valO vb)       =
-  -- xT looks like Pair O b -- could be natCode (suc n) for some n.
-  -- Recurse on b to find n with natCode n = b, then return suc n.
-  let rec : Or (Sigma Nat (\ n -> Eq (natCode n) b)) Unit
-      rec = decode_nat b vb
-  in caseOr rec
-       (\ s -> inl (mkSigma (suc (fst s)) (eqCong (\ x -> ap2 Pair O x) (snd s))))
-       (\ _ -> inr tt)
-  where
-    caseOr : {A B C : Set} -> Or A B -> (A -> C) -> (B -> C) -> C
-    caseOr (inl a) f g = f a
-    caseOr (inr b) f g = g b
+  caseOr (decode_nat b vb)
+    (\ s -> inl (mkSigma (suc (fst s)) (eqCong (\ x -> ap2 Pair O x) (snd s))))
+    (\ _ -> inr tt)
 decode_nat .(ap2 Pair (ap2 Pair _ _) _) (valNd .(ap2 Pair _ _) _ (valNd _ _ _ _) _) =
-  -- xT's Fst is non-leaf; can't be natCode (since natCode produces Pair O _).
   inr tt
 
 ----------------------------------------------------------------------
@@ -612,13 +647,157 @@ decode_term_O_or_var :
   Or (Sigma Term (\ t -> Eq (code t) xT)) Unit
 decode_term_O_or_var .O valO = inl (mkSigma O refl)
 decode_term_O_or_var (ap2 Pair tagT rest) (valNd .tagT .rest vtagT vrest) =
-  -- Use treeEq to decide if tagT structurally equals tagVar.
-  -- tagVar = nd (nd (nd lf lf) lf) lf.  If treeEq is true, transport
-  -- via eqSubst to recover tagT = tagVar; then decode_nat on rest.
-  -- For the prototype, we just return inr in the non-O case to keep
-  -- exhaustiveness happy; the var-case extraction and the ap1 / ap2
-  -- inversion are recorded as future work in DECODE-BOT-NEXT-SESSION.md.
-  inr tt
+  goVar (treeEq tagT tagVar) refl
+  where
+    -- Match against tagVar.  If treeEq tagT tagVar = true, treeEq's
+    -- correctness on values (treeEq_true_implies_eq) gives  Eq tagT
+    -- tagVar ; we then decode rest as a natCode and emerge with
+    -- (var n , code (var n) = xT).
+    --
+    -- If treeEq is false, fall through to the tagAp1 dispatcher
+    -- (handled by decode_term_full below).  This O_or_var stub stops
+    -- here with  inr tt .
+    goVar : (b : Bool) -> Eq (treeEq tagT tagVar) b ->
+            Or (Sigma Term (\ t -> Eq (code t) (ap2 Pair tagT rest))) Unit
+    goVar true  eqTrue =
+      let
+        eqTagT_tagVar : Eq tagT tagVar
+        eqTagT_tagVar = treeEq_true_implies_eq tagT tagVar vtagT tagVar_isValue eqTrue
+
+        natRec : Or (Sigma Nat (\ n -> Eq (natCode n) rest)) Unit
+        natRec = decode_nat rest vrest
+      in caseOr natRec
+           (\ s ->
+              let
+                n : Nat
+                n = fst s
+
+                eq_natCode_n_rest : Eq (natCode n) rest
+                eq_natCode_n_rest = snd s
+
+                eq_codeVar_xT :
+                  Eq (code (var n)) (ap2 Pair tagT rest)
+                eq_codeVar_xT =
+                  eqCong2 (ap2 Pair) (eqSym eqTagT_tagVar) eq_natCode_n_rest
+              in inl (mkSigma (var n) eq_codeVar_xT))
+           (\ _ -> inr tt)
+    goVar false _ = inr tt
+
+----------------------------------------------------------------------
+-- decodeF1_I : recognise codeF1 I.
+--
+-- codeF1 I  is a specific value (a Pair with natCode 25 and lf inside).
+-- treeEq comparison is decidable; if true, we recover Eq xT (codeF1 I)
+-- and emerge with (I , Eq (codeF1 I) xT).
+
+decodeF1_I :
+  (xT : Term) -> IsValue xT ->
+  Or (Eq (codeF1 I) xT) Unit
+decodeF1_I xT vxT =
+  goI (treeEq xT (codeF1 I)) refl
+  where
+    goI : (b : Bool) -> Eq (treeEq xT (codeF1 I)) b ->
+          Or (Eq (codeF1 I) xT) Unit
+    goI true  eqTrue =
+      inl (eqSym (treeEq_true_implies_eq xT (codeF1 I)
+                     vxT (codeF1_isValue I) eqTrue))
+    goI false _ = inr tt
+
+----------------------------------------------------------------------
+-- decode_term : full inversion of  code  on value-shape Terms.
+--
+-- This handles three of the four code clauses:
+--   * code O           = O                              [done]
+--   * code (var n)     = ap2 Pair tagVar (natCode n)    [done]
+--   * code (ap1 I t)   = ap2 Pair tagAp1 (ap2 Pair (codeF1 I) (code t))
+--                         [done -- recurses on code t]
+--
+-- The fourth clause (code (ap2 g t1 t2) and code (ap1 (Comp _ _) t)
+-- etc.) requires a full Fun1 / Fun2 inverter; that is the next piece
+-- but is not delivered here.  In its absence, decode_term returns
+-- inr tt  for those cases.
+
+decode_term :
+  (xT : Term) -> IsValue xT ->
+  Or (Sigma Term (\ t -> Eq (code t) xT)) Unit
+decode_term .O valO = inl (mkSigma O refl)
+
+-- Case  rest = O .  Var-case for natCode 0 ; ap1/ap2 don't fit.
+decode_term (ap2 Pair tagT O) (valNd .tagT .O vtagT valO) =
+  goVar (treeEq tagT tagVar) refl
+  where
+    goVar : (b : Bool) -> Eq (treeEq tagT tagVar) b ->
+            Or (Sigma Term (\ t -> Eq (code t) (ap2 Pair tagT O))) Unit
+    goVar true  eqTrue =
+      let
+        eqTagT_tagVar : Eq tagT tagVar
+        eqTagT_tagVar = treeEq_true_implies_eq tagT tagVar vtagT tagVar_isValue eqTrue
+
+        eq_codeVar_xT : Eq (code (var zero)) (ap2 Pair tagT O)
+        eq_codeVar_xT = eqCong (\ x -> ap2 Pair x O) (eqSym eqTagT_tagVar)
+      in inl (mkSigma (var zero) eq_codeVar_xT)
+    goVar false _ = inr tt
+
+-- Case  rest = ap2 Pair restL restR .  Var with natCode (suc _),
+-- or ap1 case (restL = codeF1 I, restR = code t).
+decode_term (ap2 Pair tagT (ap2 Pair restL restR))
+            (valNd .tagT .(ap2 Pair restL restR) vtagT
+                   (valNd .restL .restR vrestL vrestR)) =
+  goVar (treeEq tagT tagVar) refl
+  where
+    goAp1 : (b : Bool) -> Eq (treeEq tagT tagAp1) b ->
+            Or (Sigma Term (\ t -> Eq (code t) (ap2 Pair tagT (ap2 Pair restL restR)))) Unit
+    goAp1 false _ = inr tt
+    goAp1 true eqTrue =
+      let
+        eqTagT_tagAp1 : Eq tagT tagAp1
+        eqTagT_tagAp1 = treeEq_true_implies_eq tagT tagAp1 vtagT tagAp1_isValue eqTrue
+
+        codeF_decision : Or (Eq (codeF1 I) restL) Unit
+        codeF_decision = decodeF1_I restL vrestL
+
+        codeT_decision : Or (Sigma Term (\ t -> Eq (code t) restR)) Unit
+        codeT_decision = decode_term restR vrestR
+      in caseOr codeF_decision
+           (\ eq_codeF1I_restL ->
+              caseOr codeT_decision
+                (\ s ->
+                   let
+                     t : Term
+                     t = fst s
+
+                     eq_code_t_restR : Eq (code t) restR
+                     eq_code_t_restR = snd s
+
+                     -- code (ap1 I t) = ap2 Pair tagAp1 (ap2 Pair (codeF1 I) (code t)).
+                     eq_codeAp1_xT :
+                       Eq (code (ap1 I t))
+                          (ap2 Pair tagT (ap2 Pair restL restR))
+                     eq_codeAp1_xT =
+                       eqCong2 (ap2 Pair) (eqSym eqTagT_tagAp1)
+                         (eqCong2 (ap2 Pair) eq_codeF1I_restL eq_code_t_restR)
+                   in inl (mkSigma (ap1 I t) eq_codeAp1_xT))
+                (\ _ -> inr tt))
+           (\ _ -> inr tt)
+
+    goVar : (b : Bool) -> Eq (treeEq tagT tagVar) b ->
+            Or (Sigma Term (\ t -> Eq (code t) (ap2 Pair tagT (ap2 Pair restL restR)))) Unit
+    goVar true  eqTrue =
+      let
+        eqTagT_tagVar : Eq tagT tagVar
+        eqTagT_tagVar = treeEq_true_implies_eq tagT tagVar vtagT tagVar_isValue eqTrue
+
+        natRec : Or (Sigma Nat (\ n -> Eq (natCode n) (ap2 Pair restL restR))) Unit
+        natRec = decode_nat (ap2 Pair restL restR) (valNd restL restR vrestL vrestR)
+      in caseOr natRec
+           (\ s ->
+              let n = fst s
+                  eqNC = snd s
+                  eq_codeVar_xT : Eq (code (var n)) (ap2 Pair tagT (ap2 Pair restL restR))
+                  eq_codeVar_xT = eqCong2 (ap2 Pair) (eqSym eqTagT_tagVar) eqNC
+              in inl (mkSigma (var n) eq_codeVar_xT))
+           (\ _ -> inr tt)
+    goVar false _ = goAp1 (treeEq tagT tagAp1) refl
 
 ----------------------------------------------------------------------
 -- Smoke test: the axI _match wrapper at a closed Term  t = O .
@@ -717,3 +896,37 @@ private
   smokeTest_decode_nat_two =
     decode_nat (ap2 Pair O (ap2 Pair O O))
                (valNd O (ap2 Pair O O) valO (valNd O O valO valO))
+
+  -- decode_term_O_or_var on  code (var zero) : decodes to var zero.
+  -- code (var zero) = ap2 Pair tagVar O.
+  smokeTest_decode_term_var_zero :
+    Or (Sigma Term (\ t -> Eq (code t) (code (var zero)))) Unit
+  smokeTest_decode_term_var_zero =
+    decode_term_O_or_var (code (var zero))
+                         (valNd tagVar O tagVar_isValue valO)
+
+  -- Full decode_term on  code (var zero) : decodes to var zero.
+  smokeTest_decode_term_full_var_zero :
+    Or (Sigma Term (\ t -> Eq (code t) (code (var zero)))) Unit
+  smokeTest_decode_term_full_var_zero =
+    decode_term (code (var zero)) (valNd tagVar O tagVar_isValue valO)
+
+  -- Full decode_term on  code (ap1 I O) : decodes to ap1 I O via the
+  -- ap1-branch with recursive call on code O = O.
+  -- code (ap1 I O) = ap2 Pair tagAp1 (ap2 Pair (codeF1 I) O).
+  smokeTest_decode_term_apI_O :
+    Or (Sigma Term (\ t -> Eq (code t) (code (ap1 I O)))) Unit
+  smokeTest_decode_term_apI_O =
+    decode_term (code (ap1 I O))
+      (valNd tagAp1 (ap2 Pair (codeF1 I) O) tagAp1_isValue
+        (valNd (codeF1 I) O (codeF1_isValue I) valO))
+
+  -- Full decode_term on  code (ap1 I (ap1 I O)) : nested recursion.
+  smokeTest_decode_term_apI_apI_O :
+    Or (Sigma Term (\ t -> Eq (code t) (code (ap1 I (ap1 I O))))) Unit
+  smokeTest_decode_term_apI_apI_O =
+    decode_term (code (ap1 I (ap1 I O)))
+      (valNd tagAp1 (ap2 Pair (codeF1 I) (code (ap1 I O))) tagAp1_isValue
+        (valNd (codeF1 I) (code (ap1 I O)) (codeF1_isValue I)
+          (valNd tagAp1 (ap2 Pair (codeF1 I) O) tagAp1_isValue
+            (valNd (codeF1 I) O (codeF1_isValue I) valO))))
