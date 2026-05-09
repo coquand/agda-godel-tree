@@ -39,7 +39,7 @@ open import BRA2.GoedelII using (bot)
 
 import BRA2.Thm.ThmT
 open BRA2.Thm.ThmT using
-  ( thmT ; thmT_O_eval ; thmT_pairO_eval
+  ( thmT ; thmT_O_eval ; thmT_pairO_eval ; thmT_sndProj_eval
   ; thmTDispAxI_param ; thmTDispAxRefl_param ; thmTDispAxFst_param
   ; thmTDispAxSnd_param ; thmTDispAxConst_param )
 open import BRA2.Thm.TagCodes using
@@ -327,6 +327,205 @@ decode_bot_axSnd aT bT vaT vbT h =
 
   in ineqLemma rhsT codeBot rhsT_iv codeBot_isValue
        treeEq_rhsT_codeBot_false h'
+
+----------------------------------------------------------------------
+-- thmT_eval : the meta-level evaluator of  thmT  on value-shape
+-- inputs.  Foundation for the generalised soundness theorem
+-- decode_at -- and ultimately for the recursive cases of decode_bot.
+--
+-- For each value-shape Term y, thmT_eval produces a canonical
+-- normalised value v : Term plus a Deriv-level proof that
+-- thmT y = v.  Plus an IsValue witness for v (since v is built
+-- from O / Pair only).
+--
+-- This is currently delivered as a collection of compositional
+-- helpers, NOT as a single total function.  Reason: making it
+-- total would require deep case-analysis on the dispatch tag
+-- (40+ cases plus their payload-shape sub-cases).  See
+-- DECODE-BOT-REPORT.md for the full effort breakdown.
+
+EvalResult : Term -> Set
+EvalResult y =
+  Sigma Term (\ v ->
+    Sigma (IsValue v) (\ _ ->
+      Deriv (atomic (eqn (ap1 thmT y) v))))
+
+evalValue : (y : Term) -> EvalResult y -> Term
+evalValue y r = fst r
+
+evalIsValue : (y : Term) (r : EvalResult y) -> IsValue (evalValue y r)
+evalIsValue y r = fst (snd r)
+
+evalEq : (y : Term) (r : EvalResult y) ->
+         Deriv (atomic (eqn (ap1 thmT y) (evalValue y r)))
+evalEq y r = snd (snd r)
+
+----------------------------------------------------------------------
+-- evalO : the leaf case.
+
+eval_O : EvalResult O
+eval_O = mkSigma O (mkSigma valO thmT_O_eval)
+
+----------------------------------------------------------------------
+-- eval_pairO : the "no top-level Pair tag" case.  Dispatch cascade
+-- falls through; thmT y = O.
+
+eval_pairO : (b : Term) -> EvalResult (ap2 Pair O b)
+eval_pairO b = mkSigma O (mkSigma valO (thmT_pairO_eval b))
+
+----------------------------------------------------------------------
+-- eval_sndProj : the "Fst-of-Fst is Pair-shape" case (sndProj branch
+-- of stepProto).
+--
+-- Given recursive evaluations of the inner Pair (Pair a11 a12) a3
+-- and of b , produces an evaluation of the full input.
+-- thmT y = Pair (eval-result-X) (eval-result-b) .
+
+eval_sndProj :
+  (a11 a12 a3 b : Term) ->
+  (evX : EvalResult (ap2 Pair (ap2 Pair a11 a12) a3)) ->
+  (evb : EvalResult b) ->
+  EvalResult (ap2 Pair (ap2 Pair (ap2 Pair a11 a12) a3) b)
+eval_sndProj a11 a12 a3 b evX evb =
+  let
+    X : Term
+    X = ap2 Pair (ap2 Pair a11 a12) a3
+
+    vX : Term
+    vX = evalValue X evX
+
+    vX_iv : IsValue vX
+    vX_iv = evalIsValue X evX
+
+    eqX : Deriv (atomic (eqn (ap1 thmT X) vX))
+    eqX = evalEq X evX
+
+    vb : Term
+    vb = evalValue b evb
+
+    vb_iv : IsValue vb
+    vb_iv = evalIsValue b evb
+
+    eqb : Deriv (atomic (eqn (ap1 thmT b) vb))
+    eqb = evalEq b evb
+
+    -- thmT y = Pair (thmT X) (thmT b) via the sndProj branch.
+    raw : Deriv (atomic (eqn (ap1 thmT (ap2 Pair X b))
+                              (ap2 Pair (ap1 thmT X) (ap1 thmT b))))
+    raw = thmT_sndProj_eval a11 a12 a3 b
+
+    -- Substitute thmT X = vX.
+    s1 : Deriv (atomic (eqn (ap2 Pair (ap1 thmT X) (ap1 thmT b))
+                             (ap2 Pair vX (ap1 thmT b))))
+    s1 = congL Pair (ap1 thmT b) eqX
+
+    -- Substitute thmT b = vb.
+    s2 : Deriv (atomic (eqn (ap2 Pair vX (ap1 thmT b))
+                             (ap2 Pair vX vb)))
+    s2 = congR Pair vX eqb
+
+    eqFinal : Deriv (atomic (eqn (ap1 thmT (ap2 Pair X b))
+                                  (ap2 Pair vX vb)))
+    eqFinal = ruleTrans raw (ruleTrans s1 s2)
+
+    v : Term
+    v = ap2 Pair vX vb
+
+    v_iv : IsValue v
+    v_iv = valNd vX vb vX_iv vb_iv
+
+  in mkSigma v (mkSigma v_iv eqFinal)
+
+----------------------------------------------------------------------
+-- decode_bot_sndProj : the sndProj-branch case of decode_bot.
+--
+-- Given a recursive evaluation of the inner Pair (Pair a11 a12) a3
+-- and of b , and a hypothesis that thmT y = codeBot, derive Deriv bot.
+--
+-- The sndProj-branch's thmT y is Pair vX vb where vX = thmT(inner)
+-- and vb = thmT b.  For codeBot = Pair O codeFalseT, ineqLemma
+-- discharges syntactically iff Pair vX vb != codeBot, which is
+-- decidable from the structures of vX and vb.
+
+decode_bot_sndProj_at_iv :
+  (a11 a12 a3 b : Term) ->
+  (evX : EvalResult (ap2 Pair (ap2 Pair a11 a12) a3)) ->
+  (evb : EvalResult b) ->
+  Eq (treeEq (ap2 Pair (evalValue _ evX) (evalValue _ evb)) codeBot) false ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair (ap2 Pair (ap2 Pair a11 a12) a3) b))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_sndProj_at_iv a11 a12 a3 b evX evb neq h =
+  let
+    ev = eval_sndProj a11 a12 a3 b evX evb
+    v = evalValue _ ev
+    v_iv = evalIsValue _ ev
+    eq_thmTy_v = evalEq _ ev
+
+    -- Hypothesis transports: thmT y = codeBot becomes v = codeBot.
+    h' : Deriv (atomic (eqn v codeBot))
+    h' = ruleTrans (ruleSym eq_thmTy_v) h
+
+  in ineqLemma v codeBot v_iv codeBot_isValue neq h'
+
+----------------------------------------------------------------------
+-- Dispatch-case evaluators (eval_dispatch_X).
+--
+-- These handle the in-cascade tag dispatches.  Each is a thin wrapper
+-- around the existing thmTDispX_param :  the dispatch lemma already
+-- gives  thmT (Pair tagCode_X payload) = (specific Pair value) , so
+-- the eval just packages the result with its IsValue witness.
+--
+-- These three (axI, axRefl, axFst) demonstrate the template; the 30
+-- remaining axiom tags follow it unchanged.  ~ 30 LoC each.
+
+eval_dispatch_axI :
+  (xT : Term) -> IsValue xT ->
+  EvalResult (ap2 Pair tagCode_axI xT)
+eval_dispatch_axI xT vxT =
+  let
+    v : Term
+    v = ap2 Pair (ap2 Pair (reify tagAp1)
+                          (ap2 Pair (reify (codeF1 I)) xT)) xT
+    v_iv : IsValue v
+    v_iv = valNd _ xT
+             (valNd _ _ tagAp1_isValue
+                (valNd _ _ (codeF1_isValue I) vxT))
+             vxT
+  in mkSigma v (mkSigma v_iv (thmTDispAxI_param xT))
+
+eval_dispatch_axRefl :
+  (xT : Term) -> IsValue xT ->
+  EvalResult (ap2 Pair tagCode_axRefl xT)
+eval_dispatch_axRefl xT vxT =
+  let
+    v : Term
+    v = ap2 Pair xT xT
+    v_iv : IsValue v
+    v_iv = valNd xT xT vxT vxT
+  in mkSigma v (mkSigma v_iv (thmTDispAxRefl_param xT))
+
+eval_dispatch_axFst :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  EvalResult (ap2 Pair tagCode_axFst (ap2 Pair aT bT))
+eval_dispatch_axFst aT bT vaT vbT =
+  let
+    v : Term
+    v = ap2 Pair
+          (ap2 Pair (reify tagAp1)
+            (ap2 Pair (reify (codeF1 Fst))
+              (ap2 Pair (reify tagAp2)
+                (ap2 Pair (reify (codeF2 Pair))
+                  (ap2 Pair aT bT)))))
+          aT
+    v_iv : IsValue v
+    v_iv = valNd _ aT
+             (valNd _ _ tagAp1_isValue
+               (valNd _ _ (codeF1_isValue Fst)
+                 (valNd _ _ tagAp2_isValue
+                   (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT)))))
+             vaT
+  in mkSigma v (mkSigma v_iv (thmTDispAxFst_param aT bT))
 
 ----------------------------------------------------------------------
 -- decode_bot_axConst : y = Pair tagCode_axConst (Pair aT bT).

@@ -1143,6 +1143,60 @@ abstract
        (ruleTrans s44 (ruleTrans s45 (ruleTrans s46 fbStep)))))))))))))))))))))))))))))))))))))))))))
 
   ------------------------------------------------------------------
+  -- thmT_sndProj_eval : reduces  thmT  on the sndProj-branch input
+  -- shape (the "Fst-of-Fst is Pair-shape, dispatch is bypassed"
+  -- case).  Used by the sndProj-branch case of  decode_bot .
+  --
+  -- For y = ap2 Pair (ap2 Pair (ap2 Pair a11 a12) a3) b where the
+  -- inner  ap2 Pair a11 a12  forces  Fst (Fst y) = ap2 Pair a11 a12
+  -- to be Pair-shape (so  stepProto_else  fires), the dispatch
+  -- cascade is bypassed and  thmT y = ap2 Pair (ap1 thmT X) (ap1 thmT b)
+  -- where  X = ap2 Pair (ap2 Pair a11 a12) a3 .
+
+  thmT_sndProj_eval : (a11 a12 a3 b : Term) ->
+    Deriv (atomic (eqn
+      (ap1 thmT (ap2 Pair (ap2 Pair (ap2 Pair a11 a12) a3) b))
+      (ap2 Pair (ap1 thmT (ap2 Pair (ap2 Pair a11 a12) a3))
+                (ap1 thmT b))))
+  thmT_sndProj_eval a11 a12 a3 b =
+    let
+      X    : Term
+      X    = ap2 Pair (ap2 Pair a11 a12) a3
+      a    : Term
+      a    = ap2 Pair X b
+      recs : Term
+      recs = ap2 Pair (ap1 thmT X) (ap1 thmT b)
+      aW   : Term
+      aW   = ap2 Pair O a
+
+      -- Stage 1: thmT (Pair X b) = stepProto a recs.
+      e1a = axRecNd stepProtoWrapped X b
+      unfoldFan = axFan (Lift Snd) (Post Snd Pair) stepProto aW recs
+      leftRed = ruleTrans (axLift Snd aW recs) (axSnd O a)
+      rightRed = ruleTrans (axPost Snd Pair aW recs) (axSnd aW recs)
+      congLft = congL stepProto (ap2 (Post Snd Pair) aW recs) leftRed
+      congRgt = congR stepProto a rightRed
+      e1 : Deriv (atomic (eqn (ap1 thmT a) (ap2 stepProto a recs)))
+      e1 = ruleTrans e1a (ruleTrans unfoldFan (ruleTrans congLft congRgt))
+
+      -- Stage 2: stepProto a recs = recs (via stepProto_else).
+      -- Need Fst(Fst a) = Pair a11 a12.
+      --   Fst a = X = Pair (Pair a11 a12) a3   via axFst X b
+      --   Fst(Fst a) = Fst X = Pair a11 a12    via cong1 + axFst
+      f1 : Deriv (atomic (eqn (ap1 Fst a) X))
+      f1 = axFst X b
+      f2 : Deriv (atomic (eqn (ap1 Fst (ap1 Fst a)) (ap1 Fst X)))
+      f2 = cong1 Fst f1
+      f3 : Deriv (atomic (eqn (ap1 Fst X) (ap2 Pair a11 a12)))
+      f3 = axFst (ap2 Pair a11 a12) a3
+      fstFstA : Deriv (atomic (eqn (ap1 Fst (ap1 Fst a)) (ap2 Pair a11 a12)))
+      fstFstA = ruleTrans f2 f3
+      e2 : Deriv (atomic (eqn (ap2 stepProto a recs) recs))
+      e2 = stepProto_else a recs a11 a12 fstFstA
+
+    in ruleTrans e1 e2
+
+  ------------------------------------------------------------------
   -- Group I dispatch lemmas (10 tags: axI, axFst, axSnd, axConst,
   -- axComp, axComp2, axLift, axPost, axFan, axKT).
   --
