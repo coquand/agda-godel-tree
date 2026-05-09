@@ -38,7 +38,10 @@ open import BRA2.Th14SubTPushthrough using (treeEqRefl)
 open import BRA2.GoedelII using (bot)
 
 import BRA2.Thm.ThmT
-open BRA2.Thm.ThmT using (thmT ; thmT_O_eval ; thmT_pairO_eval)
+open BRA2.Thm.ThmT using
+  ( thmT ; thmT_O_eval ; thmT_pairO_eval
+  ; thmTDispAxI_param ; thmTDispAxRefl_param ; thmTDispAxFst_param )
+open import BRA2.Thm.TagCodes using (tagCode_axI ; tagCode_axRefl ; tagCode_axFst)
 
 ----------------------------------------------------------------------
 -- The "false equation -> Deriv bot" bridge.
@@ -146,3 +149,139 @@ decode_bot_pairO b h =
     h' : Deriv (atomic (eqn O codeBot))
     h' = ruleTrans (ruleSym (thmT_pairO_eval b)) h
   in ineqLemma O codeBot valO codeBot_isValue treeEq_O_codeBot_false h'
+
+----------------------------------------------------------------------
+-- Representative tag-dispatch case: y = Pair tagCode_axI xT (= the
+-- encoded form of "axI t" applied at xT = code t).
+--
+-- thmTDispAxI_param reduces  thmT (Pair tagCode_axI xT)  to
+--   Pair (Pair tagAp1 (Pair (codeF1 I) xT)) xT
+-- (the codeFormula of  atomic (eqn (ap1 I t) t) , in projective form).
+--
+-- That value-shape Pair has a Pair-headed Fst (= Pair tagAp1 ...),
+-- whereas codeBot has Fst = O .  So treeEq is false at the outermost
+-- Pair pattern (the  ap2 Pair _ _ vs O  case in BRA2.Term.treeEq),
+-- and ineqLemma applies.
+--
+-- Pattern: every non-recursive axiom case follows this template.
+-- Each tag X has a thmTDispX_param producing a Pair-shaped value
+-- whose Fst is a Pair tag header (tagAp1 / tagAp2 / etc.); none can
+-- coincide with codeBot's Fst = O.
+
+decode_bot_axI :
+  (xT : Term) -> IsValue xT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axI xT)) (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axI xT vxT h =
+  let
+    -- thmT (Pair tagCode_axI xT) = Pair (Pair tagAp1 (Pair (codeF1 I) xT)) xT
+    red = thmTDispAxI_param xT
+
+    rhsT : Term
+    rhsT = ap2 Pair (ap2 Pair (reify tagAp1)
+                              (ap2 Pair (reify (codeF1 I)) xT)) xT
+
+    h' : Deriv (atomic (eqn rhsT codeBot))
+    h' = ruleTrans (ruleSym red) h
+
+    -- IsValue witness for the Pair output.  reify is identity, so all
+    -- nested codes remain value-shape.
+    rhsT_iv : IsValue rhsT
+    rhsT_iv =
+      valNd (ap2 Pair (reify tagAp1) (ap2 Pair (reify (codeF1 I)) xT)) xT
+            (valNd (reify tagAp1) (ap2 Pair (reify (codeF1 I)) xT)
+                   tagAp1_isValue
+                   (valNd (reify (codeF1 I)) xT (codeF1_isValue I) vxT))
+            vxT
+
+    -- treeEq rhsT codeBot = false.  Outermost: Pair X Y vs Pair O Z,
+    -- so treeEq = boolAnd (treeEq X O) (treeEq Y Z).  X is Pair-headed,
+    -- so treeEq X O = false (per the Pair-vs-leaf clause of treeEq),
+    -- short-circuiting via boolAnd.
+    treeEq_rhsT_codeBot_false : Eq (treeEq rhsT codeBot) false
+    treeEq_rhsT_codeBot_false = refl
+
+  in ineqLemma rhsT codeBot rhsT_iv codeBot_isValue treeEq_rhsT_codeBot_false h'
+
+----------------------------------------------------------------------
+-- decode_bot_axRefl: y = Pair tagCode_axRefl xT.
+--
+-- Pattern test: a tag whose dispatch result has Fst = xT (the second
+-- slot of the input).  Whether treeEq (Pair xT xT) codeBot = false
+-- depends on the value-shape of xT, so the meta-level proof case-
+-- splits on IsValue xT (rather than reducing definitionally as in
+-- the axI case).
+
+private
+  -- (Pair xT xT) vs codeBot = (Pair O codeFalseT).  Outer Pair pattern
+  -- gives boolAnd (treeEq xT O) (treeEq xT codeFalseT).  Either treeEq
+  -- xT O = false (xT non-leaf) or treeEq xT codeFalseT = false (xT = O,
+  -- codeFalseT non-leaf).  Either way boolAnd is false.
+  treeEq_axReflRhs_codeBot_false :
+    (xT : Term) -> IsValue xT ->
+    Eq (treeEq (ap2 Pair xT xT) codeBot) false
+  treeEq_axReflRhs_codeBot_false .O                 valO                = refl
+  treeEq_axReflRhs_codeBot_false (ap2 Pair a b)    (valNd .a .b va vb)  = refl
+
+decode_bot_axRefl :
+  (xT : Term) -> IsValue xT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axRefl xT)) (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axRefl xT vxT h =
+  let
+    red = thmTDispAxRefl_param xT
+
+    rhsT : Term
+    rhsT = ap2 Pair xT xT
+
+    h' : Deriv (atomic (eqn rhsT codeBot))
+    h' = ruleTrans (ruleSym red) h
+
+    rhsT_iv : IsValue rhsT
+    rhsT_iv = valNd xT xT vxT vxT
+
+  in ineqLemma rhsT codeBot rhsT_iv codeBot_isValue
+       (treeEq_axReflRhs_codeBot_false xT vxT) h'
+
+----------------------------------------------------------------------
+-- decode_bot_axFst : y = Pair tagCode_axFst (Pair aT bT).
+--
+-- Multi-arg payload variant.  The dispatch result is a deeply-nested
+-- Pair tagAp1 (Pair (codeF1 Fst) (Pair tagAp2 (Pair (codeF2 Pair) (Pair aT bT))))
+-- paired with aT.  Outer Fst is Pair-headed, contradicting codeBot's O.
+
+decode_bot_axFst :
+  (aT bT : Term) -> IsValue aT -> IsValue bT ->
+  Deriv (atomic (eqn (ap1 thmT (ap2 Pair tagCode_axFst (ap2 Pair aT bT)))
+                     (reify (codeFormula bot)))) ->
+  Deriv bot
+decode_bot_axFst aT bT vaT vbT h =
+  let
+    red = thmTDispAxFst_param aT bT
+
+    rhsT : Term
+    rhsT = ap2 Pair
+             (ap2 Pair (reify tagAp1)
+               (ap2 Pair (reify (codeF1 Fst))
+                 (ap2 Pair (reify tagAp2)
+                   (ap2 Pair (reify (codeF2 Pair))
+                     (ap2 Pair aT bT)))))
+             aT
+
+    h' : Deriv (atomic (eqn rhsT codeBot))
+    h' = ruleTrans (ruleSym red) h
+
+    rhsT_iv : IsValue rhsT
+    rhsT_iv =
+      valNd _ aT
+        (valNd _ _ tagAp1_isValue
+          (valNd _ _ (codeF1_isValue Fst)
+            (valNd _ _ tagAp2_isValue
+              (valNd _ _ (codeF2_isValue Pair) (valNd aT bT vaT vbT)))))
+        vaT
+
+    treeEq_rhsT_codeBot_false : Eq (treeEq rhsT codeBot) false
+    treeEq_rhsT_codeBot_false = refl
+
+  in ineqLemma rhsT codeBot rhsT_iv codeBot_isValue
+       treeEq_rhsT_codeBot_false h'
