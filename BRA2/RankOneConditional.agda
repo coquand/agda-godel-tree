@@ -66,3 +66,41 @@ rankOneConditionalDefault :
   DerivTBounded (suc zero) l bot ->
   Maybe (Sigma Nat (\ l' -> DerivTBounded zero l' bot))
 rankOneConditionalDefault d = rankOneConditional defaultClosedOracle d
+
+------------------------------------------------------------------------
+-- Conditional rank-1 consistency corollary.
+--
+-- If the open fragment is consistent (OpenCon0) AND the unified
+-- pipeline accepts a rank-1 input, then that input is empty
+-- (i.e., we derive Empty).
+--
+-- The conditional aspect is expressed as Maybe Empty : "just"
+-- means the pipeline succeeded and we extracted Empty ; "nothing"
+-- means the pipeline returned nothing (input shape outside the
+-- supported slice) and we cannot conclude.
+
+open import BRA2.BoundedReduction using (OpenCon0)
+
+conBoundedAt1Conditional :
+  ClosedOracle -> OpenCon0 ->
+  {l : Nat} ->
+  DerivTBounded (suc zero) l bot ->
+  Maybe Empty
+conBoundedAt1Conditional oracle openCon d =
+  conBoundedAux openCon (unifiedPipelineFromBounded oracle d)
+  where
+    open import BRA2.UnifiedPipeline using (unifiedPipelineFromBounded)
+    conBoundedAux :
+      OpenCon0 ->
+      Maybe (DerivT0 bot) ->
+      Maybe Empty
+    conBoundedAux _       nothing   = nothing
+    conBoundedAux openCon (just d0) = just (openCon d0)
+
+conBoundedAt1ConditionalDefault :
+  OpenCon0 ->
+  {l : Nat} ->
+  DerivTBounded (suc zero) l bot ->
+  Maybe Empty
+conBoundedAt1ConditionalDefault openCon d =
+  conBoundedAt1Conditional defaultClosedOracle openCon d
