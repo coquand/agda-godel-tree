@@ -42,6 +42,7 @@ open import BRA2.FindIndBT using
 open import BRA2.ClosedPipeline using
   (closedPipelineFromBounded ; ClosedOracle)
 open import BRA2.OpenPipeline using (openPipelineFromBounded)
+open import BRA2.UnifiedPipeline using (unifiedPipelineFromBounded)
 
 ------------------------------------------------------------------------
 -- finalizeFromFind: combine the findIndBT result with
@@ -377,3 +378,43 @@ smokeOpenPipelineJust :
   (step : DerivTBounded zero l2 openStepFormula) ->
   Eq (isJust (smokeOpenPipeline l1 l2 base step)) true
 smokeOpenPipelineJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (J) Unified pipeline: closed-pkgE input dispatched via closed route.
+
+smokeUnifiedClosed :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O botEqn)) ->
+  DerivTBounded zero l2 stepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeUnifiedClosed _ _ base step =
+  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) base step
+      reflRight = B.axReflB zero zero (ap2 Pair O O)
+  in unifiedPipelineFromBounded smokeOracle (B.ruleTransB core reflRight)
+
+smokeUnifiedClosedJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O botEqn))) ->
+  (step : DerivTBounded zero l2 stepFormula) ->
+  Eq (isJust (smokeUnifiedClosed l1 l2 base step)) true
+smokeUnifiedClosedJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (K) Unified pipeline: open-pkgE input dispatched via open route.
+
+smokeUnifiedOpen :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O openPkgE)) ->
+  DerivTBounded zero l2 openStepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeUnifiedOpen _ _ base step =
+  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) base step
+      withInst = B.ruleInstB zero (ap2 Pair O O) core
+  in unifiedPipelineFromBounded smokeOracle (B.ruleSymB withInst)
+
+smokeUnifiedOpenJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O openPkgE))) ->
+  (step : DerivTBounded zero l2 openStepFormula) ->
+  Eq (isJust (smokeUnifiedOpen l1 l2 base step)) true
+smokeUnifiedOpenJust _ _ _ _ = refl
