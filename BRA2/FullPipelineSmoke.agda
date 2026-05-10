@@ -103,3 +103,100 @@ smokeFullPipelineJust :
   (step : DerivTBounded zero l2 stepFormula) ->
   Eq (isJust (smokeFullPipeline l1 l2 base step)) true
 smokeFullPipelineJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (C) Wrapped-indBTB smoke test for findIndBT (Case B).
+--
+-- Input:
+--   ruleTransB
+--     (indBTB botEqn 1 2 base step)         -- conclusion: atomic botEqn
+--     (axReflB 0 0 (ap2 Pair O O))          -- conclusion: eqn (Pair O O) (Pair O O)
+--   conclusion: atomic (eqn O (Pair O O)) = atomic botEqn = bot
+--
+-- Tests that findIndBT successfully descends through ruleTransB,
+-- locates the indBTB on the left, and packages it with a transL
+-- frame around the right (axReflB) lifted to DerivT0.  Returns
+-- just (inr pkg) at the findIndBT level; the full pipeline still
+-- returns nothing at this stage because Case C (extractor handling
+-- of transL frames) is not yet implemented.
+
+isJustOr : {l : Nat} ->
+            Maybe (Or (O.DerivT0 bot) IndBTPackage) ->
+            Bool
+isJustOr (just _) = true
+isJustOr nothing  = false
+
+smokeWrappedTransFind :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O botEqn)) ->
+  DerivTBounded zero l2 stepFormula ->
+  Maybe (Or (O.DerivT0 bot) IndBTPackage)
+smokeWrappedTransFind _ _ base step =
+  let core = B.indBTB botEqn (suc zero) (suc (suc zero)) base step
+      reflRight = B.axReflB zero zero (ap2 Pair O O)
+  in findIndBT (B.ruleTransB core reflRight)
+
+smokeWrappedTransFindJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O botEqn))) ->
+  (step : DerivTBounded zero l2 stepFormula) ->
+  Eq (isJustOr {zero} (smokeWrappedTransFind l1 l2 base step)) true
+smokeWrappedTransFindJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (D) ruleSymB-wrapped indBTB.  Conclusion-of-indBTB is the swap of
+-- botEqn ; ruleSymB then swaps back to bot.
+--
+-- This exercises the wrapSym helper and the IndBTContext0  sym  frame
+-- on pkgCtx.
+
+swappedBotEqn : Equation
+swappedBotEqn = eqn (ap2 Pair O O) O
+
+swappedStepFormula : Formula
+swappedStepFormula =
+  (atomic (substEq zero (var (suc zero)) swappedBotEqn))
+  imp ((atomic (substEq zero (var (suc (suc zero))) swappedBotEqn))
+       imp (atomic (substEq zero (ap2 Pair (var (suc zero)) (var (suc (suc zero)))) swappedBotEqn)))
+
+smokeWrappedSymFind :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O swappedBotEqn)) ->
+  DerivTBounded zero l2 swappedStepFormula ->
+  Maybe (Or (O.DerivT0 bot) IndBTPackage)
+smokeWrappedSymFind _ _ base step =
+  let core = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) base step
+  in findIndBT (B.ruleSymB core)
+
+smokeWrappedSymFindJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O swappedBotEqn))) ->
+  (step : DerivTBounded zero l2 swappedStepFormula) ->
+  Eq (isJustOr {zero} (smokeWrappedSymFind l1 l2 base step)) true
+smokeWrappedSymFindJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (E) Doubly-wrapped: ruleTransB (ruleSymB (indBTB swap_e ...))
+--                                (axReflB (Pair O O))
+--
+-- Tests composition of multiple wrappers on the package's pkgCtx
+-- (sym INSIDE transL).  The outermost conclusion is bot ; the
+-- pkgCtx accumulates  transL (sym (hole _)) (axRefl (Pair O O)) .
+
+smokeDoubleWrapFind :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O swappedBotEqn)) ->
+  DerivTBounded zero l2 swappedStepFormula ->
+  Maybe (Or (O.DerivT0 bot) IndBTPackage)
+smokeDoubleWrapFind _ _ base step =
+  let core      = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) base step
+      symCore   = B.ruleSymB core
+      reflRight = B.axReflB zero zero (ap2 Pair O O)
+  in findIndBT (B.ruleTransB symCore reflRight)
+
+smokeDoubleWrapFindJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O swappedBotEqn))) ->
+  (step : DerivTBounded zero l2 swappedStepFormula) ->
+  Eq (isJustOr {zero} (smokeDoubleWrapFind l1 l2 base step)) true
+smokeDoubleWrapFindJust _ _ _ _ = refl
