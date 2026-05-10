@@ -161,13 +161,131 @@ stripInstZeroHole (mpR d_imp ctx')    = wrapStripMpR d_imp (stripInstZeroHole ct
 stripInstZeroHole (inst zero t (hole _) eqOut) =
   doExtractAtHole t eqOut (decideIsValue t)
 
--- inst with x = 0 and any non-hole inner: deferred (Case C extension).
-stripInstZeroHole (inst zero _ (sym _)         _) = nothing
+-- inst zero t (sym (hole _)) eqOut : commutes substitution with sym.
+-- Original output:    inst applied to (atomic (eqn u1 t1))
+--                     = atomic (eqn (subst 0 t u1) (subst 0 t t1))
+-- Rewritten path :    sym (hole (atomic (eqn (subst 0 t t1) (subst 0 t u1))))
+--                     = atomic (eqn (subst 0 t u1) (subst 0 t t1))
+-- (same target ; eqSubst with eqOut transports to the abstract Target)
+stripInstZeroHole {Target = Target}
+                  (inst zero t (sym {t = t1} {u = u1} (hole _)) eqOut) =
+  symInstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = atomic (eqn (subst zero t t1) (subst zero t u1))
+    rawCtx : IndBTContext0 P-sub (atomic (eqn (subst zero t u1) (subst zero t t1)))
+    rawCtx = sym (hole P-sub)
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    symInstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract (atomic (eqn t1 u1)) Target)
+    symInstHoleHelp nothing   = nothing
+    symInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (cong1 f (hole _)) eqOut : commutes substitution past cong1.
+-- The ap1 's f gets substituted: ap1 f t1 -> ap1 (substF1 0 t f) (subst 0 t t1).
+stripInstZeroHole {Target = Target}
+                  (inst zero t (cong1 f {t = t1} {u = u1} (hole _)) eqOut) =
+  cong1InstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = atomic (eqn (subst zero t t1) (subst zero t u1))
+    Q-sub : Formula
+    Q-sub = atomic (eqn (ap1 (substF1 zero t f) (subst zero t t1))
+                          (ap1 (substF1 zero t f) (subst zero t u1)))
+    rawCtx : IndBTContext0 P-sub Q-sub
+    rawCtx = cong1 (substF1 zero t f) (hole P-sub)
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    cong1InstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract (atomic (eqn t1 u1)) Target)
+    cong1InstHoleHelp nothing   = nothing
+    cong1InstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (congL g x (hole _)) eqOut : commutes substitution past
+-- congL.  The g and x both get substituted.
+stripInstZeroHole {Target = Target}
+                  (inst zero t (congL g {t = t1} {u = u1} x (hole _)) eqOut) =
+  congLInstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = atomic (eqn (subst zero t t1) (subst zero t u1))
+    Q-sub : Formula
+    Q-sub = atomic (eqn (ap2 (substF2 zero t g) (subst zero t t1) (subst zero t x))
+                          (ap2 (substF2 zero t g) (subst zero t u1) (subst zero t x)))
+    rawCtx : IndBTContext0 P-sub Q-sub
+    rawCtx = congL (substF2 zero t g) (subst zero t x) (hole P-sub)
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    congLInstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract (atomic (eqn t1 u1)) Target)
+    congLInstHoleHelp nothing   = nothing
+    congLInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (congR g x (hole _)) eqOut : symmetric to congL.
+stripInstZeroHole {Target = Target}
+                  (inst zero t (congR g x {t = t1} {u = u1} (hole _)) eqOut) =
+  congRInstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = atomic (eqn (subst zero t t1) (subst zero t u1))
+    Q-sub : Formula
+    Q-sub = atomic (eqn (ap2 (substF2 zero t g) (subst zero t x) (subst zero t t1))
+                          (ap2 (substF2 zero t g) (subst zero t x) (subst zero t u1)))
+    rawCtx : IndBTContext0 P-sub Q-sub
+    rawCtx = congR (substF2 zero t g) (subst zero t x) (hole P-sub)
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    congRInstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract (atomic (eqn t1 u1)) Target)
+    congRInstHoleHelp nothing   = nothing
+    congRInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (W _) eqOut where W is a non-hole non-unary-with-hole-inner
+-- frame : deferred.  Specifically: nested wrappers (sym (sym hole)),
+-- binary frames (transL/R, mpL/R), and inst inside inst.
+stripInstZeroHole (inst zero _ (sym (sym _))           _) = nothing
+stripInstZeroHole (inst zero _ (sym (transL _ _))      _) = nothing
+stripInstZeroHole (inst zero _ (sym (transR _ _))      _) = nothing
+stripInstZeroHole (inst zero _ (sym (cong1 _ _))       _) = nothing
+stripInstZeroHole (inst zero _ (sym (congL _ _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (sym (congR _ _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (sym (mpL _ _))         _) = nothing
+stripInstZeroHole (inst zero _ (sym (mpR _ _))         _) = nothing
+stripInstZeroHole (inst zero _ (sym (inst _ _ _ _))    _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (sym _))       _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (transL _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (transR _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (cong1 _ _))   _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (congL _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (congR _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (mpL _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (mpR _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (cong1 _ (inst _ _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (sym _))       _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (transL _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (transR _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (cong1 _ _))   _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (congL _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (congR _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (mpL _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (mpR _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (congL _ _ (inst _ _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (sym _))       _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (transL _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (transR _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (cong1 _ _))   _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (congL _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (congR _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (mpL _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (mpR _ _))     _) = nothing
+stripInstZeroHole (inst zero _ (congR _ _ (inst _ _ _ _)) _) = nothing
 stripInstZeroHole (inst zero _ (transL _ _)    _) = nothing
 stripInstZeroHole (inst zero _ (transR _ _)    _) = nothing
-stripInstZeroHole (inst zero _ (cong1 _ _)     _) = nothing
-stripInstZeroHole (inst zero _ (congL _ _ _)   _) = nothing
-stripInstZeroHole (inst zero _ (congR _ _ _)   _) = nothing
 stripInstZeroHole (inst zero _ (mpL _ _)       _) = nothing
 stripInstZeroHole (inst zero _ (mpR _ _)       _) = nothing
 stripInstZeroHole (inst zero _ (inst _ _ _ _)  _) = nothing

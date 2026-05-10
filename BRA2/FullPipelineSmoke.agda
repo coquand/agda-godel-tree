@@ -400,3 +400,34 @@ smokeRankOneOpenJust :
   (step : DerivTBounded zero l2 openStepFormula) ->
   Eq (isJust (smokeRankOneOpen l1 l2 base step)) true
 smokeRankOneOpenJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (M) Open-pkgE with inst-INSIDE-sym (Case C deeper).
+--
+-- Synthetic input:
+--   indBTB at  e = eqn (var 0) O                  -- var 0 free
+--   wrap with  ruleSymB                           -- swaps to eqn O (var 0)
+--   wrap with  ruleInstB 0 (Pair O O)             -- substitutes var 0 := Pair O O
+--                                                   giving eqn O (Pair O O) = bot
+--
+-- The resulting pkgCtx = inst 0 (Pair O O) (sym (hole _)) refl ;
+-- this is exactly the inst-with-sym-hole-inner case the extended
+-- stripInstZeroHole now handles.
+
+smokeOpenInstSym :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O openPkgE)) ->
+  DerivTBounded zero l2 openStepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeOpenInstSym _ _ base step =
+  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) base step
+      withSym = B.ruleSymB core
+  in unifiedPipelineFromBounded smokeOracle
+       (B.ruleInstB zero (ap2 Pair O O) withSym)
+
+smokeOpenInstSymJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O openPkgE))) ->
+  (step : DerivTBounded zero l2 openStepFormula) ->
+  Eq (isJust (smokeOpenInstSym l1 l2 base step)) true
+smokeOpenInstSymJust _ _ _ _ = refl
