@@ -17,7 +17,7 @@
 module BRA2.NatMaxLemmas where
 
 open import BRA2.Base
-open import BRA2.DerivTBounded using (natMax)
+open import BRA2.NatMax using (natMax)
 
 ------------------------------------------------------------------------
 -- Decomposition of  natMax  at zero.

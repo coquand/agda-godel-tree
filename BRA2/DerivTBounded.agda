@@ -29,15 +29,9 @@ module BRA2.DerivTBounded where
 open import BRA2.Base
 open import BRA2.Term
 open import BRA2.Formula
+open import BRA2.NatMax public using (natMax)
+open import BRA2.WellFormedIndBT using (WellFormedIndBT)
 import BRA2.DerivT as T
-
-------------------------------------------------------------------------
--- max on Nat (local; Base.agda has no max).
-
-natMax : Nat -> Nat -> Nat
-natMax zero    m       = m
-natMax (suc n) zero    = suc n
-natMax (suc n) (suc m) = suc (natMax n m)
 
 ------------------------------------------------------------------------
 -- DerivTBounded : indexed by rank r and level l.
@@ -178,6 +172,7 @@ data DerivTBounded : Nat -> Nat -> Formula -> Set where
 
   indBTB    : {r1 l1 r2 l2 : Nat}
                (e : Equation) (v1 v2 : Nat) ->
+               WellFormedIndBT e v1 v2 ->
                DerivTBounded r1 l1 (atomic (substEq zero O e)) ->
                DerivTBounded r2 l2
                  ((atomic (substEq zero (var v1) e)) imp
@@ -254,7 +249,7 @@ forgetB (axSB _ _ P Q R)          = T.axS P Q R
 forgetB (axNegB _ _ P Q)          = T.axNeg P Q
 forgetB (mpB d1 d2)               = T.mp (forgetB d1) (forgetB d2)
 forgetB (ruleInstB x t d)         = T.ruleInst x t (forgetB d)
-forgetB (indBTB e v1 v2 base step) =
+forgetB (indBTB e v1 v2 _ base step) =
   T.indBT e v1 v2 (forgetB base) (forgetB step)
 forgetB (indBT2B e v1 v2 v3 v4 baseLL baseLN baseNL basePP) =
   T.indBT2 e v1 v2 v3 v4

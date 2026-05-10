@@ -88,7 +88,7 @@ rankZeroAux (B.mpB {r1} {_} {r2} {_} d1 d2) eq =
   let p = natMaxZero r1 r2 eq in
   O.mp (rankZeroAux d1 (fst p)) (rankZeroAux d2 (snd p))
 rankZeroAux (B.ruleInstB x t d)         eq = O.ruleInst x t (rankZeroAux d eq)
-rankZeroAux (B.indBTB _ _ _ _ _)        ()
+rankZeroAux (B.indBTB _ _ _ _ _ _)      ()
 rankZeroAux (B.indBT2B _ _ _ _ _ _ _ _ _) ()
 
 ------------------------------------------------------------------------

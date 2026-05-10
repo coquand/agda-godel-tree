@@ -123,14 +123,14 @@ weakenRank r' le (B.mpB {r1} {l1} {r2} {l2} {P} {Q} d1 d2) =
 -- indBTB: output rank is suc (natMax r1 r2).  Pattern-match on the
 -- NatLE bound to expose r' = suc r''; weaken inner premises to r'';
 -- re-pack and collapse via natMaxIdem.
-weakenRank (suc r'') (leSuc le') (B.indBTB {r1} {l1} {r2} {l2} e v1 v2 base step) =
+weakenRank (suc r'') (leSuc le') (B.indBTB {r1} {l1} {r2} {l2} e v1 v2 wf base step) =
   let lePair = natMaxLE_split {r1} {r2} le'
       le1 = fst lePair
       le2 = snd lePair
       base' = weakenRank r'' le1 base
       step' = weakenRank r'' le2 step
       combined : DerivTBounded (suc (natMax r'' r'')) (natMax l1 l2) (atomic e)
-      combined = B.indBTB e v1 v2 base' step'
+      combined = B.indBTB e v1 v2 wf base' step'
       eqRR = natMaxIdem r''
   in eqSubst (\ rr -> DerivTBounded (suc rr) (natMax l1 l2) (atomic e))
               eqRR combined

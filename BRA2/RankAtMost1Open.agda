@@ -153,7 +153,7 @@ rankAtMost1ToOpen h1 h2 le (B.ruleInstB x t d) =
 -- ----- indBT cases: extract that inner ranks are zero, lift to
 -- ----- DerivT0, dispatch to handler -----
 rankAtMost1ToOpen handleIndBT _ (leSuc le')
-                  (B.indBTB {r1} {l1} {r2} {l2} e v1 v2 base step) =
+                  (B.indBTB {r1} {l1} {r2} {l2} e v1 v2 _ base step) =
   let -- le' : NatLE (natMax r1 r2) zero  =>  natMax r1 r2 = 0  =>  r1 = r2 = 0.
       maxEqZ : Eq (natMax r1 r2) zero
       maxEqZ = natLE_zero_eq le'

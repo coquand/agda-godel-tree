@@ -89,13 +89,23 @@ stepFormula =
   imp ((atomic (substEq zero (var (suc (suc zero))) botEqn))
        imp (atomic (substEq zero (ap2 Pair (var (suc zero)) (var (suc (suc zero)))) botEqn)))
 
+------------------------------------------------------------------------
+-- WellFormedIndBT witnesses for the smoke-test inputs.
+
+open import BRA2.WellFormedIndBT
+  using (WellFormedIndBT ; mkWellFormed)
+open import BRA2.MaxVar using (geqZero ; geqSuc)
+
+botEqnWF : WellFormedIndBT botEqn (suc zero) (suc (suc zero))
+botEqnWF = mkWellFormed (geqZero (suc zero)) (geqZero (suc (suc zero))) refl
+
 smokeFullPipeline :
   (l1 l2 : Nat) ->
   DerivTBounded zero l1 (atomic (substEq zero O botEqn)) ->
   DerivTBounded zero l2 stepFormula ->
   Maybe (O.DerivT0 bot)
 smokeFullPipeline _ _ base step =
-  fullPipeline (B.indBTB botEqn (suc zero) (suc (suc zero)) base step)
+  fullPipeline (B.indBTB botEqn (suc zero) (suc (suc zero)) botEqnWF base step)
 
 ------------------------------------------------------------------------
 -- (B) refl-witness that the pipeline returns  just  on the synthetic
@@ -137,7 +147,7 @@ smokeWrappedTransFind :
   DerivTBounded zero l2 stepFormula ->
   Maybe (Or (O.DerivT0 bot) IndBTPackage)
 smokeWrappedTransFind _ _ base step =
-  let core = B.indBTB botEqn (suc zero) (suc (suc zero)) base step
+  let core = B.indBTB botEqn (suc zero) (suc (suc zero)) botEqnWF base step
       reflRight = B.axReflB zero zero (ap2 Pair O O)
   in findIndBT (B.ruleTransB core reflRight)
 
@@ -164,13 +174,16 @@ swappedStepFormula =
   imp ((atomic (substEq zero (var (suc (suc zero))) swappedBotEqn))
        imp (atomic (substEq zero (ap2 Pair (var (suc zero)) (var (suc (suc zero)))) swappedBotEqn)))
 
+swappedBotEqnWF : WellFormedIndBT swappedBotEqn (suc zero) (suc (suc zero))
+swappedBotEqnWF = mkWellFormed (geqZero (suc zero)) (geqZero (suc (suc zero))) refl
+
 smokeWrappedSymFind :
   (l1 l2 : Nat) ->
   DerivTBounded zero l1 (atomic (substEq zero O swappedBotEqn)) ->
   DerivTBounded zero l2 swappedStepFormula ->
   Maybe (Or (O.DerivT0 bot) IndBTPackage)
 smokeWrappedSymFind _ _ base step =
-  let core = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) base step
+  let core = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) swappedBotEqnWF base step
   in findIndBT (B.ruleSymB core)
 
 smokeWrappedSymFindJust :
@@ -194,7 +207,7 @@ smokeDoubleWrapFind :
   DerivTBounded zero l2 swappedStepFormula ->
   Maybe (Or (O.DerivT0 bot) IndBTPackage)
 smokeDoubleWrapFind _ _ base step =
-  let core      = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) base step
+  let core      = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) swappedBotEqnWF base step
       symCore   = B.ruleSymB core
       reflRight = B.axReflB zero zero (ap2 Pair O O)
   in findIndBT (B.ruleTransB symCore reflRight)
@@ -230,7 +243,7 @@ smokeFullPipelineClosed :
   Maybe (O.DerivT0 bot)
 smokeFullPipelineClosed _ _ base step =
   closedPipelineFromBounded smokeOracle
-    (B.indBTB botEqn (suc zero) (suc (suc zero)) base step)
+    (B.indBTB botEqn (suc zero) (suc (suc zero)) botEqnWF base step)
 
 smokeFullPipelineClosedJust :
   (l1 l2 : Nat) ->
@@ -247,7 +260,7 @@ smokeWrappedTransClosed :
   DerivTBounded zero l2 stepFormula ->
   Maybe (O.DerivT0 bot)
 smokeWrappedTransClosed _ _ base step =
-  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) base step
+  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) botEqnWF base step
       reflRight = B.axReflB zero zero (ap2 Pair O O)
   in closedPipelineFromBounded smokeOracle (B.ruleTransB core reflRight)
 
@@ -266,7 +279,7 @@ smokeWrappedSymClosed :
   DerivTBounded zero l2 swappedStepFormula ->
   Maybe (O.DerivT0 bot)
 smokeWrappedSymClosed _ _ base step =
-  let core = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) base step
+  let core = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) swappedBotEqnWF base step
   in closedPipelineFromBounded smokeOracle (B.ruleSymB core)
 
 smokeWrappedSymClosedJust :
@@ -305,13 +318,19 @@ openStepFormula =
   imp ((atomic (substEq zero (var (suc (suc zero))) openPkgE))
        imp (atomic (substEq zero (ap2 Pair (var (suc zero)) (var (suc (suc zero)))) openPkgE)))
 
+openPkgEWF : WellFormedIndBT openPkgE (suc zero) (suc (suc zero))
+openPkgEWF =
+  mkWellFormed (geqSuc (geqZero zero))
+                (geqSuc (geqZero (suc zero)))
+                refl
+
 smokeOpenPipeline :
   (l1 l2 : Nat) ->
   DerivTBounded zero l1 (atomic (substEq zero O openPkgE)) ->
   DerivTBounded zero l2 openStepFormula ->
   Maybe (O.DerivT0 bot)
 smokeOpenPipeline _ _ base step =
-  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) base step
+  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) openPkgEWF base step
       withInst = B.ruleInstB zero (ap2 Pair O O) core
   in openPipelineFromBounded (B.ruleSymB withInst)
 
@@ -331,7 +350,7 @@ smokeUnifiedClosed :
   DerivTBounded zero l2 stepFormula ->
   Maybe (O.DerivT0 bot)
 smokeUnifiedClosed _ _ base step =
-  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) base step
+  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) botEqnWF base step
       reflRight = B.axReflB zero zero (ap2 Pair O O)
   in unifiedPipelineFromBounded smokeOracle (B.ruleTransB core reflRight)
 
@@ -351,7 +370,7 @@ smokeUnifiedOpen :
   DerivTBounded zero l2 openStepFormula ->
   Maybe (O.DerivT0 bot)
 smokeUnifiedOpen _ _ base step =
-  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) base step
+  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) openPkgEWF base step
       withInst = B.ruleInstB zero (ap2 Pair O O) core
   in unifiedPipelineFromBounded smokeOracle (B.ruleSymB withInst)
 
@@ -373,7 +392,7 @@ smokeRankOneClosed :
   DerivTBounded zero l2 stepFormula ->
   Maybe (Sigma Nat (\ l' -> DerivTBounded zero l' bot))
 smokeRankOneClosed _ _ base step =
-  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) base step
+  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) botEqnWF base step
       reflRight = B.axReflB zero zero (ap2 Pair O O)
   in rankOneConditionalDefault (B.ruleTransB core reflRight)
 
@@ -390,7 +409,7 @@ smokeRankOneOpen :
   DerivTBounded zero l2 openStepFormula ->
   Maybe (Sigma Nat (\ l' -> DerivTBounded zero l' bot))
 smokeRankOneOpen _ _ base step =
-  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) base step
+  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) openPkgEWF base step
       withInst = B.ruleInstB zero (ap2 Pair O O) core
   in rankOneConditionalDefault (B.ruleSymB withInst)
 
@@ -420,7 +439,7 @@ smokeOpenInstSym :
   DerivTBounded zero l2 openStepFormula ->
   Maybe (O.DerivT0 bot)
 smokeOpenInstSym _ _ base step =
-  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) base step
+  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) openPkgEWF base step
       withSym = B.ruleSymB core
   in unifiedPipelineFromBounded smokeOracle
        (B.ruleInstB zero (ap2 Pair O O) withSym)
@@ -433,35 +452,17 @@ smokeOpenInstSymJust :
 smokeOpenInstSymJust _ _ _ _ = refl
 
 ------------------------------------------------------------------------
--- (N) Case A boundary: ill-formed indBTB inputs reduce to nothing.
+-- (N) Case A : ill-formed indBTBs are now TYPE-IMPOSSIBLE.
 --
--- Synthetic input with v1 = v2 = 0 violates  WellFormedIndBT 's
--- distinctness condition (NotEqNat v2 v1).  decideWellFormed in
--- findIndBTAux dispatches to nothing, propagating to the pipeline.
+-- After the Case A Option 1 refactor, B.indBTB requires a
+-- WellFormedIndBT witness as a constructor argument.  An
+-- ill-formed instance like  B.indBTB botEqn 0 0 base step
+-- now fails to typecheck because  WellFormedIndBT botEqn 0 0
+-- is uninhabited (NotEqNat 0 0  reduces to  Eq true false).
 --
--- This documents Case A's unhandled boundary: ill-formed indBTBs
--- are detected and rejected, but not REPAIRED.  The doc's options
--- 1 (refactor B.indBTB to require WellFormedIndBT) and 2 (alpha-
--- renaming traversal) remain future work.
+-- Hence the previous smokeIllFormedNothing test (which constructed
+-- such an instance and refl-witnessed the pipeline returning
+-- nothing) is no longer constructible -- the boundary has moved
+-- from a runtime check to a type-level invariant.
 
-illFormedStepFormula : Formula
-illFormedStepFormula =
-  (atomic (substEq zero (var zero) botEqn))
-  imp ((atomic (substEq zero (var zero) botEqn))
-       imp (atomic (substEq zero (ap2 Pair (var zero) (var zero)) botEqn)))
-
-smokeIllFormedNothing :
-  (l1 l2 : Nat) ->
-  DerivTBounded zero l1 (atomic (substEq zero O botEqn)) ->
-  DerivTBounded zero l2 illFormedStepFormula ->
-  Maybe (O.DerivT0 bot)
-smokeIllFormedNothing _ _ base step =
-  unifiedPipelineFromBounded smokeOracle
-    (B.indBTB botEqn zero zero base step)
-
-smokeIllFormedNothingFalse :
-  (l1 l2 : Nat) ->
-  (base : DerivTBounded zero l1 (atomic (substEq zero O botEqn))) ->
-  (step : DerivTBounded zero l2 illFormedStepFormula) ->
-  Eq (isJust (smokeIllFormedNothing l1 l2 base step)) false
-smokeIllFormedNothingFalse _ _ _ _ = refl
+-- (Negative test deleted; ill-formedness now caught at construction.)

@@ -381,7 +381,7 @@ findIndBTAux _ le (B.ruleInstB x t {P = P} d) =
 -- le' : NatLE (natMax r1 r2) 0, which natLE_zero_eq turns into
 -- Eq (natMax r1 r2) 0; natMaxZero then gives (r1 = 0, r2 = 0).
 -- Lift premises to rank 0 via eqSubst, then build the package.
-findIndBTAux _ (leSuc le') (B.indBTB {r1} {l1} {r2} {l2} e v1 v2 base step) =
+findIndBTAux _ (leSuc le') (B.indBTB {r1} {l1} {r2} {l2} e v1 v2 wf base step) =
   let maxEqZ : Eq (natMax r1 r2) zero
       maxEqZ = natLE_zero_eq le'
       pair    = natMaxZero r1 r2 maxEqZ
@@ -389,7 +389,7 @@ findIndBTAux _ (leSuc le') (B.indBTB {r1} {l1} {r2} {l2} e v1 v2 base step) =
       r2Eq0   = snd pair
       baseAt0 = eqSubst (\ rk -> DerivTBounded rk l1 (atomic (substEq zero O e))) r1Eq0 base
       stepAt0 = eqSubst (\ rk -> DerivTBounded rk l2 _) r2Eq0 step
-  in packageOrFail e v1 v2 (decideWellFormed e v1 v2) baseAt0 stepAt0
+  in just (inr (buildPackageFromIndBT e v1 v2 wf baseAt0 stepAt0))
 
 -- indBT2B : deferred (Case B does not extend to it; future work).
 findIndBTAux _ _ (B.indBT2B _ _ _ _ _ _ _ _ _) = nothing
