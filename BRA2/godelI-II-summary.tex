@@ -527,8 +527,8 @@ chains, collapse at the closure --- is what lets the proof be
 parametric over $(x : \mathit{Term})$ rather than meta-iterated over
 closed numerals.
 
-\subsection{The projective specification of $\mathit{mp}$}
-\label{subsec:mp-projective-spec}
+\subsection{The projection-based specification of $\mathit{mp}$}
+\label{subsec:mp-projection-based-spec}
 
 A natural question raised by the chain is: what \emph{exactly} is the
 specification of $\mathit{mp}$ as embedded in $\mathit{thmT}$, given
@@ -600,7 +600,7 @@ of the previous step.  So the two $\mathit{TreeEq}$ checks both fire
 the dispatch returns the consequent's substituted-code.  The chain
 composes precisely because both readings of $\mathit{mp}$ --- the
 ``well-typed Formula'' and ``well-shaped substituted-code'' cases ---
-are handled by the same projective primitive-recursive computation.
+are handled by the same projection-based primitive-recursive computation.
 
 The result is again a substituted-code, fed into the next step the
 same way:
@@ -621,14 +621,14 @@ hierarchy:
         producing a Term output by syntactic projection.
   \item[Declarative (what soundness justifies).]  At literal
         $\mathit{codeFormula}\,(P \mathrel{\mathit{imp}} Q)$ inputs, the
-        projective behaviour delivers $\mathit{codeFormula}\,Q$.  This
+        projection-based behaviour delivers $\mathit{codeFormula}\,Q$.  This
         is what makes $\mathit{thmT}$ a sound proof-checker
         ($\mathit{encodeRich}$'s $\mathit{mp}$ clause).
 \end{description}
-The soundness reading factors through the projective reading: BRA's
+The soundness reading factors through the projection-based reading: BRA's
 $\mathit{mp}$ primitive only knows about Term shape, and Formula-content
 correctness is the \emph{consequence} for the well-shaped subset of
-inputs.  Theorem~14 step~3 uses the projective reading directly; the
+inputs.  Theorem~14 step~3 uses the projection-based reading directly; the
 final closure converts to the declarative reading by instantiating at
 a value-shape witness.
 
@@ -643,14 +643,14 @@ verifying-body construction
 ($\mathit{body\_X\_v} = \mathit{Post}\,\mathit{verifierX}\,\mathit{Pair}$,
 Section~``Sound $\mathit{thmT}$'' of \verb|README.md|) is precisely
 what enforces the safe default $\mathit{codeTriv}$ on malformed inputs
-without spoiling the projective behaviour on well-shaped ones.
+without spoiling the projection-based behaviour on well-shaped ones.
 
 In one line: \emph{BRA's $\mathit{mp}$ is a Term projection that
 happens to internalise Formula modus ponens at well-typed inputs}.
 The chain in step~3 uses the projection-on-Term reading; the
 internal-modus-ponens reading is what justifies it semantically at
 the value-shape closure.  Both readings are valid specifications;
-the projective one is strictly more general and is what makes the
+the projection-based one is strictly more general and is what makes the
 chain compose at variable $x$.
 
 \subsection{Comparison with Hilbert--Bernays--L\"ob}
