@@ -1200,6 +1200,103 @@ files (the Step~1--3-stub deliverables of
         plan Section 5.
 \end{itemize}
 
+\paragraph{Progress on $\mathit{RankDecrement}$ at rank one.}
+A substantial portion of the rank-1 case of $\mathit{RankDecrement}$
+is now in place.  Given a $\mathit{DerivTBounded}\;1\;l\;\bot$, we
+construct a $\mathit{DerivT}_0\;\bot$ for a clearly characterised
+slice of inputs.  The construction is decomposed into three stages,
+each formalised in a separate Agda module under \verb|--safe|, with
+no postulates and sub-second typecheck times.
+
+\begin{enumerate}
+  \item \textbf{Locate.}  A structural recursion descends through
+        every rule of the rank-1 proof tree, locating the topmost
+        induction step and accumulating the chain of intermediate
+        equational reasoning between that induction step and the
+        root as a \emph{one-hole proof context}: a sequence of
+        structural-rule frames (symmetry, transitivity, congruence,
+        modus ponens, instantiation) recording how the induction's
+        conclusion is transformed into $\bot$ along the path.
+
+  \item \textbf{Eliminate.}  Two strategies handle the located
+        induction step.
+
+        When the equation under induction does not actually contain
+        the bound variable free, the base premise is, by computation,
+        already a derivation of the conclusion (since substituting
+        the canonical value into a closed equation is the identity).
+        Plugging this base premise through the recorded one-hole
+        context yields a $\mathit{DerivT}_0$ derivation of $\bot$
+        directly, with no use of the induction-step premise.
+
+        Otherwise --- when the equation is genuinely open in the
+        bound variable --- we search the recorded context for an
+        explicit \emph{closing instantiation}: a frame substituting
+        a value-shape term for the bound variable.  When such a
+        closing instantiation is reachable through any chain of
+        single-step structural-rule wrappers (each wrapper
+        commutes substitution past itself, with the fixed non-hole
+        premises of binary frames substituted in turn), the standard
+        induction-elimination procedure (a finite recursion guided
+        by the closing value's tree shape) produces a
+        $\mathit{DerivT}_0$ derivation at the substituted equation,
+        after which the residual outer context plugs through to
+        $\bot$.
+
+  \item \textbf{Dispatch and embed.}  The two strategies are
+        composed in a single pipeline: the closed-equation route
+        is tried first because it bypasses the induction-step
+        machinery; the open-equation route handles the residue.
+        Composition with a structural embedding of $\mathit{DerivT}_0$
+        back into rank-0 $\mathit{DerivTBounded}$ yields a function
+        of the targeted $\mathit{RankDecrement}$ shape, modulo a
+        $\mathsf{Maybe}$ wrapper recording the cases the locate-
+        and-eliminate slice does not yet cover:
+        \[
+          \mathit{DerivTBounded}\;1\;l\;\bot \;\longrightarrow\;
+          \mathsf{Maybe}\bigl(\Sigma\,l',\;
+            \mathit{DerivTBounded}\;0\;l'\;\bot\bigr).
+        \]
+        Followed by $\mathit{rankZero}$ and the open-consistency
+        assumption $\mathit{OpenCon}_0$, this reduces a rank-1 proof
+        of $\bot$ to a contradiction whenever the pipeline accepts
+        the input.
+\end{enumerate}
+
+The well-formedness side conditions of $\mathit{indBT}$ (freshness
+of the bound variables, distinctness) are now \emph{type-level
+invariants}: the bounded induction constructor itself takes a
+well-formedness record as an argument, so an ill-formed instance
+is unconstructible.  This closes the corresponding side of the
+analysis at the type level rather than at runtime, removing one of
+the three previously identified sources of partial behaviour.
+
+The remaining $\mathsf{Maybe}$ is genuinely partial: the pipeline
+returns $\mathsf{nothing}$ exactly when the closing instantiation
+exists in the proof tree but is buried beneath a nested combination
+of wrappers that the current single-step rewriting does not unfold
+(for instance, a doubled symmetry frame or an instantiation inside
+an instantiation), or when the original tree uses the
+two-variable tree-pair induction primitive $\mathit{indBT}_2$
+rather than the single-variable $\mathit{indBT}$.  Both of these
+are recognised cases of the same finite case analysis already
+handled for the single-step wrappers, and are scheduled as the next
+concrete extensions.
+
+The general higher-rank case ($r \to r{-}1$ for $r > 1$) remains
+conjectural; its difficulty is precisely whether the same
+elimination procedure stays inside the rank-$r$ bound or escapes
+it, and is the central calibration question for the complexity
+measure.
+
+A panel of thirteen $\mathsf{refl}$-witnessed end-to-end tests runs
+the full pipeline on synthetic rank-1 inputs whose induction
+premises are taken as abstract parameters (we cannot construct
+them concretely without contradicting consistency).  Each test
+reduces to $\mathsf{just}$ definitionally, locking in that the
+certified pipeline does not merely typecheck but actually computes
+through to a $\mathit{DerivT}_0$ derivation of $\bot$.
+
 The selection of complexity measure (induction rank, checker rank,
 reflection rank, or a Grzegorczyk-class rank tied to the function
 hierarchy of Section~\ref{subsec:elementary}) is itself the research
