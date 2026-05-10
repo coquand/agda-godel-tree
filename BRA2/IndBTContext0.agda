@@ -88,9 +88,18 @@ data IndBTContext0 : Formula -> Formula -> Set where
         IndBTContext0 P B
 
   -- ruleInst wrapped around the inner context.
-  inst : {P Q : Formula} (x : Nat) (t : Term) ->
+  --
+  -- The output index R is a free Formula; an equality witness
+  --   Eq (substF x t Q) R
+  -- ties it to the actual substituted formula.  This is the (P1)
+  -- design: by externalising the function-equation as a propositional
+  -- equality, pattern-matching on  inst ... refl  against contexts
+  -- with concrete output indices (e.g.  bot ) becomes possible
+  -- (Agda's unifier no longer has to invert  substF x t Q ).
+  inst : {P Q R : Formula} (x : Nat) (t : Term) ->
          IndBTContext0 P Q ->
-         IndBTContext0 P (substF x t Q)
+         Eq (substF x t Q) R ->
+         IndBTContext0 P R
 
 ------------------------------------------------------------------------
 -- plug0 : apply the context's structural rules to a hole derivation.
@@ -113,7 +122,8 @@ plug0 (congL g x ctx)      d = O.congL g x     (plug0 ctx d)
 plug0 (congR g x ctx)      d = O.congR g x     (plug0 ctx d)
 plug0 (mpL ctx d_arg)      d = O.mp            (plug0 ctx d) d_arg
 plug0 (mpR d_imp ctx)      d = O.mp        d_imp (plug0 ctx d)
-plug0 (inst x t ctx)       d = O.ruleInst x t  (plug0 ctx d)
+plug0 (inst x t ctx eqOut) d =
+  eqSubst (\ F -> DerivT0 F) eqOut (O.ruleInst x t (plug0 ctx d))
 
 ------------------------------------------------------------------------
 -- Smoke test: a one-frame  inst 0 t  context.
@@ -124,7 +134,7 @@ plug0 (inst x t ctx)       d = O.ruleInst x t  (plug0 ctx d)
 singleInstCtx :
   (e : Equation) (t : Term) ->
   IndBTContext0 (atomic e) (atomic (substEq zero t e))
-singleInstCtx e t = inst zero t (hole (atomic e))
+singleInstCtx e t = inst zero t (hole (atomic e)) refl
 
 singleInstPlug :
   (e : Equation) (t : Term) ->

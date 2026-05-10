@@ -80,6 +80,50 @@ ExtractedDemand e =
   Sigma Term (\ t -> Sigma (IsValue t) (\ _ -> DemandEq e t))
 
 ------------------------------------------------------------------------
+-- atomic injection: Eq (atomic e1) (atomic e2) -> Eq e1 e2.
+-- Used to extract a substEq-equality from an atomic-equality.
+
+atomicInj : {e1 e2 : Equation} -> Eq (atomic e1) (atomic e2) -> Eq e1 e2
+atomicInj refl = refl
+
+------------------------------------------------------------------------
+-- extractInstAux: dynamic IsValue check on the closing term, then
+-- package (or fail).
+
+extractInstAux :
+  (e : Equation) (t : Term) ->
+  Eq (substEq zero t e) botEqn ->
+  Maybe (IsValue t) ->
+  Maybe (ExtractedDemand e)
+extractInstAux _ t demand (just vt) = just (mkSigma t (mkSigma vt demand))
+extractInstAux _ _ _      nothing   = nothing
+
+------------------------------------------------------------------------
+-- extractInstZeroInner: dispatch on the inner ctx of an  inst zero
+-- pattern.  Pattern-match on the inner; for hole, extract the demand;
+-- for any other shape, return nothing (deferred).
+
+extractInstZeroInner :
+  (e : Equation) (t : Term) {Q : Formula} ->
+  IndBTContext0 (atomic e) Q ->
+  Eq (substF zero t Q) bot ->
+  Maybe (ExtractedDemand e)
+-- inner = hole : Q is forced to atomic e ; substF zero t (atomic e)
+-- reduces to atomic (substEq zero t e) ; bot = atomic botEqn ;
+-- atomicInj on eqOut yields the demand equation.
+extractInstZeroInner e t (hole _)        eqOut =
+  extractInstAux e t (atomicInj eqOut) (decideIsValue t)
+extractInstZeroInner _ _ (sym _)         _ = nothing
+extractInstZeroInner _ _ (transL _ _)    _ = nothing
+extractInstZeroInner _ _ (transR _ _)    _ = nothing
+extractInstZeroInner _ _ (cong1 _ _)     _ = nothing
+extractInstZeroInner _ _ (congL _ _ _)   _ = nothing
+extractInstZeroInner _ _ (congR _ _ _)   _ = nothing
+extractInstZeroInner _ _ (mpL _ _)       _ = nothing
+extractInstZeroInner _ _ (mpR _ _)       _ = nothing
+extractInstZeroInner _ _ (inst _ _ _ _)  _ = nothing
+
+------------------------------------------------------------------------
 -- extractDemandGeneric: the F-free-index version, accepting
 -- Eq F bot as an explicit witness.  Allows matching all 10
 -- IndBTContext0 constructors.
@@ -107,7 +151,12 @@ extractDemandGeneric _ _ (congL _ _ _)  _ = nothing
 extractDemandGeneric _ _ (congR _ _ _)  _ = nothing
 extractDemandGeneric _ _ (mpL _ _)      _ = nothing
 extractDemandGeneric _ _ (mpR _ _)      _ = nothing
-extractDemandGeneric _ _ (inst _ _ _)   _ = nothing
+-- inst zero t inner eqOut: dispatch on inner via extractInstZeroInner.
+extractDemandGeneric e _ (inst zero t inner eqOut) refl =
+  extractInstZeroInner e t inner eqOut
+
+-- inst (suc _) ...: non-zero binder, demand has the wrong shape.
+extractDemandGeneric _ _ (inst (suc _) _ _ _) _ = nothing
 
 ------------------------------------------------------------------------
 -- extractDemandSimple: user-facing entry point with F = bot.
