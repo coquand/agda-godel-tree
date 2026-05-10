@@ -431,3 +431,37 @@ smokeOpenInstSymJust :
   (step : DerivTBounded zero l2 openStepFormula) ->
   Eq (isJust (smokeOpenInstSym l1 l2 base step)) true
 smokeOpenInstSymJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (N) Case A boundary: ill-formed indBTB inputs reduce to nothing.
+--
+-- Synthetic input with v1 = v2 = 0 violates  WellFormedIndBT 's
+-- distinctness condition (NotEqNat v2 v1).  decideWellFormed in
+-- findIndBTAux dispatches to nothing, propagating to the pipeline.
+--
+-- This documents Case A's unhandled boundary: ill-formed indBTBs
+-- are detected and rejected, but not REPAIRED.  The doc's options
+-- 1 (refactor B.indBTB to require WellFormedIndBT) and 2 (alpha-
+-- renaming traversal) remain future work.
+
+illFormedStepFormula : Formula
+illFormedStepFormula =
+  (atomic (substEq zero (var zero) botEqn))
+  imp ((atomic (substEq zero (var zero) botEqn))
+       imp (atomic (substEq zero (ap2 Pair (var zero) (var zero)) botEqn)))
+
+smokeIllFormedNothing :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O botEqn)) ->
+  DerivTBounded zero l2 illFormedStepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeIllFormedNothing _ _ base step =
+  unifiedPipelineFromBounded smokeOracle
+    (B.indBTB botEqn zero zero base step)
+
+smokeIllFormedNothingFalse :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O botEqn))) ->
+  (step : DerivTBounded zero l2 illFormedStepFormula) ->
+  Eq (isJust (smokeIllFormedNothing l1 l2 base step)) false
+smokeIllFormedNothingFalse _ _ _ _ = refl
