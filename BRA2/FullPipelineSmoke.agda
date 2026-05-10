@@ -39,6 +39,8 @@ open import BRA2.IndBTHandlerWithCtx using (indBTHandlerWithCtx)
 open import BRA2.FindIndBT using
   (findIndBT ; IndBTPackage ; pkgE ; pkgV1 ; pkgV2 ; pkgWF
   ; pkgBase ; pkgStep ; pkgCtx ; Or ; inl ; inr)
+open import BRA2.ClosedPipeline using
+  (closedPipelineFromBounded ; ClosedOracle)
 
 ------------------------------------------------------------------------
 -- finalizeFromFind: combine the findIndBT result with
@@ -200,3 +202,131 @@ smokeDoubleWrapFindJust :
   (step : DerivTBounded zero l2 swappedStepFormula) ->
   Eq (isJustOr {zero} (smokeDoubleWrapFind l1 l2 base step)) true
 smokeDoubleWrapFindJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (F)/(G)/(H) End-to-end via ClosedPipeline.
+--
+-- For our synthetic inputs, pkgE ends up being either botEqn or
+-- swappedBotEqn — both closed in var 0.  We supply a partial
+-- ClosedOracle that recognises exactly these two equations and
+-- returns refl ; for any other equation it returns nothing.
+
+-- Recursive closure decision: substituting var 0 := O is the
+-- identity on a term iff the term contains no  var 0 .  Conservative:
+-- returns nothing on any  var n  with  n = 0  and on any composite
+-- Fun1 / Fun2 constructor (Comp / Comp2 / Lift / Post / Fan / treeRec).
+-- This is sufficient for the synthetic smoke inputs (botEqn,
+-- swappedBotEqn) which use only base atoms  O  and  Pair .
+
+isClosedFun1 : (f : Fun1) -> Maybe (Eq (substF1 zero O f) f)
+isClosedFun1 I             = just refl
+isClosedFun1 Fst           = just refl
+isClosedFun1 Snd           = just refl
+isClosedFun1 Z             = just refl
+isClosedFun1 (Comp _ _)    = nothing
+isClosedFun1 (Comp2 _ _ _) = nothing
+
+isClosedFun2 : (g : Fun2) -> Maybe (Eq (substF2 zero O g) g)
+isClosedFun2 Pair          = just refl
+isClosedFun2 Const         = just refl
+isClosedFun2 IfLf          = just refl
+isClosedFun2 TreeEq        = just refl
+isClosedFun2 (Lift _)      = nothing
+isClosedFun2 (Post _ _)    = nothing
+isClosedFun2 (Fan _ _ _)   = nothing
+isClosedFun2 (treeRec _ _) = nothing
+
+wrapAp1Closed :
+  (f : Fun1) {t : Term} ->
+  Maybe (Eq (substF1 zero O f) f) ->
+  Maybe (Eq (subst zero O t) t) ->
+  Maybe (Eq (subst zero O (ap1 f t)) (ap1 f t))
+wrapAp1Closed _ nothing    _        = nothing
+wrapAp1Closed _ (just _)   nothing  = nothing
+wrapAp1Closed _ (just pf)  (just pt) = just (eqCong2 ap1 pf pt)
+
+wrapAp2Closed :
+  (g : Fun2) {a b : Term} ->
+  Maybe (Eq (substF2 zero O g) g) ->
+  Maybe (Eq (subst zero O a) a) ->
+  Maybe (Eq (subst zero O b) b) ->
+  Maybe (Eq (subst zero O (ap2 g a b)) (ap2 g a b))
+wrapAp2Closed _ nothing   _         _         = nothing
+wrapAp2Closed _ (just _)  nothing   _         = nothing
+wrapAp2Closed _ (just _)  (just _)  nothing   = nothing
+wrapAp2Closed _ (just pg) (just pa) (just pb) = just (eqCong3 ap2 pg pa pb)
+
+isClosedTerm : (t : Term) -> Maybe (Eq (subst zero O t) t)
+isClosedTerm O             = just refl
+isClosedTerm (var zero)    = nothing
+isClosedTerm (var (suc _)) = just refl
+isClosedTerm (ap1 f t)     = wrapAp1Closed f (isClosedFun1 f) (isClosedTerm t)
+isClosedTerm (ap2 g a b)   =
+  wrapAp2Closed g (isClosedFun2 g) (isClosedTerm a) (isClosedTerm b)
+
+wrapEqnClosed :
+  {l r : Term} ->
+  Maybe (Eq (subst zero O l) l) ->
+  Maybe (Eq (subst zero O r) r) ->
+  Maybe (Eq (substEq zero O (eqn l r)) (eqn l r))
+wrapEqnClosed nothing   _         = nothing
+wrapEqnClosed (just _)  nothing   = nothing
+wrapEqnClosed (just pl) (just pr) = just (eqCong2 eqn pl pr)
+
+smokeOracle : ClosedOracle
+smokeOracle (eqn l r) = wrapEqnClosed (isClosedTerm l) (isClosedTerm r)
+
+-- (F) Direct (root) indBTB at botEqn end-to-end.
+
+smokeFullPipelineClosed :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O botEqn)) ->
+  DerivTBounded zero l2 stepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeFullPipelineClosed _ _ base step =
+  closedPipelineFromBounded smokeOracle
+    (B.indBTB botEqn (suc zero) (suc (suc zero)) base step)
+
+smokeFullPipelineClosedJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O botEqn))) ->
+  (step : DerivTBounded zero l2 stepFormula) ->
+  Eq (isJust (smokeFullPipelineClosed l1 l2 base step)) true
+smokeFullPipelineClosedJust _ _ _ _ = refl
+
+-- (G) ruleTransB-wrapped indBTB end-to-end.
+
+smokeWrappedTransClosed :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O botEqn)) ->
+  DerivTBounded zero l2 stepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeWrappedTransClosed _ _ base step =
+  let core      = B.indBTB botEqn (suc zero) (suc (suc zero)) base step
+      reflRight = B.axReflB zero zero (ap2 Pair O O)
+  in closedPipelineFromBounded smokeOracle (B.ruleTransB core reflRight)
+
+smokeWrappedTransClosedJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O botEqn))) ->
+  (step : DerivTBounded zero l2 stepFormula) ->
+  Eq (isJust (smokeWrappedTransClosed l1 l2 base step)) true
+smokeWrappedTransClosedJust _ _ _ _ = refl
+
+-- (H) ruleSymB-wrapped indBTB at swappedBotEqn end-to-end.
+
+smokeWrappedSymClosed :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O swappedBotEqn)) ->
+  DerivTBounded zero l2 swappedStepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeWrappedSymClosed _ _ base step =
+  let core = B.indBTB swappedBotEqn (suc zero) (suc (suc zero)) base step
+  in closedPipelineFromBounded smokeOracle (B.ruleSymB core)
+
+smokeWrappedSymClosedJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O swappedBotEqn))) ->
+  (step : DerivTBounded zero l2 swappedStepFormula) ->
+  Eq (isJust (smokeWrappedSymClosed l1 l2 base step)) true
+smokeWrappedSymClosedJust _ _ _ _ = refl
