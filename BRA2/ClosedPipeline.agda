@@ -73,6 +73,79 @@ ClosedOracle =
   (e : Equation) -> Maybe (Eq (substEq zero O e) e)
 
 ------------------------------------------------------------------------
+-- defaultClosedOracle : recursive structural decision procedure on
+-- terms / Fun1 / Fun2 / Equation.  Returns just refl whenever the
+-- equation contains no  var 0 .  Conservative: returns nothing on
+-- any composite Fun1 / Fun2 constructor whose arity exceeds zero
+-- (Comp / Comp2 / Lift / Post / Fan / treeRec) -- closure of those
+-- requires recursing INTO the Fun, which is sound but adds another
+-- mutually-recursive layer.  The atomic Fun1 / Fun2 constructors
+-- (I / Fst / Snd / Z / Pair / Const / IfLf / TreeEq) are recognised
+-- as closed.  This covers the vast majority of equations arising
+-- from value-shape closures.
+
+defaultClosedFun1 : (f : Fun1) -> Maybe (Eq (substF1 zero O f) f)
+defaultClosedFun1 I             = just refl
+defaultClosedFun1 Fst           = just refl
+defaultClosedFun1 Snd           = just refl
+defaultClosedFun1 Z             = just refl
+defaultClosedFun1 (Comp _ _)    = nothing
+defaultClosedFun1 (Comp2 _ _ _) = nothing
+
+defaultClosedFun2 : (g : Fun2) -> Maybe (Eq (substF2 zero O g) g)
+defaultClosedFun2 Pair          = just refl
+defaultClosedFun2 Const         = just refl
+defaultClosedFun2 IfLf          = just refl
+defaultClosedFun2 TreeEq        = just refl
+defaultClosedFun2 (Lift _)      = nothing
+defaultClosedFun2 (Post _ _)    = nothing
+defaultClosedFun2 (Fan _ _ _)   = nothing
+defaultClosedFun2 (treeRec _ _) = nothing
+
+defaultClosedAp1 :
+  (f : Fun1) {t : Term} ->
+  Maybe (Eq (substF1 zero O f) f) ->
+  Maybe (Eq (subst zero O t) t) ->
+  Maybe (Eq (subst zero O (ap1 f t)) (ap1 f t))
+defaultClosedAp1 _ nothing    _         = nothing
+defaultClosedAp1 _ (just _)   nothing   = nothing
+defaultClosedAp1 _ (just pf)  (just pt) = just (eqCong2 ap1 pf pt)
+
+defaultClosedAp2 :
+  (g : Fun2) {a b : Term} ->
+  Maybe (Eq (substF2 zero O g) g) ->
+  Maybe (Eq (subst zero O a) a) ->
+  Maybe (Eq (subst zero O b) b) ->
+  Maybe (Eq (subst zero O (ap2 g a b)) (ap2 g a b))
+defaultClosedAp2 _ nothing   _         _         = nothing
+defaultClosedAp2 _ (just _)  nothing   _         = nothing
+defaultClosedAp2 _ (just _)  (just _)  nothing   = nothing
+defaultClosedAp2 _ (just pg) (just pa) (just pb) = just (eqCong3 ap2 pg pa pb)
+
+defaultClosedTerm : (t : Term) -> Maybe (Eq (subst zero O t) t)
+defaultClosedTerm O             = just refl
+defaultClosedTerm (var zero)    = nothing
+defaultClosedTerm (var (suc _)) = just refl
+defaultClosedTerm (ap1 f t)     =
+  defaultClosedAp1 f (defaultClosedFun1 f) (defaultClosedTerm t)
+defaultClosedTerm (ap2 g a b)   =
+  defaultClosedAp2 g (defaultClosedFun2 g)
+                     (defaultClosedTerm a) (defaultClosedTerm b)
+
+defaultClosedEqn :
+  {l r : Term} ->
+  Maybe (Eq (subst zero O l) l) ->
+  Maybe (Eq (subst zero O r) r) ->
+  Maybe (Eq (substEq zero O (eqn l r)) (eqn l r))
+defaultClosedEqn nothing   _         = nothing
+defaultClosedEqn (just _)  nothing   = nothing
+defaultClosedEqn (just pl) (just pr) = just (eqCong2 eqn pl pr)
+
+defaultClosedOracle : ClosedOracle
+defaultClosedOracle (eqn l r) =
+  defaultClosedEqn (defaultClosedTerm l) (defaultClosedTerm r)
+
+------------------------------------------------------------------------
 -- Bot-target finalizer driven by a ClosedOracle.
 
 closedFinalize :
