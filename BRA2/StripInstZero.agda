@@ -245,9 +245,94 @@ stripInstZeroHole {Target = Target}
     congRInstHoleHelp nothing   = nothing
     congRInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
 
--- inst zero t (W _) eqOut where W is a non-hole non-unary-with-hole-inner
--- frame : deferred.  Specifically: nested wrappers (sym (sym hole)),
--- binary frames (transL/R, mpL/R), and inst inside inst.
+-- inst zero t (transL (hole _) d2) eqOut : commutes substitution past
+-- transL.  The fixed right premise d2 gets ruleInst-substituted.
+stripInstZeroHole {Target = Target}
+                  (inst zero t (transL {t = t1} {u = u1} {v = v1} (hole _) d2) eqOut) =
+  transLInstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = atomic (eqn (subst zero t t1) (subst zero t u1))
+    Q-sub : Formula
+    Q-sub = atomic (eqn (subst zero t t1) (subst zero t v1))
+    d2-sub : O.DerivT0 (atomic (eqn (subst zero t u1) (subst zero t v1)))
+    d2-sub = O.ruleInst zero t d2
+    rawCtx : IndBTContext0 P-sub Q-sub
+    rawCtx = transL (hole P-sub) d2-sub
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    transLInstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract (atomic (eqn t1 u1)) Target)
+    transLInstHoleHelp nothing   = nothing
+    transLInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (transR d1 (hole _)) eqOut : symmetric.
+stripInstZeroHole {Target = Target}
+                  (inst zero t (transR {t = t1} {u = u1} {v = v1} d1 (hole _)) eqOut) =
+  transRInstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = atomic (eqn (subst zero t u1) (subst zero t v1))
+    Q-sub : Formula
+    Q-sub = atomic (eqn (subst zero t t1) (subst zero t v1))
+    d1-sub : O.DerivT0 (atomic (eqn (subst zero t t1) (subst zero t u1)))
+    d1-sub = O.ruleInst zero t d1
+    rawCtx : IndBTContext0 P-sub Q-sub
+    rawCtx = transR d1-sub (hole P-sub)
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    transRInstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract (atomic (eqn u1 v1)) Target)
+    transRInstHoleHelp nothing   = nothing
+    transRInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (mpL (hole _) d_arg) eqOut : commutes past mpL.
+-- The fixed argument premise d_arg gets ruleInst-substituted.
+stripInstZeroHole {Target = Target}
+                  (inst zero t (mpL {A = A} {B = B} (hole _) d_arg) eqOut) =
+  mpLInstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = (substF zero t A) imp (substF zero t B)
+    Q-sub : Formula
+    Q-sub = substF zero t B
+    d-arg-sub : O.DerivT0 (substF zero t A)
+    d-arg-sub = O.ruleInst zero t d_arg
+    rawCtx : IndBTContext0 P-sub Q-sub
+    rawCtx = mpL (hole P-sub) d-arg-sub
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    mpLInstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract (A imp B) Target)
+    mpLInstHoleHelp nothing   = nothing
+    mpLInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (mpR d_imp (hole _)) eqOut : symmetric.
+stripInstZeroHole {Target = Target}
+                  (inst zero t (mpR {A = A} {B = B} d_imp (hole _)) eqOut) =
+  mpRInstHoleHelp (decideIsValue t)
+  where
+    P-sub : Formula
+    P-sub = substF zero t A
+    Q-sub : Formula
+    Q-sub = substF zero t B
+    d-imp-sub : O.DerivT0 ((substF zero t A) imp (substF zero t B))
+    d-imp-sub = O.ruleInst zero t d_imp
+    rawCtx : IndBTContext0 P-sub Q-sub
+    rawCtx = mpR d-imp-sub (hole P-sub)
+    cookedCtx : IndBTContext0 P-sub Target
+    cookedCtx = eqSubst (\ F -> IndBTContext0 P-sub F) eqOut rawCtx
+    mpRInstHoleHelp :
+      Maybe (IsValue t) ->
+      Maybe (InstZeroExtract A Target)
+    mpRInstHoleHelp nothing   = nothing
+    mpRInstHoleHelp (just vt) = just (mkInstZeroExtract t vt cookedCtx)
+
+-- inst zero t (W _) eqOut where W is a NESTED wrapper (sym (sym hole)
+-- etc.) or inst-inside-inst : deferred.
 stripInstZeroHole (inst zero _ (sym (sym _))           _) = nothing
 stripInstZeroHole (inst zero _ (sym (transL _ _))      _) = nothing
 stripInstZeroHole (inst zero _ (sym (transR _ _))      _) = nothing
@@ -284,10 +369,36 @@ stripInstZeroHole (inst zero _ (congR _ _ (congR _ _ _)) _) = nothing
 stripInstZeroHole (inst zero _ (congR _ _ (mpL _ _))     _) = nothing
 stripInstZeroHole (inst zero _ (congR _ _ (mpR _ _))     _) = nothing
 stripInstZeroHole (inst zero _ (congR _ _ (inst _ _ _ _)) _) = nothing
-stripInstZeroHole (inst zero _ (transL _ _)    _) = nothing
-stripInstZeroHole (inst zero _ (transR _ _)    _) = nothing
-stripInstZeroHole (inst zero _ (mpL _ _)       _) = nothing
-stripInstZeroHole (inst zero _ (mpR _ _)       _) = nothing
+stripInstZeroHole (inst zero _ (transL (sym _) _)        _) = nothing
+stripInstZeroHole (inst zero _ (transL (transL _ _) _)   _) = nothing
+stripInstZeroHole (inst zero _ (transL (transR _ _) _)   _) = nothing
+stripInstZeroHole (inst zero _ (transL (cong1 _ _) _)    _) = nothing
+stripInstZeroHole (inst zero _ (transL (congL _ _ _) _)  _) = nothing
+stripInstZeroHole (inst zero _ (transL (congR _ _ _) _)  _) = nothing
+stripInstZeroHole (inst zero _ (transL (mpL _ _) _)      _) = nothing
+stripInstZeroHole (inst zero _ (transL (mpR _ _) _)      _) = nothing
+stripInstZeroHole (inst zero _ (transL (inst _ _ _ _) _) _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (sym _))        _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (transL _ _))   _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (transR _ _))   _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (cong1 _ _))    _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (congL _ _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (congR _ _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (mpL _ _))      _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (mpR _ _))      _) = nothing
+stripInstZeroHole (inst zero _ (transR _ (inst _ _ _ _)) _) = nothing
+stripInstZeroHole (inst zero _ (mpL (mpL _ _) _)      _) = nothing
+stripInstZeroHole (inst zero _ (mpL (mpR _ _) _)      _) = nothing
+stripInstZeroHole (inst zero _ (mpL (inst _ _ _ _) _) _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (sym _))        _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (transL _ _))   _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (transR _ _))   _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (cong1 _ _))    _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (congL _ _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (congR _ _ _))  _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (mpL _ _))      _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (mpR _ _))      _) = nothing
+stripInstZeroHole (inst zero _ (mpR _ (inst _ _ _ _)) _) = nothing
 stripInstZeroHole (inst zero _ (inst _ _ _ _)  _) = nothing
 
 -- inst with x > 0 : deferred (only var 0 corresponds to the
