@@ -41,6 +41,7 @@ open import BRA2.FindIndBT using
   ; pkgBase ; pkgStep ; pkgCtx ; Or ; inl ; inr)
 open import BRA2.ClosedPipeline using
   (closedPipelineFromBounded ; ClosedOracle)
+open import BRA2.OpenPipeline using (openPipelineFromBounded)
 
 ------------------------------------------------------------------------
 -- finalizeFromFind: combine the findIndBT result with
@@ -330,3 +331,49 @@ smokeWrappedSymClosedJust :
   (step : DerivTBounded zero l2 swappedStepFormula) ->
   Eq (isJust (smokeWrappedSymClosed l1 l2 base step)) true
 smokeWrappedSymClosedJust _ _ _ _ = refl
+
+------------------------------------------------------------------------
+-- (I) Open-pkgE smoke test via OpenPipeline.
+--
+-- Synthetic input:
+--   indBTB at  e = eqn (var 0) O   -- var 0 free, NOT closed
+--   wrap with  ruleInstB 0 (Pair O O)  -- closes  var 0 := Pair O O
+--                                        giving  eqn (Pair O O) O
+--                                        (= swappedBotEqn)
+--   wrap with  ruleSymB                -- swaps to  eqn O (Pair O O)
+--                                        (= bot)
+--
+-- The resulting pkg has:
+--   pkgE = eqn (var 0) O                       -- open
+--   pkgCtx = sym (inst 0 (Pair O O) (hole _) refl)
+-- which OpenPipeline handles: stripInstZeroHole finds the inst at depth 1,
+-- extracts t = Pair O O, builds remainingCtx = sym (hole _) ; the indBT
+-- step machinery + unfoldAtValue produce DerivT0 (atomic
+-- (substEq 0 (Pair O O) (eqn (var 0) O))) = DerivT0 (atomic (eqn (Pair O O) O));
+-- plug0 (sym (hole _)) lifts to DerivT0 (atomic (eqn O (Pair O O))) = DerivT0 bot.
+
+openPkgE : Equation
+openPkgE = eqn (var zero) O
+
+openStepFormula : Formula
+openStepFormula =
+  (atomic (substEq zero (var (suc zero)) openPkgE))
+  imp ((atomic (substEq zero (var (suc (suc zero))) openPkgE))
+       imp (atomic (substEq zero (ap2 Pair (var (suc zero)) (var (suc (suc zero)))) openPkgE)))
+
+smokeOpenPipeline :
+  (l1 l2 : Nat) ->
+  DerivTBounded zero l1 (atomic (substEq zero O openPkgE)) ->
+  DerivTBounded zero l2 openStepFormula ->
+  Maybe (O.DerivT0 bot)
+smokeOpenPipeline _ _ base step =
+  let core    = B.indBTB openPkgE (suc zero) (suc (suc zero)) base step
+      withInst = B.ruleInstB zero (ap2 Pair O O) core
+  in openPipelineFromBounded (B.ruleSymB withInst)
+
+smokeOpenPipelineJust :
+  (l1 l2 : Nat) ->
+  (base : DerivTBounded zero l1 (atomic (substEq zero O openPkgE))) ->
+  (step : DerivTBounded zero l2 openStepFormula) ->
+  Eq (isJust (smokeOpenPipeline l1 l2 base step)) true
+smokeOpenPipelineJust _ _ _ _ = refl
