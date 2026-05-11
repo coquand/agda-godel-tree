@@ -340,6 +340,7 @@ with one clause per constructor (15 total),
 BRA2/Thm12.agda module $\mathit{FromBridges}$.
 
 \subsection{Theorem 13 --- under hypothesis $f\;x = y$}
+\label{subsec:thm13}
 
 \begin{lemma}[$\mathit{thm13}\_F_1$]
 For every $f : \mathit{Fun}_1$ and every Theorem~12 result $r_{12}$ for $f$,
@@ -686,6 +687,121 @@ without reference to any specific formula:
         consequence of Theorem~12's defining equations under hypothesis,
         not a provability claim about a specific formula.
 \end{itemize}
+
+\subsection{Comparison with Cook~(1975), Lemma~4.5}
+\label{subsec:cook}
+
+A natural object of comparison is Cook's proof of the second
+incompleteness theorem for $\mathrm{PV}$~\cite{cook1975}, whose
+analogue of Theorem~12 is Lemma~4.5: for each function symbol $f$
+of $\mathrm{PV}$,
+\[
+  \vdash_{\mathrm{PV}_1}\;\;
+    f(x_1,\dots,x_k) = y \;\;\supset\;\;
+    \mathrm{PROOF}\bigl(\mathrm{FORM}_f(x_1,\dots,x_k,y),\,
+                        \mathrm{GEN}_f(x_1,\dots,x_k,y)\bigr) = 1,
+\]
+where $\mathrm{GEN}_f(\bar x, y)$ is a $\mathrm{PV}$-definable function
+returning the G\"odel number of a $\mathrm{PV}$-proof of
+$f(\bar x) = y$ when that equation is true (and $0$ otherwise),
+$\mathrm{FORM}_f(\bar x, y)$ codes the equation
+$f(\bar x) = y$, and $\mathrm{PROOF}(s, n) = 1$ is the
+$\mathrm{PV}$-internal proof-checker predicate.  Cook proves~4.5 by
+induction on the build-up of $f$ as a $\mathrm{PV}$ function symbol.
+
+\paragraph{Where the analogy is real.}
+Cook's Lemma~4.5 and BRA2's Theorem~12 (combined with Theorem~13 to
+introduce the $f(x) = y$ hypothesis) are two presentations of the
+same primitive-recursive workhorse: \emph{schematically in the
+function alphabet, construct a function-symbol-indexed proof object
+of true defining equations}.  The dictionary is direct:
+\begin{center}
+\begin{tabular}{l|l}
+Cook (PV)                           & BRA2 \\\hline
+$\mathrm{PROOF}(s, n) = 1$          & $\mathit{thmT}\;y = \ulcorner A\urcorner$
+                                      (proof-checker as evaluated $\mathit{Fun}_1$, not 0/1 predicate) \\
+$\mathrm{GEN}_f$                    & $D_f$ \\
+$\mathrm{FORM}_f(\bar x, y)$        & $\mathit{codeFTeq}_1\;f\;x$ (built from $\mathit{Comp}_2\;\mathit{Pair}\;\dots\;\mathit{cor}$) \\
+induction over PV function symbols  & structural recursion on $\mathit{Fun}_1$/$\mathit{Fun}_2$ constructors \\
+4.5: $f(\bar x)=y \supset \mathrm{PROOF}(\mathrm{FORM}_f, \mathrm{GEN}_f)=1$
+                                    & Thm~12 + Thm~13:
+                                      $\mathit{Deriv}(f\,x = y) \to
+                                       \mathit{Deriv}(\mathit{thmT}(D_f\,x) =
+                                       \ulcorner f\,x = y\urcorner)$ \\
+\end{tabular}
+\end{center}
+The split into Theorem~12 (reflexive) plus Theorem~13 (hypothesis-driven)
+on the BRA2 side is cosmetic: Cook bundles them via $\mathrm{PV}_1$'s
+internal $\supset$, while BRA2 keeps the hypothesis at the
+$\mathit{Deriv}$ level and discharges it by one
+$\mathit{ruleTrans}$~/~$\mathit{cong}_R\,\mathit{Pair}$~/~$\mathit{cong}_1\,\mathit{cor}$
+line (Section~\ref{subsec:thm13}).
+
+\paragraph{Where the analogy breaks: how the building block is used.}
+Cook's overall proof of G\"odel~II is the standard
+Hilbert--Bernays--L\"ob argument and uses Lemma~4.5 to manufacture
+the reflection step.  Concretely, he instantiates 4.5 at $f =
+\mathrm{PROOF}$ to derive
+\[
+  4.6:\;\;
+  \vdash_{\mathrm{PV}_1}\;
+    \mathrm{PROOF}(s', y) = 1 \;\;\supset\;\;
+    \mathrm{PROOF}\bigl(\mathrm{FORM}(s', y, 1),\,
+                        \mathrm{GEN}(s', y, 1)\bigr) = 1,
+\]
+which is exactly the D3 reflection statement
+$\mathrm{Pr}(\ulcorner A\urcorner) \to
+ \mathrm{Pr}(\ulcorner \mathrm{Pr}(\ulcorner A\urcorner)\urcorner)$
+packaged as a $\mathrm{PV}_1$ formula about a \emph{specific} proof
+predicate.  Lemma~4.7 plays the D2 role
+($\mathrm{Pr}(A \to B) \wedge \mathrm{Pr}(A) \to \mathrm{Pr}(B)$,
+specialised to derive $\mathrm{Pr}(\ulcorner 0=1\urcorner)$ from a
+suitable pair).  Lines~4.8--4.10 are the standard HBL closure:
+combine D2 + D3, diagonalise, conclude
+$\mathrm{CON}(\mathrm{PV}) \supset \neg\,\mathrm{PROOF}(s', y) = 1$,
+contradiction.  Cook's overall flow is therefore
+\emph{literally} HBL: 4.6 is a formula of the form
+``$\mathrm{Pr}(\ulcorner A\urcorner) \to
+   \mathrm{Pr}(\ulcorner \mathrm{Pr}(\ulcorner A\urcorner)\urcorner)$''
+for a specific $A$.
+
+The BRA2 chain explicitly does \emph{not} do this.  As recorded
+above (Section~\ref{sec:internal} and the previous subsection):
+\begin{itemize}
+  \item Theorem~13 is applied to $\mathit{thmT}$ (step~1) and to
+        $\mathit{sub}$ (step~2), but the chain \emph{never}
+        instantiates Theorem~12 at the proof predicate to form
+        a reflection formula
+        $\mathrm{Pr}(\ulcorner \mathrm{Pr}(\ulcorner G\urcorner)\urcorner)$.
+        There is no D3 axiom anywhere in the chain.
+  \item The intermediate conclusions are
+        $\mathit{Deriv}(\mathit{thmT}(t_i) = u_i)$ with $u_i$
+        Terms, \emph{not} statements of the form
+        $\mathrm{Pr}(\ulcorner F\urcorner)$ for any specific
+        Formula $F$.  Several of the intermediate $u_i$ are not
+        $\mathit{codeFormula}\;P$ for any $P$ at all (they are
+        substituted-codes; Section~\ref{sec:internal}).
+  \item $\mathit{step5}$'s conclusion is an equational consequence
+        of Theorem~12's defining equations under hypothesis, not a
+        provability claim about a specific formula.  The provability
+        reading is recovered only at the closure, by instantiating
+        at a value-shape witness so that $\mathit{cor}\,x$ collapses
+        to $\mathit{code}\,x$ via $\mathit{corOfReify}$.
+\end{itemize}
+
+\paragraph{Summary.}
+Cook's Lemma~4.5 and BRA2's Theorem~12 + Theorem~13 are the same
+primitive-recursive lemma --- the per-symbol ``PR proof of true
+equations'' workhorse.  But Cook's overall G\"odel~II is HBL: 4.5
+is used to manufacture the D3 reflection formula~4.6, which is
+combined with the D2-style 4.7 in the textbook way.  BRA2's overall
+G\"odel~II is explicitly not HBL: it never forms a
+$\mathrm{Pr}(\ulcorner \mathrm{Pr}(\ulcorner G\urcorner)\urcorner)$
+formula, the intermediate $\mathit{Deriv}$s do not correspond to
+``BRA proves $F$'' for any single $F$, and reflection appears only
+in the parametric/equational form described in
+Section~\ref{sec:internal}.  The two proofs share the bottom layer
+but the architecture above that layer differs structurally.
 
 \subsection{Remarkable consequences}
 
@@ -1487,6 +1603,12 @@ E.~Nelson,
   Peano Arithmetic, withdrawn after Tao--Tausk gap), 2011.
 \newblock Cited only for methodology; the substantive
   PA-inconsistency claim is not endorsed.
+
+\bibitem{cook1975}
+S.~A.~Cook,
+\newblock \emph{Feasibly constructive proofs and the propositional calculus},
+\newblock Proceedings of the 7th Annual ACM Symposium on Theory of
+  Computing (STOC), 1975, pp.~83--97.
 
 \bibitem{wilkieparis1987}
 A.~J.~Wilkie and J.~B.~Paris,
