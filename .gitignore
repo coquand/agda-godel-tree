@@ -3,24 +3,28 @@
 *.aux
 *.log
 *.out
+*.toc
 *~
 
 # Handoff notes / internal markdown are kept locally but not tracked.
 # (The root README.md is exempted by the whitelist below.)
 *.md
 
+# Reference / generated PDFs are kept locally but not tracked.
+*.pdf
+
 # Whitelist policy: only the following files/dirs are tracked.
-#   /BRA2/           -- the active Agda codebase (incl. BRA2/godelI-II-summary.pdf)
+#   /BRA4/           -- the active Agda codebase (.agda + .tex sources only)
 #   /bra-godelII.tex -- the project paper / writeup
 #   /README.md       -- public project README
 #
-# Everything else (including CLAUDE.md, BRA/ legacy edition, BRA2/*.md
-# handoff notes, root-level reference PDFs, build artefacts, and /old/)
+# Everything else (including CLAUDE.md, BRA/ and BRA2/ legacy editions,
+# BRA4/*.md handoff notes, *.pdf references, build artefacts, and /old/)
 # is untracked.
 
 /*
 
 !/.gitignore
-!/BRA2/
+!/BRA4/
 !/bra-godelII.tex
 !/README.md

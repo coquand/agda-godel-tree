@@ -1,0 +1,534 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ------------------------------------------------------------------
+% Notation (Shoenfield, with code(u) for the encoding).
+% ------------------------------------------------------------------
+\newcommand{\code}[1]{\mathit{code}(#1)}
+\newcommand{\Con}{\mathit{Con}}
+\newcommand{\Fun}{\mathit{Fun}}
+\newcommand{\Len}{\mathit{Len}}
+\newcommand{\Defines}{\mathit{Defines}}
+\newcommand{\Prr}{\mathit{Pr}}
+\newcommand{\Thy}{\mathit{TH}}
+\newcommand{\Thyo}{\mathit{TH}_\omega}
+\newcommand{\thmT}{\mathbf{th}}
+\newcommand{\sub}{\mathbf{sub}}
+\newcommand{\sat}{\models}
+\newcommand{\Eval}{\mathbf{Eval}}
+
+\title{Krivine's models-inside-models proof of G\"odel~II,\\
+and its translation to Guard's BRA\\
+\large{(reading of \emph{Th\'eorie axiomatique des ensembles}, pp.~126--127)}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note records Krivine's \emph{semantic} (Berry-style) proof of the
+second incompleteness theorem as it is actually written in
+\emph{Th\'eorie axiomatique des ensembles} (pp.~126--127), and gives a
+precise dictionary translating it into Guard's basic recursive
+arithmetic~(BRA).  The point of interest is that the proof's engine is
+not an abstract ``uniformity across all models'' but a concrete
+\emph{models-inside-models} construction: a model $M\sat\Thy$, under the
+contradiction hypothesis $\Thy\vdash\Con(\Thy)$, contains an internal
+object $N'$ that $M$ believes is a model of $\Thy$, and the value of the
+Berry function $\nu$ is pinned down by the internal soundness
+equivalence ``$N'\sat F$ holds in $M$ iff $F\in\Thy$.''  We argue that
+this is the von~Neumann ``copy-the-antinomy'' route.  After two
+corrections recorded below --- Krivine's definability is \emph{not}
+decidable (a model gives \emph{bivalence}, not decidability), and BRA's
+quantifier-freeness forces the $\Sigma_1$ content out of the object
+language --- we reach a stable conclusion: \textbf{Krivine's argument
+\emph{does} render syntactically in Guard's system}, as a model-free
+Berry proof in which definability is $\thmT$-provability ($\Sigma_1$), the
+Berry function $\nu$ is non-computable and lives at the formula level, and
+the hypothesis $\Thy\vdash\Con(\Thy)$ is spent on the $\Pi_1$
+non-definability fact.  No relativised model and no decidable definability
+are needed.  This supersedes the vague ``Lindenbaum cut'' of the companion
+note \texttt{berry-krivine-design.tex}.
+\end{abstract}
+
+% =================================================================
+\section{Provenance, and what is new here}
+% =================================================================
+
+The one-page summary \texttt{krivine.pdf} states the shape of Krivine's
+argument (Berry definability, a counting bound, ``uniformity across
+models'') but omits its mechanism.  The photographs \texttt{IMG\_0196},
+\texttt{IMG\_0197} (and the duplicate \texttt{Unknown.jpeg}) reproduce
+the full proof from Krivine's textbook, p.~126 and its continuation.
+The full text reveals what carries the uniformity, and that is the new
+material this note records.
+
+\paragraph{Legibility caveat.}  These are photographs of small print
+with sub/superscript formulas.  The \emph{structure} below is reported
+with confidence; the precise exponent towers and the exact reading of
+the internal theoremhood predicate ``$T(F)^{\circ}\omega$'' / the
+auxiliary theory $\Thyo$ are reported as they appear but flagged where a
+symbol is not fully legible.  None of the BRA translation depends on
+those exact constants.
+
+% =================================================================
+\section{Krivine's proof as written (pp.~126--127)}
+% =================================================================
+
+\subsection{The theorem}
+
+\begin{theorem}[Krivine, p.~126]
+Let $\Thy$ be an axiomatised theory containing $ZF$.  If $\Thy$ is
+consistent, then ``$\neg\,\Con(\Thy)$'' is also consistent --- i.e.\
+$\Con(\Thy)$ is not a consequence of $\Thy$.
+\end{theorem}
+
+The proof is by contradiction: \emph{assume every universe (model)
+satisfying $\Thy$ also satisfies $\Con(\Thy)$}, i.e.\ assume
+$\Thy\vdash\Con(\Thy)$.
+
+\subsection{The Berry function $\nu$, internally}
+
+Krivine introduces $p=\nu(x)$ \emph{by an internal formula with two
+free variables} expressing:
+\begin{quote}
+``$p$ is the least integer that, \emph{in at least one model $M$
+of~$\Thyo$}, is not definable by a parameter-free one-variable formula
+$F(x)$ of length~$<x$.''
+\end{quote}
+Two sub-formulas make this internal, and they are the crux:
+\begin{description}
+\item[``$M$ is a model of $\Thyo$''] is written
+  \[
+     \forall F\;\bigl(F\text{ closed}\ \wedge\ T(F)^{\circ}\omega
+        \ \rightarrow\ M\sat F\bigr),
+  \]
+  i.e.\ for every closed formula provable in $\Thyo$, $M$ satisfies it.
+  (Here $T(\cdot)^{\circ}\omega$ is Krivine's internal theoremhood
+  predicate; the exact decoration is not fully legible, but its role is
+  ``$F$ is a theorem.'')
+\item[``$\nu(x)$ is defined in $M$ by $F$''] is the internal
+  definability predicate $\Defines$: $F$ is a parameter-free formula and
+  $M\sat \forall a\,(F(a)\leftrightarrow a=\nu(x))$ (length of $F$ below
+  the bound).
+\end{description}
+So both \emph{satisfaction} ($M\sat F$) and \emph{definability}
+($F$ defines a value in $M$) are formulas of the language, evaluated at a
+model-object~$M$.  Nothing here is meta.
+
+\subsection{The uniformity is models-inside-models}
+
+This is the step the summary hides.  Krivine does \emph{not} argue
+``$\nu(n)^M=\nu(n)^U$ for all external models $M,U$'' as an abstract
+invariance.  He argues internally:
+
+\begin{enumerate}
+\item Take a model $M\sat\Thy$.  By the contradiction hypothesis
+  $M\sat\Con(\Thy)$.
+\item Since $M\sat\Con(\Thy)$, \emph{inside $M$} there is an object $N'$
+  which $M$ believes is a model of $\Thyo$.  (Krivine cites his own
+  earlier ``consistent $\Rightarrow$ has a model,'' p.~123/125,
+  \emph{applied internally to $M$}.)
+\item The two models are glued by the internal soundness/completeness
+  equivalence:
+  \[
+     \text{``}N'\sat F\text{'' is true in } M
+        \quad\Longleftrightarrow\quad F\in\Thy_M .
+  \]
+  (For every closed $F$ with parameters in $M$.)  This is what forces
+  agreement of the Berry values.
+\item Hence $\nu(n)^{M}\ \ge\ \nu(n)^{N'}$, and the symmetric argument
+  gives the reverse, so $\nu(n)$ is \emph{model-independent} and bounded:
+  $\nu(n)^{M}\le 2^{2^{2m}}$ (an explicit exponential tower from the
+  counting; the exact height is not fully legible).
+\end{enumerate}
+
+\begin{remark}[where $\Con$ is consumed]\label{rmk:con}
+The hypothesis $\Thy\vdash\Con(\Thy)$ is used at \emph{exactly one place}:
+step~(2), the passage $M\rightsquigarrow N'$.  Consistency is what lets
+$M$ produce an internal model $N'$ to compare against.  Everything else
+(counting, length, the self-reference) is hypothesis-free.
+\end{remark}
+
+\subsection{The counting bound}
+
+The number of parameter-free formulas of length~$<l$ is controlled by a
+primitive-recursive recurrence.  As legibly as the scan permits:
+\[
+   p_0 = 2^{2m},\qquad
+   p_l \ \le\ p_{l-1} + 1 + 2^{m}\,p_{l-1},
+\]
+where $p_l$ counts parameter-free formulas of length~$<l$ over the
+$2^{2m}$ first symbols.  This yields the explicit bound
+$\nu(m_0)^M\le 2^{2^{2m}}$ used above.  (Constants reported as printed;
+the BRA translation only needs ``$p_l$ is a closed-form
+primitive-recursive function with an exponential majorant.'')
+
+\subsection{The Berry self-reference}
+
+Finally (p.~127, ``on montrera un peu plus loin''):
+\begin{quote}
+one can choose an \emph{intuitive} (meta) integer $m_0$ and write a
+parameter-free statement $D(x)$ equivalent to ``$x=\nu(m_0)$'' that is
+itself of length~$<m_0$.
+\end{quote}
+Then $\nu(m_0)$ \emph{is} definable by a formula of length~$<m_0$,
+contradicting its definition as the least integer not so definable.
+This refutes $\Thy\vdash\Con(\Thy)$.
+
+\begin{remark}[why this is not Berry's paradox]
+The self-reference is harmless as a paradox because $\nu$ is defined
+through \emph{provability/satisfaction in a model} ($M\sat\dots$), not
+through raw evaluation: deciding ``$x=\nu(m_0)$'' asks whether the model
+satisfies a bounded statement, not for $\nu$ to run itself.  This is the
+same reason the $\Sigma_1$ (provable-naming) version is sound where the
+$\Sigma_0$ (Eval-naming) version of \texttt{berry-krivine-design.tex}
+was not.
+\end{remark}
+
+% =================================================================
+\section{The engine, abstracted}
+% =================================================================
+
+Stripped of $ZF$, Krivine's proof has four moving parts:
+\begin{description}
+\item[(M) a canonical model] in which satisfaction $M\sat F$ is a
+  predicate of the language;
+\item[(I) an internal model $N'$] obtained \emph{from $\Con$} inside
+  $M$, with the soundness equivalence $N'\sat F \Leftrightarrow F\in\Thy$;
+\item[(C) a counting/length calculus] giving an explicit exponential
+  bound on $\nu$;
+\item[(B) a length self-reference] $D(x)\equiv$``$x=\nu(m_0)$'' of
+  length~$<m_0$, firing the Berry contradiction.
+\end{description}
+Parts (M)+(I) are von~Neumann's ``copy the antinomy directly'' route:
+the contradiction is built from the model and its internal model, not
+from a G\"odel fixed point.  Parts (C)+(B) are the Berry antinomy proper.
+Note that \emph{full completeness is never invoked}; the only direction
+used is ``$\Con\Rightarrow$ internal model'' (the easy half, internally),
+plus soundness $N'\sat F\Rightarrow F\in\Thy$.
+
+% =================================================================
+\section{Translation to Guard's BRA}
+% =================================================================
+
+We use the BRA notion of model settled in earlier discussion: a model is
+an enumerator $M:\Fun_1$ with
+\[
+   M\sat a \ :=\ \exists z.\;M(z)=a,
+\]
+and the \emph{canonical} model is the verifier $\thmT$ (theorem
+enumerator).  Internal models are $\thmT$-relativisations built with the
+substitution functor $\sub$.  The dictionary:
+
+\begin{center}
+\begin{tabular}{p{0.46\textwidth}p{0.46\textwidth}}
+\hline
+\textbf{Krivine (pp.~126--127)} & \textbf{BRA-internal} \\
+\hline
+outer model $M\sat\Thy$
+  & $\thmT$; \quad $M\sat a := \exists z.\,\thmT(z)=a$
+    (range-membership, $\Sigma_1$, Skolemised as a function --- the
+    \texttt{big\_term} pattern of the shipped proof) \\[2pt]
+inner model $N'$ inside $M$, from $\Con$
+  & \emph{not needed as a literal object.}  Its only content is nested
+    provability: $\thmT$ reasoning about $\thmT$.  A $\sub$-relativisation
+    of $\thmT$ would mirror Krivine, but is optional faithfulness, not a
+    requirement (see {\S}\ref{sec:why-no-reloc}) \\[2pt]
+soundness link ``$N'\sat F$ in $M$ iff $F\in\Thy$''
+  & $\thmT$'s validating-decoder invariant $+$ $\Sigma_0$-completeness
+    (closed-term evaluation, the \texttt{numEq}/eval chain) \\[2pt]
+uniformity $\nu(n)^M=\nu(n)^{N'}$
+  & \emph{provable $\Sigma_1$-completeness} $\Box\varphi\to\Box\Box\varphi$
+    (HBL\,D3): $\thmT$ proves its own definability judgements.  This is
+    the syntactic residue of ``inner model agrees with outer'' \\[2pt]
+counting recurrence $p_l$
+  & internal length/counting lemmas (compressed numerals so $\Len$ is
+    $O(\log)$) \\[2pt]
+meta $m_0$, $D(x)\equiv x{=}\nu(m_0)$, $\Len<m_0$
+  & the length-accounting self-reference (the residual inequality) \\[2pt]
+hypothesis $\Thy\vdash\Con(\Thy)$
+  & \texttt{Deriv ConSchema}, consumed exactly at $\thmT\!\rightsquigarrow\!$
+    inner model (Remark~\ref{rmk:con}) \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{The key correction over the companion note.}  What
+\texttt{berry-krivine-design.tex} {\S}``Status'' called the open
+``definability cut / Lindenbaum cut'' is, in Krivine's \emph{semantic}
+proof, the internal model $N'$.  But $N'$ is not load-bearing in BRA: it
+is the \emph{semantic face of nested provability}.  Replacing
+``definable in a model'' by ``$\thmT$-provable,'' the cut dissolves into
+a single derivability lemma about $\thmT$ (provable $\Sigma_1$-
+completeness, {\S}\ref{sec:why-no-reloc}).  So the old ``open cut'' is
+neither open nor a cut: it is $\thmT$'s D3, repackaged.
+
+\paragraph{$ZF$ vs.\ BRA.}  Krivine works over $ZF$, where a model is a
+\emph{set-object} $N'$ and $\forall F$, $\exists M$ range over the
+universe.  BRA is quantifier-free primitive-recursive arithmetic, so:
+\begin{itemize}
+\item ``definable in a model'' becomes ``$\thmT$-provable'' (the only
+  expressible surrogate; see {\S}\ref{sec:why-no-reloc});
+\item the quantifiers $\forall F$ / $\exists M$ become \emph{function
+  building} (Skolemisation), exactly as Guard's $\Sigma_1$ provability is
+  realised by constructing \texttt{big\_term} rather than by an internal
+  $\exists$;
+\item ``$M\sat F$'' becomes range-membership of the enumerator $\thmT$.
+\end{itemize}
+The counting/length calculus is unchanged --- it is finitary and
+primitive-recursive in either setting.
+
+% =================================================================
+\section{What the model really provides: bivalence, not decidability}
+\label{sec:why-no-reloc}
+% =================================================================
+
+\emph{Correction of an earlier draft.}  We first claimed Krivine's
+definability is \emph{decidable} (satisfaction in a set-model), and that
+BRA --- lacking set-models --- therefore could not host the argument.
+That is wrong.  A model of arithmetic is \emph{infinite}, so
+``$M\sat\forall w\,(F(w)\leftrightarrow w=p)$'' is a universal over an
+infinite domain, not a finite check.  Krivine's definability is
+\textbf{not decidable} either.
+
+What a model actually supplies is \textbf{bivalence}: inside a model $U$,
+every statement --- including the undecidable definability ones --- has a
+definite truth value, so ``$\nu=$ least $p$ with [property]'' is
+well-defined \emph{regardless of decidability}.  $\nu$ is pinned by
+\emph{working inside a model}, not by being computed.
+
+The syntactic counterpart of bivalence is \textbf{provability plus the
+consistency hypothesis}.  Under the translation ``true in $U$''
+$\longrightarrow$ ``provable in $\thmT$'' ($\Sigma_1$), the bivalent value
+of $\nu$ becomes: $\nu$ \emph{handled at the formula level} via the Berry
+formula $B$ together with provability and $\Con$ --- \emph{never
+computed}.  Definability stays undecidable throughout, exactly as in
+Krivine; the models-inside-models / uniformity step becomes nested
+provability $\Box\varphi\to\Box\Box\varphi$ (provable
+$\Sigma_1$-completeness, HBL\,D3).
+
+\textbf{Conclusion: Krivine's argument does render syntactically.}  No
+decidability is needed --- it was never available, not even in Krivine ---
+and no relativised model is needed; what is needed is
+$\thmT + \Con + {}$D3.  (This supersedes two earlier detours: an
+over-optimistic ``build a relativised model for decidable definability''
+and an over-pessimistic ``Krivine cannot adapt.''  The stable statement:
+it renders via $\Sigma_1$-provability, definability is undecidable, and
+$\nu$ lives at the formula level.)
+
+\paragraph{Complexity, exactly.}  ``$p$ is $n$-definable'' is $\Sigma_1$
+(a bounded $\exists F$ over the $\Sigma_1$ predicate ``$\thmT$ proves $F$
+defines $p$'').  ``$p$ is the \emph{least} non-$n$-definable'' is
+$\neg\mathrm{Def}_n(p)\,(\Pi_1)\,\wedge\,\forall q<p\,\mathrm{Def}_n(q)\,
+(\Sigma_1)$ --- a $\Pi_1\wedge\Sigma_1$ conjunction, \emph{not} $\Sigma_1$.
+It cannot be $\Sigma_1$: $\nu$ is total (by the counting) but not
+computable, and a total function with a $\Sigma_1$ graph would be
+computable.  The $\Pi_1$ conjunct is exactly where $\Con$ is spent; the
+$\Sigma_1$ conjunct is the witness-producing part.
+
+% =================================================================
+\section{What is left of the argument: a model-free Berry proof}
+\label{sec:whatleft}
+% =================================================================
+
+With the relativisation gone, the argument is precisely \textbf{Berry's
+paradox with $\thmT$ as the definability oracle} --- no models, no cut.
+The skeleton:
+
+\begin{enumerate}
+\item \textbf{Definability via $\thmT$ ($\Sigma_1$).}  ``$p$ is
+  $n$-definable'' $:=$ $\exists F$ ($\Len(F)<n$ and $\thmT$ proves
+  $\forall a\,(F(a)\leftrightarrow a=\mathbf{k}_p)$).  Skolemised as a
+  function (the \texttt{big\_term} pattern).
+\item \textbf{Counting.}  $<2^{2n}$ formulas of length $<n$, hence
+  $<2^{2n}$ $n$-definable numbers; so some number $\le 2^{2n}$ is not
+  $n$-definable.
+\item \textbf{Berry function.}  $\nu(n) := $ least non-$n$-definable
+  number ($\le 2^{2n}$).  It is total but \emph{not computable} (graph
+  $\Pi_1\wedge\Sigma_1$, {\S}\ref{sec:why-no-reloc}), so it is \emph{not}
+  a $\Fun_1$ and is never computed --- it is carried by the formula $B$
+  and reasoned about via provability $+\,\Con$.
+\item \textbf{Self-reference by length.}  Let $B(x,y)\equiv$ ``$x$ is the
+  least non-$y$-definable number''; $\thmT$ is a \emph{fixed} $\Fun_1$,
+  so $B$'s text is constant-size and $\Len(B(x,\mathbf{k}_{m_0})) =
+  c + |\mathbf{k}_{m_0}|$.  With compressed numerals $|\mathbf{k}_{m_0}| =
+  O(\log m_0)$, so for a concrete meta $m_0$, $\Len(B(\cdot,m_0))<m_0$.
+\item \textbf{Contradiction (where $\Con$ and D3 are spent).}
+  \begin{itemize}
+  \item $\Con(\Thy)$ $\Rightarrow$ $\thmT$ proves the \emph{negative}
+    fact ``$\nu(m_0)$ is \emph{not} $m_0$-definable'' (proving a
+    non-provability needs consistency);
+  \item provable $\Sigma_1$-completeness (D3) $\Rightarrow$ $\thmT$ proves
+    the \emph{positive} facts ``each $p<\nu(m_0)$ \emph{is}
+    $m_0$-definable.''
+  \end{itemize}
+  Together $\thmT$ proves ``$B(\cdot,m_0)$ defines $\nu(m_0)$'' with
+  $\Len(B(\cdot,m_0))<m_0$ --- i.e.\ $\nu(m_0)$ \emph{is}
+  $m_0$-definable, contradicting step~3.  Hence $\Thy\not\vdash\Con(\Thy)$.
+\end{enumerate}
+
+\paragraph{Why this is the \emph{fix}, not the rejected version.}  The
+companion note rejected a Berry attempt --- but a \emph{different} one.
+The rejected version used \textbf{Eval-definability} ($\Sigma_0$): ``$p$
+is named by $F$'' $:=$ \emph{running} $F$ yields $p$.  To decide that,
+the deciding function must run $\Eval$ on every short code including its
+own (since $\Len(\code\beta)<n_0$), an infinite self-simulation; $\beta$
+is not total, ``$\beta$ defines $\nu$'' is \emph{false} in $\mathbb N$,
+and the contradiction never fires.  That is the classical dissolution of
+Berry's paradox.
+
+The version above uses \textbf{$\thmT$-definability} ($\Sigma_1$):
+``$p$ is named by $F$'' $:=$ $\thmT$ \emph{proves} $F$ defines $p$.  This
+asks for the \emph{existence of a derivation} (a search), never for
+$\beta$ to run itself; and $\thmT$ appears in $B$ only \emph{by name}, as
+a constant-size sub-term, never unfolded.  So there is no regress, $\nu$
+is a genuine bounded number, and the self-reference produces a real
+theorem.  The two differ exactly as $\Sigma_0$ (compute) differs from
+$\Sigma_1$ (prove) --- which is the entire content of the companion
+note's ``Status'' correction.  \emph{Berry-with-$\thmT$ is the endorsed
+route; Berry-with-$\Eval$ is the dead one.}
+
+% =================================================================
+\section{Expressing it in Guard's quantifier-free setting}
+\label{sec:guard}
+% =================================================================
+
+Guard's BRA is \emph{quantifier-free}: object formulas are atomic
+equations, negation, implication, and \emph{a free variable is an
+implicit universal}.  The two complexity levels above are therefore
+carried by two different mechanisms --- the \emph{same} two the shipped
+diagonal proof already uses.
+
+\paragraph{$\Pi_1$ / universal $\to$ open formulas.}  ``$x$ is not
+short-definable'' $=\neg\mathrm{DefWit}(F,\pi,x,m_0)$ with $F,\pi$ free
+is, in Guard, already $\forall F,\pi\,(\dots)$.  This is ``the language
+has only universal statements.''  $\Con$ itself is this form:
+\texttt{neg (eqF (ap1 thmT (var 0)) codeFalse)}, i.e.\
+$\forall v.\,\thmT(v)\neq\mathrm{codeFalse}$.
+
+\paragraph{$\Sigma_1$ $\to$ Skolemised witness terms, not formulas.}
+``$x$ is short-definable'' is $\Sigma_1$ and \emph{cannot} be an object
+formula (one cannot recover $\exists$ by negating an open $\forall$).  It
+is realised exactly as the shipped proof realises provability: by
+\emph{building} the witness $(F,\pi)$ as a term and asserting the
+\emph{decidable} equation $\mathrm{DefWit}$ --- the \texttt{big\_term}
+technique.
+
+\paragraph{The contradiction, in Guard's shape.}  Signature
+\texttt{Deriv ConSchema -> Deriv falseF}, as in \texttt{Thm14GodelII}.
+Build a short $B$; under the $\Con$ hypothesis, build the witness that
+$\thmT$ proves ``$B$ defines its value $v$'' --- this build consumes
+$\Con$ (for the $\Pi_1$ ``$v$ not short-definable'') and uses an
+\emph{induction-built family} of witnesses (for the $\Sigma_1$ ``every
+$q<v$ is short-definable'').  Then $B$ short $\wedge$ ``$B$ defines $v$''
+gives $v$ short-definable, while $\thmT\vdash B(v)$ gives $v$ \emph{not}
+short-definable; so $\thmT\vdash\bot$, i.e.\ \texttt{Deriv falseF}.
+
+\paragraph{The Guard-specific friction.}  $\nu$ is non-computable and $B$
+is irreducibly $\Pi_1\wedge\Sigma_1$, so --- unlike in PA --- $B$ is
+\emph{not} a single quantifier-free object formula.  Its $\Pi_1$ part is
+an open formula; its $\Sigma_1$ ``least / all-smaller-definable'' part
+must be carried as a \emph{bound-parameterised family of Skolemised
+witnesses, built by} \texttt{ruleIndNat}.  That induction-built family is
+the ``D3 over a range'' component.  It is heavier than PA's ``just write
+the formula,'' because quantifier-freeness forces the $\Sigma_1$ content
+out of the object language into Deriv-level term-building --- but it is
+precisely what \texttt{big\_term} $+$ \texttt{ruleIndNat} were built for.
+
+\paragraph{The full Guard recipe.}
+\begin{enumerate}
+\item \texttt{Len} $+$ compressed numerals (so
+  $\Len(B)=c+O(\log m_0)<m_0$) --- new;
+\item $\mathrm{DefWit}$ as a decidable equation (verify a proof, check
+  length) --- routine;
+\item the counting bound \texttt{\#definable <= \#short-formulas} with
+  \textbf{$\Con$-injectivity} (a formula names $\le 1$ number unless
+  inconsistent) --- the hard internal combinatorics;
+\item open-formula $\Pi_1$ non-definability $+$ \texttt{ruleInst} on
+  $\Con$ --- reuse the shipped idiom;
+\item the \texttt{ruleIndNat}-built witness family for ``all smaller
+  definable'' --- the mixed-$B$ workaround;
+\item assemble \texttt{Deriv ConSchema -> Deriv falseF}.
+\end{enumerate}
+The genuine unknowns are (3) and (1); neither is a wall.
+
+% =================================================================
+\section{Honest accounting}
+% =================================================================
+
+\paragraph{Routine (methods already in the codebase).}
+\begin{itemize}
+\item $\Pi_1$/universal statements as open formulas; $\Sigma_1$
+  definability as Skolemised witness terms (the \texttt{big\_term}
+  pattern of the shipped \texttt{Thm14GodelII}) --- the two idioms of
+  {\S}\ref{sec:guard};
+\item $\thmT$ as the single provability oracle (no relativised copy,
+  {\S}\ref{sec:why-no-reloc});
+\item $\Sigma_0$-completeness for the decidable $\mathrm{DefWit}$ check
+  ($=$ verifying a given proof, $=$ numeral evaluation);
+\item $\Con$ as hypothesis (\texttt{Deriv ConSchema}), consumed via
+  \texttt{ruleInst} at the $\Pi_1$ non-definability step.
+\end{itemize}
+
+\paragraph{Genuinely remaining (no new concept, real engineering).}
+\begin{enumerate}
+\item the internal counting recurrence $p_l$ and its exponential
+  majorant, with compressed numerals so the length bookkeeping closes
+  (the recommended ``gate experiment'');
+\item the concrete meta integer $m_0$ and the inequality
+  $\Len(B(\cdot,m_0))<m_0$ for the Berry formula (step~4 of
+  {\S}\ref{sec:whatleft}) --- the one substantive step, now
+  \emph{well-posed} ($B$ is the $\thmT$-definability predicate at the
+  fixed bound $m_0$, not a vague ``nameability'');
+\item provable $\Sigma_1$-completeness (D3) for $\thmT$, for the positive
+  definability facts in step~5 --- the same derivability ingredient the
+  diagonal/L\"ob proof uses, repackaged.
+\end{enumerate}
+
+\paragraph{Relation to the shipped proof.}  This is a genuinely
+different proof of the same theorem, not a re-skin: the shipped
+\texttt{Thm14GodelII} uses the G\"odel sub-diagonal fixed point, whereas
+this route uses Berry counting $+$ $\Sigma_1$-provability definability ---
+von~Neumann's direct, antinomy-copying method, with no fixed point.  Both
+consume \texttt{Deriv ConSchema} and produce \texttt{Deriv falseF}, by
+different mechanisms.
+
+\paragraph{Status of the companion note.}  This note supersedes the
+{\S}``Status'' diagnosis of \texttt{berry-krivine-design.tex}: the open
+step is neither an unspecified ``Lindenbaum cut'' nor a $\sub$-relativised
+inner model.  It is the model-free $\Sigma_1$ Berry recipe of
+{\S}\ref{sec:guard}, with $\Con$ consumed at the $\Pi_1$ non-definability
+fact.  The two genuine pieces of work are the $\Con$-injective counting
+and the length self-reference; D3 supplies the ``all-smaller-definable''
+family.
+
+% =================================================================
+\section*{Sources}
+% =================================================================
+\begin{itemize}
+\item J.-L. Krivine, \emph{Th\'eorie axiomatique des ensembles},
+  pp.~126--127 (photographs \texttt{IMG\_0196}, \texttt{IMG\_0197}).
+\item Companion design note: \texttt{berry-krivine-design.tex} (Berry/
+  naming components, $\Sigma_0$-vs-$\Sigma_1$ analysis).
+\item Shipped formalisation: \texttt{BRA4/Thm/Thm14GodelII.agda}
+  (diagonal route), and the model notion ($\thmT$, $\sub$,
+  $\Sigma_0$-completeness) developed there.
+\item C.~Guard, \emph{Automated logic and the foundations of recursive
+  arithmetic} (1963); A.~Church, \emph{Introduction to Mathematical
+  Logic} (1957).
+\end{itemize}
+
+\end{document}

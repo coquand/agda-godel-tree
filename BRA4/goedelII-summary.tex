@@ -1,0 +1,944 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathpartir}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  breaklines=true,
+  keepspaces=true,
+  showstringspaces=false,
+}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ------------------------------------------------------------------
+% Notation (Shoenfield, Mathematical Logic, Ch.6, with code(u) for
+% the encoding in place of corner-quotes).
+% ------------------------------------------------------------------
+\newcommand{\code}[1]{\mathit{code}(#1)}
+\newcommand{\sub}{\mathbf{sub}}
+\newcommand{\sbf}{\mathbf{sbf}}
+\newcommand{\sbt}{\mathbf{sbt}}
+\newcommand{\sbftwo}{\mathbf{sbf_2}}
+\newcommand{\sbttwo}{\mathbf{sbt_2}}
+\newcommand{\subtwo}{\mathbf{sub_2}}
+\newcommand{\thmT}{\mathbf{thmT}}
+\newcommand{\num}{\mathbf{num}}
+\newcommand{\Pair}{\mathbf{Pair}}
+\newcommand{\seq}[1]{\langle #1 \rangle}
+\newcommand{\Fun}{\mathit{Fun}}
+\newcommand{\Sub}{\mathit{Sub}}
+\newcommand{\Subtl}{\mathit{Subtl}}
+\newcommand{\Term}{\mathit{Term}}
+\newcommand{\AFor}{\mathit{AFor}}
+\newcommand{\For}{\mathit{For}}
+\newcommand{\Vble}{\mathit{Vble}}
+\newcommand{\Fr}{\mathit{Fr}}
+\newcommand{\Prf}{\mathit{Prf}}
+\newcommand{\Prr}{\mathit{Pr}}
+\newcommand{\Thmm}{\mathit{Thm}}
+\newcommand{\Num}{\mathit{Num}}
+\newcommand{\Con}{\mathit{Con}}
+\newcommand{\Closed}{\mathit{Closed}}
+\newcommand{\substT}{\mathit{substT}}
+\newcommand{\substF}{\mathit{substF}}
+\newcommand{\Len}{\mathit{Len}}
+\newcommand{\SN}{\mathit{SN}}
+\newcommand{\lh}{\mathit{lh}}
+
+\title{A formalisation of G\"odel's Second Incompleteness Theorem\\for the Basic Recursive Arithmetic of Church and Guard}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We report a complete, axiom-free, machine-checked formalisation in Agda
+of G\"odel's second incompleteness theorem for Church's \emph{basic
+recursive arithmetic} (BRA), following the proof outline given by
+R.~Guard in his 1963 paper.  Beyond the formalisation itself, the work
+exposes a number of implicit assumptions, notational ambiguities, and
+minor typographical issues in Guard's text that are worth recording
+explicitly.  We also discuss an architectural simplification that would
+eliminate roughly ten thousand lines of substitution-machinery currently
+used for convenience.  Throughout we follow Shoenfield's notation
+(\emph{Mathematical Logic}, Chapter~6), with the single substitution
+$\code{u}$ in place of $\ulcorner u \urcorner$.
+\end{abstract}
+
+\section{The formal system}
+
+\subsection{Term and function syntax (Church, via Guard)}
+
+We follow Church's basic recursive arithmetic~\cite{Church} in the
+formulation of Guard~\cite{Guard1963}, with Shoenfield's
+notation~\cite{Shoenfield}.  Following Shoenfield {\S}6.6, the
+non-logical symbols of the theory~$T$
+are a constant $\mathbf{O}$, a unary symbol $\mathbf{s}$, and finitely
+many additional function symbols (Church's combinators
+$\mathbf{o},\mathbf{u},\mathbf{v},\mathbf{C},\mathbf{R}$), together with
+the binary identity $=$.  Variables are $\mathbf{x}_0, \mathbf{x}_1,
+\ldots$ in alphabetical order, with symbol number
+$\SN(\mathbf{x}_i) = 2i$.
+
+The theory~$T$ has two further function-symbol grammars:
+\begin{align*}
+\mathbf{f}   &::= \mathbf{s} \mid \mathbf{o} \mid \mathbf{u} \mid \mathbf{C}(\mathbf{g}, \mathbf{f_1}, \mathbf{f_2}) \quad (\text{unary, } \mathbf{f}, \mathbf{f_1}, \mathbf{f_2} \in \Fun_1), \\
+\mathbf{g}   &::= \mathbf{v} \mid \mathbf{R}(\mathbf{f}, \mathbf{g_1}, \mathbf{g_2}) \quad (\text{binary, } \mathbf{g}, \mathbf{g_1}, \mathbf{g_2} \in \Fun_2).
+\end{align*}
+Terms~$\mathbf{t}$ are built from $\mathbf{O}$, variables
+$\mathbf{x}_i$, and applications $\mathbf{f}(\mathbf{t})$ and
+$\mathbf{g}(\mathbf{t_1}, \mathbf{t_2})$.
+
+\subsection{Formulas and derivability}
+
+Formulas are built from equations between terms by negation and
+implication:
+\[
+\mathbf{A}, \mathbf{B} ::= \mathbf{t_1} = \mathbf{t_2} \mid \neg \mathbf{A} \mid \mathbf{A} \supset \mathbf{B}.
+\]
+We write $\vdash \mathbf{A}$ for ``$\mathbf{A}$ is a theorem of~$T$''
+($\mathbf{A} \in \Thmm_T$ in Shoenfield's notation).  Bare $\mathbf{A}
+= \mathbf{B}$ inside $\vdash$ means $\vdash \mathbf{A} = \mathbf{B}$.
+
+\subsection{The axioms and rules, explicitly}
+\label{sec:axioms}
+
+The Hilbert calculus is exactly Guard's Definition~7~\cite{Guard1963},
+itself following Church's Princeton lectures~\cite{Church}.  The Agda
+data type \verb|BRA3.Deriv.Deriv| has one constructor per Guard axiom and
+rule and \emph{nothing else}; we list all fourteen axiom schemes and
+three rules, in Guard's numbering, with the Agda constructor name in
+brackets.  Here $\mathbf{f} \in \Fun_1$, $\mathbf{g} \in \Fun_2$,
+$\mathbf{t},\mathbf{a},\mathbf{b},\mathbf{c},\mathbf{x},\mathbf{n}$ are
+terms, $\mathbf{A},\mathbf{B},\mathbf{C}$ are formulas, and $a \in
+\mathbb{N}$ is a variable index.
+
+\medskip
+\noindent\emph{Equational axioms (the defining equations of the
+combinators).}
+\begin{align*}
+\textbf{0}\ [\mathtt{ax\_succ\_nonzero}]:\quad & \neg\,(\mathbf{s}(\mathbf{O}) = \mathbf{O}) \\
+\textbf{1}\ [\mathtt{ax\_o}]:\quad & \mathbf{o}(\mathbf{t}) = \mathbf{O} \\
+\textbf{2}\ [\mathtt{ax\_u}]:\quad & \mathbf{u}(\mathbf{t}) = \mathbf{t} \\
+\textbf{3}\ [\mathtt{ax\_v}]:\quad & \mathbf{v}(\mathbf{a},\mathbf{b}) = \mathbf{b} \\
+\textbf{8}\ [\mathtt{ax\_C}]:\quad & \mathbf{C}(\mathbf{g},\mathbf{f_1},\mathbf{f_2})(\mathbf{t}) = \mathbf{g}(\mathbf{f_1}(\mathbf{t}), \mathbf{f_2}(\mathbf{t})) \\
+\textbf{9}\ [\mathtt{ax\_R\_base}]:\quad & \mathbf{R}(\mathbf{f},\mathbf{g_1},\mathbf{g_2})(\mathbf{x}, \mathbf{O}) = \mathbf{f}(\mathbf{x}) \\
+\textbf{10}\ [\mathtt{ax\_R\_step}]:\quad & \mathbf{R}(\mathbf{f},\mathbf{g_1},\mathbf{g_2})(\mathbf{x}, \mathbf{s}\,\mathbf{n}) = \mathbf{g_1}\bigl(\mathbf{g_2}(\mathbf{x},\mathbf{n}),\ \mathbf{R}(\mathbf{f},\mathbf{g_1},\mathbf{g_2})(\mathbf{x},\mathbf{n})\bigr)
+\end{align*}
+
+\noindent\emph{Equality axioms.}
+\begin{align*}
+\textbf{4}\ [\mathtt{ax\_eqTrans}]:\quad & \mathbf{x} = \mathbf{y} \supset .\ \mathbf{x} = \mathbf{z} \supset \mathbf{y} = \mathbf{z} \\
+\textbf{5}\ [\mathtt{ax\_eqCong_1}]:\quad & \mathbf{a} = \mathbf{b} \supset \mathbf{f}(\mathbf{a}) = \mathbf{f}(\mathbf{b}) \\
+\textbf{6}\ [\mathtt{ax\_eqCong_L}]:\quad & \mathbf{a} = \mathbf{b} \supset \mathbf{g}(\mathbf{a},\mathbf{c}) = \mathbf{g}(\mathbf{b},\mathbf{c}) \\
+\textbf{7}\ [\mathtt{ax\_eqCong_R}]:\quad & \mathbf{a} = \mathbf{b} \supset \mathbf{g}(\mathbf{c},\mathbf{a}) = \mathbf{g}(\mathbf{c},\mathbf{b})
+\end{align*}
+
+\noindent\emph{Propositional axioms.}
+\begin{align*}
+\textbf{11}\ [\mathtt{axK}]:\quad & \mathbf{A} \supset .\ \mathbf{B} \supset \mathbf{A} \\
+\textbf{12}\ [\mathtt{axS}]:\quad & \bigl(\mathbf{A} \supset (\mathbf{B} \supset \mathbf{C})\bigr) \supset .\ (\mathbf{A} \supset \mathbf{B}) \supset .\ \mathbf{A} \supset \mathbf{C} \\
+\textbf{13}\ [\mathtt{axNeg}]:\quad & (\neg\mathbf{A} \supset \neg\mathbf{B}) \supset .\ \mathbf{B} \supset \mathbf{A}
+\end{align*}
+
+\noindent\emph{Rules of inference.}
+\begin{align*}
+\textbf{I}\ [\mathtt{mp}]:\quad & \text{from } \mathbf{A} \supset \mathbf{B} \text{ and } \mathbf{A}, \text{ infer } \mathbf{B}. \\
+\textbf{III}\ [\mathtt{ruleInst}]:\quad & \text{from } \mathbf{A}, \text{ infer } \substF(a, \mathbf{t}, \mathbf{A}) \quad (\text{Shoenfield's } \Sub). \\
+\textbf{VI}\ [\mathtt{ruleIndNat}]:\quad & \text{from } \substF(a, \mathbf{O}, \mathbf{A}) \text{ and } \mathbf{A} \supset \substF(a, \mathbf{s}(\mathbf{x}_a), \mathbf{A}), \text{ infer } \mathbf{A}.
+\end{align*}
+
+Two economies of Guard's system, which we do \emph{not} exploit (we keep
+all fourteen axioms as constructors for fidelity): Dana Scott showed
+axiom~7 derivable from the others~\cite[Exercise after Def.~6]{Guard1963},
+and axiom~5 is derivable from the others excluding
+axiom~7~\cite[Exercise~18]{Guard1963}.  Rule~VI is stated only for
+induction on $\mathbf{x}_0$ in Guard; induction on an arbitrary variable,
+and the substitutivity-of-equality rule, are derivable~\cite[Exercise~19]{Guard1963}.
+
+This list is the complete trusted base: every theorem in the
+development, up to and including $\mathrm{godelII}$, is built solely from
+these seventeen constructors under \texttt{-{}-safe -{}-without-K -{}-exact-split},
+with no postulates.
+
+\subsection{Numerals and the encoding $\code{u}$}
+
+For each $n \in \mathbb{N}$ the numeral is
+$\mathbf{k}_n := \mathbf{s}^n(\mathbf{O})$ (Shoenfield's
+$\mathbf{k}_n$).  Guard's text uses a unary internal functor
+$\num \in \Fun_1$, the \emph{numeral-to-code} map: applied to a
+numeral, $\num$ produces the \emph{encoding} of that numeral.  Its
+defining property is the Deriv-level closure
+\[
+\vdash \num(\mathbf{k}_n) = \code{\mathbf{k}_n}
+\quad\text{for every meta-natural $n$,}
+\]
+where $\code{\mathbf{k}_n}$ is the G\"odel handle of the numeral
+$\mathbf{k}_n$.  This is the BRA4 lemma $\mathit{numEq}\,n$ (its Agda
+form is $\vdash \num(\mathit{natCode}\,n) = \mathit{codeTerm}(\mathit{natCode}\,n)$,
+where $\mathit{natCode}\,n = \mathbf{k}_n$ and
+$\mathit{codeTerm} = \code{\cdot}$ on terms).
+
+In particular $\num$ does \emph{not} act as the identity on numerals:
+for instance
+\[
+\num(\mathbf{s}\,\mathbf{O}) = \code{\mathbf{s}\,\mathbf{O}} = \seq{\mathbf{k}_{\mathrm{tag\_ap_1}}, \seq{\mathbf{k}_{\mathrm{tag\_s}}, \mathbf{O}}} \;\neq\; \mathbf{s}\,\mathbf{O}.
+\]
+The functor $\num$ is precisely Guard's underline:
+$\underline{\mathbf{x}} := \num(\mathbf{x})$, the code of the value of
+$\mathbf{x}$.  On a numeral $\mathbf{k}_n$ this is the encoding
+$\code{\mathbf{k}_n}$; on the recursion side it satisfies the
+unconditional structural closures
+\[
+\vdash \num(\mathbf{O}) = \mathbf{O}, \qquad
+\vdash \num(\mathbf{s}\,\mathbf{t}) = \seq{\mathbf{k}_{\mathrm{tag\_ap_1}}, \seq{\mathbf{k}_{\mathrm{tag\_s}}, \num(\mathbf{t})}}
+\]
+(the Agda lemmas $\mathbf{num\_at\_O}$, $\mathbf{num\_at\_S}$), so that
+$\num$ wraps each $\mathbf{s}$ in the same nested layout that
+$\code{\cdot}$ uses for $\mathbf{s}(\cdot)$, making
+$\vdash \num(\mathbf{k}_n) = \code{\mathbf{k}_n}$ a straightforward
+meta-induction on~$n$.
+
+The encoding $\code{\mathbf{u}}$ of a designator $\mathbf{u}$ is
+defined by induction on the formation rules, using Shoenfield's
+sequence notation $\seq{a_0, a_1, \ldots, a_n}$ ({\S}6.6).  In our
+concrete Agda realisation the sequence operation is a fixed binary
+functional $\Pair \in \Fun_2$ (Church's $\pi$), so that
+$\seq{a, b} := \Pair(a, b)$ and longer sequences nest to the right;
+the abstract notation $\seq{\cdot}$ below leaves this implementation
+choice tacit.  The encoding schema is then:
+\begin{align*}
+\code{\mathbf{O}}              &= \mathbf{O}, \\
+\code{\mathbf{x}_k}            &= \seq{\mathbf{k}_{\mathrm{tag\_var}}, \mathbf{k}_k}, \\
+\code{\mathbf{f}(\mathbf{t})}  &= \seq{\mathbf{k}_{\mathrm{tag\_ap_1}}, \code{\mathbf{f}}, \code{\mathbf{t}}}, \\
+\code{\mathbf{g}(\mathbf{t_1}, \mathbf{t_2})} &= \seq{\mathbf{k}_{\mathrm{tag\_ap_2}}, \code{\mathbf{g}}, \code{\mathbf{t_1}}, \code{\mathbf{t_2}}}, \\
+\code{\mathbf{t_1} = \mathbf{t_2}} &= \seq{\mathbf{k}_{\mathrm{tag\_eq}}, \code{\mathbf{t_1}}, \code{\mathbf{t_2}}}, \\
+\code{\neg \mathbf{A}}         &= \seq{\mathbf{k}_{\mathrm{tag\_neg}}, \code{\mathbf{A}}}, \\
+\code{\mathbf{A} \supset \mathbf{B}} &= \seq{\mathbf{k}_{\mathrm{tag\_imp}}, \code{\mathbf{A}}, \code{\mathbf{B}}},
+\end{align*}
+with codes for the $\Fun_1$ and $\Fun_2$ symbols defined analogously.
+The tags are concrete meta-naturals (e.g.\ $\mathrm{tag\_var}=1$,
+$\mathrm{tag\_ap_1}=2$, $\mathrm{tag\_eq}=10$, $\mathrm{tag\_neg}=11$,
+$\mathrm{tag\_imp}=12$, etc.).
+
+\subsection{The verifier $\thmT$ and the substitution functor $\sub$}
+
+Guard's verifier $\thmT \in \Fun_1$ (his $\mathbf{th}$, Definition~16
+of~\cite{Guard1963}) is internally constructed by course-of-values
+recursion so as to satisfy two structural closures:
+\begin{description}
+\item[Soundness-by-construction.] If $\code{\mathbf{d}}$ is the
+encoding of a Hilbert derivation of~$\mathbf{A}$, then
+$\vdash \thmT(\code{\mathbf{d}}) = \code{\mathbf{A}}$.
+
+\item[Validating-decoder invariant.] On inputs that do not
+encode a well-formed derivation, $\thmT$ returns the canonical truth
+$\code{\mathbf{O} = \mathbf{O}}$.
+\end{description}
+Its construction by course-of-values recursion --- the genuinely
+non-trivial step of realising such recursion inside Church's
+$\{\mathbf{s},\mathbf{o},\mathbf{u},\mathbf{v},\mathbf{C},\mathbf{R}\}$
+grammar --- is the subject of {\S}\ref{sec:cov}.
+
+The substitution functor $\sub \in \Fun_2$ is Guard's Exercise~24[8]
+of~\cite{Guard1963}:
+\[
+\vdash \sub(\mathbf{z}, \code{\mathbf{A}}) = \sbf(\seq{\mathbf{k}_0, \num(\mathbf{z})}, \code{\mathbf{A}}),
+\]
+where $\sbf \in \Fun_2$ is the formula-level single-variable encoded
+substitution.  The point of separating $\sub$ from $\sbf$ is that
+$\sub$ is the function which appears in Guard's text; $\sbf$ is the
+lower-level realisation.
+
+\subsection{The diagonal lemma}
+
+Let $\mathbf{F}$ be the seed formula
+\[
+\mathbf{F} \;\equiv\; \neg\,(\thmT(\mathbf{x}_1) = \mathbf{x}_0).
+\]
+Define
+\begin{align*}
+\mathbf{H} &\;\equiv\; \Sub(\code{\mathbf{F}},\, \code{\mathbf{x}_0},\, \code{\sub(\mathbf{x}_0, \mathbf{x}_0)}), \\
+i &:= \Num(\code{\mathbf{H}}), \\
+\mathbf{G} &\;\equiv\; \Sub(\code{\mathbf{H}},\, \code{\mathbf{x}_0},\, \code{\mathbf{k}_i}).
+\end{align*}
+Then $\mathbf{G}$ is closed in $\mathbf{x}_0$ with one free variable
+$\mathbf{x}_1$, and satisfies the diagonal identity
+\[
+\vdash \sub(\mathbf{k}_i, \mathbf{k}_i) = \code{\mathbf{G}},
+\]
+which is the Agda lemma \texttt{Thm14F.diag\_term\_eq}.
+
+\section{Course-of-values recursion inside Church's recursor}
+\label{sec:cov}
+
+The verifier $\thmT$ is defined by recursion on the G\"odel number of a
+derivation, where the value at a node depends on the values at
+\emph{all} smaller indices (the sub-derivations).  This is
+\emph{course-of-values} recursion.  Church's grammar provides only the
+primitive recursor $\mathbf{R}$, and not in the textbook shape; realising
+course-of-values recursion inside it was the single most delicate piece
+of foundational infrastructure in the development.  Although the
+technique (encode the whole history as one value) is standard in the
+abstract, carrying it out in Church's specific $\mathbf{R}$ was not, for
+the reasons below.
+
+\subsection{Church's recursor is not the textbook one}
+
+The textbook primitive recursor satisfies $\rho(\mathbf{x},\mathbf{O}) =
+g(\mathbf{x})$ and $\rho(\mathbf{x},\mathbf{s}\,\mathbf{n}) =
+h(\mathbf{n}, \rho(\mathbf{x},\mathbf{n}))$, feeding the recursion result
+to $h$ in a fixed argument slot.  Church's $\mathbf{R}$ (axioms~9,~10 of
+{\S}\ref{sec:axioms}) instead satisfies
+\[
+\mathbf{R}(\mathbf{f},\mathbf{g_1},\mathbf{g_2})(\mathbf{x},\mathbf{s}\,\mathbf{n}) = \mathbf{g_1}\bigl(\mathbf{g_2}(\mathbf{x},\mathbf{n}),\ \mathbf{R}(\mathbf{f},\mathbf{g_1},\mathbf{g_2})(\mathbf{x},\mathbf{n})\bigr),
+\]
+so the recursion result enters $\mathbf{g_1}$ as its \emph{second}
+argument, while $\mathbf{g_2}(\mathbf{x},\mathbf{n})$ supplies an
+auxiliary first argument.  This shape is convenient for some recursions
+and awkward for others; in particular it does \emph{not} directly give
+``iterate a unary $\mathbf{f}$,'' which is what course-of-values needs.
+
+\subsection{The history-as-value encoding}
+
+Following Church's pairing functors $J,K,L$ (Definition~6
+of~\cite{Guard1963}; the realisation uses $\mathbf{Pair} = \pi$ with
+projections $\mathit{Fst},\mathit{Snd}$), a finite history is encoded as a
+right-nested list of pairs,
+\[
+\seq{v_K, v_{K-1}, \ldots, v_0} \;:=\; \mathbf{Pair}(v_K, \mathbf{Pair}(v_{K-1}, \cdots \mathbf{Pair}(v_0, \mathbf{O}))),
+\]
+and the recursion carries a \emph{state}
+\[
+\mathit{state}_K \;=\; \mathbf{Pair}(\mathbf{k}_K,\ \mathbf{Pair}(\mathit{spec},\ \mathit{table}_K)),
+\qquad \mathit{table}_K = \seq{v_K, \ldots, v_0},
+\]
+threading the counter $\mathbf{k}_K$, an immutable \emph{spec} parameter
+(recoverable as $\mathit{Fst}(\mathit{Snd}(\mathit{state}))$ at every
+step, which is how the step function reads its parameter without it being
+a BRA argument), and the full table of values.  At each step the new
+value $v_{K+1} = \mathit{stepFun}(\mathit{Fst}\,\mathit{state},\,
+\mathit{Snd}\,\mathit{state})$ is consed onto the table; the final answer
+is read off the head,
+\[
+\thmT = \mathit{Post}\;\mathit{readOff}\;(\mathit{cov\_spec}\ \mathit{baseFun}\ \mathit{stepFun}).
+\]
+This is the Agda module \verb|BRA4.CoVSpec| (spec-carrying), built on
+\verb|BRA3.CourseOfValues|.
+
+\subsection{The nested-\texorpdfstring{$\mathbf{R}$}{R} trick}
+
+The crux is that the state recursion needs to \emph{apply a unary
+function to the previous state} --- i.e.\ an iteration combinator
+$\mathit{iter}\ f$ with $\mathit{iter}\ f\,(\mathbf{x},\mathbf{k}) =
+f^{\mathbf{k}}(\mathbf{x})$.  But Church's $\mathbf{R}$ delivers the
+recursion result into $\mathbf{g_1}$'s \emph{second} slot, whereas the
+naive lift $\mathbf{R}\,f\,\mathbf{v}\,\mathbf{v}$ can read it only via
+the \emph{first}.  Bridging the two requires a binary $\mathbf{g_1}$ with
+$\mathbf{g_1}(\mathbf{a},\mathbf{b}) = f(\mathbf{b})$ --- a function that
+ignores its first argument and applies $f$ to its second.  This is itself
+built as \emph{another} nested $\mathbf{R}$,
+\[
+\mathit{iter\_step\_fun}\,f \;=\; \mathbf{R}\,\bigl(\mathit{compose_1}\,f\,\mathbf{o}\bigr)\,\bigl(\mathbf{R}\,(\mathit{compose_1}\,f\,\mathbf{s})\,\mathbf{v}\,\mathbf{v}\bigr)\,\mathbf{v},
+\]
+and the defining equation $\mathbf{g_1}(\mathbf{a},\mathbf{b}) =
+f(\mathbf{b})$ is then \emph{proved inside $T$ by induction}
+(\texttt{ruleIndNat}, Rule~VI), not by computation.  This use of the
+object-level induction rule to establish a meta-level recursion scheme is
+exactly what makes the step ``non-trivial to do for Church's system'':
+the iteration combinator is not primitive, it is a derived object whose
+correctness is an internal theorem.
+
+\subsection{Fuel and stability}
+
+Because $\mathbf{R}$ recurses on a concrete numeral, $\mathit{cov\_spec}$
+takes a \emph{fuel} index, and the read-off value must be shown
+independent of any surplus fuel above the index actually needed --- the
+\emph{stability} lemmas of \verb|BRA4.StabilityNatFuel| and
+\verb|BRA4.Stability|, which establish that once the counter reaches the
+target node $K$, $\mathit{readOff}(\mathit{state}_{K'}) =
+\mathit{readOff}(\mathit{state}_K)$ for all $K' \ge K$.  These, together
+with the per-projection preservation lemmas, are what let the
+finitely-many per-tag closure equations of $\thmT$
+($\thmT\_\mathrm{at}\_\mathrm{ax_0}, \ldots, \thmT\_\mathrm{at}\_\mathrm{mp},
+\thmT\_\mathrm{at}\_\mathrm{sb}$, etc.) be discharged uniformly.
+
+In sum: course-of-values recursion is \emph{representable} in BRA, but
+not for free.  Its representation requires (i) a history-carrying state
+threaded through Church's non-standard $\mathbf{R}$, (ii) an iteration
+combinator synthesised by a nested $\mathbf{R}$ whose correctness is an
+internal induction, and (iii) fuel-stability lemmas.  This is the
+foundation on which $\thmT$, $\sbt$, $\sbf$, $\num$, and $\mathbf{Eval}$
+(of the Berry route) all rest.
+
+\section{The main theorem}
+
+\begin{theorem}[G\"odel II for BRA, formalised]
+\label{thm:godelII}
+Let
+\[
+\Con_T \;\equiv\; \neg\,(\thmT(\mathbf{x}_0) = \code{\mathbf{O} = \mathbf{s}\,\mathbf{O}})
+\]
+be the internal consistency schema, asserting that no term codes a
+derivation of $\mathbf{O} = \mathbf{s}\,\mathbf{O}$.  Then there is a
+closed Hilbert-style derivation
+\[
+\mathrm{godelII} \;:\; \vdash \Con_T \;\Longrightarrow\; \vdash (\mathbf{O} = \mathbf{s}\,\mathbf{O}).
+\]
+\end{theorem}
+
+\noindent
+The Agda statement is
+\begin{lstlisting}
+godelII : Deriv ConSchema -> Deriv P_false
+  where ConSchema = neg (eqF (ap1 thmT (var 0)) codeFalse)
+        P_false   = atomic (eqn O (ap1 s O))
+\end{lstlisting}
+and is shipped in \verb|BRA4/Thm/Thm14GodelII.agda| (241 LoC, fresh
+chain to the theorem~$7.2$\,s), with no postulates, no holes, and the
+global options \verb|--safe --without-K --exact-split|.  The full BRA4
+development has zero \verb|postulate| declarations anywhere in its
+$\sim 50\,000$ lines.
+
+\section{Structure of the proof}
+
+The proof follows Guard's five-step decomposition (\emph{guard15.pdf}
+p.~17), with Step~5 expressed as an explicit composition of two encoded
+applications of modus ponens.  Throughout, $\mathbf{x}$ ranges over
+$T$-terms at the meta level, and is \emph{universally} quantified at
+the meta-level (so $\vdash \mathbf{A}(\mathbf{x})$ below stands for
+``\,$\vdash \mathbf{A}$ as an open formula with free variable
+$\mathbf{x}$\,'' --- giving every closed instance via Rule~III).
+
+\paragraph{Step 1.}  By the internal Theorem~13 for unary functionals,
+\[
+\vdash \;\;(\thmT(\mathbf{x}) = \mathbf{k}_j) \;\supset\; (\thmT(D_\thmT(\mathbf{x})) = \code{\thmT(\num(\mathbf{x})) = \num(\mathbf{k}_j)}),
+\]
+where $D_\thmT \in \Fun_1$ is the Hilbert-internal handle for the
+verifier $\thmT$ supplied by Theorem~12, and $j$ is the Goedel-handle
+meta-natural of~$\mathbf{G}$.
+
+\paragraph{Step 2.}  By the internal Theorem~13 for the binary
+$\sub$:
+\[
+\vdash \;\;\thmT(D_\sub(\mathbf{k}_i, \mathbf{k}_i)) = \code{\sub(\mathbf{k}_i, \mathbf{k}_i) = \num(\mathbf{k}_j)}.
+\]
+
+\paragraph{Step 3.}  Imp-encoded transitivity of equality chains
+Steps~1 and~2 through the common middle term $\num(\mathbf{k}_j)$:
+\[
+\vdash \;\;(\thmT(\mathbf{x}) = \mathbf{k}_j) \;\supset\; (\thmT(g(\mathbf{x})) = \code{\thmT(\num(\mathbf{x})) = \sub(\mathbf{k}_i, \mathbf{k}_i)}).
+\]
+
+\paragraph{Step 4.}  The term
+\[
+K_{\mathrm{part}}(\mathbf{x}) \;:=\; \seq{\mathbf{k}_{\mathrm{tag\_sb}}, \seq{\mathbf{k}_1, \num(\mathbf{x})}, \mathbf{x}}
+\]
+is the encoded single-variable substitution that, under the diagonal
+identity $\sub(\mathbf{k}_i, \mathbf{k}_i) = \code{\mathbf{G}}$,
+satisfies
+\[
+\vdash \;\;(\thmT(\mathbf{x}) = \mathbf{k}_j) \;\supset\; (\thmT(K_{\mathrm{part}}(\mathbf{x})) = \code{\neg\,(\thmT(\num(\mathbf{x})) = \sub(\mathbf{k}_i, \mathbf{k}_i))}).
+\]
+
+\paragraph{Step 5a.}  Let $t' := \code{\mathbf{axExFalso}\,\mathbf{A}\,\bot}$
+be the encoded derivation of Guard's schema $\mathbf{A} \supset
+(\neg \mathbf{A} \supset \bot)$ with $\mathbf{A} \equiv (\mathbf{x}_0
+= \mathbf{x}_1)$ and $\bot \equiv (\mathbf{O} = \mathbf{s}\,\mathbf{O})$.
+Set
+\[
+h(\mathbf{x}) \;:=\; \seq{\mathbf{k}_{\mathrm{tag\_sb_2}}, \sigma(\mathbf{x}), t'},
+\]
+where $\sigma(\mathbf{x})$ is the two-variable substitution
+specification
+\[
+\sigma(\mathbf{x}) \;:=\; \seq{\seq{\mathbf{k}_0, \code{\thmT(\num(\mathbf{x}))}},\, \seq{\mathbf{k}_1, \code{\sub(\mathbf{k}_i, \mathbf{k}_i)}}}.
+\]
+Then by the $\subtwo$-closure of $\thmT$ and the per-shape closures of
+the two-variable formula substitution $\sbftwo$, writing
+$E := \thmT(\num(\mathbf{x})) = \sub(\mathbf{k}_i, \mathbf{k}_i)$,
+\[
+\vdash \;\;\thmT(h(\mathbf{x})) = \code{E \;\supset\; \neg E \;\supset\; (\mathbf{O} = \mathbf{s}\,\mathbf{O})}.
+\]
+
+\paragraph{Step 5b.}  Two applications of the Carneiro-lifted encoded
+modus ponens $\mathbf{imp\_encoded\_mp}$ compose Steps~3, 4, and~5a to
+produce
+\[
+\vdash \;\;(\thmT(\mathbf{x}) = \mathbf{k}_j) \;\supset\; (\thmT(\mathit{bigterm}(\mathbf{x})) = \code{\mathbf{O} = \mathbf{s}\,\mathbf{O}}),
+\]
+where
+\[
+\mathit{bigterm}(\mathbf{x}) \;:=\; \seq{\mathbf{k}_{\mathrm{tag\_mp}}, \seq{\mathbf{k}_{\mathrm{tag\_mp}}, h(\mathbf{x}), g(\mathbf{x})}, K_{\mathrm{part}}(\mathbf{x})}.
+\]
+
+\paragraph{Final assembly.}  Instantiate the universal Step~5 at
+$\mathbf{x} = \mathbf{x}_1$.  From $\vdash \Con_T$ by Rule~III applied
+to $\mathit{bigterm}(\mathbf{x}_1)$ we obtain
+\[
+\vdash \;\neg\,(\thmT(\mathit{bigterm}(\mathbf{x}_1)) = \code{\mathbf{O} = \mathbf{s}\,\mathbf{O}}).
+\]
+The classical contrapositive $\mathbf{axContrapos}$ then yields
+\[
+\vdash \;\neg\,(\thmT(\mathbf{x}_1) = \mathbf{k}_j).
+\]
+The predicate-Leibniz rule $\mathbf{substF\_cong}$ applied at the
+formula
+\[
+\Phi \;\equiv\; \neg\,(\thmT(\mathbf{x}_1) = \mathbf{x}_2)
+\]
+with the equation $\vdash \sub(\mathbf{k}_i, \mathbf{k}_i) = \mathbf{k}_j$
+converts this to $\vdash \mathbf{G}$.  An inlined re-derivation of
+Theorem~11 (G\"odel~I) for the sub-form of $\mathbf{G}$ then yields
+$\vdash (\mathbf{O} = \mathbf{s}\,\mathbf{O})$.
+
+\section{Implicit facts in Guard's text, made explicit}
+
+The formalisation forced a number of small but non-trivial corrections,
+disambiguations, or additions to Guard 1963.
+
+\subsection{Underline notation: the internal $\num$ versus the meta-encoding $\code{\cdot}$}
+
+Guard's text uses an underline notation $\underline{\mathbf{x}}$ whose
+meaning shifts between (i)~the internal $T$-term $\num(\mathbf{x})$
+and (ii)~the meta-level G\"odel handle $\code{\mathbf{x}}$.  These are
+genuinely different objects:
+\begin{itemize}
+\item $\num(\mathbf{x})$ is a $T$-term --- the unary functor $\num \in
+\Fun_1$ applied to $\mathbf{x}$.  It \emph{computes}, inside $T$, the
+encoding of the value of $\mathbf{x}$.
+\item $\code{\mathbf{x}}$ is the meta-level encoding of the
+\emph{syntactic} object $\mathbf{x}$ (the G\"odel handle), a closed
+term computed outside $T$.
+\end{itemize}
+They are connected only by the Deriv-level closure on closed numerals:
+\[
+\vdash \num(\mathbf{k}_n) = \code{\mathbf{k}_n}
+\quad\text{(the lemma $\mathit{numEq}\,n$),}
+\]
+and they differ for non-numeral $\mathbf{x}$ (e.g.\ for a variable
+$\mathbf{x}_0$, the term $\num(\mathbf{x}_0)$ is open whereas
+$\code{\mathbf{x}_0} = \seq{\mathbf{k}_{\mathrm{tag\_var}}, \mathbf{k}_0}$
+is a fixed closed handle).  Note that \emph{neither} of these equals
+$\mathbf{x}$ itself: in particular $\num(\mathbf{s}\,\mathbf{O}) =
+\code{\mathbf{s}\,\mathbf{O}} \neq \mathbf{s}\,\mathbf{O}$, so the
+underline is never the identity.
+
+In the Agda development the file \verb|Thm14F.agda| introduces the
+\emph{slot abbreviation} $\mathrm{code}\,\mathbf{t} := \num(\mathbf{t})$
+(its $\mathrm{code}$ is literally $\num$), used in the encoded
+positions where Guard writes $\underline{\mathbf{x}}$.  This
+abbreviation coincides with the meta-encoding $\code{\cdot}$ only on
+closed numerals --- precisely via $\mathit{numEq}$ --- and the
+formalisation makes every such bridge explicit
+(e.g.\ $\vdash \num(\mathbf{k}_i) = \code{\mathbf{k}_i}$ at the
+diagonal numeral $i$).
+
+\subsection{The two G's of the diagonal lemma}
+
+There are two distinct formulas, both called ``$\mathbf{G}$'' in
+informal treatments of the diagonal lemma:
+\begin{align*}
+\mathbf{G}_{\sub}  &:\equiv\; \neg\,(\thmT(\mathbf{x}_1) = \sub(\mathbf{k}_i, \mathbf{k}_i)), \\
+\mathbf{G}_{\sbf}  &:\equiv\; \neg\,(\thmT(\mathbf{x}_1) = \sbf(\seq{\mathbf{k}_0, \num(\mathbf{k}_i)}, \mathbf{k}_i)).
+\end{align*}
+These are equal in~$T$ only up to the closure $\mathbf{sub\_eq}$,
+which is a term-level $T$-derivable equation, \emph{not} a
+Formula-syntactic equality.  Consequently, a proof of G\"odel~I phrased
+for $\mathbf{G}_{\sbf}$ (as in our \verb|BRA4.GoedelI|) does not
+literally apply to $\mathbf{G}_{\sub}$.  The formalisation bridges this
+gap either by inlining a copy of G\"odel~I for $\mathbf{G}_{\sub}$ (the
+route taken in \verb|Thm14GodelII|), or by invoking the
+\emph{predicate-Leibniz} rule $\mathbf{substF\_cong}$ to transfer
+derivability across the term-equation $\sub(\mathbf{k}_i, \mathbf{k}_i)
+= \mathbf{k}_j$.  Guard's text treats the two $\mathbf{G}$'s as
+interchangeable without comment.
+
+\subsection{Modus-ponens slot order}
+
+{\sloppy Guard writes \emph{mp}(antecedent, implication) in
+his encoded-derivation tables, while our
+$\seq{\mathbf{k}_{\mathrm{tag\_mp}}, \mathrm{impl}, \mathrm{ant}}$ uses
+the opposite order.\par}  Guard's expression for
+$\mathit{bigterm}(\mathbf{x})$,
+\[
+4J\bigl[\,4J(J(\num\,\mathbf{x},1),\, \mathbf{x})+1,\ \ 4J(g(\mathbf{x}),\, h(\mathbf{x}))+2\,\bigr]+2,
+\]
+thus hides which sub-slot is which, and a careful sign-by-sign
+translation is needed.
+
+\subsection{Closedness side conditions for Rule III}
+
+Rule III ($\substT, \substF$) only reduces $\substT(\mathbf{x}_a,
+\mathbf{t}, \mathbf{t}')$ when $\mathbf{x}_a$ and $\mathbf{t}'$ match
+by definitional pattern.  For closed sub-terms (numerals, the encoded
+false formula $\code{\mathbf{O} = \mathbf{s}\,\mathbf{O}}$, the
+diagonal numeral $\mathbf{k}_i$) the formalisation requires explicit
+$\Closed$ witnesses and bridges via \texttt{closedAt}.  Guard's text
+uses ``\,$\mathbf{k}_i$ is a numeral so its substitution is
+trivial\,''.  The Agda development must construct, e.g.\
+\[
+\mathit{closed\_codeFalse} \;:\; \Closed\,\code{\mathbf{O} = \mathbf{s}\,\mathbf{O}}
+\]
+as a nested $\seq{\cdot}$/numeral proof tree.
+
+\subsection{The validating-decoder invariant on $\thmT$}
+
+Guard's verifier $\thmT$ is described informally as ``returns the code
+of the proved formula''.  But for inputs that are \emph{not} the
+encoding of a derivation, $\thmT$ must still be defined and must still
+satisfy the closure equations used in the proof (e.g.\
+$\vdash \thmT(\code{\mathrm{mp}(p,q)}) = \cdots$).  We adopt the
+convention
+\[
+\vdash \thmT(\mathit{garbage}) = \code{\mathbf{O} = \mathbf{O}},
+\]
+(the canonical trivial truth), which makes the closure equations
+$\mathbf{thmT\_at\_mp}$, $\mathbf{thmT\_at\_sb}$, etc.\ universal in
+their raw $\Pair$-encoded inputs.  This invariant is implicit in Guard
+but essential to make the closures usable.
+
+\subsection{The encoded $t'$ schema}
+
+Guard writes ``\,$t'$ is the encoded derivation of $\mathbf{x}_0 =
+\mathbf{x}_1 \supset \mathbf{x}_0 \neq \mathbf{x}_1 \supset \mathbf{O}
+= \mathbf{s}\,\mathbf{O}$\,''.  The formalisation exhibits this
+concretely as
+\[
+t' \;=\; \code{\mathbf{axExFalso}\,(\mathbf{x}_0 = \mathbf{x}_1)\,(\mathbf{O} = \mathbf{s}\,\mathbf{O})}
+\]
+with $\mathbf{axExFalso}$ built from $\mathbf{axK}, \mathbf{axS},
+\mathbf{axNeg}$, and a completeness handle
+$\mathbf{thmT\_complete\_rec}$ proving the verifier's expected output.
+Guard glosses both pieces.
+
+\subsection{Carneiro lift for hypothetical derivations}
+\label{sec:carneiro}
+
+Guard frequently asserts implications of the form ``\,under the
+hypothesis $\mathbf{P}$ we have $\mathbf{A}$ and $\mathbf{B}$, hence
+$\mathbf{C}$\,''.  In a pure Hilbert calculus there is no
+implication-introduction rule, and our \verb|Deriv| is
+\emph{context-free} ($\verb|Deriv| : \mathit{Formula} \to \mathit{Set}$,
+no hypothesis context), so the only way to express ``under hypothesis
+$\mathbf{P}$'' is the object formula $\mathbf{P} \supset (\cdots)$, and
+the only way to \emph{compose} such conditionals is to lift every
+ordinary combinator to its $\mathbf{P} \supset (\cdots)$ form via
+Carneiro's $\mathbf{axS}/\mathbf{axK}$ technique~\cite{Carneiro}.  The
+formalisation extracts this into a small toolkit in
+\verb|BRA4.Thm12.ImpHelpers|:
+\[
+\mathbf{impLift},\ \mathbf{impMp},\ \mathbf{impCong_1},\ \mathbf{impCong_L},\ \mathbf{impCong_R},\ \mathbf{impRuleSym},\ \mathbf{impEqTrans},
+\]
+together with the encoded modus ponens $\mathbf{imp\_encoded\_mp}$
+(\verb|BRA4.Thm12.EncodedMp|).
+
+\paragraph{Is it essential?}  Relative to the context-free
+\verb|Deriv| representation, yes: the theorems of the Theorem~14
+argument are intrinsically conditional --- Step~5 is literally
+$\mathrm{th}(\mathbf{x}) = j \supset \mathrm{th}(\mathit{bigterm}(\mathbf{x}))
+= \code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}$ --- and this conditional is
+exactly what is combined with $\Con_T$ to produce $\mathbf{G}$, so it
+cannot be restructured away.  It is \emph{not} essential in the absolute
+sense: a deduction theorem for BRA is admissible (\cite[Exercise~19]{Guard1963}),
+so one could instead carry a hypothesis context in \verb|Deriv| and prove
+the deduction theorem once.  The Carneiro lift is the \emph{pointwise}
+deduction theorem --- lift the combinators actually used, rather than
+prove the general metatheorem --- and given our context-free judgement it
+is the lightweight, effectively forced choice.
+
+\paragraph{A concrete example where it helped.}  The step in
+$\thmT$'s Step~4 (\verb|BRA4.Thm.Thm14Step4|) that \emph{uses the
+G\"odel hypothesis itself}.  Under $\mathbf{P} = (\mathrm{th}(\mathbf{x})
+= j)$ one must rewrite $\sbf(\mathit{cSpec}, \mathrm{th}(\mathbf{x}))$
+into $\sbf(\mathit{cSpec}, j)$ --- i.e.\ apply the assumption
+``$\mathrm{th}(\mathbf{x}) = j$'' \emph{inside} a congruence, without
+discharging it:
+\begin{lstlisting}
+hyp_imp : Deriv (imp P (eqF (ap1 thmT x) j))
+hyp_imp = impRefl P             -- assuming P, P holds: i.e. assuming th(x)=j, th(x)=j
+
+step_B_imp : Deriv (imp P (eqF (ap2 sbf cSpec (ap1 thmT x)) (ap2 sbf cSpec j)))
+step_B_imp = impCongR {P} sbf (ap1 thmT x) j cSpec hyp_imp
+\end{lstlisting}
+Here $\mathbf{impRefl}\,\mathbf{P}$ extracts the hypothesis as
+$\mathbf{P} \supset \mathbf{P}$ --- and $\mathbf{P}$ \emph{is} the
+equation $\mathrm{th}(\mathbf{x}) = j$ --- while $\mathbf{impCong_R}$
+threads it through the congruence of $\sbf$, yielding
+$\mathbf{P} \supset (\sbf(\mathit{cSpec}, \mathrm{th}(\mathbf{x})) =
+\sbf(\mathit{cSpec}, j))$.  Unfolded, this is just $\mathbf{ax\_eqCong_R}$
+wrapped with $\mathbf{axS}/\mathbf{axK}$; the toolkit makes it one line.
+
+The same proof shows the lift is doing genuine work of two distinct
+kinds at once.  The surrounding steps A, C, D of Step~4 are
+\emph{unconditional} facts (the closure $\thmT\_\mathrm{at}\_\mathrm{sb}$,
+the diagonal bridge $\mathit{codeFormulaG\_eq\_j}$, the per-shape
+$\sbf/\sbt$ evaluations); each is carried past $\mathbf{P}$ by
+$\mathbf{impLift}$ (a bare $\mathbf{axK}$ wrap).  Only step~B
+\emph{consumes} the hypothesis ($\mathbf{impRefl}\,\mathbf{P}$ +
+$\mathbf{impCong_R}$).  And $\mathbf{impEqTrans}$ chains all four equalities
+under the single $\mathbf{P}$ to conclude
+$\mathbf{P} \supset (\mathrm{th}(K_{\mathrm{part}}(\mathbf{x})) =
+\code{\neg(\mathrm{th}(\underline{\mathbf{x}}) = \sub(\mathbf{k}_i,\mathbf{k}_i))})$.
+Carrying unconditional facts past $\mathbf{P}$ and applying $\mathbf{P}$
+where needed is exactly the bookkeeping a deduction theorem would
+otherwise perform; the Carneiro lift does it pointwise.  Its headline
+consumer is $\mathbf{imp\_encoded\_mp}$: the two encoded modus-ponens
+steps of Step~5b are composed entirely under $P_x$ via
+$\mathbf{imp\_thmT\_at\_mp} + \mathbf{impEqTrans}$.  Guard never names the
+principle.
+
+\subsection{Predicate-Leibniz substitutivity}
+
+Guard's transition from
+``\,$\neg\,(\thmT(\mathbf{x}_1) = \mathbf{k}_j)$\,''
+to
+``\,$\neg\,(\thmT(\mathbf{x}_1) = \sub(\mathbf{k}_i, \mathbf{k}_i))$\,''
+is stated as an obvious rewrite.  In a Hilbert calculus this requires
+the \emph{predicate-Leibniz} principle
+\[
+\vdash \mathbf{a} = \mathbf{b} \;\Longrightarrow\; \vdash \Sub(\code{\Phi}, \code{\mathbf{x}_k}, \code{\mathbf{a}}) \supset \Sub(\code{\Phi}, \code{\mathbf{x}_k}, \code{\mathbf{b}}),
+\]
+which is itself a small but non-trivial Hilbert-meta-theorem (proved by
+induction on $\Phi$, using $\mathbf{axContrapos}$ on the negative
+slot; see \verb|BRA3.Substitutivity|).  Guard does not mention it.
+
+\subsection{Three small typographical issues}
+
+\begin{itemize}
+\item Guard writes ``$j$'' in places where his own underline convention
+requires $\underline{j}$ (= $\num\,\mathbf{k}_j = \code{\mathbf{k}_j}$).
+The formalisation makes the distinction explicit at every occurrence.
+
+\item Definition~12 conflates the underline notation with the
+numeral.  The formalisation requires the precise statement that
+$\vdash \num(\mathbf{k}_n) = \code{\mathbf{k}_n}$ \emph{for every
+meta-natural~$n$} --- i.e.\ $\num$ maps a numeral to its
+\emph{encoding}, not to itself --- instantiated through the lemma
+$\mathit{numEq}$.  In particular $\num(\mathbf{s}\,\mathbf{O}) =
+\code{\mathbf{s}\,\mathbf{O}} \neq \mathbf{s}\,\mathbf{O}$.  The text
+leaves this implicit and the underline notation makes it easy to
+mistake $\num(\mathbf{x})$ for $\mathbf{x}$ itself.
+
+\item In the description of $h(\mathbf{x})$, Guard does not commit to
+a representation of the two-variable substitution specification.  The
+formalisation must fix one
+($\seq{\seq{\mathbf{k}_0, S_0}, \seq{\mathbf{k}_1, S_1}}$) and
+prove that the $\sbftwo$ closures are universal in $S_0, S_1$.
+\end{itemize}
+
+\section{The simultaneous-substitution machinery: where it is, and is not, needed}
+\label{sec:sb2}
+
+The Agda development uses a dedicated two-variable simultaneous
+substitution $\subtwo$ for $h(\mathbf{x})$ in Step~5a, and a
+three-variable $\mathbf{sub_3}$ for the encoded equational congruence
+axioms feeding Theorem~12.  This requires $\sbttwo, \sbftwo,
+\mathbf{sbt_3}, \mathbf{sbf_3} \in \Fun_2$ by course-of-values, the
+contract records \verb|SbContract2|/\verb|SbContract3| (8--11 closure
+lemmas each), and two extra discriminator levels
+($\mathbf{k}_{\mathrm{tag\_sb_2}}$, $\mathbf{k}_{\mathrm{tag\_sb_3}}$) in
+the $\thmT$ cascade --- roughly $10\,000$ lines across a dozen files.  The
+natural question is whether this is necessary.  The answer is subtle, and
+worth recording carefully because it pinpoints the one place Guard's text
+leaves the argument incomplete.
+
+\paragraph{Iterated single substitution does not eliminate it.}  The
+tempting factorisation of a two-variable simultaneous substitution into
+single ones with a fresh-variable rename,
+\[
+\sbttwo((\mathbf{a}/\mathbf{x}_0, \mathbf{b}/\mathbf{x}_1),\, \mathbf{c}) \;=\; \sbt(\mathbf{b}/\mathbf{x}_k)\,(\sbt(\mathbf{a}/\mathbf{x}_0)\,(\sbt(\code{\mathbf{x}_k}/\mathbf{x}_1)\,\mathbf{c})),
+\]
+requires the outer single substitution to leave the already-plopped
+substituent $\mathbf{a}$ unchanged --- the encoded freshness identity
+$\vdash \sbt(\seq{\mathbf{k}_k, S},\, \mathbf{a}) = \mathbf{a}$ when
+$\mathbf{x}_k \notin \mathbf{a}$.  In the theorems the substituents are
+$\num\,X$ for \emph{universal} $X$, and for \emph{open} $X$ (e.g.\
+$X = \mathbf{x}_1$) the term $\num(\mathbf{x}_1)$ does not reduce:
+$\num = \mathbf{C}\,\mathit{numAux}\,\mathbf{o}\,\mathbf{u}$ with
+$\mathit{numAux} = \mathbf{R}\,\mathbf{o}\,\mathit{numStep}\,\mathbf{v}$,
+whose $\mathbf{R}$-recursion fires only when its second argument is
+syntactically $\mathbf{O}$ or $\mathbf{s}(\cdot)$; a variable is neither,
+so $\num(\mathbf{x}_1)$ stays a raw open application.  Since $\sbt$
+dispatches on $\mathit{get\_tag}(\mathit{input})$ first, and that tag is
+an \emph{open} expression on the stuck term, the dispatch never settles:
+$\sbt(\seq{\mathbf{k}_k, S}, \num(\mathbf{x}_1))$ is not provably equal to
+anything --- \emph{even with an identity (passthrough) otherwise clause},
+since one cannot prove the otherwise branch is reached.  The freshness
+identity \emph{is} provable for \emph{var-free} $X$ (closed numerals:
+$\num\,X$ reduces to a $\code{\cdot}$-tree with no
+$\seq{\mathbf{k}_{\mathrm{tag\_var}}, \cdot}$ leaf), but not for open $X$.
+
+\paragraph{What Guard actually does (guard15.pdf).}  Reading Guard's own
+definitions settles the question.  His verifier $\mathbf{th}$
+(Definition~16) has \emph{only a single-variable substitution clause}:
+\[
+\mathbf{th}(4y{+}1) = \mathbf{sb}(\seq{KKy, IKy},\, \mathbf{th}(Ly)), \qquad
+\mathbf{sb}(J(\code{A}, n), \code{P}) = \code{S^{\mathbf{x}_n}_{A}\,P}.
+\]
+The congruence axioms are produced by his $\mathbf{ax}$ functor
+(Exercise~24[6]) as \emph{schemas} with free $\mathbf{x}_0,\mathbf{x}_1,
+\mathbf{x}_2$, by \emph{direct assembly} from the functor's G\"odel
+number, e.g.\ $\mathbf{ax}(9\code{f}{+}5) = \code{\mathbf{x}_0 =
+\mathbf{x}_1 \supset f(\mathbf{x}_0) = f(\mathbf{x}_1)}$.  And in his
+\emph{explicit} Theorem~14 construction (p.~17) the multi-variable effect
+is obtained by \emph{nested single-$\mathbf{sb}$ steps with the open
+substituent applied last}:
+\[
+f(\mathbf{x}) = 4J[\,J(\code{\thmT(\underline{\mathbf{x}})},0),\ 4J[\,J(\code{\sub(\mathbf{k}_i,\mathbf{k}_i)},1),\ 4J[\,J(\num\,j,2),\,t\,]{+}1\,]{+}1\,]{+}1,
+\]
+which substitutes $\mathbf{x}_2 := \num\,j$ (closed), then
+$\mathbf{x}_1 := \sub(\mathbf{k}_i,\mathbf{k}_i)$ (closed), then
+$\mathbf{x}_0 := \thmT(\underline{\mathbf{x}})$ (open) \emph{outermost}.
+The closed substituents are re-scanned but pass through (var-free); the
+open one is plopped last and never re-scanned.  This is exactly the
+ordering trick --- and it is Guard's actual proof.
+
+\paragraph{Hence Theorem~14 does not need $\subtwo/\mathbf{sub_3}$.}  Step
+5a's $h(\mathbf{x})$ has a single open substituent
+($Y_0 = \code{\thmT(\num\,\mathbf{x})}$; $Y_1 =
+\code{\sub(\mathbf{k}_i,\mathbf{k}_i)}$ is var-free), so single
+$\mathbf{sb}$ with the open substituent last suffices, exactly as in
+Guard's $f,g,h$.  Our use of $\subtwo$ there is a uniformity choice, not a
+necessity.
+
+\paragraph{Theorem~12's compound cases are the real locus --- and Guard
+leaves them to the reader.}  Theorem~12 (``\emph{meta-induction on the
+length of the definition of a functor; the details are left to the
+reader}'') builds the derivation handle $D_f$ by induction on the functor.
+The base cases $\mathbf{s},\mathbf{o},\mathbf{u},\mathbf{v}$ are routine.
+The \emph{compound} cases $\mathbf{C}(f,g,h)$ and $\mathbf{R}(\cdots)$ are
+not: building $D_{\mathbf{C}(f,g,h)}$ needs, from
+$g(\underline{\mathbf{x}}) = g(\mathbf{x})$ and
+$h(\underline{\mathbf{x}}) = h(\mathbf{x})$, the congruence
+\[
+f(g(\underline{\mathbf{x}}), h(\underline{\mathbf{x}})) = f(g(\mathbf{x}), h(\mathbf{x})),
+\]
+i.e.\ the binary congruence schemas specialised at
+$g(\underline{\mathbf{x}}), g(\mathbf{x}), h(\underline{\mathbf{x}}),
+h(\mathbf{x})$ --- \emph{all open} (each involves the object variable via
+$\underline{\mathbf{x}} = \num\,\mathbf{x}$).  With \emph{several}
+independent open substituents, no ordering puts them all last, and
+iterated single-$\mathbf{sb}$-with-rename re-scans an open $\num\,\mathbf{x}$
+and stalls.  Guard escapes this \emph{meta-level}: his $\mathbf{sb},
+\mathbf{th}$ are total primitive-recursive functions reasoned about via
+representability (no internal tag-dispatch to stall), and he even defines
+the multi-variable $\mathbf{sbt}/\mathbf{sbf}$ in Exercise~24[2,3].  But an
+\emph{internal, explicit} construction of $D_f$ and a proof of its
+$\thmT$-closure has no such escape: it must add a genuine multi-variable
+substitution clause to $\thmT$.  That is precisely what $\subtwo/
+\mathbf{sub_3}$ are.  So the single place a simultaneous-substitution
+primitive is genuinely required is the \emph{internal formalisation of
+Theorem~12's compound-functor induction step} --- exactly the step Guard
+never wrote out.
+
+\paragraph{These primitives are sound, because simultaneous instantiation
+is an admissible rule.}  ``Primitive at the encoded-functor level'' must
+not be read as ``unjustified axiom''.  The closures of $\mathtt{SbContract2}$
+and $\mathtt{SbContract3}$ are the \emph{encoded-level counterparts} of a
+\emph{derived} admissible rule of the Hilbert calculus,
+\[
+\mathbf{ruleInst2}\;:\; k_1 \neq k_2 \;\Longrightarrow\; \vdash \mathbf{P} \;\Longrightarrow\; \vdash \mathit{simSubstF}(k_1, t_1, k_2, t_2, \mathbf{P}),
+\]
+\emph{fully derived} (not postulated) in \verb|BRA3.RuleInst2| --- Church's
+Standard Metatheorem~VII --- from ordinary single-variable substitution by
+alpha-renaming through a fresh internal variable; the three-variable
+$\mathbf{ruleInst3}$ likewise in \verb|BRA4.RuleInst3|.  Thus
+$\subtwo/\mathbf{sub_3}$ encode a rule the system already admits and add no
+proof-theoretic strength.  The contrast is the whole point of this
+section: the \emph{abstract} rule $\mathbf{ruleInst2}$ \emph{is} derivable
+from single substitution (on raw formulas, where the fresh rename works),
+whereas its \emph{encoded functor} $\sbttwo$ is not reducible to iterated
+encoded $\sbt$ --- the encoded re-scan stalls on the open $\num\,X$.  The
+admissibility lives at the abstract level; the encoded functor is its
+faithful internalisation, needed exactly where Guard reasons abstractly
+(Theorem~12) rather than constructing explicitly (Theorem~14).
+
+\paragraph{Refactor, not elimination.}  The only honest simplification is
+to \emph{unify} $\subtwo, \mathbf{sub_3}$ (and any $\mathbf{sub_n}$) into a
+single $n$-ary $\mathbf{sub\_multi}$ primitive --- a spec-list of
+$(\text{var}, \text{substituent})$ pairs plopped simultaneously ---
+collapsing the dozen files to one functor, one contract, and one cascade
+level.  This consolidates the $\sim 10\,000$ lines and removes the
+duplicated $2$- versus $3$-variable code, but it remains a primitive
+simultaneous substitution; it does not reduce to single-variable $\sbt$.
+
+\section{Conclusion}
+
+The formalisation closes Guard's argument for G\"odel's second
+incompleteness theorem for BRA in a completely concrete,
+constructively-verified form, and clarifies the implicit mathematical
+machinery (closedness side conditions, predicate-Leibniz, Carneiro
+lift, validating-decoder invariant, the two-forms-of-$\mathbf{G}$
+distinction) on which Guard's text relies without comment.  As {\S}\ref{sec:sb2}
+documents, Theorem~14 itself needs only single-variable substitution with
+the open substituent applied last --- exactly Guard's explicit
+construction (guard15.pdf p.~17); the simultaneous-substitution machinery
+$\subtwo/\mathbf{sub_3}$ becomes \emph{necessary only for the internal
+formalisation of Theorem~12's compound-functor induction step}, the one
+step Guard leaves to the reader, where a congruence must be specialised at
+several open terms at once.  That machinery is sound (the encoded
+counterpart of the derived rules $\mathbf{ruleInst2}/\mathbf{ruleInst3}$,
+Church's Standard Metatheorem~VII) and the natural future refactor is to
+\emph{unify} the $2$- and $3$-variable functors into a single $n$-ary
+$\mathbf{sub\_multi}$ primitive, not to eliminate them.
+
+\paragraph{Acknowledgements.}  {\sloppy The Carneiro-lift toolkit
+follows Mario Carneiro's natural-deduction note~\cite{Carneiro}.  The
+course-of-values infrastructure (the Agda modules
+\texttt{BRA3.CourseOfValues}, \texttt{BRA3.PairAlgebra}, and
+\texttt{BRA3.RuleInst2}) builds on Church's system as transmitted by
+Guard~\cite{Guard1963,Church}.\par}
+
+\begin{thebibliography}{9}
+
+\bibitem{Church}
+A.~Church.
+\emph{Basic recursive arithmetic} (the system of functors
+$\mathbf{s},\mathbf{o},\mathbf{u},\mathbf{v},\mathbf{C},\mathbf{R}$ and
+the axioms of {\S}\ref{sec:axioms}).
+Lectures, Logic Seminar, Princeton University, 1957--1959.
+The G\"odel numbering and the first incompleteness theorem for the
+system are, in Guard's words, ``essentially those of
+Church''~\cite[p.~13]{Guard1963}.
+
+\bibitem{Guard1963}
+R.~B.~Guard.
+\emph{Lecture Notes on Recursive Arithmetic}.
+1963.
+(The working excerpt used here, \texttt{guard15.pdf}, contains
+Definitions~6--16, Exercises~17--24, and Theorems~8--16, including the
+verifier $\mathbf{th}$ (Def.~16) and G\"odel's first and second theorems
+for BRA (Thms.~11 and~14).)
+
+\bibitem{Shoenfield}
+J.~R.~Shoenfield.
+\emph{Mathematical Logic}.
+Addison--Wesley, 1967.
+(Chapter~6, {\S}{\S}6.6--6.7: expression numbers and representability;
+the source of the $\code{u}$/$\seq{\cdot}$/$\Sub$/$\Num$/$\mathbf{th}$
+notation followed throughout.)
+
+\bibitem{Carneiro}
+M.~Carneiro.
+\emph{Natural Deduction in the Metamath Proof Language}.
+\url{https://us.metamath.org/ocat/natded.pdf}.
+The $\mathrm{axS}/\mathrm{axK}$ technique behind
+\texttt{BRA4.Thm12.ImpHelpers} and \texttt{imp\_encoded\_mp}.
+
+\end{thebibliography}
+
+\end{document}

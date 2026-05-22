@@ -1,0 +1,708 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{example}[theorem]{Example}
+
+% ------------------------------------------------------------------
+% Notation (Shoenfield, Mathematical Logic, Ch.6, with code(u) for
+% the encoding in place of corner-quotes).
+% ------------------------------------------------------------------
+\newcommand{\code}[1]{\mathit{code}(#1)}
+\newcommand{\Pair}{\mathbf{Pair}}
+\newcommand{\Vble}{\mathit{Vble}}
+\newcommand{\Term}{\mathit{Term}}
+\newcommand{\AFor}{\mathit{AFor}}
+\newcommand{\For}{\mathit{For}}
+\newcommand{\Fun}{\mathit{Fun}}
+\newcommand{\Sub}{\mathit{Sub}}
+\newcommand{\Subtl}{\mathit{Subtl}}
+\newcommand{\Fr}{\mathit{Fr}}
+\newcommand{\Defines}{\mathit{Defines}}
+\newcommand{\Prf}{\mathit{Prf}}
+\newcommand{\Prr}{\mathit{Pr}}
+\newcommand{\Thmm}{\mathit{Thm}}
+\newcommand{\Num}{\mathit{Num}}
+\newcommand{\Con}{\mathit{Con}}
+\newcommand{\lh}{\mathit{lh}}
+\newcommand{\Len}{\mathit{Len}}
+\newcommand{\SN}{\mathit{SN}}
+\newcommand{\Eval}{\mathbf{Eval}}
+\newcommand{\Berry}{\mathit{Berry}}
+\newcommand{\bnt}{\mathbf{bin2nat}}
+\newcommand{\bin}{\mathit{bin}}
+\newcommand{\Bool}{\mathit{Bool}}
+\newcommand{\cons}{\mathit{cons}}
+\newcommand{\nilL}{\mathit{nil}}
+\newcommand{\mul}{\mathbf{mul2}}
+\newcommand{\add}{\mathbf{add}}
+
+\title{A design note for a Berry-style proof of G\"odel's second incompleteness theorem for BRA\\
+\large{(revised --- with binary-list compression of numerals)}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note develops a precise mathematical design for an alternative,
+diagonal-free proof of G\"odel's second incompleteness theorem for the
+basic recursive arithmetic~$T$ of Church~[1957] and Guard~[1963].
+The argument is the user's proposal: take $\Fun_1$ itself as the
+``\,naming language\,''; combine with Krivine's semantic uniformity
+({\it Th\'eorie des ensembles}); and conclude via a Berry-style
+self-application.  An earlier draft glossed over a critical
+encoding-length issue: under Shoenfield's standard encoding, a numeral
+$\mathbf{k}_n$ has $\Len(\code{\mathbf{k}_n}) = \Theta(n)$, defeating
+the Berry inequality.  This revision introduces binary-list
+compression of numerals via a fixed-size functional
+$\bnt \in \Fun_1$, restoring $O(\log n)$ encoding for constants and
+making the Berry contradiction bite at a concrete threshold.  We
+estimate the implementation cost at approximately
+$8\,000$ lines of Agda.  Throughout we follow Shoenfield's notation,
+with $\code{u}$ for the encoding (in place of $\ulcorner u \urcorner$).
+\end{abstract}
+
+\tableofcontents
+
+\section{Motivation: the two historical proofs of G\"odel II}
+\label{sec:motivation}
+
+There are two genuinely different proofs of the second incompleteness
+theorem, and they were recognised as different by their authors at the
+very start.  In his January 1931 letter to G\"odel --- written after
+the K\"onigsberg meeting, conceding G\"odel's priority --- von Neumann
+describes his own method:
+
+\begin{quote}
+``I believe I can reproduce your sequence of thoughts on the basis of
+our communication and can therefore tell you that I used a somewhat
+different method.  \emph{You prove $W \to A$, I show independently the
+unprovability of $W$, though with a different kind of inference that
+likewise copies the antinomies.}''
+\end{quote}
+
+Here $W$ is \emph{Widerspruchsfreiheit} (consistency, $\mathrm{Con}$)
+and $A$ is the undecidable proposition (the G\"odel sentence $G$).  The
+two methods are:
+
+\begin{itemize}
+\item \textbf{G\"odel's method ($W \to A$).}  Formalise G\"odel~I inside
+the system to get $\vdash \mathrm{Con} \to G$; since $G$ is unprovable,
+$\mathrm{Con}$ is unprovable.  This is the \emph{diagonal} route: build
+the self-referential $G$, prove $\mathrm{Con}\to G$, combine with
+G\"odel~I.
+
+\item \textbf{von Neumann's method (direct, antinomy-copying).}  Show
+\emph{independently} that $\mathrm{Con}$ is unprovable, by ``a different
+kind of inference that likewise copies the antinomies'' --- i.e.\ by
+\emph{directly} mimicking a paradox (the Richard/Berry/Liar family),
+\emph{without} ever forming $G$ or proving $\mathrm{Con}\to G$.
+\end{itemize}
+
+This project realises both:
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+historical method & this project & engine \\
+\hline
+$W \to A$ (diagonal) & \texttt{BRA4.Thm.Thm14GodelII} (\emph{shipped}) & fixed point $+$ $\mathbf{sub}$ $+$ encoded mp \\
+direct, antinomy-copying & the Berry route (\emph{this note}) & soundness $+$ Lindenbaum cut $+$ Berry counting \\
+\hline
+\end{tabular}
+\end{center}
+
+So the Berry route is not merely ``a second proof.''  Carried out
+faithfully it would be the \textbf{von Neumann proof} standing beside
+the \textbf{G\"odel proof} (Guard~1963, our diagonal development),
+differing from it exactly as von Neumann told G\"odel they differ:
+\emph{direct unprovability of $\mathrm{Con}$, copying an antinomy
+(Berry), rather than the formalised $\mathrm{Con}\to G$.}  (von Neumann
+never published his proof, so this is a faithful realisation of the
+\emph{style} he describes, not a reconstruction of his actual argument.)
+
+\section{Status, and the honest open problem}
+\label{sec:status}
+
+\textbf{This note's Theorem~\ref{thm:berry} (the original
+``\,$T \not\vdash \Con_T$ via $\Sigma_0$-completeness\,'') is flawed as
+written}, and the flaw is instructive.  It assumed a short Fun1
+$\beta$ that \emph{Defines} $v(n_0)$ via the $\Eval$-based $\Sigma_0$
+relation of Definition~\ref{def:defines}.  But to decide
+$\nu_{n_0}(y)$, $\beta$ must run $\Eval$ on \emph{every} code of length
+$< n_0$ --- including $\code{\beta}$ itself (since $\Len(\code\beta) <
+n_0$).  As $\Eval(\code\beta, y) = \beta(y)$, this is an infinite
+self-simulation regress: $\beta$ is not total, not a Fun1, and
+``\,$\beta$ Defines $v(n_0)$\,'' is \emph{false} in $\mathbb{N}$ --- so
+$\Sigma_0$-completeness cannot prove it and the contradiction never
+fires.  This is the classical reason Berry's paradox is not an
+outright contradiction.
+
+\paragraph{What is correct, and the role of completeness.}  The fix is
+not $\Eval$-naming ($\Sigma_0$) but \emph{provable-naming} ($\Pr_T$,
+$\Sigma_1$): $v(n)$ must be defined through the provability predicate,
+exactly as in Krivine.  The proof-search inherent in $\Pr_T$ is what
+breaks the self-simulation regress.  Concretely the argument should be
+\emph{von Neumann-style}: build, inside the syntactic
+\emph{Tarski--Lindenbaum} universal model (Coquand--Smith constructive
+completeness), a definability \emph{cut} that validates $T$ yet refutes
+$\Con_T$; then \emph{soundness} (the easy direction) gives
+$T \not\vdash \Con_T$.  In this framing the \emph{completeness theorem
+proper is not load-bearing}: for an unprovability result the operative
+half is soundness, and the ambient model is just the syntactic
+Lindenbaum algebra (so ``definability $=$ provability'' is
+definitional).  All the real content is the \textbf{cut construction
+$+$ the Berry counting/length bound}, and the consumption of the
+hypothesis $T \vdash \Con_T$ lives there.
+
+\paragraph{What we do not yet have.}  We do \emph{not} have a concrete
+construction of that cut for BRA.  The crux --- making the notion of
+``definability/nameability'' precise enough that the Berry self-
+reference produces a contradiction rather than dissolving --- is
+exactly the difficulty flagged by van Dijk and Gietelink Oldenziel,
+\emph{G\"odel's Incompleteness after Joyal} [2020], Remark~2.12 and its
+footnote, in their arithmetic-universe account: \emph{``a more
+conventional view isolates the vagueness in the notion of
+`definability' or `nameability' as the culprit.''}  Their categorical proof (Joyal) sidesteps this by taking
+the Cantor--Lawvere diagonal --- i.e.\ it is again the \emph{G\"odel}
+($W\to A$) route, categorified in the predicative / formal-topology /
+type-theoretic setting (the initial arithmetic universe $\mathcal U_0 =
+\mathrm{Syn}(\mathcal T_{AU})$ is BRA's primitive-recursive world, the
+categorical form of the Lindenbaum model).  So au.pdf \emph{confirms
+the setting and names the difficulty, but does not provide the direct
+construction.}
+
+\paragraph{Update --- the cut is no longer vague.}  Reading Krivine's
+proof \emph{as actually written} (\emph{Th\'eorie axiomatique des
+ensembles}, pp.~126--127; see the companion note
+\texttt{krivine-models-inside-models.tex}) replaces the unspecified
+``Lindenbaum cut'' above with a concrete \emph{models-inside-models}
+construction.  Krivine's uniformity is carried by: a model $M\models T$
+which, under $T\vdash\Con_T$, contains an internal object $N'$ that $M$
+believes is a model of~$T$, glued to $M$ by the soundness equivalence
+``$N'\models F$ in $M$ iff $F\in T_M$.''  In BRA the outer model is
+$\mathbf{th}$, the inner model is a $\mathbf{sub}$-relativisation of $\mathbf{th}$, and the
+soundness link is $\mathbf{th}$'s validating-decoder invariant plus
+$\Sigma_0$-completeness.  The hypothesis $T\vdash\Con_T$ is consumed at
+exactly one place: the passage from $\mathbf{th}$ to its $\mathbf{sub}$-relativised
+inner model.  This makes the ``cut'' a buildable target rather than an
+open conceptual gap; only the Berry counting/length bound remains as
+genuine (routine) work.
+
+\paragraph{Consequence for the plan.}  Sections~\ref{sec:motivation}
+onward describe the \emph{components} ($\Eval$, $\bnt$, $\Defines$,
+$v$, the counting) faithfully; but the assembly into a theorem should
+be read as the \emph{von Neumann / cut} target of {\S}\ref{sec:status},
+with $\Pr_T$-naming replacing $\Eval$-naming, \emph{not} as the
+$\Sigma_0$-only Theorem~\ref{thm:berry}.  The genuinely open step is
+the cut construction; the genuinely hard but routine step is the Berry
+counting/length bound (the recommended gate experiment).
+
+\section{Setting and notation}
+
+\subsection{The theory $T$ and the grammars $\Fun_1, \Fun_2$}
+
+We write $T$ for the basic recursive arithmetic of Church~[1957], in
+the formulation of Guard~[1963].  Its non-logical symbols are a
+constant $\mathbf{O}$, a unary symbol $\mathbf{s}$, the Church
+combinators $\mathbf{o}, \mathbf{u}, \mathbf{v}, \mathbf{C},
+\mathbf{R}$, and the binary identity~$=$.  Variables are $\mathbf{x}_0,
+\mathbf{x}_1, \ldots$ with $\SN(\mathbf{x}_i) = 2i$.
+
+The two functional grammars are
+$$
+\mathbf{f} ::= \mathbf{s} \mid \mathbf{o} \mid \mathbf{u} \mid \mathbf{C}(\mathbf{g}, \mathbf{f_1}, \mathbf{f_2}) \quad (\Fun_1),
+\qquad
+\mathbf{g} ::= \mathbf{v} \mid \mathbf{R}(\mathbf{f}, \mathbf{g_1}, \mathbf{g_2}) \quad (\Fun_2).
+$$
+Every $\mathbf{f} \in \Fun_1$ denotes a total recursive function
+$\mathbb{N} \to \mathbb{N}$.  We write $\vdash \mathbf{A}$ for
+``\,$\mathbf{A} \in \Thmm_T$\,''.
+
+\subsection{Numerals, encoding, and length}
+
+The numeral is $\mathbf{k}_n := \mathbf{s}^n(\mathbf{O})$.  The
+encoding $\code{u}$ is defined as in {\tt goedelII-summary.tex} via
+Pair-based sequences.  We write $\Len(a)$ for the symbol count of the
+encoding tree of~$a$:
+$$
+\Len(\code{\mathbf{O}}) = 1, \quad
+\Len(\code{\mathbf{s}}) = 1, \quad
+\Len(\code{\mathbf{x}_i}) = O(1), \quad
+\Len(\code{\mathbf{u}(\mathbf{v_1}, \ldots, \mathbf{v_n})}) = 1 + \sum_i \Len(\code{\mathbf{v_i}}),
+$$
+and analogously for the other formation rules.  In particular,
+\begin{equation}
+\Len(\code{\mathbf{k}_n}) = n + 1, \quad \text{(numerals have linear encoding length).}
+\label{eq:numeral-linear}
+\end{equation}
+This linear growth is the obstacle the binary-list compression below
+is designed to overcome.
+
+\section{Internal evaluation of $\Fun_1$}
+
+\begin{lemma}\label{lem:eval}
+There is a binary functional $\Eval \in \Fun_2$ such that for every
+$\mathbf{f} \in \Fun_1$ and every closed numeric term~$\mathbf{t}$,
+$$
+\vdash \Eval(\Num(\code{\mathbf{f}}), \mathbf{t}) = \mathbf{f}(\mathbf{t}).
+$$
+\end{lemma}
+
+\noindent
+$\Eval$ is constructed by course-of-values recursion on the four
+$\Fun_1$ tags ($\mathbf{s}, \mathbf{o}, \mathbf{u}, \mathbf{C}$) via
+the standard Church combinators, in the same style as the verifier
+$\mathbf{thmT}$ of \verb|BRA4/ThmT.agda|, but with the verifier-cascade
+reduced from seventeen Hilbert-axiom tags plus three rule tags to just
+four functional-grammar tags (plus a single dispatch tag for the
+binary sub-grammar $\Fun_2$).  Estimated cost in the Agda
+implementation:
+\begin{itemize}
+\item $\Eval$ definition + cov-spec dispatch + base/step closures: $\sim 800$ LoC;
+\item per-tag closure proofs ($\Eval$ at $\mathbf{s}, \mathbf{o}, \mathbf{u}, \mathbf{C}, \mathbf{v}, \mathbf{R}$): $\sim 1200$ LoC.
+\end{itemize}
+
+\section{Binary-list compression of numerals}
+\label{sec:bin}
+
+\subsection{The encoding}
+
+We encode a meta-natural~$n$ as a finite list of bits, least-significant
+first.  Bits are $\mathbf{O}$ (for $0$) and $\mathbf{s}\,\mathbf{O}$
+(for $1$).  Lists are encoded via $\Pair$ with $\mathbf{O}$ as
+``\,$\nilL$\,''.  Define meta-recursively
+\begin{equation}
+\bin(0) := \mathbf{O}, \qquad
+\bin(n) := \cons\bigl(b_n,\, \bin\bigl(\lfloor n/2 \rfloor\bigr)\bigr)
+\quad (n > 0),
+\label{eq:bin-meta}
+\end{equation}
+where $b_n = \mathbf{O}$ if $n$ is even and $b_n = \mathbf{s}\,\mathbf{O}$
+otherwise, and $\cons(b, \ell) := \Pair(b, \ell)$.
+
+\begin{lemma}\label{lem:bin-length}
+For every $n \geq 1$, $\Len(\code{\bin(n)}) = O(\log n)$.
+\end{lemma}
+
+\begin{proof}
+Each bit contributes a constant amount; the list has
+$\lceil \log_2(n+1) \rceil$ bits.
+\end{proof}
+
+\subsection{Decoding back to a numeral}
+
+\begin{definition}\label{def:bin2nat}
+Define $\bnt \in \Fun_1$ by primitive recursion on the list shape:
+\begin{align*}
+\bnt(\mathbf{O}) &= \mathbf{O}, \\
+\bnt(\cons(\mathbf{b}, \ell)) &= \add(\mathbf{b}, \mul(\bnt(\ell))),
+\end{align*}
+where $\mul, \add \in \Fun_1$ are the doubling and successor-of-double
+functionals, each of fixed code length.
+\end{definition}
+
+\begin{remark}
+Strictly, $\bnt$ recurses on a $\Pair$-encoded list, which fits the
+$\Fun_2$-via-$\mathbf{R}$ pattern of Church.  We elide the standard
+gymnastics of fitting list-recursion into $\Fun_1$ syntax; what
+matters is that $\bnt$ has a fixed Agda code length, independent of
+its argument.
+\end{remark}
+
+\begin{lemma}\label{lem:bin-correct}
+For every $n \in \mathbb{N}$, $\vdash \bnt(\bin(n)) = \mathbf{k}_n$.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Meta-induction on the number of bits of $n$.  Base case $n = 0$:
+$\vdash \bnt(\mathbf{O}) = \mathbf{O}$ by definition.  Step: assume
+$\vdash \bnt(\bin(\lfloor n/2 \rfloor)) = \mathbf{k}_{\lfloor n/2
+\rfloor}$.  Then by the closure on $\cons$ and the closures of $\mul,
+\add$ on closed numerals,
+$$
+\vdash \bnt(\bin(n)) = \add(b_n, \mul(\mathbf{k}_{\lfloor n/2 \rfloor})) = \mathbf{k}_n.
+$$
+The number of derivation steps is $O(\log n)$, hence so is the
+encoding length of the proof.
+\end{proof}
+
+\begin{corollary}\label{cor:bin-len}
+For every $n$, the closed term $\bnt(\bin(n))$ has
+$\Len(\code{\bnt(\bin(n))}) \leq C + d \log_2(n + 1)$ for fixed
+meta-constants $C, d$ (depending on $|\code{\bnt}|$ and the cons-cell
+overhead, but not on~$n$).
+\end{corollary}
+
+\noindent
+By contrast, the standard numeral $\mathbf{k}_n$ has
+$\Len(\code{\mathbf{k}_n}) = n + 1$ by
+\eqref{eq:numeral-linear}.  The compression factor is exponential.
+
+\subsection{Substituting the compressed form into formulas}
+
+Wherever a meta-natural~$n$ enters a formula or term of~$T$ in the
+sequel, we use the compressed form $\bnt(\bin(n))$ in place of
+$\mathbf{k}_n$.  By Lemma~\ref{lem:bin-correct}, all such uses are
+provably equal to the corresponding $\mathbf{k}_n$, so the formula
+they appear in is preserved under $\vdash$-equivalence; but the
+\emph{encoding length} of the formula is reduced from linear in~$n$
+to logarithmic in~$n$.
+
+\section{The $\Defines$ predicate}
+
+\begin{definition}\label{def:defines}
+At the meta level:
+$$
+\Defines(a, b) \;\leftrightarrow\;
+\Eval(a, \mathbf{k}_b) \neq 0 \;\wedge\; \forall c_{c < b}.\,\Eval(a, \mathbf{k}_c) = 0,
+$$
+restricted to $a$ being the encoding of a $\Fun_1$ functional.
+\end{definition}
+
+\noindent
+Internally, $\Defines$ is realised by a $\Fun_2$ test
+$\mathbf{TestDef}$ such that
+$$
+\vdash \mathbf{TestDef}(\mathbf{a}, \mathbf{b}) = \mathbf{O} \;\Longleftrightarrow\; \neg \Defines(\mathrm{val}\,\mathbf{a}, \mathrm{val}\,\mathbf{b})
+\quad\text{in $\mathbb{N}$,}
+$$
+where $\mathrm{val}$ is meta-evaluation.  $\mathbf{TestDef}$ is built
+from $\Eval$ plus a small bounded-recursion helper for the $\forall c
+< b$ clause, all of fixed Agda code length (estimated $\sim 400$ LoC).
+
+For closed inputs $\mathbf{a} = \bnt(\bin(\code{\mathbf{f}}))$ and
+$\mathbf{b} = \bnt(\bin(y))$, the equation
+$\mathbf{TestDef}(\mathbf{a}, \mathbf{b}) = \mathbf{O}$ is a $\Sigma_0$
+sentence which is true iff $\mathbf{f}$ does not define~$y$, and which
+$T$ proves by direct evaluation through the $\bnt, \Eval$ closures.
+
+\section{The Krivine-Berry function $v$}
+
+\begin{definition}\label{def:vfn}
+For $n \in \mathbb{N}$,
+$$
+v(n) \;:=\; \mu y \in \mathbb{N}.\ \bigl(\,\forall a \in \mathbb{N}.\,\Len(a) < n \;\Rightarrow\; \neg \Defines(a, y)\,\bigr).
+$$
+\end{definition}
+
+\begin{lemma}\label{lem:vtotal}
+$v$ is a total primitive-recursive function $\mathbb{N} \to \mathbb{N}$.
+\end{lemma}
+
+\begin{proof}
+The set $\{a : \Len(a) < n\}$ is finite with bound $K_n \leq U(n)$ for
+some explicit primitive-recursive bound $U$.  Each $a$ defines at most
+one $y$, so the set of $y$'s defined by some such $a$ has cardinality
+$\leq K_n$; its complement is non-empty.  $v(n)$ is the least element
+of this complement, computed by bounded search in primitive recursion.
+\end{proof}
+
+\section{Internalising $v$ via a compact predicate}
+
+\subsection{The predicate $\nu_n$}
+
+For each meta-natural $n$ we define
+$$
+\nu_n(\mathbf{x}_0) \;\equiv\; \bigl(\, \mathbf{TestAllDef}(\bnt(\bin(n)),\, \mathbf{x}_0) = \mathbf{O} \,\bigr),
+$$
+where $\mathbf{TestAllDef} \in \Fun_2$ is the bounded-universal
+helper that returns $\mathbf{O}$ iff no code of $\Len < n$ defines its
+second argument.  Concretely:
+$$
+\mathbf{TestAllDef}(\mathbf{n}, \mathbf{y}) := \bigl[\,\forall a_{a \leq U(\mathbf{n})}.\,(\Len(a) < \mathbf{n} \;\supset\; \mathbf{TestDef}(a, \mathbf{y}) = \mathbf{O})\,\bigr]\text{-witness Fun},
+$$
+implemented as a primitive recursion on $U(\mathbf{n})$ with bounded
+existential check.  $\mathbf{TestAllDef}$ has fixed Agda code length.
+
+\begin{lemma}\label{lem:nu-length}
+$\Len(\code{\nu_n(\mathbf{x}_0)}) \leq C' + d' \log_2(n + 1)$ for
+meta-constants $C', d'$ depending on $|\code{\mathbf{TestAllDef}}|$ and
+$|\code{\bnt}|$, but not on~$n$.
+\end{lemma}
+
+\begin{proof}
+The formula is $\mathbf{TestAllDef}(\bnt(\bin(n)), \mathbf{x}_0) =
+\mathbf{O}$.  Its encoding tree has fixed top structure
+$\Pair(\mathbf{k}_{\mathrm{tag\_eq}}, \Pair(\cdot, \mathbf{O}))$, with
+the only $n$-dependent part being the closed term
+$\bnt(\bin(n))$, which by Corollary~\ref{cor:bin-len} has length $C +
+d \log_2(n + 1)$.  Hence
+$\Len(\code{\nu_n}) = C' + d' \log_2(n+1)$ with $C' = O(C) + |\code{\mathbf{TestAllDef}}|
++ |\code{\mathbf{x}_0}| + \mathrm{const}$.
+\end{proof}
+
+\subsection{The $\Sigma_0$-completeness chain}
+\label{sec:sigma0}
+
+\begin{proposition}[$\Sigma_0$-completeness for compressed-numeral Eval-equations]\label{prop:sound}
+For every $\mathbf{f} \in \Fun_1$ and $b \in \mathbb{N}$, if
+$\mathbf{f}(b) = c$ in the standard model, then
+$$
+\vdash \Eval(\bnt(\bin(\code{\mathbf{f}})), \bnt(\bin(b))) = \bnt(\bin(c)).
+$$
+The encoded derivation has $\Len$ equal to $O(\Len(\code{\mathbf{f}})
++ \log b + \log c)$.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Compose three derivations:
+\begin{enumerate}
+\item $\vdash \bnt(\bin(\code{\mathbf{f}})) = \mathbf{k}_{\code{\mathbf{f}}}$ and $\vdash \bnt(\bin(b)) = \mathbf{k}_b$ by Lemma~\ref{lem:bin-correct}.
+\item $\vdash \Eval(\mathbf{k}_{\code{\mathbf{f}}}, \mathbf{k}_b) = \mathbf{k}_c$ by Lemma~\ref{lem:eval} (the verifier closure on the un-compressed numeral).
+\item $\vdash \mathbf{k}_c = \bnt(\bin(c))$ by Lemma~\ref{lem:bin-correct} applied symmetrically.
+\end{enumerate}
+The first and third have $\Len$ $O(\log b)$ and $O(\log c)$
+respectively (by following the binary expansions).  The middle
+derivation has $\Len$ proportional to the number of computation steps
+of $\mathbf{f}$ on input $b$, which itself is bounded by a function
+primitive-recursive in $\Len(\code{\mathbf{f}})$ and $b$.
+
+(For our applications, $\mathbf{f}$ is always a fixed small functional
+$\mathbf{TestDef}, \mathbf{TestAllDef}$, etc., so this middle term is
+$O(\log b)$ uniformly.)
+\end{proof}
+
+\begin{corollary}\label{cor:nu-sound}
+If $\vdash \nu_n(\bnt(\bin(y)))$, then $v(n) \leq y$, i.e.\ $y$ is not
+defined by any code of length $< n$.  Conversely, for the specific
+value $y = v(n)$, $\vdash \nu_n(\bnt(\bin(v(n))))$ is derivable in
+$O(\Len(\code{\nu_n}) + \log v(n)) = O(\log n)$ encoded
+derivation steps.
+\end{corollary}
+
+\section{The Berry contradiction}
+
+\subsection{The witness formula $\beta$}
+
+Define
+$$
+\beta(\mathbf{x}_0) \;:=\; \nu_{n_0}(\mathbf{x}_0) \;\wedge\; \mathbf{TestNoneLess}(\bnt(\bin(n_0)),\, \mathbf{x}_0) = \mathbf{O},
+$$
+where $\mathbf{TestNoneLess}(\mathbf{n}, \mathbf{x}_0)$ is the
+$\Fun_2$ predicate ``\,every $\mathbf{x}_1 < \mathbf{x}_0$ has
+$\nu_{\mathbf{n}}(\mathbf{x}_1)$ false\,'', realised as a bounded
+primitive recursion on $\mathbf{x}_0$.
+
+\begin{lemma}\label{lem:beta-len}
+$\Len(\code{\beta(\mathbf{x}_0)}) \leq C'' + d'' \log_2(n_0 + 1)$.
+\end{lemma}
+
+\begin{proof}
+$\beta$ is the conjunction of two atomic equations, each of the form
+``\,$F(\bnt(\bin(n_0)), \mathbf{x}_0) = \mathbf{O}$\,'' with $F$ a
+fixed functional.  Apply Lemma~\ref{lem:nu-length} and analogously for
+$\mathbf{TestNoneLess}$.
+\end{proof}
+
+\begin{lemma}\label{lem:beta-defines}
+In the standard model, $\beta(y)$ holds iff $y = v(n_0)$.  Hence
+$$
+\Defines(\code{\beta}, v(n_0))
+\quad\text{holds in $\mathbb{N}$,}
+$$
+where $\code{\beta}$ is interpreted as the unary $\Fun_1$
+characteristic-function of $\beta$.
+\end{lemma}
+
+\subsection{The contradiction}
+
+\begin{theorem}\label{thm:berry}
+$T \not\vdash \Con_T$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Suppose for contradiction $\vdash \Con_T$.
+
+Pick~$n_0$ such that $C'' + d'' \log_2(n_0 + 1) < n_0$ (possible by
+Lemma~\ref{lem:beta-len} for any sufficiently large $n_0$; concretely
+$n_0 \sim 10^3$ suffices for typical $C'', d''$).
+
+By Lemma~\ref{lem:beta-defines} and the proof of
+Lemma~\ref{lem:vtotal}, $v(n_0)$ is in fact defined (in the
+$\Defines$-sense of Definition~\ref{def:defines}) by~$\code{\beta}$.
+By Proposition~\ref{prop:sound} (which uses $\vdash \Con_T$ only to
+exclude the bottom case --- otherwise the $\Sigma_0$-completeness step
+is unconditional), $\vdash \mathbf{TestDef}(\bnt(\bin(\code{\beta})),
+\bnt(\bin(v(n_0)))) \neq \mathbf{O}$ and the bounded-zero-below
+condition holds.
+
+But $\Len(\code{\beta}) < n_0$, and by the definition of $v(n_0)$, no
+code of length $< n_0$ defines $v(n_0)$.  Contradiction.
+\end{proof}
+
+\begin{remark}\label{rem:role-of-con}
+The assumption $\vdash \Con_T$ is used precisely once: to ensure that
+the formal derivation of the $\Sigma_0$ sentence ``\,$\code{\beta}$
+defines $v(n_0)$\,'' actually goes through (rather than $T$
+deriving its negation as well, which would be the contradiction we
+want).  This is the analogue of Krivine's uniformity-across-models, in
+single-model form: the standard model $\mathbb{N}$ satisfies the
+$\Sigma_0$ sentence, and consistency lifts truth to provability.  No
+H\"ilbert--Bernays--L\"ob conditions, no diagonal lemma.
+\end{remark}
+
+\section{Honest accounting: what we still need}
+
+\subsection{What is avoided}
+
+The Berry route avoids the following components of the diagonal proof
+in \verb|BRA4/Thm/Thm14GodelII.agda|:
+\begin{itemize}
+\item the encoded substitution functors $\mathbf{sub}, \mathbf{sub_2},
+\mathbf{sub_3}$ and their per-shape closure equations
+($\sim 10\,000$ LoC eliminated);
+\item the predicate-Leibniz lemma $\mathbf{substF\_cong}$
+(BRA3.Substitutivity);
+\item the Carneiro-lifted hypothetical modus-ponens helper toolkit
+$\mathbf{imp\_encoded\_mp}$, $\mathbf{impEqTrans}$, etc.;
+\item the inlined re-derivation of G\"odel~I for the sub-form of $G$;
+\item the diagonal lemma itself.
+\end{itemize}
+
+\subsection{What is still needed}
+
+\begin{itemize}
+\item $\Eval \in \Fun_2$: a verifier for $\Fun_1$, structurally
+analogous to $\mathbf{thmT}$ but with only four functional-tag
+closures.  This is a non-trivial development ($\sim 2000$ LoC), albeit
+smaller than the full $\mathbf{thmT}$ cascade.
+
+\item $\bnt \in \Fun_1$ and the soundness chain through it: the
+compact-numeral functor of Section~\ref{sec:bin}.  About $\sim 800$
+LoC: definition, correctness lemma (\ref{lem:bin-correct}), and the
+$\Sigma_0$-completeness composition of Proposition~\ref{prop:sound}.
+
+\item The decidable test functionals $\mathbf{TestDef},
+\mathbf{TestAllDef}, \mathbf{TestNoneLess}$ and their closure
+equations: $\sim 1500$ LoC.
+
+\item The meta-level $v$ and totality by counting: $\sim 300$ LoC.
+
+\item The witness formula $\beta$, its length bound, and the Berry
+contradiction Theorem~\ref{thm:berry}: $\sim 1500$ LoC, including the
+$O(\log n)$ derivation chains through $\bnt$.
+
+\item Concrete computation of constants $C', C'', d', d''$ and a
+specific witness $n_0$: $\sim 500$ LoC.  This is the part that requires
+careful counting; the proof in principle works for any sufficiently
+large~$n_0$, but to be useful as an effective bound the constants
+must be made explicit.
+\end{itemize}
+
+\paragraph{Revised total estimate.}  About $\sim 8\,000$ LoC, comparable
+to but slightly smaller than the diagonal-based proof's
+$\sim 12\,000$ LoC.  The earlier figure of $\sim 5\,500$ LoC was over-optimistic
+because it underweighted the binary-compression infrastructure (about
+$\sim 800$ LoC) and the $\Sigma_0$-completeness chain through $\bnt$
+(about $\sim 1\,000$ LoC).
+
+\section{Comparison with the diagonal proof}
+
+\begin{center}
+\begin{tabular}{p{6cm} c c}
+\hline
+& Diagonal & Berry/Krivine \\
+\hline
+Verifier $\mathbf{thmT}$ for derivations & full cascade & --- \\
+$\Eval$ for $\Fun_1$ & --- & required \\
+Encoded substitution ($\mathbf{sub}$, $\mathbf{sub_2}$) & required & --- \\
+Diagonal lemma & required & --- \\
+$\mathbf{substF\_cong}$ (predicate-Leibniz) & required & --- \\
+Carneiro lift $\mathbf{imp\_encoded\_mp}$ & required & --- \\
+Inlined G\"odel I (sub-form) & required & --- \\
+$\Sigma_0$-completeness for $\Eval$-equations & --- & required \\
+Binary-list numeral compression $\bnt$ & --- & required \\
+Bounded-universal helpers $\mathbf{TestAllDef}$ etc. & --- & required \\
+Meta-level Berry function $v$ & --- & required \\
+Encoding-length budget $\Len(\code{\beta}) < n_0$ & --- & required, concrete \\
+\hline
+Estimated LoC & $\sim 12\,000$ & $\sim 8\,000$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{The role of $\Fun_1$ as ``naming language''}
+
+The user's idea of using $\Fun_1$ itself as the naming language has
+three concrete advantages over the formulations of Boolos and Chaitin
+discussed in Berry.pdf:
+
+\begin{enumerate}
+\item \textbf{Built-in totality.}  Every $\mathbf{f} \in \Fun_1$
+denotes a \emph{total} recursive function, by Church's construction.
+``\,$\mathbf{f}$ defines $y$\,'' is an unconditional statement
+involving $\Eval$, with no totality side condition.
+
+\item \textbf{Concrete recursive codes.}  $\code{\mathbf{f}}$ is a
+structurally-recursive encoding tree.  $\Len$ is recursive and
+well-behaved, and the binary-list compression of
+Section~\ref{sec:bin} works uniformly through it.
+
+\item \textbf{Symmetric ``\,defines\,''.}  Boolos's ``\,$\varphi$
+names $n$\,'' bundles a $\Sigma_1$-witness with a $\Pi_1$-uniqueness
+clause, requiring $\Sigma_1$-completeness in its full form.  The
+$\Fun_1$ version $\Defines(\code{\mathbf{f}}, y)$ replaces this by the
+conjunction of a positive value with a bounded
+zero-below-condition --- both bounded, both recursive, both
+$\Sigma_0$-completeness suffices.
+\end{enumerate}
+
+\section{Remark on $\mathbf{sub_2}$}
+
+A side benefit of the Berry route: the development entirely avoids the
+two-variable simultaneous substitution functor $\mathbf{sub_2}$ which
+was used as a convenience in the diagonal-based proof
+(\verb|BRA4/SbT2.agda| and its dependents, $\sim 10\,000$ LoC).  As
+noted in \verb|BRA4/goedelII-summary.tex| {\S}5, $\mathbf{sub_2}$
+admits a factorisation into three single-variable substitutions, but
+this factorisation was deferred and never implemented in the diagonal
+route.  In the Berry route the issue does not arise at all, since the
+construction uses only $\Eval$ (single-variable in its proof index)
+and the per-tag $\Fun_1$ functional helpers.
+
+\section{Summary}
+
+The Krivine-style Berry argument, instantiated with $\Fun_1$ as the
+naming language and binary-list compression of numerals
+(Section~\ref{sec:bin}), gives a diagonal-free proof of G\"odel's
+second incompleteness theorem for~$T$, requiring:
+\begin{itemize}
+\item a small verifier $\Eval \in \Fun_2$ for $\Fun_1$;
+\item the compact-numeral functor $\bnt \in \Fun_1$ with
+$\Len(\code{\bnt(\bin(n))}) = O(\log n)$;
+\item the decidable $\Defines$ predicate and bounded-universal helpers;
+\item $\Sigma_0$-completeness for $\Eval$-equations through
+$\bnt$; and
+\item the compressed witness formula $\beta$ of length
+$O(\log n_0)$ for the contradiction.
+\end{itemize}
+The argument bypasses the diagonal lemma, the
+H\"ilbert--Bernays--L\"ob conditions, the substitutivity lemma
+$\mathbf{substF\_cong}$, the two-variable substitution machinery
+$\mathbf{sub_2}$, and the encoded modus-ponens Carneiro lift, all of
+which were used in the diagonal-based proof already shipped in
+\verb|BRA4/Thm/Thm14GodelII.agda|.  The estimated implementation cost
+is $\sim 8\,000$ LoC.
+
+\paragraph{Honest caveat.}  The Berry route is \emph{not} a fundamentally
+cheaper alternative; it is an \emph{architecturally different}
+alternative.  Its principal scientific value is to provide a second,
+independent proof of G\"odel~II for~$T$ with no shared infrastructure
+beyond Church~1957's $\Fun_1, \Fun_2$ grammars and the basic Hilbert
+calculus.  The savings are real but more modest than a naive count
+suggests, because the binary-list compression machinery
+($\bnt$, $\bin$, soundness chain) costs $\sim 1\,800$ LoC of its own.
+
+\end{document}
