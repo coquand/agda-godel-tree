@@ -54,8 +54,12 @@ open import BRA4.Tags
 open import BRA4.Code
 open import BRA4.CoVSpec
 open import BRA4.SbF  using ( sbf )
-open import BRA4.SbF2 using ( sbf2 )
-open import BRA4.SbF3 using ( sbf3 )
+-- NOTE: the  tag_sb2 / tag_sb3  dispatch branches are now DEAD (no encoding
+-- emits those tags; all simultaneous substitutions were rewritten to nested
+-- single-sb wraps -- see project_bra4_eliminate_sbt2_sbt3_consumers_done).
+-- Their bodies are repointed from sbf2/sbf3 to plain sbf so the SbF2/SbF3
+-- stacks can be deleted.  The cascade SHAPE is unchanged, so the dispatch
+-- navigation lemmas (ThmTAtSb / ThmTAtMp / ThmTAtInd) are unaffected.
 open import BRA4.SbT using
   ( get_K ; get_inner ; get_table ; get_newK ; get_tag ; get_body
   ; lookupAt )
@@ -526,10 +530,10 @@ sb_branch_thmT = C sbf get_sb_spec get_sb_proof_val
 -- analogous 3-deep for sb3).  sub_proof_val is looked up the same way.
 
 sb2_branch_thmT : Fun1
-sb2_branch_thmT = C sbf2 get_sb_spec get_sb_proof_val
+sb2_branch_thmT = C sbf get_sb_spec get_sb_proof_val
 
 sb3_branch_thmT : Fun1
-sb3_branch_thmT = C sbf3 get_sb_spec get_sb_proof_val
+sb3_branch_thmT = C sbf get_sb_spec get_sb_proof_val
 
 ------------------------------------------------------------------------
 -- Section 8.  mp_branch_thmT .

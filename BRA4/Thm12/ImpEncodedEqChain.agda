@@ -21,6 +21,7 @@ open import BRA4.Base
 open import BRA4.Tags
 open import BRA4.Code
 open import BRA4.ThmT                using ( thmT )
+open import BRA4.SbStep              using ( InertU )
 open import BRA4.Thm12.EncodedMp     using ( imp_encoded_mp )
 open import BRA4.Thm12.EncodedAxEqTrans
   using ( Df_axEqTrans ; encodedAxEqTrans )
@@ -48,6 +49,7 @@ open import BRA4.Thm12.ImpHelpers    using ( impLift )
 imp_encoded_eqSym :
   (P : Formula)
   (cABProof : Term) (tA tB : Term)
+  (inertA : InertU tA) (inertB : InertU tB)
   (imp_ih_AB : Deriv (imp P (eqF (ap1 thmT cABProof) (encEq tA tB)))) ->
   Deriv (imp P (eqF
     (ap1 thmT
@@ -57,15 +59,16 @@ imp_encoded_eqSym :
             (ap2 Pair (Df_axEqTrans tA tB tA) cABProof))
           (Df_refl_meta tA))))
     (encEq tB tA)))
-imp_encoded_eqSym P cABProof tA tB imp_ih_AB =
+imp_encoded_eqSym P cABProof tA tB inertA inertB imp_ih_AB =
   let
+    -- encodedAxEqTrans (tA':=tA, tB':=tB, tC':=tA) needs InertU tB, InertU tA.
     ih_ax_sym_imp :
       Deriv (imp P (eqF (ap1 thmT (Df_axEqTrans tA tB tA))
                          (ap2 Pair (natCode tag_imp)
                            (ap2 Pair (encEq tA tB)
                              (ap2 Pair (natCode tag_imp)
                                (ap2 Pair (encEq tA tA) (encEq tB tA)))))))
-    ih_ax_sym_imp = impLift {P} (encodedAxEqTrans tA tB tA)
+    ih_ax_sym_imp = impLift {P} (encodedAxEqTrans tA tB tA inertB inertA)
 
     sym_antP1 : Term
     sym_antP1 = encEq tA tB
@@ -126,10 +129,11 @@ imp_encoded_eqSym P cABProof tA tB imp_ih_AB =
 imp_encoded_eqTrans :
   (P : Formula)
   (cAB cBC : Term) (tA tB tC : Term)
+  (inertA : InertU tA) (inertB : InertU tB) (inertC : InertU tC)
   (imp_ih_AB : Deriv (imp P (eqF (ap1 thmT cAB) (encEq tA tB))))
   (imp_ih_BC : Deriv (imp P (eqF (ap1 thmT cBC) (encEq tB tC)))) ->
   Deriv (imp P (eqF (ap1 thmT (Df_eqTrans cAB cBC tA tB tC)) (encEq tA tC)))
-imp_encoded_eqTrans P cAB cBC tA tB tC imp_ih_AB imp_ih_BC =
+imp_encoded_eqTrans P cAB cBC tA tB tC inertA inertB inertC imp_ih_AB imp_ih_BC =
   let
     cBA : Term
     cBA = ap2 Pair (natCode tag_mp)
@@ -139,15 +143,16 @@ imp_encoded_eqTrans P cAB cBC tA tB tC imp_ih_AB imp_ih_BC =
               (Df_refl_meta tA))
 
     imp_ih_BA : Deriv (imp P (eqF (ap1 thmT cBA) (encEq tB tA)))
-    imp_ih_BA = imp_encoded_eqSym P cAB tA tB imp_ih_AB
+    imp_ih_BA = imp_encoded_eqSym P cAB tA tB inertA inertB imp_ih_AB
 
+    -- encodedAxEqTrans (tA':=tB, tB':=tA, tC':=tC) needs InertU tA, InertU tC.
     ih_ax_trans_imp :
       Deriv (imp P (eqF (ap1 thmT (Df_axEqTrans tB tA tC))
                          (ap2 Pair (natCode tag_imp)
                            (ap2 Pair (encEq tB tA)
                              (ap2 Pair (natCode tag_imp)
                                (ap2 Pair (encEq tB tC) (encEq tA tC)))))))
-    ih_ax_trans_imp = impLift {P} (encodedAxEqTrans tB tA tC)
+    ih_ax_trans_imp = impLift {P} (encodedAxEqTrans tB tA tC inertA inertC)
 
     trans_antP1 : Term
     trans_antP1 = encEq tB tA

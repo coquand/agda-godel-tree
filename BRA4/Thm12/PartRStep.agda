@@ -95,6 +95,8 @@ open import BRA4.Base
 open import BRA4.Tags
 open import BRA4.Code              using ( codeFun1 ; codeFun2 ; codeTerm ; codeFormula )
 open import BRA4.Num               using ( num ; num_at_S )
+open import BRA4.SbStep
+  using ( InertU ; NumCode ; ncNum ; ncAp1 ; ncAp2 ; sbt_inert_NumCode )
 open import BRA4.ThmT              using ( thmT )
 open import BRA4.Thm12.CodeFTeq    using ( codeFTeq1 ; codeFTeq2 )
 open import BRA4.Thm12.EncodedAxRStep
@@ -258,216 +260,6 @@ Df_R_step g h1 h2 Df_h1_inst Df_h2_inst Df_R_prev X Y =
     d_trans_AD : Term
     d_trans_AD = Df_eqTrans d_trans_AC d_step_D L1 L4 L5
   in d_trans_AD
-
-------------------------------------------------------------------------
--- The meta-level step transformation theorem.
-
-thm12_R_step_meta :
-  (g : Fun1) (h1 h2 : Fun2)
-  (Df_h1_inst : Term -> Term -> Term)
-  (Df_h2_inst : Term -> Term -> Term)
-  (ih_h1 : (A B : Term) ->
-             Deriv (eqF (ap1 thmT (Df_h1_inst A B)) (codeFTeq2 h1 A B)))
-  (ih_h2 : (A B : Term) ->
-             Deriv (eqF (ap1 thmT (Df_h2_inst A B)) (codeFTeq2 h2 A B)))
-  (X Y : Term) (Df_R_prev : Term)
-  (ih_R_prev : Deriv (eqF (ap1 thmT Df_R_prev) (codeFTeq2 (R g h1 h2) X Y))) ->
-  Deriv (eqF (ap1 thmT (Df_R_step g h1 h2 Df_h1_inst Df_h2_inst Df_R_prev X Y))
-              (codeFTeq2 (R g h1 h2) X (ap1 s Y)))
-thm12_R_step_meta g h1 h2 Df_h1_inst Df_h2_inst ih_h1 ih_h2 X Y Df_R_prev ih_R_prev =
-  let
-    L1 = L1_at  g h1 h2 X Y
-    L2 = L2_at  g h1 h2 X Y
-    L3 = L3_at  g h1 h2 X Y
-    L4 = L4_at  g h1 h2 X Y
-    L5 = L5_R   g h1 h2 X Y
-    L1' = L1'_at g h1 h2 X Y
-
-    encH2 = encH2_at h2 X Y
-    encR  = encR_at  g h1 h2 X Y
-
-    ---------------------------------------------------------------
-    -- Step A : enc(L1 = L2)  via encodedAxRStep.
-    ---------------------------------------------------------------
-
-    d_axRStep : Term
-    d_axRStep = Df_axRStep g h1 h2 X Y
-
-    e_step_A : Deriv (eqF (ap1 thmT d_axRStep) (encEq L1 L2))
-    e_step_A = encodedAxRStep g h1 h2 X Y
-
-    ---------------------------------------------------------------
-    -- Step B : enc(L2 = L3)  via encodedAxEqCongL + encoded_mp on IH_h2.
-    --
-    -- CongL  h1  encH2  num(h2 X Y)  encR :
-    --   enc((encH2 = num(h2 X Y)) > (h1(encH2, encR) = h1(num(h2 X Y), encR)))
-    --   =  enc(antB  >  consB)   where consB = encEq L2 L3.
-    ---------------------------------------------------------------
-
-    antB : Term
-    antB = encEq encH2 (ap1 num (ap2 h2 X Y))
-
-    consB : Term
-    consB = encEq L2 L3
-
-    ih_ax_B :
-      Deriv (eqF (ap1 thmT (Df_axEqCongL h1 encH2 (ap1 num (ap2 h2 X Y)) encR))
-                  (encodedAxEqCongL_Term h1 encH2 (ap1 num (ap2 h2 X Y)) encR))
-    ih_ax_B = encodedAxEqCongL h1 encH2 (ap1 num (ap2 h2 X Y)) encR
-
-    -- IH_h2 X Y :  thmT (Df_h2_inst X Y)  =Deriv=  codeFTeq2 h2 X Y  =  encEq encH2 (num (h2 X Y))  =  antB .
-    ih_h2_typed :
-      Deriv (eqF (ap1 thmT (Df_h2_inst X Y)) antB)
-    ih_h2_typed = ih_h2 X Y
-
-    d_step_B : Term
-    d_step_B =
-      Df_step_B h1 encH2 (ap1 num (ap2 h2 X Y)) encR
-                (Df_h2_inst X Y)
-
-    e_step_B :
-      Deriv (eqF (ap1 thmT d_step_B) consB)
-    e_step_B = encoded_mp
-                 (Df_axEqCongL h1 encH2 (ap1 num (ap2 h2 X Y)) encR)
-                 (Df_h2_inst X Y)
-                 antB consB
-                 ih_ax_B ih_h2_typed
-
-    ---------------------------------------------------------------
-    -- Step C : enc(L3 = L4)  via encodedAxEqCongR + encoded_mp on IH_R (prev).
-    --
-    -- CongR  h1  encR  num(R X Y)  num(h2 X Y) :
-    --   enc((encR = num(R X Y)) > (h1(num(h2 X Y), encR) = h1(num(h2 X Y), num(R X Y))))
-    --   =  enc(antC  >  consC)   where consC = encEq L3 L4.
-    ---------------------------------------------------------------
-
-    antC : Term
-    antC = encEq encR (ap1 num (ap2 (R g h1 h2) X Y))
-
-    consC : Term
-    consC = encEq L3 L4
-
-    ih_ax_C :
-      Deriv (eqF (ap1 thmT (Df_axEqCongR h1 encR (ap1 num (ap2 (R g h1 h2) X Y)) (ap1 num (ap2 h2 X Y))))
-                  (encodedAxEqCongR_Term h1 encR (ap1 num (ap2 (R g h1 h2) X Y)) (ap1 num (ap2 h2 X Y))))
-    ih_ax_C = encodedAxEqCongR h1 encR (ap1 num (ap2 (R g h1 h2) X Y)) (ap1 num (ap2 h2 X Y))
-
-    -- IH_R_prev :  thmT Df_R_prev  =Deriv=  codeFTeq2 (R g h1 h2) X Y  =  encEq encR (num (R X Y))  =  antC .
-    ih_R_typed :
-      Deriv (eqF (ap1 thmT Df_R_prev) antC)
-    ih_R_typed = ih_R_prev
-
-    d_step_C : Term
-    d_step_C =
-      Df_step_C h1 encR (ap1 num (ap2 (R g h1 h2) X Y)) (ap1 num (ap2 h2 X Y))
-                Df_R_prev
-
-    e_step_C :
-      Deriv (eqF (ap1 thmT d_step_C) consC)
-    e_step_C = encoded_mp
-                 (Df_axEqCongR h1 encR (ap1 num (ap2 (R g h1 h2) X Y)) (ap1 num (ap2 h2 X Y)))
-                 Df_R_prev
-                 antC consC
-                 ih_ax_C ih_R_typed
-
-    ---------------------------------------------------------------
-    -- Step D : enc(L4 = L5)  via IH_h1 at (h2 X Y) (R g h1 h2 X Y).
-    --
-    -- codeFTeq2 h1 (h2 X Y) (R g h1 h2 X Y)  =  encEq L4 L5  by definition.
-    ---------------------------------------------------------------
-
-    d_step_D : Term
-    d_step_D = Df_h1_inst (ap2 h2 X Y) (ap2 (R g h1 h2) X Y)
-
-    e_step_D :
-      Deriv (eqF (ap1 thmT d_step_D) (encEq L4 L5))
-    e_step_D = ih_h1 (ap2 h2 X Y) (ap2 (R g h1 h2) X Y)
-
-    ---------------------------------------------------------------
-    -- Chain via encoded_eqTrans (3 times) to obtain enc(L1 = L5).
-    ---------------------------------------------------------------
-
-    d_trans_AB : Term
-    d_trans_AB = Df_eqTrans d_axRStep d_step_B L1 L2 L3
-
-    e_trans_AB :
-      Deriv (eqF (ap1 thmT d_trans_AB) (encEq L1 L3))
-    e_trans_AB = encoded_eqTrans d_axRStep d_step_B L1 L2 L3 e_step_A e_step_B
-
-    d_trans_AC : Term
-    d_trans_AC = Df_eqTrans d_trans_AB d_step_C L1 L3 L4
-
-    e_trans_AC :
-      Deriv (eqF (ap1 thmT d_trans_AC) (encEq L1 L4))
-    e_trans_AC = encoded_eqTrans d_trans_AB d_step_C L1 L3 L4 e_trans_AB e_step_C
-
-    d_trans_AD : Term
-    d_trans_AD = Df_eqTrans d_trans_AC d_step_D L1 L4 L5
-
-    e_trans_AD :
-      Deriv (eqF (ap1 thmT d_trans_AD) (encEq L1 L5))
-    e_trans_AD = encoded_eqTrans d_trans_AC d_step_D L1 L4 L5 e_trans_AC e_step_D
-
-    ---------------------------------------------------------------
-    -- Final bridges.
-    --
-    -- LHS bridge :  L1  =  encR_at_s g h1 h2 X Y     [s_enc(num Y) inside]
-    --            -> L1' =  encR_at   g h1 h2 X (s Y) [num (s Y)    inside]
-    --   via num_at_S Y :  num (s Y)  =  Pair tag_ap1 (Pair (natCode tag_s) (num Y))
-    --                              =  s_enc_num Y .
-    --   ruleSym gives  s_enc(num Y) -> num (s Y) .
-    --
-    -- RHS bridge :  L5  =  num (h1 (h2 X Y) (R g h1 h2 X Y))
-    --            -> num (R g h1 h2 X (s Y))
-    --   via cong1 num (ruleSym (ax_R_step g h1 h2 X Y)).
-    ---------------------------------------------------------------
-
-    -- num_at_S Y : eqF (num (s Y)) (Pair tag_ap1 (Pair (natCode tag_s) (num Y)))
-    --            = eqF (num (s Y)) (s_enc_num Y)         [definitionally].
-    s_enc_to_num_sY :
-      Deriv (eqF (s_enc_num Y) (ap1 num (ap1 s Y)))
-    s_enc_to_num_sY = ruleSym (num_at_S Y)
-
-    -- L1 -> L1' : cong on inner-right slot of inner-inner Pair.
-    inner_pair_bridge :
-      Deriv (eqF (ap2 Pair (ap1 num X) (s_enc_num Y))
-                  (ap2 Pair (ap1 num X) (ap1 num (ap1 s Y))))
-    inner_pair_bridge = congR Pair (ap1 num X) s_enc_to_num_sY
-
-    inner2_pair_bridge :
-      Deriv (eqF (ap2 Pair (codeFun2 (R g h1 h2)) (ap2 Pair (ap1 num X) (s_enc_num Y)))
-                  (ap2 Pair (codeFun2 (R g h1 h2))
-                    (ap2 Pair (ap1 num X) (ap1 num (ap1 s Y)))))
-    inner2_pair_bridge = congR Pair (codeFun2 (R g h1 h2)) inner_pair_bridge
-
-    LHS_slot_bridge : Deriv (eqF L1 L1')
-    LHS_slot_bridge = congR Pair (natCode tag_ap2) inner2_pair_bridge
-
-    -- RHS bridge :  L5  -> num (R g h1 h2 X (s Y))
-    axRStep_eq :
-      Deriv (eqF (ap2 (R g h1 h2) X (ap1 s Y))
-                  (ap2 h1 (ap2 h2 X Y) (ap2 (R g h1 h2) X Y)))
-    axRStep_eq = ax_R_step g h1 h2 X Y
-
-    RHS_slot_bridge :
-      Deriv (eqF L5 (ap1 num (ap2 (R g h1 h2) X (ap1 s Y))))
-    RHS_slot_bridge = cong1 num (ruleSym axRStep_eq)
-
-    -- Lift through inner Pair structure.
-    pair_inner :
-      Deriv (eqF (ap2 Pair L1 L5)
-                  (ap2 Pair L1' (ap1 num (ap2 (R g h1 h2) X (ap1 s Y)))))
-    pair_inner =
-      ruleTrans (congL Pair L5 LHS_slot_bridge)
-                (congR Pair L1' RHS_slot_bridge)
-
-    -- Lift through outer  Pair tag_eq  .
-    outer_bridge :
-      Deriv (eqF (encEq L1 L5)
-                  (codeFTeq2 (R g h1 h2) X (ap1 s Y)))
-    outer_bridge = congR Pair (natCode tag_eq) pair_inner
-
-  in ruleTrans e_trans_AD outer_bridge
 
 ------------------------------------------------------------------------
 -- kF1 : Fun1 wrapper for closed Terms.
@@ -883,96 +675,79 @@ packAx4_F1_eq X = kF1_eq_closed packAx4_O closed_packAx2_O' X
   closed_packAx2_O' = closed_packAx4_O
 
 ------------------------------------------------------------------------
+-- Single-variable sb-layer Fun1 builder (for the NESTED-sb encodings).
+--
+--   specPairF1 k vF        : ap1 (..) p = Pair (natCode k) (ap1 vF p)
+--   sbLayerF1 k vF inF     : ap1 (..) p = Pair tag_sb (Pair (Pair (natCode k) (ap1 vF p)) (ap1 inF p))
+--
+-- Composing these  n  times builds the  n-fold nested  tag_sb  wrap that
+-- replaced the old  tag_sb2 / tag_sb3  wraps.
+
+specPairF1 : Nat -> Fun1 -> Fun1
+specPairF1 k vF = pairF1 (natF1 k) vF
+
+specPairF1_eq :
+  (k : Nat) (vF : Fun1) (vT : Term) (p : Term) ->
+  Deriv (eqF (ap1 vF p) vT) ->
+  Deriv (eqF (ap1 (specPairF1 k vF) p) (ap2 Pair (natCode k) vT))
+specPairF1_eq k vF vT p e_v =
+  ruleTrans (pairF1_eq (natF1 k) vF p)
+    (ruleTrans (congL Pair (ap1 vF p) (natF1_eq k p))
+               (congR Pair (natCode k) e_v))
+
+sbLayerF1 : Nat -> Fun1 -> Fun1 -> Fun1
+sbLayerF1 k vF inF = pairF1 (natF1 tag_sb) (pairF1 (specPairF1 k vF) inF)
+
+sbLayerF1_eq :
+  (k : Nat) (vF inF : Fun1) (vT innerT : Term) (p : Term) ->
+  Deriv (eqF (ap1 vF p) vT) ->
+  Deriv (eqF (ap1 inF p) innerT) ->
+  Deriv (eqF (ap1 (sbLayerF1 k vF inF) p)
+              (ap2 Pair (natCode tag_sb)
+                (ap2 Pair (ap2 Pair (natCode k) vT) innerT)))
+sbLayerF1_eq k vF inF vT innerT p e_v e_inner =
+  let e_mid :
+        Deriv (eqF (ap1 (pairF1 (specPairF1 k vF) inF) p)
+                    (ap2 Pair (ap2 Pair (natCode k) vT) innerT))
+      e_mid =
+        ruleTrans (pairF1_eq (specPairF1 k vF) inF p)
+          (ruleTrans (congL Pair (ap1 inF p) (specPairF1_eq k vF vT p e_v))
+                     (congR Pair (ap2 Pair (natCode k) vT) e_inner))
+  in ruleTrans (pairF1_eq (natF1 tag_sb) (pairF1 (specPairF1 k vF) inF) p)
+       (ruleTrans (congL Pair (ap1 (pairF1 (specPairF1 k vF) inF) p)
+                              (natF1_eq tag_sb p))
+                  (congR Pair (natCode tag_sb) e_mid))
+
+------------------------------------------------------------------------
 -- axEqTrans_F1 -- Fun1 producing  Df_axEqTrans (ap1 tA_F1 X) (ap1 tB_F1 X) (ap1 tC_F1 X) .
+-- (Three nested  tag_sb  layers ; var 0 := tA, var 1 := tB, var 2 := tC.)
 
 axEqTrans_F1 : Fun1 -> Fun1 -> Fun1 -> Fun1
 axEqTrans_F1 tA_F1 tB_F1 tC_F1 =
-  pairF1 (natF1 tag_sb3)
-    (pairF1
-      (pairF1 (pairF1 (natF1 zero) tA_F1)
-        (pairF1 (pairF1 (natF1 (suc zero)) tB_F1)
-          (pairF1 (natF1 (suc (suc zero))) tC_F1)))
-      packAx4_F1)
+  sbLayerF1 zero tA_F1
+    (sbLayerF1 (suc zero) tB_F1
+      (sbLayerF1 (suc (suc zero)) tC_F1 packAx4_F1))
 
 axEqTrans_F1_eq :
   (tA_F1 tB_F1 tC_F1 : Fun1) (X : Term) ->
   Deriv (eqF (ap1 (axEqTrans_F1 tA_F1 tB_F1 tC_F1) X)
               (Df_axEqTrans (ap1 tA_F1 X) (ap1 tB_F1 X) (ap1 tC_F1 X)))
 axEqTrans_F1_eq tA_F1 tB_F1 tC_F1 X =
-  let tA = ap1 tA_F1 X
-      tB = ap1 tB_F1 X
-      tC = ap1 tC_F1 X
+  let i2 : Fun1
+      i2 = sbLayerF1 (suc (suc zero)) tC_F1 packAx4_F1
+      i1 : Fun1
+      i1 = sbLayerF1 (suc zero) tB_F1 i2
 
-      -- The innermost (pair (k=2) tC) layer.
-      inner_kC :
-        Deriv (eqF (ap1 (pairF1 (natF1 (suc (suc zero))) tC_F1) X)
-                    (ap2 Pair (natCode (suc (suc zero))) tC))
-      inner_kC =
-        ruleTrans (pairF1_eq (natF1 (suc (suc zero))) tC_F1 X)
-          (congL Pair tC (natF1_eq (suc (suc zero)) X))
-
-      -- The (pair (k=1) tB) layer.
-      inner_kB :
-        Deriv (eqF (ap1 (pairF1 (natF1 (suc zero)) tB_F1) X)
-                    (ap2 Pair (natCode (suc zero)) tB))
-      inner_kB =
-        ruleTrans (pairF1_eq (natF1 (suc zero)) tB_F1 X)
-          (congL Pair tB (natF1_eq (suc zero) X))
-
-      -- The (pair (k=0) tA) layer.
-      inner_kA :
-        Deriv (eqF (ap1 (pairF1 (natF1 zero) tA_F1) X)
-                    (ap2 Pair (natCode zero) tA))
-      inner_kA =
-        ruleTrans (pairF1_eq (natF1 zero) tA_F1 X)
-          (congL Pair tA (natF1_eq zero X))
-
-      -- (pair kB-layer kC-layer) -- forms the back half of spec3.
-      pair_BC :
-        Deriv (eqF (ap1 (pairF1 (pairF1 (natF1 (suc zero)) tB_F1)
-                                 (pairF1 (natF1 (suc (suc zero))) tC_F1)) X)
-                    (ap2 Pair (ap2 Pair (natCode (suc zero)) tB)
-                              (ap2 Pair (natCode (suc (suc zero))) tC)))
-      pair_BC =
-        ruleTrans (pairF1_eq (pairF1 (natF1 (suc zero)) tB_F1)
-                              (pairF1 (natF1 (suc (suc zero))) tC_F1) X)
-          (ruleTrans
-            (congL Pair _ inner_kB)
-            (congR Pair _ inner_kC))
-
-      -- The full spec3 structure.
-      spec_eq :
-        Deriv (eqF (ap1 (pairF1 (pairF1 (natF1 zero) tA_F1)
-                          (pairF1 (pairF1 (natF1 (suc zero)) tB_F1)
-                            (pairF1 (natF1 (suc (suc zero))) tC_F1))) X)
-                    (ap2 Pair (ap2 Pair (natCode zero) tA)
-                      (ap2 Pair (ap2 Pair (natCode (suc zero)) tB)
-                                (ap2 Pair (natCode (suc (suc zero))) tC))))
-      spec_eq =
-        ruleTrans (pairF1_eq (pairF1 (natF1 zero) tA_F1) _ X)
-          (ruleTrans
-            (congL Pair _ inner_kA)
-            (congR Pair _ pair_BC))
-
-      pack_eq : Deriv (eqF (ap1 packAx4_F1 X) packAx4_O)
-      pack_eq = packAx4_F1_eq X
-
-      mid_eq :
-        Deriv (eqF (ap1 (pairF1 _ packAx4_F1) X)
-                    (ap2 Pair (ap2 Pair (ap2 Pair (natCode zero) tA)
-                       (ap2 Pair (ap2 Pair (natCode (suc zero)) tB)
-                                 (ap2 Pair (natCode (suc (suc zero))) tC)))
-                      packAx4_O))
-      mid_eq =
-        ruleTrans (pairF1_eq _ packAx4_F1 X)
-          (ruleTrans
-            (congL Pair _ spec_eq)
-            (congR Pair _ pack_eq))
-
-  in ruleTrans (pairF1_eq (natF1 tag_sb3) _ X)
-       (ruleTrans
-         (congL Pair _ (natF1_eq tag_sb3 X))
-         (congR Pair _ mid_eq))
+      e2 = sbLayerF1_eq (suc (suc zero)) tC_F1 packAx4_F1
+             (ap1 tC_F1 X) packAx4_O X
+             (axRefl (ap1 tC_F1 X)) (packAx4_F1_eq X)
+      e1 = sbLayerF1_eq (suc zero) tB_F1 i2
+             (ap1 tB_F1 X) _ X
+             (axRefl (ap1 tB_F1 X)) e2
+      e0 = sbLayerF1_eq zero tA_F1 i1
+             (ap1 tA_F1 X) _ X
+             (axRefl (ap1 tA_F1 X)) e1
+  in e0
 
 ------------------------------------------------------------------------
 -- z_axRefl_v0_F1 -- Fun1 producing z_axRefl_v0 (closed).
@@ -1071,7 +846,26 @@ baseF1 g h1 h2 Df_g_F1 =
   in mpWrapF1 eqTransBodyF1 Df_g_F1
 
 ------------------------------------------------------------------------
--- 3-arg congruence for  Df_axEqTrans  on its three Term slots.
+-- sbLayer_cong -- Term-level congruence for ONE nested  tag_sb  layer.
+--
+--   Pair tag_sb (Pair (Pair (natCode k) v) inner)
+--     vs    ... v' ... inner' .
+
+sbLayer_cong :
+  (k : Nat) (vt vt' inner inner' : Term) ->
+  Deriv (eqF vt vt') ->
+  Deriv (eqF inner inner') ->
+  Deriv (eqF (ap2 Pair (natCode tag_sb)
+               (ap2 Pair (ap2 Pair (natCode k) vt) inner))
+              (ap2 Pair (natCode tag_sb)
+                (ap2 Pair (ap2 Pair (natCode k) vt') inner')))
+sbLayer_cong k vt vt' inner inner' ev einner =
+  congR Pair (natCode tag_sb)
+    (ruleTrans (congL Pair inner (congR Pair (natCode k) ev))
+               (congR Pair (ap2 Pair (natCode k) vt') einner))
+
+------------------------------------------------------------------------
+-- 3-arg congruence for  Df_axEqTrans  on its three Term slots (nested sb).
 
 Df_axEqTrans_cong :
   (tA tA' tB tB' tC tC' : Term) ->
@@ -1080,49 +874,10 @@ Df_axEqTrans_cong :
   Deriv (eqF tC tC') ->
   Deriv (eqF (Df_axEqTrans tA tB tC) (Df_axEqTrans tA' tB' tC'))
 Df_axEqTrans_cong tA tA' tB tB' tC tC' eA eB eC =
-  let
-    pair_kC : Deriv (eqF (ap2 Pair (natCode (suc (suc zero))) tC)
-                          (ap2 Pair (natCode (suc (suc zero))) tC'))
-    pair_kC = congR Pair (natCode (suc (suc zero))) eC
-
-    pair_kB : Deriv (eqF (ap2 Pair (natCode (suc zero)) tB)
-                          (ap2 Pair (natCode (suc zero)) tB'))
-    pair_kB = congR Pair (natCode (suc zero)) eB
-
-    pair_kA : Deriv (eqF (ap2 Pair (natCode zero) tA)
-                          (ap2 Pair (natCode zero) tA'))
-    pair_kA = congR Pair (natCode zero) eA
-
-    pair_BC : Deriv (eqF
-      (ap2 Pair (ap2 Pair (natCode (suc zero)) tB) (ap2 Pair (natCode (suc (suc zero))) tC))
-      (ap2 Pair (ap2 Pair (natCode (suc zero)) tB') (ap2 Pair (natCode (suc (suc zero))) tC')))
-    pair_BC =
-      ruleTrans
-        (congL Pair (ap2 Pair (natCode (suc (suc zero))) tC) pair_kB)
-        (congR Pair (ap2 Pair (natCode (suc zero)) tB') pair_kC)
-
-    spec_eq : Deriv (eqF
-      (ap2 Pair (ap2 Pair (natCode zero) tA)
-        (ap2 Pair (ap2 Pair (natCode (suc zero)) tB) (ap2 Pair (natCode (suc (suc zero))) tC)))
-      (ap2 Pair (ap2 Pair (natCode zero) tA')
-        (ap2 Pair (ap2 Pair (natCode (suc zero)) tB') (ap2 Pair (natCode (suc (suc zero))) tC'))))
-    spec_eq =
-      ruleTrans
-        (congL Pair _ pair_kA)
-        (congR Pair _ pair_BC)
-
-    pair_spec_pack_eq :
-      Deriv (eqF
-        (ap2 Pair
-          (ap2 Pair (ap2 Pair (natCode zero) tA)
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) tB) (ap2 Pair (natCode (suc (suc zero))) tC)))
-          packAx4_O)
-        (ap2 Pair
-          (ap2 Pair (ap2 Pair (natCode zero) tA')
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) tB') (ap2 Pair (natCode (suc (suc zero))) tC')))
-          packAx4_O))
-    pair_spec_pack_eq = congL Pair packAx4_O spec_eq
-  in congR Pair (natCode tag_sb3) pair_spec_pack_eq
+  sbLayer_cong zero tA tA' _ _ eA
+    (sbLayer_cong (suc zero) tB tB' _ _ eB
+      (sbLayer_cong (suc (suc zero)) tC tC' packAx4_O packAx4_O eC
+        (axRefl packAx4_O)))
 
 ------------------------------------------------------------------------
 -- 1-arg congruence for  Df_refl_meta  on its Term slot.
@@ -1611,43 +1366,24 @@ private
 
 Df_axRStep_F1 : (g : Fun1) (h1 h2 : Fun2) -> Fun1 -> Fun1 -> Fun1
 Df_axRStep_F1 g h1 h2 X_F1 Y_F1 =
-  pairF1 (natF1 tag_sb2)
-    (pairF1 (spec2_F1 X_F1 Y_F1) (packAx10_R_F1 g h1 h2))
+  sbLayerF1 zero (compose1U num X_F1)
+    (sbLayerF1 (suc zero) (compose1U num Y_F1) (packAx10_R_F1 g h1 h2))
 
 Df_axRStep_F1_eq :
   (g : Fun1) (h1 h2 : Fun2) (X_F1 Y_F1 : Fun1) (p : Term) ->
   Deriv (eqF (ap1 (Df_axRStep_F1 g h1 h2 X_F1 Y_F1) p)
               (Df_axRStep g h1 h2 (ap1 X_F1 p) (ap1 Y_F1 p)))
 Df_axRStep_F1_eq g h1 h2 X_F1 Y_F1 p =
-  let
-    Xp = ap1 X_F1 p
-    Yp = ap1 Y_F1 p
+  let i1 : Fun1
+      i1 = sbLayerF1 (suc zero) (compose1U num Y_F1) (packAx10_R_F1 g h1 h2)
 
-    -- spec2_at Xp Yp shape.
-    spec2_target : Term
-    spec2_target =
-      ap2 Pair (ap2 Pair (natCode zero) (ap1 num Xp))
-               (ap2 Pair (natCode (suc zero)) (ap1 num Yp))
-
-    e_spec : Deriv (eqF (ap1 (spec2_F1 X_F1 Y_F1) p) spec2_target)
-    e_spec = spec2_F1_eq X_F1 Y_F1 p
-
-    e_pack : Deriv (eqF (ap1 (packAx10_R_F1 g h1 h2) p) (packAx10_R_T g h1 h2))
-    e_pack = packAx10_R_F1_eq g h1 h2 p
-
-    mid_target : Term
-    mid_target = ap2 Pair spec2_target (packAx10_R_T g h1 h2)
-
-    e_mid :
-      Deriv (eqF (ap1 (pairF1 (spec2_F1 X_F1 Y_F1) (packAx10_R_F1 g h1 h2)) p)
-                  mid_target)
-    e_mid =
-      ruleTrans (pairF1_eq (spec2_F1 X_F1 Y_F1) (packAx10_R_F1 g h1 h2) p)
-        (ruleTrans (congL Pair _ e_spec) (congR Pair _ e_pack))
-
-  in ruleTrans (pairF1_eq (natF1 tag_sb2) _ p)
-       (ruleTrans (congL Pair _ (natF1_eq tag_sb2 p))
-                  (congR Pair _ e_mid))
+      e1 = sbLayerF1_eq (suc zero) (compose1U num Y_F1) (packAx10_R_F1 g h1 h2)
+             (ap1 num (ap1 Y_F1 p)) (packAx10_R_T g h1 h2) p
+             (compose1U_eq num Y_F1 p) (packAx10_R_F1_eq g h1 h2 p)
+      e0 = sbLayerF1_eq zero (compose1U num X_F1) i1
+             (ap1 num (ap1 X_F1 p)) _ p
+             (compose1U_eq num X_F1 p) e1
+  in e0
 
 ------------------------------------------------------------------------
 -- Df_axEqCongL_F1 -- Fun1 wrapping Df_axEqCongL h tA tB tC.
@@ -1657,88 +1393,94 @@ Df_axRStep_F1_eq g h1 h2 X_F1 Y_F1 p =
 
 Df_axEqCongL_F1 : Fun2 -> Fun1 -> Fun1 -> Fun1 -> Fun1
 Df_axEqCongL_F1 h tA_F1 tB_F1 tC_F1 =
-  pairF1 (natF1 tag_sb3)
-    (pairF1 (spec3_F1 tA_F1 tB_F1 tC_F1) (packAx6_F1 h))
+  sbLayerF1 zero tA_F1
+    (sbLayerF1 (suc zero) tB_F1
+      (sbLayerF1 (suc (suc zero)) tC_F1 (packAx6_F1 h)))
 
 Df_axEqCongL_F1_eq :
   (h : Fun2) (tA_F1 tB_F1 tC_F1 : Fun1) (p : Term) ->
   Deriv (eqF (ap1 (Df_axEqCongL_F1 h tA_F1 tB_F1 tC_F1) p)
               (Df_axEqCongL h (ap1 tA_F1 p) (ap1 tB_F1 p) (ap1 tC_F1 p)))
 Df_axEqCongL_F1_eq h tA_F1 tB_F1 tC_F1 p =
-  let
-    tA = ap1 tA_F1 p
-    tB = ap1 tB_F1 p
-    tC = ap1 tC_F1 p
+  let i2 : Fun1
+      i2 = sbLayerF1 (suc (suc zero)) tC_F1 (packAx6_F1 h)
+      i1 : Fun1
+      i1 = sbLayerF1 (suc zero) tB_F1 i2
 
-    spec3_target : Term
-    spec3_target =
-      ap2 Pair (ap2 Pair (natCode zero) tA)
-        (ap2 Pair (ap2 Pair (natCode (suc zero)) tB)
-                  (ap2 Pair (natCode (suc (suc zero))) tC))
-
-    e_spec : Deriv (eqF (ap1 (spec3_F1 tA_F1 tB_F1 tC_F1) p) spec3_target)
-    e_spec = spec3_F1_eq tA_F1 tB_F1 tC_F1 p
-
-    e_pack : Deriv (eqF (ap1 (packAx6_F1 h) p) (packAx6_T h))
-    e_pack = packAx6_F1_eq h p
-
-    mid_target : Term
-    mid_target = ap2 Pair spec3_target (packAx6_T h)
-
-    e_mid :
-      Deriv (eqF (ap1 (pairF1 (spec3_F1 tA_F1 tB_F1 tC_F1) (packAx6_F1 h)) p)
-                  mid_target)
-    e_mid =
-      ruleTrans (pairF1_eq (spec3_F1 tA_F1 tB_F1 tC_F1) (packAx6_F1 h) p)
-        (ruleTrans (congL Pair _ e_spec) (congR Pair _ e_pack))
-
-  in ruleTrans (pairF1_eq (natF1 tag_sb3) _ p)
-       (ruleTrans (congL Pair _ (natF1_eq tag_sb3 p))
-                  (congR Pair _ e_mid))
+      e2 = sbLayerF1_eq (suc (suc zero)) tC_F1 (packAx6_F1 h)
+             (ap1 tC_F1 p) (packAx6_T h) p
+             (axRefl (ap1 tC_F1 p)) (packAx6_F1_eq h p)
+      e1 = sbLayerF1_eq (suc zero) tB_F1 i2
+             (ap1 tB_F1 p) _ p
+             (axRefl (ap1 tB_F1 p)) e2
+      e0 = sbLayerF1_eq zero tA_F1 i1
+             (ap1 tA_F1 p) _ p
+             (axRefl (ap1 tA_F1 p)) e1
+  in e0
 
 ------------------------------------------------------------------------
 -- Df_axEqCongR_F1 -- Fun1 wrapping Df_axEqCongR h tA tB tC.
 
 Df_axEqCongR_F1 : Fun2 -> Fun1 -> Fun1 -> Fun1 -> Fun1
 Df_axEqCongR_F1 h tA_F1 tB_F1 tC_F1 =
-  pairF1 (natF1 tag_sb3)
-    (pairF1 (spec3_F1 tA_F1 tB_F1 tC_F1) (packAx7_F1 h))
+  sbLayerF1 zero tA_F1
+    (sbLayerF1 (suc zero) tB_F1
+      (sbLayerF1 (suc (suc zero)) tC_F1 (packAx7_F1 h)))
 
 Df_axEqCongR_F1_eq :
   (h : Fun2) (tA_F1 tB_F1 tC_F1 : Fun1) (p : Term) ->
   Deriv (eqF (ap1 (Df_axEqCongR_F1 h tA_F1 tB_F1 tC_F1) p)
               (Df_axEqCongR h (ap1 tA_F1 p) (ap1 tB_F1 p) (ap1 tC_F1 p)))
 Df_axEqCongR_F1_eq h tA_F1 tB_F1 tC_F1 p =
-  let
-    tA = ap1 tA_F1 p
-    tB = ap1 tB_F1 p
-    tC = ap1 tC_F1 p
+  let i2 : Fun1
+      i2 = sbLayerF1 (suc (suc zero)) tC_F1 (packAx7_F1 h)
+      i1 : Fun1
+      i1 = sbLayerF1 (suc zero) tB_F1 i2
 
-    spec3_target : Term
-    spec3_target =
-      ap2 Pair (ap2 Pair (natCode zero) tA)
-        (ap2 Pair (ap2 Pair (natCode (suc zero)) tB)
-                  (ap2 Pair (natCode (suc (suc zero))) tC))
+      e2 = sbLayerF1_eq (suc (suc zero)) tC_F1 (packAx7_F1 h)
+             (ap1 tC_F1 p) (packAx7_T h) p
+             (axRefl (ap1 tC_F1 p)) (packAx7_F1_eq h p)
+      e1 = sbLayerF1_eq (suc zero) tB_F1 i2
+             (ap1 tB_F1 p) _ p
+             (axRefl (ap1 tB_F1 p)) e2
+      e0 = sbLayerF1_eq zero tA_F1 i1
+             (ap1 tA_F1 p) _ p
+             (axRefl (ap1 tA_F1 p)) e1
+  in e0
 
-    e_spec : Deriv (eqF (ap1 (spec3_F1 tA_F1 tB_F1 tC_F1) p) spec3_target)
-    e_spec = spec3_F1_eq tA_F1 tB_F1 tC_F1 p
+------------------------------------------------------------------------
+-- Term-slot congruences for the nested-sb Df builders (replace the old
+-- tag_sb2 / tag_sb3 manual reconstructions in the stepF1 soundness proof).
 
-    e_pack : Deriv (eqF (ap1 (packAx7_F1 h) p) (packAx7_T h))
-    e_pack = packAx7_F1_eq h p
+Df_axRStep_cong :
+  (g : Fun1) (h1 h2 : Fun2) (X X' Y Y' : Term) ->
+  Deriv (eqF X X') -> Deriv (eqF Y Y') ->
+  Deriv (eqF (Df_axRStep g h1 h2 X Y) (Df_axRStep g h1 h2 X' Y'))
+Df_axRStep_cong g h1 h2 X X' Y Y' eX eY =
+  sbLayer_cong zero (ap1 num X) (ap1 num X') _ _ (cong1 num eX)
+    (sbLayer_cong (suc zero) (ap1 num Y) (ap1 num Y')
+      (packAx10_R_T g h1 h2) (packAx10_R_T g h1 h2)
+      (cong1 num eY) (axRefl (packAx10_R_T g h1 h2)))
 
-    mid_target : Term
-    mid_target = ap2 Pair spec3_target (packAx7_T h)
+Df_axEqCongL_cong :
+  (h : Fun2) (tA tA' tB tB' tC tC' : Term) ->
+  Deriv (eqF tA tA') -> Deriv (eqF tB tB') -> Deriv (eqF tC tC') ->
+  Deriv (eqF (Df_axEqCongL h tA tB tC) (Df_axEqCongL h tA' tB' tC'))
+Df_axEqCongL_cong h tA tA' tB tB' tC tC' eA eB eC =
+  sbLayer_cong zero tA tA' _ _ eA
+    (sbLayer_cong (suc zero) tB tB' _ _ eB
+      (sbLayer_cong (suc (suc zero)) tC tC' (packAx6_T h) (packAx6_T h) eC
+        (axRefl (packAx6_T h))))
 
-    e_mid :
-      Deriv (eqF (ap1 (pairF1 (spec3_F1 tA_F1 tB_F1 tC_F1) (packAx7_F1 h)) p)
-                  mid_target)
-    e_mid =
-      ruleTrans (pairF1_eq (spec3_F1 tA_F1 tB_F1 tC_F1) (packAx7_F1 h) p)
-        (ruleTrans (congL Pair _ e_spec) (congR Pair _ e_pack))
-
-  in ruleTrans (pairF1_eq (natF1 tag_sb3) _ p)
-       (ruleTrans (congL Pair _ (natF1_eq tag_sb3 p))
-                  (congR Pair _ e_mid))
+Df_axEqCongR_cong :
+  (h : Fun2) (tA tA' tB tB' tC tC' : Term) ->
+  Deriv (eqF tA tA') -> Deriv (eqF tB tB') -> Deriv (eqF tC tC') ->
+  Deriv (eqF (Df_axEqCongR h tA tB tC) (Df_axEqCongR h tA' tB' tC'))
+Df_axEqCongR_cong h tA tA' tB tB' tC tC' eA eB eC =
+  sbLayer_cong zero tA tA' _ _ eA
+    (sbLayer_cong (suc zero) tB tB' _ _ eB
+      (sbLayer_cong (suc (suc zero)) tC tC' (packAx7_T h) (packAx7_T h) eC
+        (axRefl (packAx7_T h))))
 
 ------------------------------------------------------------------------
 -- Phase 1B Step 2 -- Df_eqSym_F1 + Df_eqTrans_F1 builders.
@@ -2554,46 +2296,8 @@ stepF1_eq g h1 h2 Df_h1_F2 Df_h2_F2 X Y prev =
         -- Df_axRStep g h1 h2 X1 Y1 = Pair tag_sb2 (Pair (spec2_at X1 Y1) (packAx10)).
         -- spec2_at X1 Y1 = Pair (Pair 0 (num X1)) (Pair 1 (num Y1)) .
 
-        e_numX : Deriv (eqF (ap1 num (ap1 X_F1 p)) (ap1 num X))
-        e_numX = cong1 num eX
-
-        e_numY : Deriv (eqF (ap1 num (ap1 Y_F1 p)) (ap1 num Y))
-        e_numY = cong1 num eY
-
-        e_kX :
-          Deriv (eqF (ap2 Pair (natCode zero) (ap1 num (ap1 X_F1 p)))
-                      (ap2 Pair (natCode zero) (ap1 num X)))
-        e_kX = congR Pair (natCode zero) e_numX
-
-        e_kY :
-          Deriv (eqF (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 Y_F1 p)))
-                      (ap2 Pair (natCode (suc zero)) (ap1 num Y)))
-        e_kY = congR Pair (natCode (suc zero)) e_numY
-
-        e_spec2 :
-          Deriv (eqF
-            (ap2 Pair (ap2 Pair (natCode zero) (ap1 num (ap1 X_F1 p)))
-                      (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 Y_F1 p))))
-            (ap2 Pair (ap2 Pair (natCode zero) (ap1 num X))
-                      (ap2 Pair (natCode (suc zero)) (ap1 num Y))))
-        e_spec2 =
-          ruleTrans
-            (congL Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 Y_F1 p))) e_kX)
-            (congR Pair (ap2 Pair (natCode zero) (ap1 num X)) e_kY)
-
-        e_inner :
-          Deriv (eqF
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) (ap1 num (ap1 X_F1 p)))
-                        (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 Y_F1 p))))
-              (packAx10_R_T g h1 h2))
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) (ap1 num X))
-                        (ap2 Pair (natCode (suc zero)) (ap1 num Y)))
-              (packAx10_R_T g h1 h2)))
-        e_inner = congL Pair (packAx10_R_T g h1 h2) e_spec2
-
-      in ruleTrans e_raw (congR Pair (natCode tag_sb2) e_inner)
+      in ruleTrans e_raw
+           (Df_axRStep_cong g h1 h2 (ap1 X_F1 p) X (ap1 Y_F1 p) Y eX eY)
 
     -- d_h2_inst_F1 p -> ap2 Df_h2_F2 X Y .
     eDh2 : Deriv (eqF (ap1 d_h2_inst_F1 p) (ap2 Df_h2_F2 X Y))
@@ -2625,62 +2329,15 @@ stepF1_eq g h1 h2 Df_h1_F2 Df_h2_F2 X Y prev =
         -- Df_axEqCongL h1 tA tB tC = Pair tag_sb3 (Pair (spec3_at tA tB tC) (packAx6 h1)).
         -- spec3_at tA tB tC = Pair (Pair 0 tA) (Pair (Pair 1 tB) (Pair 2 tC)) .
 
-        e_kA :
-          Deriv (eqF (ap2 Pair (natCode zero) (ap1 encH2_F1' p))
-                      (ap2 Pair (natCode zero) encH2_concrete))
-        e_kA = congR Pair (natCode zero) eEncH2
-
-        e_kB :
-          Deriv (eqF (ap2 Pair (natCode (suc zero)) (ap1 num_h2_F1' p))
-                      (ap2 Pair (natCode (suc zero)) num_h2_concrete))
-        e_kB = congR Pair (natCode (suc zero)) eNumH2
-
-        e_kC :
-          Deriv (eqF (ap2 Pair (natCode (suc (suc zero))) (ap1 encR_F1' p))
-                      (ap2 Pair (natCode (suc (suc zero))) encR_concrete))
-        e_kC = congR Pair (natCode (suc (suc zero))) eEncR
-
-        e_BC :
-          Deriv (eqF
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num_h2_F1' p))
-                      (ap2 Pair (natCode (suc (suc zero))) (ap1 encR_F1' p)))
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) num_h2_concrete)
-                      (ap2 Pair (natCode (suc (suc zero))) encR_concrete)))
-        e_BC =
-          ruleTrans
-            (congL Pair (ap2 Pair (natCode (suc (suc zero))) (ap1 encR_F1' p)) e_kB)
-            (congR Pair _ e_kC)
-
-        e_spec3 :
-          Deriv (eqF
-            (ap2 Pair (ap2 Pair (natCode zero) (ap1 encH2_F1' p))
-                      (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num_h2_F1' p))
-                                (ap2 Pair (natCode (suc (suc zero))) (ap1 encR_F1' p))))
-            (ap2 Pair (ap2 Pair (natCode zero) encH2_concrete)
-                      (ap2 Pair (ap2 Pair (natCode (suc zero)) num_h2_concrete)
-                                (ap2 Pair (natCode (suc (suc zero))) encR_concrete))))
-        e_spec3 =
-          ruleTrans (congL Pair _ e_kA)
-                    (congR Pair _ e_BC)
-
-        e_inner :
-          Deriv (eqF
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) (ap1 encH2_F1' p))
-                        (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num_h2_F1' p))
-                                  (ap2 Pair (natCode (suc (suc zero))) (ap1 encR_F1' p))))
-              (packAx6_T h1))
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) encH2_concrete)
-                        (ap2 Pair (ap2 Pair (natCode (suc zero)) num_h2_concrete)
-                                  (ap2 Pair (natCode (suc (suc zero))) encR_concrete)))
-              (packAx6_T h1)))
-        e_inner = congL Pair (packAx6_T h1) e_spec3
-
         e_congL_concrete :
           Deriv (eqF (Df_axEqCongL h1 (ap1 encH2_F1' p) (ap1 num_h2_F1' p) (ap1 encR_F1' p))
                       (Df_axEqCongL h1 encH2_concrete num_h2_concrete encR_concrete))
-        e_congL_concrete = congR Pair (natCode tag_sb3) e_inner
+        e_congL_concrete =
+          Df_axEqCongL_cong h1
+            (ap1 encH2_F1' p) encH2_concrete
+            (ap1 num_h2_F1' p) num_h2_concrete
+            (ap1 encR_F1' p) encR_concrete
+            eEncH2 eNumH2 eEncR
 
         e_congL_full :
           Deriv (eqF (ap1 (Df_axEqCongL_F1 h1 encH2_F1' num_h2_F1' encR_F1') p)
@@ -2713,62 +2370,15 @@ stepF1_eq g h1 h2 Df_h1_F2 Df_h2_F2 X Y prev =
                       (Df_axEqCongR h1 (ap1 encR_F1' p) (ap1 num_R_F1' p) (ap1 num_h2_F1' p)))
         e_congR_raw = Df_axEqCongR_F1_eq h1 encR_F1' num_R_F1' num_h2_F1' p
 
-        e_kA :
-          Deriv (eqF (ap2 Pair (natCode zero) (ap1 encR_F1' p))
-                      (ap2 Pair (natCode zero) encR_concrete))
-        e_kA = congR Pair (natCode zero) eEncR
-
-        e_kB :
-          Deriv (eqF (ap2 Pair (natCode (suc zero)) (ap1 num_R_F1' p))
-                      (ap2 Pair (natCode (suc zero)) num_R_concrete))
-        e_kB = congR Pair (natCode (suc zero)) eNumR
-
-        e_kC :
-          Deriv (eqF (ap2 Pair (natCode (suc (suc zero))) (ap1 num_h2_F1' p))
-                      (ap2 Pair (natCode (suc (suc zero))) num_h2_concrete))
-        e_kC = congR Pair (natCode (suc (suc zero))) eNumH2
-
-        e_BC :
-          Deriv (eqF
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num_R_F1' p))
-                      (ap2 Pair (natCode (suc (suc zero))) (ap1 num_h2_F1' p)))
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) num_R_concrete)
-                      (ap2 Pair (natCode (suc (suc zero))) num_h2_concrete)))
-        e_BC =
-          ruleTrans
-            (congL Pair (ap2 Pair (natCode (suc (suc zero))) (ap1 num_h2_F1' p)) e_kB)
-            (congR Pair _ e_kC)
-
-        e_spec3 :
-          Deriv (eqF
-            (ap2 Pair (ap2 Pair (natCode zero) (ap1 encR_F1' p))
-                      (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num_R_F1' p))
-                                (ap2 Pair (natCode (suc (suc zero))) (ap1 num_h2_F1' p))))
-            (ap2 Pair (ap2 Pair (natCode zero) encR_concrete)
-                      (ap2 Pair (ap2 Pair (natCode (suc zero)) num_R_concrete)
-                                (ap2 Pair (natCode (suc (suc zero))) num_h2_concrete))))
-        e_spec3 =
-          ruleTrans (congL Pair _ e_kA)
-                    (congR Pair _ e_BC)
-
-        e_inner :
-          Deriv (eqF
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) (ap1 encR_F1' p))
-                        (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num_R_F1' p))
-                                  (ap2 Pair (natCode (suc (suc zero))) (ap1 num_h2_F1' p))))
-              (packAx7_T h1))
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) encR_concrete)
-                        (ap2 Pair (ap2 Pair (natCode (suc zero)) num_R_concrete)
-                                  (ap2 Pair (natCode (suc (suc zero))) num_h2_concrete)))
-              (packAx7_T h1)))
-        e_inner = congL Pair (packAx7_T h1) e_spec3
-
         e_congR_concrete :
           Deriv (eqF (Df_axEqCongR h1 (ap1 encR_F1' p) (ap1 num_R_F1' p) (ap1 num_h2_F1' p))
                       (Df_axEqCongR h1 encR_concrete num_R_concrete num_h2_concrete))
-        e_congR_concrete = congR Pair (natCode tag_sb3) e_inner
+        e_congR_concrete =
+          Df_axEqCongR_cong h1
+            (ap1 encR_F1' p) encR_concrete
+            (ap1 num_R_F1' p) num_R_concrete
+            (ap1 num_h2_F1' p) num_h2_concrete
+            eEncR eNumR eNumH2
 
         e_congR_full :
           Deriv (eqF (ap1 (Df_axEqCongR_F1 h1 encR_F1' num_R_F1' num_h2_F1') p)
@@ -2962,6 +2572,7 @@ private
   imp_encoded_eqSym :
     (P : Formula)
     (cABProof : Term) (tA tB : Term)
+    (inertA : InertU tA) (inertB : InertU tB)
     (imp_ih_AB : Deriv (imp P (eqF (ap1 thmT cABProof) (encEq tA tB)))) ->
     Deriv (imp P (eqF
       (ap1 thmT
@@ -2971,7 +2582,7 @@ private
               (ap2 Pair (Df_axEqTrans tA tB tA) cABProof))
             (Df_refl_meta tA))))
       (encEq tB tA)))
-  imp_encoded_eqSym P cABProof tA tB imp_ih_AB =
+  imp_encoded_eqSym P cABProof tA tB inertA inertB imp_ih_AB =
     let
       ih_ax_sym_imp :
         Deriv (imp P (eqF (ap1 thmT (Df_axEqTrans tA tB tA))
@@ -2979,7 +2590,7 @@ private
                              (ap2 Pair (encEq tA tB)
                                (ap2 Pair (natCode tag_imp)
                                  (ap2 Pair (encEq tA tA) (encEq tB tA)))))))
-      ih_ax_sym_imp = impLift {P} (encodedAxEqTrans tA tB tA)
+      ih_ax_sym_imp = impLift {P} (encodedAxEqTrans tA tB tA inertB inertA)
 
       sym_antP1 : Term
       sym_antP1 = encEq tA tB
@@ -3030,10 +2641,11 @@ private
   imp_encoded_eqTrans :
     (P : Formula)
     (cAB cBC : Term) (tA tB tC : Term)
+    (inertA : InertU tA) (inertB : InertU tB) (inertC : InertU tC)
     (imp_ih_AB : Deriv (imp P (eqF (ap1 thmT cAB) (encEq tA tB))))
     (imp_ih_BC : Deriv (imp P (eqF (ap1 thmT cBC) (encEq tB tC)))) ->
     Deriv (imp P (eqF (ap1 thmT (Df_eqTrans cAB cBC tA tB tC)) (encEq tA tC)))
-  imp_encoded_eqTrans P cAB cBC tA tB tC imp_ih_AB imp_ih_BC =
+  imp_encoded_eqTrans P cAB cBC tA tB tC inertA inertB inertC imp_ih_AB imp_ih_BC =
     let
       cBA : Term
       cBA = ap2 Pair (natCode tag_mp)
@@ -3043,7 +2655,7 @@ private
                 (Df_refl_meta tA))
 
       imp_ih_BA : Deriv (imp P (eqF (ap1 thmT cBA) (encEq tB tA)))
-      imp_ih_BA = imp_encoded_eqSym P cAB tA tB imp_ih_AB
+      imp_ih_BA = imp_encoded_eqSym P cAB tA tB inertA inertB imp_ih_AB
 
       ih_ax_trans_imp :
         Deriv (imp P (eqF (ap1 thmT (Df_axEqTrans tB tA tC))
@@ -3051,7 +2663,7 @@ private
                              (ap2 Pair (encEq tB tA)
                                (ap2 Pair (natCode tag_imp)
                                  (ap2 Pair (encEq tB tC) (encEq tA tC)))))))
-      ih_ax_trans_imp = impLift {P} (encodedAxEqTrans tB tA tC)
+      ih_ax_trans_imp = impLift {P} (encodedAxEqTrans tB tA tC inertA inertC)
 
       trans_antP1 : Term
       trans_antP1 = encEq tB tA
@@ -3148,6 +2760,46 @@ step_proof_imp g h1 h2 Df_g_F1 Df_h1_F2 Df_h2_F2 ih_h1 ih_h2 =
     encR  = encR_at  g h1 h2 X Y
 
     ---------------------------------------------------------------
+    -- InertU witnesses : every substituent / L-position is num-based.
+    ---------------------------------------------------------------
+    ncEncH2 : NumCode encH2
+    ncEncH2 = ncAp2 h2 (ap1 num X) (ap1 num Y) (ncNum X) (ncNum Y)
+
+    ncEncR : NumCode encR
+    ncEncR = ncAp2 (R g h1 h2) (ap1 num X) (ap1 num Y) (ncNum X) (ncNum Y)
+
+    iEncR : InertU encR
+    iEncR = sbt_inert_NumCode encR ncEncR
+
+    iNumH2 : InertU (ap1 num (ap2 h2 X Y))
+    iNumH2 = sbt_inert_NumCode (ap1 num (ap2 h2 X Y)) (ncNum (ap2 h2 X Y))
+
+    iNumR : InertU (ap1 num (ap2 (R g h1 h2) X Y))
+    iNumR = sbt_inert_NumCode (ap1 num (ap2 (R g h1 h2) X Y))
+              (ncNum (ap2 (R g h1 h2) X Y))
+
+    iL1 : InertU L1
+    iL1 = sbt_inert_NumCode L1
+            (ncAp2 (R g h1 h2) (ap1 num X) (s_enc_num Y) (ncNum X)
+              (ncAp1 s (ap1 num Y) (ncNum Y)))
+
+    iL2 : InertU L2
+    iL2 = sbt_inert_NumCode L2 (ncAp2 h1 encH2 encR ncEncH2 ncEncR)
+
+    iL3 : InertU L3
+    iL3 = sbt_inert_NumCode L3
+            (ncAp2 h1 (ap1 num (ap2 h2 X Y)) encR (ncNum (ap2 h2 X Y)) ncEncR)
+
+    iL4 : InertU L4
+    iL4 = sbt_inert_NumCode L4
+            (ncAp2 h1 (ap1 num (ap2 h2 X Y)) (ap1 num (ap2 (R g h1 h2) X Y))
+              (ncNum (ap2 h2 X Y)) (ncNum (ap2 (R g h1 h2) X Y)))
+
+    iL5 : InertU L5
+    iL5 = sbt_inert_NumCode L5
+            (ncNum (ap2 h1 (ap2 h2 X Y) (ap2 (R g h1 h2) X Y)))
+
+    ---------------------------------------------------------------
     -- Step A : enc(L1 = L2) via encodedAxRStep .  Closed.
     ---------------------------------------------------------------
     d_axRStep : Term
@@ -3176,6 +2828,7 @@ step_proof_imp g h1 h2 Df_g_F1 Df_h1_F2 Df_h2_F2 ih_h1 ih_h2 =
                     (ap1 num (ap2 h2 X Y)) encR))
     ih_ax_B = encodedAxEqCongL h1 encH2
                 (ap1 num (ap2 h2 X Y)) encR
+                iNumH2 iEncR
 
     ih_h2_typed : Deriv (eqF (ap1 thmT (Df_h2_inst X Y)) antB)
     ih_h2_typed = ih_h2 X Y
@@ -3217,6 +2870,7 @@ step_proof_imp g h1 h2 Df_g_F1 Df_h1_F2 Df_h2_F2 ih_h1 ih_h2 =
     ih_ax_C = encodedAxEqCongR h1 encR
                  (ap1 num (ap2 (R g h1 h2) X Y))
                  (ap1 num (ap2 h2 X Y))
+                 iNumR iNumH2
 
     ih_R_typed_imp : Deriv (imp P_univ (eqF (ap1 thmT prev) antC))
     ih_R_typed_imp = impRefl P_univ
@@ -3259,6 +2913,7 @@ step_proof_imp g h1 h2 Df_g_F1 Df_h1_F2 Df_h2_F2 ih_h1 ih_h2 =
     imp_e_trans_AB : Deriv (imp P_univ (eqF (ap1 thmT d_trans_AB) (encEq L1 L3)))
     imp_e_trans_AB = imp_encoded_eqTrans P_univ
                         d_axRStep d_step_B L1 L2 L3
+                        iL1 iL2 iL3
                         imp_e_step_A imp_e_step_B
 
     d_trans_AC : Term
@@ -3267,6 +2922,7 @@ step_proof_imp g h1 h2 Df_g_F1 Df_h1_F2 Df_h2_F2 ih_h1 ih_h2 =
     imp_e_trans_AC : Deriv (imp P_univ (eqF (ap1 thmT d_trans_AC) (encEq L1 L4)))
     imp_e_trans_AC = imp_encoded_eqTrans P_univ
                         d_trans_AB d_step_C L1 L3 L4
+                        iL1 iL3 iL4
                         imp_e_trans_AB imp_e_step_C
 
     d_trans_AD : Term
@@ -3275,6 +2931,7 @@ step_proof_imp g h1 h2 Df_g_F1 Df_h1_F2 Df_h2_F2 ih_h1 ih_h2 =
     imp_e_trans_AD : Deriv (imp P_univ (eqF (ap1 thmT d_trans_AD) (encEq L1 L5)))
     imp_e_trans_AD = imp_encoded_eqTrans P_univ
                         d_trans_AC d_step_D L1 L4 L5
+                        iL1 iL4 iL5
                         imp_e_trans_AC imp_e_step_D
 
     ---------------------------------------------------------------

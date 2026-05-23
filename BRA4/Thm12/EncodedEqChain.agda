@@ -25,6 +25,7 @@ open import BRA4.Base
 open import BRA4.Tags
 open import BRA4.Code
 open import BRA4.ThmT                using ( thmT )
+open import BRA4.SbStep              using ( InertU )
 open import BRA4.Thm12.EncodedMp     using ( encoded_mp )
 open import BRA4.Thm12.EncodedAxEqTrans
   using ( Df_axEqTrans ; encodedAxEqTrans ; encodedAxEqTrans_Term )
@@ -49,6 +50,7 @@ encEq tA tB = ap2 Pair (natCode tag_eq) (ap2 Pair tA tB)
 encoded_eqTrans_via_middle :
   (cBAProof cBCProof : Term)
   (tA tB tC : Term)
+  (inertA : InertU tA) (inertC : InertU tC)
   (ih_BA : Deriv (eqF (ap1 thmT cBAProof) (encEq tB tA)))
   (ih_BC : Deriv (eqF (ap1 thmT cBCProof) (encEq tB tC))) ->
   Deriv (eqF
@@ -59,15 +61,16 @@ encoded_eqTrans_via_middle :
             (ap2 Pair (Df_axEqTrans tB tA tC) cBAProof))
           cBCProof)))
     (encEq tA tC))
-encoded_eqTrans_via_middle cBAProof cBCProof tA tB tC ih_BA ih_BC =
+encoded_eqTrans_via_middle cBAProof cBCProof tA tB tC inertA inertC ih_BA ih_BC =
   let
     -- thmT (Df_axEqTrans tB tA tC) = encodedAxEqTrans_Term tB tA tC
     --   = Pair tag_imp (Pair (encEq tB tA)
     --                        (Pair tag_imp (Pair (encEq tB tC) (encEq tA tC)))).
+    -- encodedAxEqTrans (tA':=tB, tB':=tA, tC':=tC) needs InertU tA, InertU tC.
     ih_ax :
       Deriv (eqF (ap1 thmT (Df_axEqTrans tB tA tC))
                   (encodedAxEqTrans_Term tB tA tC))
-    ih_ax = encodedAxEqTrans tB tA tC
+    ih_ax = encodedAxEqTrans tB tA tC inertA inertC
 
     antPart1 : Term
     antPart1 = encEq tB tA
@@ -126,6 +129,7 @@ encoded_eqTrans_via_middle cBAProof cBCProof tA tB tC ih_BA ih_BC =
 encoded_eqSym :
   (cABProof : Term)
   (tA tB : Term)
+  (inertA : InertU tA) (inertB : InertU tB)
   (ih_AB : Deriv (eqF (ap1 thmT cABProof) (encEq tA tB))) ->
   Deriv (eqF
     (ap1 thmT
@@ -135,12 +139,13 @@ encoded_eqSym :
             (ap2 Pair (Df_axEqTrans tA tB tA) cABProof))
           (Df_refl_meta tA))))
     (encEq tB tA))
-encoded_eqSym cABProof tA tB ih_AB =
+encoded_eqSym cABProof tA tB inertA inertB ih_AB =
   let
+    -- encodedAxEqTrans (tA':=tA, tB':=tB, tC':=tA) needs InertU tB, InertU tA.
     ih_ax :
       Deriv (eqF (ap1 thmT (Df_axEqTrans tA tB tA))
                   (encodedAxEqTrans_Term tA tB tA))
-    ih_ax = encodedAxEqTrans tA tB tA
+    ih_ax = encodedAxEqTrans tA tB tA inertB inertA
 
     antPart1 : Term
     antPart1 = encEq tA tB
@@ -218,16 +223,17 @@ Df_eqTrans cABProof cBCProof tA tB tC =
 encoded_eqTrans :
   (cABProof cBCProof : Term)
   (tA tB tC : Term)
+  (inertA : InertU tA) (inertB : InertU tB) (inertC : InertU tC)
   (ih_AB : Deriv (eqF (ap1 thmT cABProof) (encEq tA tB)))
   (ih_BC : Deriv (eqF (ap1 thmT cBCProof) (encEq tB tC))) ->
   Deriv (eqF (ap1 thmT (Df_eqTrans cABProof cBCProof tA tB tC))
               (encEq tA tC))
-encoded_eqTrans cABProof cBCProof tA tB tC ih_AB ih_BC =
+encoded_eqTrans cABProof cBCProof tA tB tC inertA inertB inertC ih_AB ih_BC =
   let
     cBAProof : Term
     cBAProof = Df_eqSym cABProof tA tB
 
     ih_BA : Deriv (eqF (ap1 thmT cBAProof) (encEq tB tA))
-    ih_BA = encoded_eqSym cABProof tA tB ih_AB
+    ih_BA = encoded_eqSym cABProof tA tB inertA inertB ih_AB
 
-  in encoded_eqTrans_via_middle cBAProof cBCProof tA tB tC ih_BA ih_BC
+  in encoded_eqTrans_via_middle cBAProof cBCProof tA tB tC inertA inertC ih_BA ih_BC

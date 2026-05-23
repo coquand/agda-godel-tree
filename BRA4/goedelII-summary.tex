@@ -71,9 +71,11 @@ recursive arithmetic} (BRA), following the proof outline given by
 R.~Guard in his 1963 paper.  Beyond the formalisation itself, the work
 exposes a number of implicit assumptions, notational ambiguities, and
 minor typographical issues in Guard's text that are worth recording
-explicitly.  We also discuss an architectural simplification that would
-eliminate roughly ten thousand lines of substitution-machinery currently
-used for convenience.  Throughout we follow Shoenfield's notation
+explicitly.  We also record an architectural simplification we have since
+carried out: replacing the dedicated multi-variable simultaneous-substitution
+machinery by nested single-variable substitution together with a
+numeral-inertness lemma (the internalisation of ``a numeral is closed''),
+which removes roughly ten thousand lines.  Throughout we follow Shoenfield's notation
 (\emph{Mathematical Logic}, Chapter~6), with the single substitution
 $\code{u}$ in place of $\ulcorner u \urcorner$.
 \end{abstract}
@@ -458,17 +460,18 @@ satisfies
 be the encoded derivation of Guard's schema $\mathbf{A} \supset
 (\neg \mathbf{A} \supset \bot)$ with $\mathbf{A} \equiv (\mathbf{x}_0
 = \mathbf{x}_1)$ and $\bot \equiv (\mathbf{O} = \mathbf{s}\,\mathbf{O})$.
-Set
+Set $h(\mathbf{x})$ to be \emph{two nested single-variable substitution
+wraps} of $t'$ (var~$0$ outermost, var~$1$ innermost):
 \[
-h(\mathbf{x}) \;:=\; \seq{\mathbf{k}_{\mathrm{tag\_sb_2}}, \sigma(\mathbf{x}), t'},
+h(\mathbf{x}) \;:=\; \seq{\mathbf{k}_{\mathrm{tag\_sb}},\, \seq{\mathbf{k}_0, \code{\thmT(\num(\mathbf{x}))}},\,
+   \seq{\mathbf{k}_{\mathrm{tag\_sb}},\, \seq{\mathbf{k}_1, \code{\sub(\mathbf{k}_i, \mathbf{k}_i)}},\, t'}}.
 \]
-where $\sigma(\mathbf{x})$ is the two-variable substitution
-specification
-\[
-\sigma(\mathbf{x}) \;:=\; \seq{\seq{\mathbf{k}_0, \code{\thmT(\num(\mathbf{x}))}},\, \seq{\mathbf{k}_1, \code{\sub(\mathbf{k}_i, \mathbf{k}_i)}}}.
-\]
-Then by the $\subtwo$-closure of $\thmT$ and the per-shape closures of
-the two-variable formula substitution $\sbftwo$, writing
+$\thmT$ decodes the outer wrap by its single $\mathbf{sb}$-clause into
+$\sbf(\seq{\mathbf{k}_0, \code{\thmT(\num\,\mathbf{x})}},\, \cdot)$ applied to
+the inner wrap, which decodes likewise into
+$\sbf(\seq{\mathbf{k}_1, \code{\sub(\mathbf{k}_i,\mathbf{k}_i)}},\, \thmT(t'))$.
+Both substituents are $\num$-based (var-free) codes, hence inert under the
+outer re-scan ({\S}\ref{sec:sb2}); writing
 $E := \thmT(\num(\mathbf{x})) = \sub(\mathbf{k}_i, \mathbf{k}_i)$,
 \[
 \vdash \;\;\thmT(h(\mathbf{x})) = \code{E \;\supset\; \neg E \;\supset\; (\mathbf{O} = \mathbf{s}\,\mathbf{O})}.
@@ -733,168 +736,157 @@ $\mathit{numEq}$.  In particular $\num(\mathbf{s}\,\mathbf{O}) =
 leaves this implicit and the underline notation makes it easy to
 mistake $\num(\mathbf{x})$ for $\mathbf{x}$ itself.
 
-\item In the description of $h(\mathbf{x})$, Guard does not commit to
-a representation of the two-variable substitution specification.  The
-formalisation must fix one
-($\seq{\seq{\mathbf{k}_0, S_0}, \seq{\mathbf{k}_1, S_1}}$) and
-prove that the $\sbftwo$ closures are universal in $S_0, S_1$.
+\item In the description of $h(\mathbf{x})$, Guard does not commit to a
+representation of the substitution.  The formalisation realises the
+two-variable effect as two \emph{nested single-variable} wraps
+$\seq{\mathbf{k}_{\mathrm{tag\_sb}}, \seq{\mathbf{k}_0, S_0},
+\seq{\mathbf{k}_{\mathrm{tag\_sb}}, \seq{\mathbf{k}_1, S_1}, t}}$ and uses
+the numeral-inertness lemma ({\S}\ref{sec:sb2}) to pass the inner
+substituent $S_1$ through the outer re-scan.
 \end{itemize}
 
-\section{The simultaneous-substitution machinery: where it is, and is not, needed}
+\section{Single-variable substitution suffices: numeral-inertness}
 \label{sec:sb2}
 
-The Agda development uses a dedicated two-variable simultaneous
-substitution $\subtwo$ for $h(\mathbf{x})$ in Step~5a, and a
-three-variable $\mathbf{sub_3}$ for the encoded equational congruence
-axioms feeding Theorem~12.  This requires $\sbttwo, \sbftwo,
-\mathbf{sbt_3}, \mathbf{sbf_3} \in \Fun_2$ by course-of-values, the
-contract records \verb|SbContract2|/\verb|SbContract3| (8--11 closure
-lemmas each), and two extra discriminator levels
-($\mathbf{k}_{\mathrm{tag\_sb_2}}$, $\mathbf{k}_{\mathrm{tag\_sb_3}}$) in
-the $\thmT$ cascade --- roughly $10\,000$ lines across a dozen files.  The
-natural question is whether this is necessary.  The answer is subtle, and
-worth recording carefully because it pinpoints the one place Guard's text
-leaves the argument incomplete.
+The verifier's substitution clause is the \emph{single-variable} encoded
+substitution $\sbf/\sbt$ (cf.\ Guard's $\mathbf{sb}$, Def.~16).  Both the
+compound-functor congruences feeding Theorem~12 and the two-variable wrap of
+Step~5a require, on the face of it, a \emph{simultaneous} substitution of
+several variables at once.  We obtain all of them from \emph{nested
+single-$\mathbf{sb}$ wraps}, with no dedicated multi-variable functor.  The
+one fact that makes this work is a numeral-inertness lemma; we record it
+here because it is exactly the place Guard's text leaves the argument
+implicit, and because the alternative (a genuine simultaneous-substitution
+primitive) carries a different proof-theoretic commitment relevant to one of
+Guard's open problems.
 
-\paragraph{Iterated single substitution does not eliminate it.}  The
-tempting factorisation of a two-variable simultaneous substitution into
-single ones with a fresh-variable rename,
-\[
-\sbttwo((\mathbf{a}/\mathbf{x}_0, \mathbf{b}/\mathbf{x}_1),\, \mathbf{c}) \;=\; \sbt(\mathbf{b}/\mathbf{x}_k)\,(\sbt(\mathbf{a}/\mathbf{x}_0)\,(\sbt(\code{\mathbf{x}_k}/\mathbf{x}_1)\,\mathbf{c})),
-\]
-requires the outer single substitution to leave the already-plopped
-substituent $\mathbf{a}$ unchanged --- the encoded freshness identity
-$\vdash \sbt(\seq{\mathbf{k}_k, S},\, \mathbf{a}) = \mathbf{a}$ when
-$\mathbf{x}_k \notin \mathbf{a}$.  In the theorems the substituents are
-$\num\,X$ for \emph{universal} $X$, and for \emph{open} $X$ (e.g.\
-$X = \mathbf{x}_1$) the term $\num(\mathbf{x}_1)$ does not reduce:
+\paragraph{The apparent obstruction.}  A nested wrap substitutes the
+variables one at a time, so an outer pass re-scans a substituent already
+plopped by an inner pass.  In Theorem~12's compound cases the substituents
+are $\num\,X$ for the \emph{object} variable $X$, and for open $X$ (e.g.\
+$X=\mathbf{x}_1$) the term $\num(\mathbf{x}_1)$ does not reduce:
 $\num = \mathbf{C}\,\mathit{numAux}\,\mathbf{o}\,\mathbf{u}$ with
-$\mathit{numAux} = \mathbf{R}\,\mathbf{o}\,\mathit{numStep}\,\mathbf{v}$,
-whose $\mathbf{R}$-recursion fires only when its second argument is
-syntactically $\mathbf{O}$ or $\mathbf{s}(\cdot)$; a variable is neither,
-so $\num(\mathbf{x}_1)$ stays a raw open application.  Since $\sbt$
-dispatches on $\mathit{get\_tag}(\mathit{input})$ first, and that tag is
-an \emph{open} expression on the stuck term, the dispatch never settles:
-$\sbt(\seq{\mathbf{k}_k, S}, \num(\mathbf{x}_1))$ is not provably equal to
-anything --- \emph{even with an identity (passthrough) otherwise clause},
-since one cannot prove the otherwise branch is reached.  The freshness
-identity \emph{is} provable for \emph{var-free} $X$ (closed numerals:
-$\num\,X$ reduces to a $\code{\cdot}$-tree with no
-$\seq{\mathbf{k}_{\mathrm{tag\_var}}, \cdot}$ leaf), but not for open $X$.
+$\mathit{numAux}=\mathbf{R}\,\mathbf{o}\,\mathit{numStep}\,\mathbf{v}$, whose
+$\mathbf{R}$-recursion fires only when its second argument is syntactically
+$\mathbf{O}$ or $\mathbf{s}(\cdot)$; a variable is neither, so
+$\num(\mathbf{x}_1)$ stays a stuck open application.  Since $\sbt$ dispatches
+on $\mathit{get\_tag}(\mathit{input})$ and that tag is an \emph{open}
+expression on the stuck term, naive evaluation of
+$\sbt(\seq{\mathbf{k}_k, S}, \num(\mathbf{x}_1))$ never settles.  Read
+\emph{computationally}, the re-scan stalls --- which is why a simultaneous
+plop (no re-scan) looks unavoidable.
 
-\paragraph{What Guard actually does (guard15.pdf).}  Reading Guard's own
-definitions settles the question.  His verifier $\mathbf{th}$
-(Definition~16) has \emph{only a single-variable substitution clause}:
+\paragraph{The numeral-inertness lemma.}  The obstruction conflates
+computation with \emph{derivability}.  We never need $\sbt$ to \emph{compute}
+on a stuck $\num(\mathbf{x}_1)$; we need the \emph{equation}
 \[
-\mathbf{th}(4y{+}1) = \mathbf{sb}(\seq{KKy, IKy},\, \mathbf{th}(Ly)), \qquad
-\mathbf{sb}(J(\code{A}, n), \code{P}) = \code{S^{\mathbf{x}_n}_{A}\,P}.
+\vdash\ \sbt(\seq{\mathbf{k}_k, S},\, \num\,X) \;=\; \num\,X
+\qquad\text{for an \emph{arbitrary} object term } X
 \]
-The congruence axioms are produced by his $\mathbf{ax}$ functor
-(Exercise~24[6]) as \emph{schemas} with free $\mathbf{x}_0,\mathbf{x}_1,
-\mathbf{x}_2$, by \emph{direct assembly} from the functor's G\"odel
-number, e.g.\ $\mathbf{ax}(9\code{f}{+}5) = \code{\mathbf{x}_0 =
-\mathbf{x}_1 \supset f(\mathbf{x}_0) = f(\mathbf{x}_1)}$.  And in his
-\emph{explicit} Theorem~14 construction (p.~17) the multi-variable effect
-is obtained by \emph{nested single-$\mathbf{sb}$ steps with the open
-substituent applied last}:
-\[
-f(\mathbf{x}) = 4J[\,J(\code{\thmT(\underline{\mathbf{x}})},0),\ 4J[\,J(\code{\sub(\mathbf{k}_i,\mathbf{k}_i)},1),\ 4J[\,J(\num\,j,2),\,t\,]{+}1\,]{+}1\,]{+}1,
-\]
-which substitutes $\mathbf{x}_2 := \num\,j$ (closed), then
-$\mathbf{x}_1 := \sub(\mathbf{k}_i,\mathbf{k}_i)$ (closed), then
-$\mathbf{x}_0 := \thmT(\underline{\mathbf{x}})$ (open) \emph{outermost}.
-The closed substituents are re-scanned but pass through (var-free); the
-open one is plopped last and never re-scanned.  This is exactly the
-ordering trick --- and it is Guard's actual proof.
+(the Agda lemma $\mathbf{sbt\_num\_inert}$, \verb|BRA4.NumInert|), and this is
+a \emph{theorem} of the object system, proved by \emph{internal} induction on
+$X$ (Rule~III / $\mathbf{ruleIndNat}$), not by inspection of syntax.  The
+base case is $\sbt(\cdots, \num\,\mathbf{O}) = \sbt(\cdots,\mathbf{O}) =
+\mathbf{O} = \num\,\mathbf{O}$; the step uses $\num(\mathbf{s}\,X) =
+\seq{\mathbf{k}_{\mathrm{tag\_ap_1}}, \seq{\mathbf{k}_{\mathrm{tag\_s}},
+\num\,X}}$ (the lemma $\mathbf{num\_at\_S}$), which at \emph{each} inductive
+step rewrites the numeral to a $\Pair$-code the descent can enter,
+discharging the recursive call by the induction hypothesis.  So the descent
+never meets a bare $\num(\mathbf{x}_1)$: it meets a planted num-leaf and
+passes through it.  Lifting through the $\mathbf{ap_1}/\mathbf{ap_2}$
+code-wrappers (the predicate $\mathit{NumCode}$ in \verb|BRA4.SbStep|),
+\emph{every} substituent built from numeral leaves is inert under
+\emph{every} single-variable substitution.
 
-\paragraph{Hence Theorem~14 does not need $\subtwo/\mathbf{sub_3}$.}  Step
-5a's $h(\mathbf{x})$ has a single open substituent
-($Y_0 = \code{\thmT(\num\,\mathbf{x})}$; $Y_1 =
-\code{\sub(\mathbf{k}_i,\mathbf{k}_i)}$ is var-free), so single
-$\mathbf{sb}$ with the open substituent last suffices, exactly as in
-Guard's $f,g,h$.  Our use of $\subtwo$ there is a uniformity choice, not a
-necessity.
+\paragraph{Intuition: the internalisation of ``$\mathbf{S}^n\mathbf{0}$ is
+closed''.}  The lemma says nothing more than the elementary fact that a
+numeral is a \emph{closed} term: $\mathbf{S}^n\mathbf{0}$ contains no
+variable, so every substitution acts as the identity on it.  For a concrete
+numeral this is immediate --- its code is a var-free $\code{\cdot}$-tree with
+no $\seq{\mathbf{k}_{\mathrm{tag\_var}}, \cdot}$ leaf, so the encoded re-scan
+visibly passes through.  The only subtlety, and the reason an internal
+induction is needed at all, is the \emph{generic} statement: for a variable
+$X$ the term $\num\,X$ is a \emph{stuck open} application, not literally a
+numeral, so its closedness is invisible to the tag-dispatch and must be
+\emph{promoted to an internal theorem}.  $\mathbf{ruleIndNat}$ is precisely
+that promotion: it internalises ``$\num\,X$ is (the code of) a closed
+numeral, for all $X$'' as a derivable equation.
 
-\paragraph{Theorem~12's compound cases are the real locus --- and Guard
-leaves them to the reader.}  Theorem~12 (``\emph{meta-induction on the
-length of the definition of a functor; the details are left to the
-reader}'') builds the derivation handle $D_f$ by induction on the functor.
-The base cases $\mathbf{s},\mathbf{o},\mathbf{u},\mathbf{v}$ are routine.
-The \emph{compound} cases $\mathbf{C}(f,g,h)$ and $\mathbf{R}(\cdots)$ are
-not: building $D_{\mathbf{C}(f,g,h)}$ needs, from
-$g(\underline{\mathbf{x}}) = g(\mathbf{x})$ and
-$h(\underline{\mathbf{x}}) = h(\mathbf{x})$, the congruence
-\[
-f(g(\underline{\mathbf{x}}), h(\underline{\mathbf{x}})) = f(g(\mathbf{x}), h(\mathbf{x})),
-\]
-i.e.\ the binary congruence schemas specialised at
+\paragraph{Consequence: the multi-variable machinery is eliminated.}  With
+inertness in hand, each compound-functor congruence of Theorem~12 --- e.g.\
+specialising the binary congruence at the \emph{open} terms
 $g(\underline{\mathbf{x}}), g(\mathbf{x}), h(\underline{\mathbf{x}}),
-h(\mathbf{x})$ --- \emph{all open} (each involves the object variable via
-$\underline{\mathbf{x}} = \num\,\mathbf{x}$).  With \emph{several}
-independent open substituents, no ordering puts them all last, and
-iterated single-$\mathbf{sb}$-with-rename re-scans an open $\num\,\mathbf{x}$
-and stalls.  Guard escapes this \emph{meta-level}: his $\mathbf{sb},
-\mathbf{th}$ are total primitive-recursive functions reasoned about via
-representability (no internal tag-dispatch to stall), and he even defines
-the multi-variable $\mathbf{sbt}/\mathbf{sbf}$ in Exercise~24[2,3].  But an
-\emph{internal, explicit} construction of $D_f$ and a proof of its
-$\thmT$-closure has no such escape: it must add a genuine multi-variable
-substitution clause to $\thmT$.  That is precisely what $\subtwo/
-\mathbf{sub_3}$ are.  So the single place a simultaneous-substitution
-primitive is genuinely required is the \emph{internal formalisation of
-Theorem~12's compound-functor induction step} --- exactly the step Guard
-never wrote out.
+h(\mathbf{x})$ in building $D_{\mathbf{C}(f,g,h)}$ --- and the Step~5a wrap of
+Theorem~14 are realised by \emph{nested single-$\mathbf{sb}$ wraps}: an inner
+pass plants a substituent, an outer pass plants the next and re-scans the
+inner one, which inertness leaves fixed.  Concretely $\thmT$ decodes a
+$k$-fold nested $\seq{\mathbf{k}_{\mathrm{tag\_sb}}, \cdots}$ wrap by $k$
+applications of its single $\mathbf{sb}$-clause into
+$\sbf(\mathrm{spec}_0,\sbf(\mathrm{spec}_1,\cdots))$.  The dedicated two- and
+three-variable functors $\sbttwo,\sbftwo,\mathbf{sbt_3},\mathbf{sbf_3}$, their
+contract records, and the two extra discriminator levels in the $\thmT$
+cascade --- roughly ten thousand lines across a dozen files --- are thereby
+\emph{removed}.  This recovers exactly Guard's own explicit Theorem~14
+construction (guard15.pdf p.~17), where the multi-variable effect is obtained
+by \emph{nested single-$\mathbf{sb}$ steps with the open substituent applied
+last}; what Guard left implicit --- that the re-scanned substituents
+genuinely pass through --- is the inertness lemma.
 
-\paragraph{These primitives are sound, because simultaneous instantiation
-is an admissible rule.}  ``Primitive at the encoded-functor level'' must
-not be read as ``unjustified axiom''.  The closures of $\mathtt{SbContract2}$
-and $\mathtt{SbContract3}$ are the \emph{encoded-level counterparts} of a
-\emph{derived} admissible rule of the Hilbert calculus,
-\[
-\mathbf{ruleInst2}\;:\; k_1 \neq k_2 \;\Longrightarrow\; \vdash \mathbf{P} \;\Longrightarrow\; \vdash \mathit{simSubstF}(k_1, t_1, k_2, t_2, \mathbf{P}),
-\]
-\emph{fully derived} (not postulated) in \verb|BRA3.RuleInst2| --- Church's
-Standard Metatheorem~VII --- from ordinary single-variable substitution by
-alpha-renaming through a fresh internal variable; the three-variable
-$\mathbf{ruleInst3}$ likewise in \verb|BRA4.RuleInst3|.  Thus
-$\subtwo/\mathbf{sub_3}$ encode a rule the system already admits and add no
-proof-theoretic strength.  The contrast is the whole point of this
-section: the \emph{abstract} rule $\mathbf{ruleInst2}$ \emph{is} derivable
-from single substitution (on raw formulas, where the fresh rename works),
-whereas its \emph{encoded functor} $\sbttwo$ is not reducible to iterated
-encoded $\sbt$ --- the encoded re-scan stalls on the open $\num\,X$.  The
-admissibility lives at the abstract level; the encoded functor is its
-faithful internalisation, needed exactly where Guard reasons abstractly
-(Theorem~12) rather than constructing explicitly (Theorem~14).
+\paragraph{The induction-avoiding alternative, and an open problem.}  There
+is a second, equally sound route that we deliberately keep on record.  A
+genuine \emph{simultaneous} substitution functor $\subtwo/\mathbf{sub_3}$
+plops all substituents at once; nothing is re-scanned, so its closure proofs
+need \emph{no} internal induction.  (It is sound: its encoded closures are
+the encoded-level counterpart of the \emph{derived admissible} rule
+$\mathbf{ruleInst2}$, $k_1\neq k_2 \Rightarrow {\vdash}\mathbf{P} \Rightarrow
+{\vdash}\mathit{simSubstF}(k_1,t_1,k_2,t_2,\mathbf{P})$ --- Church's Standard
+Metatheorem~VII, \emph{fully derived} from single substitution by
+$\alpha$-renaming through a fresh variable in \verb|BRA3.RuleInst2| --- so it
+adds no proof-theoretic strength.)  The contrast is precise: the
+\emph{abstract} rule reduces to single substitution on raw formulas, but the
+\emph{encoded} simultaneous functor does not reduce to iterated encoded
+$\sbt$ \emph{by computation} (the re-scan stalls) --- only \emph{by
+derivability}, and that derivation is exactly $\mathbf{sbt\_num\_inert}$,
+which uses internal induction.  So the two routes differ in \emph{where they
+spend induction}: the inertness route puts an internal induction into the
+verifier's substitution-correctness; the simultaneous-substitution route
+keeps that piece induction-free.
 
-\paragraph{Refactor, not elimination.}  The only honest simplification is
-to \emph{unify} $\subtwo, \mathbf{sub_3}$ (and any $\mathbf{sub_n}$) into a
-single $n$-ary $\mathbf{sub\_multi}$ primitive --- a spec-list of
-$(\text{var}, \text{substituent})$ pairs plopped simultaneously ---
-collapsing the dozen files to one functor, one contract, and one cascade
-level.  This consolidates the $\sim 10\,000$ lines and removes the
-duplicated $2$- versus $3$-variable code, but it remains a primitive
-simultaneous substitution; it does not reduce to single-variable $\sbt$.
+This bookkeeping is not idle.  Guard (guard19.pdf, p.~19, Def.~14 and the
+\textsc{open problem} following Theorem~18) defines the \emph{induction-free}
+fragment $\mathrm{BRA}_0$ --- the variable-free instances of BRA's axioms
+with \emph{modus ponens as the only rule} --- whose verifier $\mathbf{th}_0$
+has \emph{only} an axiom clause and an mp clause (no substitution clause, no
+induction clause), and \emph{conjectures} that its consistency
+$\mathbf{th}_0(y) \neq \code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}$, though
+valid, is \emph{unprovable in BRA} --- a putative counterexample to the usual
+provable consistency of induction-free fragments.  Whether, and where, a
+verifier's substitution machinery can be made induction-free is exactly the
+kind of distinction that question turns on; the inert-lemma versus
+simultaneous-substitution choice above is one concrete instance, which is why
+we keep the simultaneous functors on record even though the shipped
+development uses the single-variable route.
 
 \section{Conclusion}
 
 The formalisation closes Guard's argument for G\"odel's second
 incompleteness theorem for BRA in a completely concrete,
 constructively-verified form, and clarifies the implicit mathematical
-machinery (closedness side conditions, predicate-Leibniz, Carneiro
-lift, validating-decoder invariant, the two-forms-of-$\mathbf{G}$
-distinction) on which Guard's text relies without comment.  As {\S}\ref{sec:sb2}
-documents, Theorem~14 itself needs only single-variable substitution with
-the open substituent applied last --- exactly Guard's explicit
-construction (guard15.pdf p.~17); the simultaneous-substitution machinery
-$\subtwo/\mathbf{sub_3}$ becomes \emph{necessary only for the internal
-formalisation of Theorem~12's compound-functor induction step}, the one
-step Guard leaves to the reader, where a congruence must be specialised at
-several open terms at once.  That machinery is sound (the encoded
-counterpart of the derived rules $\mathbf{ruleInst2}/\mathbf{ruleInst3}$,
-Church's Standard Metatheorem~VII) and the natural future refactor is to
-\emph{unify} the $2$- and $3$-variable functors into a single $n$-ary
-$\mathbf{sub\_multi}$ primitive, not to eliminate them.
+machinery (closedness side conditions, predicate-Leibniz, Carneiro lift,
+validating-decoder invariant, the two-forms-of-$\mathbf{G}$ distinction) on
+which Guard's text relies without comment.  As {\S}\ref{sec:sb2} documents,
+the multi-variable effects needed in Theorems~12 and~14 are obtained from
+\emph{nested single-variable substitution}, the re-scan of each
+numeral-based substituent being discharged by the numeral-inertness lemma
+$\mathbf{sbt\_num\_inert}$ --- the internalisation, by Rule~III, of the fact
+that a numeral is closed.  This recovers Guard's own explicit construction
+(guard15.pdf p.~17) and eliminates the dedicated two- and three-variable
+simultaneous-substitution machinery.  We keep on record, as a remark bearing
+on Guard's open problem about the consistency of the induction-free fragment
+$\mathrm{BRA}_0$ (guard19.pdf p.~19), that the simultaneous-substitution
+route is the \emph{induction-free} alternative to the inertness lemma: the
+two agree on the encoded result but differ on whether the verifier's
+substitution-correctness is proved with or without internal induction.
 
 \paragraph{Acknowledgements.}  {\sloppy The Carneiro-lift toolkit
 follows Mario Carneiro's natural-deduction note~\cite{Carneiro}.  The

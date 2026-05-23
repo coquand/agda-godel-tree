@@ -48,6 +48,8 @@ open import BRA4.Base
 open import BRA4.Tags
 open import BRA4.Code              using ( codeFun1 ; codeFun2 )
 open import BRA4.Num               using ( num )
+open import BRA4.SbStep
+  using ( InertU ; NumCode ; ncNum ; ncAp1 ; ncAp2 ; sbt_inert_NumCode )
 open import BRA4.ThmT              using ( thmT )
 open import BRA4.Thm12.CodeFTeq    using ( codeFTeq1 ; codeFTeq2 )
 open import BRA4.Thm12.EncodedAxC
@@ -160,6 +162,40 @@ thm12_C g h1 h2 Df_g_inst Df_h1_inst Df_h2_inst ih_g ih_h1 ih_h2 X =
     L5 = ap1 num (ap2 g (ap1 h1 X) (ap1 h2 X))
 
     ---------------------------------------------------------------
+    -- NumCode witnesses : every L-position (and every num/encH
+    -- substituent) is num-based, hence  InertU .
+    ---------------------------------------------------------------
+
+    ncH : (h : Fun1) -> NumCode (encH_at h X)
+    ncH h = ncAp1 h (ap1 num X) (ncNum X)
+
+    inertL1 : InertU L1
+    inertL1 = sbt_inert_NumCode L1 (ncH (C g h1 h2))
+
+    inertL2 : InertU L2
+    inertL2 = sbt_inert_NumCode L2
+                (ncAp2 g (encH_at h1 X) (encH_at h2 X) (ncH h1) (ncH h2))
+
+    inertL3 : InertU L3
+    inertL3 = sbt_inert_NumCode L3
+                (ncAp2 g (ap1 num (ap1 h1 X)) (encH_at h2 X)
+                  (ncNum (ap1 h1 X)) (ncH h2))
+
+    inertL4 : InertU L4
+    inertL4 = sbt_inert_NumCode L4
+                (ncAp2 g (ap1 num (ap1 h1 X)) (ap1 num (ap1 h2 X))
+                  (ncNum (ap1 h1 X)) (ncNum (ap1 h2 X)))
+
+    inertL5 : InertU L5
+    inertL5 = sbt_inert_NumCode L5 (ncNum (ap2 g (ap1 h1 X) (ap1 h2 X)))
+
+    inertNumH1 : InertU (ap1 num (ap1 h1 X))
+    inertNumH1 = sbt_inert_NumCode (ap1 num (ap1 h1 X)) (ncNum (ap1 h1 X))
+
+    inertNumH2 : InertU (ap1 num (ap1 h2 X))
+    inertNumH2 = sbt_inert_NumCode (ap1 num (ap1 h2 X)) (ncNum (ap1 h2 X))
+
+    ---------------------------------------------------------------
     -- Step A : enc(L1 = L2)  via EncodedAxC.
     --
     -- encodedAxC_Term g h1 h2 X  is  Pair tag_eq (Pair L1 L2)  by
@@ -200,6 +236,7 @@ thm12_C g h1 h2 Df_g_inst Df_h1_inst Df_h2_inst ih_g ih_h1 ih_h2 X =
       Deriv (eqF (ap1 thmT (Df_axEqCongL g encH1X (ap1 num (ap1 h1 X)) encH2X))
                   (encodedAxEqCongL_Term g encH1X (ap1 num (ap1 h1 X)) encH2X))
     ih_ax_B = encodedAxEqCongL g encH1X (ap1 num (ap1 h1 X)) encH2X
+                inertNumH1 (sbt_inert_NumCode encH2X (ncH h2))
 
     -- IH_h1 : thmT (Df_h1_inst X) = codeFTeq1 h1 X = encEq encH1X (num (h1 X)).
     -- These are definitionally equal.
@@ -236,6 +273,7 @@ thm12_C g h1 h2 Df_g_inst Df_h1_inst Df_h2_inst ih_g ih_h1 ih_h2 X =
       Deriv (eqF (ap1 thmT (Df_axEqCongR g encH2X (ap1 num (ap1 h2 X)) (ap1 num (ap1 h1 X))))
                   (encodedAxEqCongR_Term g encH2X (ap1 num (ap1 h2 X)) (ap1 num (ap1 h1 X))))
     ih_ax_C = encodedAxEqCongR g encH2X (ap1 num (ap1 h2 X)) (ap1 num (ap1 h1 X))
+                inertNumH2 inertNumH1
 
     ih_h2_typed :
       Deriv (eqF (ap1 thmT (Df_h2_inst X)) antC)
@@ -273,19 +311,22 @@ thm12_C g h1 h2 Df_g_inst Df_h1_inst Df_h2_inst ih_g ih_h1 ih_h2 X =
     d_trans_AB = Df_eqTrans d_axC d_step_B L1 L2 L3
 
     e_trans_AB : Deriv (eqF (ap1 thmT d_trans_AB) (encEq L1 L3))
-    e_trans_AB = encoded_eqTrans d_axC d_step_B L1 L2 L3 e_step_A e_step_B
+    e_trans_AB = encoded_eqTrans d_axC d_step_B L1 L2 L3
+                   inertL1 inertL2 inertL3 e_step_A e_step_B
 
     d_trans_AC : Term
     d_trans_AC = Df_eqTrans d_trans_AB d_step_C L1 L3 L4
 
     e_trans_AC : Deriv (eqF (ap1 thmT d_trans_AC) (encEq L1 L4))
-    e_trans_AC = encoded_eqTrans d_trans_AB d_step_C L1 L3 L4 e_trans_AB e_step_C
+    e_trans_AC = encoded_eqTrans d_trans_AB d_step_C L1 L3 L4
+                   inertL1 inertL3 inertL4 e_trans_AB e_step_C
 
     d_trans_AD : Term
     d_trans_AD = Df_eqTrans d_trans_AC d_step_D L1 L4 L5
 
     e_trans_AD : Deriv (eqF (ap1 thmT d_trans_AD) (encEq L1 L5))
-    e_trans_AD = encoded_eqTrans d_trans_AC d_step_D L1 L4 L5 e_trans_AC e_step_D
+    e_trans_AD = encoded_eqTrans d_trans_AC d_step_D L1 L4 L5
+                   inertL1 inertL4 inertL5 e_trans_AC e_step_D
 
     ---------------------------------------------------------------
     -- Final bridge :  encEq L1 L5  =  codeFTeq1 (C g h1 h2) X .

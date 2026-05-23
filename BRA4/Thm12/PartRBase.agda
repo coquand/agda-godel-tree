@@ -40,6 +40,8 @@ open import BRA4.Base
 open import BRA4.Tags
 open import BRA4.Code            using ( codeFun1 ; codeFun2 )
 open import BRA4.Num             using ( num ; num_at_O )
+open import BRA4.SbStep
+  using ( InertU ; NumCode ; ncO ; ncNum ; ncAp1 ; ncAp2 ; sbt_inert_NumCode )
 open import BRA4.ThmT            using ( thmT )
 open import BRA4.Thm12.CodeFTeq  using ( codeFTeq1 ; codeFTeq2 )
 open import BRA4.Thm12.EncodedAxRBase
@@ -114,10 +116,20 @@ thm12_R_at_O g h1 h2 Df_g_inst ih_g X =
     e_step_B : Deriv (eqF (ap1 thmT (Df_g_inst X)) (encEq L2 L3))
     e_step_B = ih_g X
 
-    -- Step C : enc(L1 = L3) via encoded_eqTrans .
+    -- Step C : enc(L1 = L3) via encoded_eqTrans .  All L-positions num-based.
+    iL1 : InertU L1
+    iL1 = sbt_inert_NumCode L1
+            (ncAp2 (R g h1 h2) (ap1 num X) O (ncNum X) ncO)
+
+    iL2 : InertU L2
+    iL2 = sbt_inert_NumCode L2 (ncAp1 g (ap1 num X) (ncNum X))
+
+    iL3 : InertU L3
+    iL3 = sbt_inert_NumCode L3 (ncNum (ap1 g X))
+
     e_step_C : Deriv (eqF (ap1 thmT (Df_R_at_O g h1 h2 Df_g_inst X)) (encEq L1 L3))
     e_step_C = encoded_eqTrans (ap1 (Df_axRBase g h1 h2) X) (Df_g_inst X)
-                  L1 L2 L3 e_step_A e_step_B
+                  L1 L2 L3 iL1 iL2 iL3 e_step_A e_step_B
 
     ---------------------------------------------------------------
     -- Bridges.

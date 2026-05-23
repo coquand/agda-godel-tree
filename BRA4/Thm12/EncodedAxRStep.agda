@@ -1,6 +1,7 @@
 {-# OPTIONS --safe --without-K --exact-split #-}
 
--- BRA4.Thm12.EncodedAxRStep -- encoded  ax_R_step  instance via sb2-wrap on axN10.
+-- BRA4.Thm12.EncodedAxRStep -- encoded  ax_R_step  instance via a NESTED
+-- single-variable sb-wrap on axN10  (no sbt2/sbf2).
 --
 -- Goal (universal in g : Fun1, h1 h2 : Fun2, X Y : Term ; no Closed) :
 --
@@ -14,17 +15,26 @@
 --
 --   R g h1 h2 (num X, s_enc(num Y)) = h1 (h2 (num X, num Y)) (R g h1 h2 (num X, num Y))
 --
--- with  s_enc(num Y)  =  Pair tag_ap1 (Pair (codeFun1 s) (num Y))   ( = "s applied to num Y" in code form ).
+-- Construction.  Df_axRStep g h1 h2 X Y is the NESTED sb-wrap of
+--  packAx 10 (codeFun2 (R g h1 h2))  with substituents
+--  (var 0 := num X outermost, var 1 := num Y innermost) :
 --
--- Concretely :
---   encCodeLHS = Pair tag_ap2 (Pair (codeFun2 (R g h1 h2)) (Pair (num X) s_enc(num Y)))
---   encH2_at   = Pair tag_ap2 (Pair (codeFun2 h2) (Pair (num X) (num Y)))
---   encR_at    = Pair tag_ap2 (Pair (codeFun2 (R g h1 h2)) (Pair (num X) (num Y)))
---   encCodeRHS = Pair tag_ap2 (Pair (codeFun2 h1) (Pair encH2_at encR_at))
---   encodedAxRStep_Term = Pair tag_eq (Pair encCodeLHS encCodeRHS)
+--   Df_axRStep g h1 h2 X Y =
+--     Pair tag_sb (Pair (Pair (natCode 0) (num X))
+--       (Pair tag_sb (Pair (Pair (natCode 1) (num Y))
+--         (packAx 10 (codeFun2 (R g h1 h2))))))
 --
--- Construction.  Df_axRStep g h1 h2 X Y is the sb2-wrap of  packAx 10 (codeFun2 (R g h1 h2))
--- with substituents  (k1 = 0 |-> num X , k2 = 1 |-> num Y) .
+-- thmT walks the wrap with  thmT_at_sb  twice :
+--   thmT (Df_axRStep ...)
+--     = sbf spec0 (sbf spec1 (thmT (packAx 10 ...)))   [thmT_at_sb x2]
+--     = sbf spec0 (sbf spec1 (outputRHS_at extra))     [thmT_at_axN10]
+--     = sbf spec0 (sbf spec1 (axN10_concrete))         [outputRHS_bridge]
+--     = sbf spec0 (FormRStep ... cV0 (num Y))          [inner pass, var 1 := num Y]
+--     = FormRStep ... (num X) (num Y)                  [outer pass, var 0 := num X]
+--     = encodedAxRStep_Term g h1 h2 X Y .
+--
+-- The inner pass plants  num Y ; the outer pass re-scans it, discharged
+-- by  sbt_num_inert .
 
 module BRA4.Thm12.EncodedAxRStep where
 
@@ -32,15 +42,14 @@ open import BRA4.Base
 open import BRA4.Tags
 open import BRA4.Code              using ( codeFun1 ; codeFun2 )
 open import BRA4.Num               using ( num )
-open import BRA4.SbContract2
-open import BRA4.SbT2              using ( sbt2 )
-open import BRA4.SbF2              using ( sbf2 )
+open import BRA4.SbT               using ( sbt )
+open import BRA4.SbtAtVar          using ( sbt_at_var_match ; sbt_at_var_nomatch )
+open import BRA4.SbF               using ( sbf )
+open import BRA4.SbStep
+open import BRA4.NumInert          using ( sbt_num_inert )
 open import BRA4.ThmT              using ( thmT )
-open import BRA4.ThmTAtSb2         using ( thmT_at_sb2 )
+open import BRA4.ThmTAtSb          using ( thmT_at_sb )
 open import BRA4.ThmTAtAx10        using ( thmT_at_axN10 )
-open import BRA4.Thm12.EncodedAxC  using ( NoVar_codeFun1 ; NoVar_codeFun2 )
-
-open SbContract2 sbContract2
 
 ------------------------------------------------------------------------
 -- Constants and helpers.
@@ -55,8 +64,16 @@ private
   cV1 : Term
   cV1 = ap2 Pair (natCode tag_var) (natCode (suc zero))
 
-  -- codeS_V1  =  codeTerm (ap1 s v1) = pi tag_ap1 (pi (natCode tag_s) cV1)
-  --           =  pi tag_ap1 (pi (codeFun1 s) cV1) .
+  -- code(ap1 f t) = Pair tag_ap1 (Pair (codeFun1 f) t).
+  cAp1f : Fun1 -> Term -> Term
+  cAp1f f t = ap2 Pair (natCode tag_ap1) (ap2 Pair (codeFun1 f) t)
+
+  -- code(ap2 g a b) = Pair tag_ap2 (Pair (codeFun2 g) (Pair a b)).
+  cAp2g : Fun2 -> Term -> Term -> Term
+  cAp2g g a b = ap2 Pair (natCode tag_ap2) (ap2 Pair (codeFun2 g) (ap2 Pair a b))
+
+  -- codeS_V1  =  code(ap1 s v1) = Pair tag_ap1 (Pair (natCode tag_s) cV1)
+  --           =  cAp1f s cV1   (definitionally, codeFun1 s = natCode tag_s).
   codeS_V1 : Term
   codeS_V1 = ap2 Pair (natCode tag_ap1) (ap2 Pair (natCode tag_s) cV1)
 
@@ -66,40 +83,16 @@ private
     ap2 Pair (natCode tag_ax)
       (ap2 Pair (natCode N10) (codeFun2 (R g h1 h2)))
 
-------------------------------------------------------------------------
--- Df_axRStep : Term-level constructor (depends on raw X , Y) producing
--- the sb2-encoded ax_R_step instance.
---
---   Df_axRStep g h1 h2 X Y =
---     Pair tag_sb2
---       (Pair (Pair (Pair (natCode 0) (num X)) (Pair (natCode 1) (num Y)))
---             (Pair (natCode tag_ax) (Pair (natCode N10) (codeFun2 (R g h1 h2)))))
+  spec0_at : Term -> Term
+  spec0_at A = ap2 Pair (natCode zero) A
 
-private
-  spec2_at : Term -> Term -> Term
-  spec2_at X Y =
-    ap2 Pair (ap2 Pair (natCode zero) (ap1 num X))
-             (ap2 Pair (natCode (suc zero)) (ap1 num Y))
-
-Df_axRStep : Fun1 -> Fun2 -> Fun2 -> Term -> Term -> Term
-Df_axRStep g h1 h2 X Y =
-  ap2 Pair (natCode tag_sb2)
-    (ap2 Pair (spec2_at X Y) (packAx10_codeR_Term g h1 h2))
+  spec1_at : Term -> Term
+  spec1_at B = ap2 Pair (natCode (suc zero)) B
 
 ------------------------------------------------------------------------
--- Bridge  outputRHS_at extra  (with H1 = Fst(Snd(Snd extra)) ,
--- H2 = Snd(Snd(Snd extra)) ) to a concrete form with the projections
--- evaluated for extra = codeFun2 (R g h1 h2) .
---
--- codeFun2 (R g h1 h2) = Pair tag_R (Pair (codeFun1 g)
---                                          (Pair (codeFun2 h1) (codeFun2 h2))) .
--- Snd extra                  = Pair (codeFun1 g) (Pair (codeFun2 h1) (codeFun2 h2))
--- Snd (Snd extra)            = Pair (codeFun2 h1) (codeFun2 h2)
--- Fst (Snd (Snd extra))      = codeFun2 h1
--- Snd (Snd (Snd extra))      = codeFun2 h2
+-- The "concrete" schema form (with H1 -> codeFun2 h1 , H2 -> codeFun2 h2).
 
 private
-  -- The "concrete" schema form (with H1 -> codeFun2 h1 , H2 -> codeFun2 h2).
   axN10_codeLHS : Fun1 -> Fun2 -> Fun2 -> Term
   axN10_codeLHS g h1 h2 =
     ap2 Pair (natCode tag_ap2)
@@ -177,7 +170,6 @@ private
 
         codeH2v0v1_old : Term
         codeH2v0v1_old = ap2 Pair (natCode tag_ap2) (ap2 Pair H2_old (ap2 Pair cV0 cV1))
-        -- codeR_v0v1_old uses extra directly, no projection bridge needed.
         codeR_v0v1_old : Term
         codeR_v0v1_old = ap2 Pair (natCode tag_ap2) (ap2 Pair extra (ap2 Pair cV0 cV1))
 
@@ -223,14 +215,26 @@ private
     in congR Pair (natCode tag_eq) outer_pair_eq
 
 ------------------------------------------------------------------------
--- Apply sbf2 spec2 to axN10_concrete.
---
--- spec2 = pi (pi (natCode 0) (num X)) (pi (natCode 1) (num Y)) ;
--- substitutes v0 := num X , v1 := num Y .
+-- Df_axRStep : the nested sb-wrap.
 
 private
-  -- Target output sub-Terms.
+  spec0_X : Term -> Term
+  spec0_X X = spec0_at (ap1 num X)
 
+  spec1_Y : Term -> Term
+  spec1_Y Y = spec1_at (ap1 num Y)
+
+Df_axRStep : Fun1 -> Fun2 -> Fun2 -> Term -> Term -> Term
+Df_axRStep g h1 h2 X Y =
+  ap2 Pair (natCode tag_sb)
+    (ap2 Pair (spec0_X X)
+      (ap2 Pair (natCode tag_sb)
+        (ap2 Pair (spec1_Y Y) (packAx10_codeR_Term g h1 h2))))
+
+------------------------------------------------------------------------
+-- Output sub-Terms.
+
+private
   s_enc_num_Y : Term -> Term
   s_enc_num_Y Y =
     ap2 Pair (natCode tag_ap1) (ap2 Pair (codeFun1 s) (ap1 num Y))
@@ -263,187 +267,39 @@ encodedAxRStep_Term g h1 h2 X Y =
     (ap2 Pair (encCodeLHS g h1 h2 X Y) (encCodeRHS g h1 h2 X Y))
 
 ------------------------------------------------------------------------
--- sbf2-cascade lemma.
---
--- We compute sbt2 sp on each sub-Term of axN10_concrete piece by piece,
--- using sbContract2's closures.
+-- The encoded skeleton  FormRStep g h1 h2 p0 p1  (p0 substitutes cV0,
+-- p1 substitutes cV1).  FormRStep ... cV0 cV1     = axN10_concrete and
+--                       FormRStep ... (num X)(num Y) = encodedAxRStep_Term .
 
 private
-  -- The shared sbt2-of-var-positions lemmas.
-  zero_neq_one : Eq (natEq zero (suc zero)) false
-  zero_neq_one = refl
+  FormRStep : Fun1 -> Fun2 -> Fun2 -> Term -> Term -> Term
+  FormRStep g h1 h2 p0 p1 =
+    ap2 Pair (natCode tag_eq)
+      (ap2 Pair
+        (cAp2g (R g h1 h2) p0 (cAp1f s p1))
+        (cAp2g h1 (cAp2g h2 p0 p1) (cAp2g (R g h1 h2) p0 p1)))
 
-  -- sbt2 sp cV0 = num X  (via sbt2_at_var_match_one with k1 = 0 , k2 = 1).
-  e_cV0_at : (X Y : Term) ->
-             Deriv (eqF (ap2 sbt2 (spec2_at X Y) cV0) (ap1 num X))
-  e_cV0_at X Y = sbt2_at_var_match_one zero (suc zero) (ap1 num X) (ap1 num Y)
-
-  -- sbt2 sp cV1 = num Y  (via sbt2_at_var_match_two with k1 = 0 , k2 = 1).
-  e_cV1_at : (X Y : Term) ->
-             Deriv (eqF (ap2 sbt2 (spec2_at X Y) cV1) (ap1 num Y))
-  e_cV1_at X Y =
-    sbt2_at_var_match_two zero (suc zero) (ap1 num X) (ap1 num Y) zero_neq_one
-
-  -- sbt2 sp codeS_V1 :
-  --   codeS_V1 = pi tag_ap1 (pi (codeFun1 s) cV1).
-  --   sbt2_at_ap1 with k1=0, k2=1, S1=num X, S2=num Y, f=s, ct=cV1 gives
-  --     pi tag_ap1 (pi (codeFun1 s) (sbt2 sp cV1))
-  --   = pi tag_ap1 (pi (codeFun1 s) (num Y))
-  --   = s_enc_num_Y Y .
-  e_codeS_V1_at : (X Y : Term) ->
-                  Deriv (eqF (ap2 sbt2 (spec2_at X Y) codeS_V1) (s_enc_num_Y Y))
-  e_codeS_V1_at X Y =
-    let sp = spec2_at X Y
-        step1 : Deriv (eqF (ap2 sbt2 sp codeS_V1)
-                            (ap2 Pair (natCode tag_ap1)
-                              (ap2 Pair (codeFun1 s) (ap2 sbt2 sp cV1))))
-        step1 = sbt2_at_ap1 zero (suc zero) (ap1 num X) (ap1 num Y) s cV1
-        step2 : Deriv (eqF (ap2 Pair (codeFun1 s) (ap2 sbt2 sp cV1))
-                            (ap2 Pair (codeFun1 s) (ap1 num Y)))
-        step2 = congR Pair (codeFun1 s) (e_cV1_at X Y)
-    in ruleTrans step1 (congR Pair (natCode tag_ap1) step2)
-
-  -- sbt2 sp axN10_codeLHS :
-  --   axN10_codeLHS = pi tag_ap2 (pi (codeFun2 (R g h1 h2)) (pi cV0 codeS_V1)).
-  --   sbt2_at_ap2 with g_F2 = (R g h1 h2), ca = cV0, cb = codeS_V1.
-  e_codeLHS_at :
-    (g : Fun1) (h1 h2 : Fun2) (X Y : Term) ->
-    Deriv (eqF (ap2 sbt2 (spec2_at X Y) (axN10_codeLHS g h1 h2))
-                (encCodeLHS g h1 h2 X Y))
-  e_codeLHS_at g h1 h2 X Y =
-    let sp = spec2_at X Y
-        step1 :
-          Deriv (eqF (ap2 sbt2 sp (axN10_codeLHS g h1 h2))
-                      (ap2 Pair (natCode tag_ap2)
-                        (ap2 Pair (codeFun2 (R g h1 h2))
-                          (ap2 Pair (ap2 sbt2 sp cV0) (ap2 sbt2 sp codeS_V1)))))
-        step1 = sbt2_at_ap2 zero (suc zero) (ap1 num X) (ap1 num Y)
-                  (R g h1 h2) cV0 codeS_V1
-        inner :
-          Deriv (eqF (ap2 Pair (ap2 sbt2 sp cV0) (ap2 sbt2 sp codeS_V1))
-                      (ap2 Pair (ap1 num X) (s_enc_num_Y Y)))
-        inner =
-          ruleTrans (congL Pair (ap2 sbt2 sp codeS_V1) (e_cV0_at X Y))
-                    (congR Pair (ap1 num X) (e_codeS_V1_at X Y))
-    in ruleTrans step1
-         (congR Pair (natCode tag_ap2)
-           (congR Pair (codeFun2 (R g h1 h2)) inner))
-
-  -- sbt2 sp axN10_codeH2_v0v1 :
-  --   axN10_codeH2_v0v1 h2 = pi tag_ap2 (pi (codeFun2 h2) (pi cV0 cV1)).
-  --   sbt2_at_ap2 with g_F2 = h2, ca = cV0, cb = cV1.
-  e_codeH2_at :
-    (h2 : Fun2) (X Y : Term) ->
-    Deriv (eqF (ap2 sbt2 (spec2_at X Y) (axN10_codeH2_v0v1 h2))
-                (encH2_at h2 X Y))
-  e_codeH2_at h2 X Y =
-    let sp = spec2_at X Y
-        step1 :
-          Deriv (eqF (ap2 sbt2 sp (axN10_codeH2_v0v1 h2))
-                      (ap2 Pair (natCode tag_ap2)
-                        (ap2 Pair (codeFun2 h2)
-                          (ap2 Pair (ap2 sbt2 sp cV0) (ap2 sbt2 sp cV1)))))
-        step1 = sbt2_at_ap2 zero (suc zero) (ap1 num X) (ap1 num Y) h2 cV0 cV1
-        inner :
-          Deriv (eqF (ap2 Pair (ap2 sbt2 sp cV0) (ap2 sbt2 sp cV1))
-                      (ap2 Pair (ap1 num X) (ap1 num Y)))
-        inner =
-          ruleTrans (congL Pair (ap2 sbt2 sp cV1) (e_cV0_at X Y))
-                    (congR Pair (ap1 num X) (e_cV1_at X Y))
-    in ruleTrans step1
-         (congR Pair (natCode tag_ap2)
-           (congR Pair (codeFun2 h2) inner))
-
-  -- sbt2 sp axN10_codeR_v0v1 :
-  --   sbt2_at_ap2 with g_F2 = (R g h1 h2), ca = cV0, cb = cV1.
-  e_codeR_at :
-    (g : Fun1) (h1 h2 : Fun2) (X Y : Term) ->
-    Deriv (eqF (ap2 sbt2 (spec2_at X Y) (axN10_codeR_v0v1 g h1 h2))
-                (encR_at g h1 h2 X Y))
-  e_codeR_at g h1 h2 X Y =
-    let sp = spec2_at X Y
-        step1 :
-          Deriv (eqF (ap2 sbt2 sp (axN10_codeR_v0v1 g h1 h2))
-                      (ap2 Pair (natCode tag_ap2)
-                        (ap2 Pair (codeFun2 (R g h1 h2))
-                          (ap2 Pair (ap2 sbt2 sp cV0) (ap2 sbt2 sp cV1)))))
-        step1 = sbt2_at_ap2 zero (suc zero) (ap1 num X) (ap1 num Y)
-                  (R g h1 h2) cV0 cV1
-        inner :
-          Deriv (eqF (ap2 Pair (ap2 sbt2 sp cV0) (ap2 sbt2 sp cV1))
-                      (ap2 Pair (ap1 num X) (ap1 num Y)))
-        inner =
-          ruleTrans (congL Pair (ap2 sbt2 sp cV1) (e_cV0_at X Y))
-                    (congR Pair (ap1 num X) (e_cV1_at X Y))
-    in ruleTrans step1
-         (congR Pair (natCode tag_ap2)
-           (congR Pair (codeFun2 (R g h1 h2)) inner))
-
-  -- sbt2 sp axN10_codeRHS :
-  --   axN10_codeRHS = pi tag_ap2 (pi (codeFun2 h1) (pi codeH2_v0v1 codeR_v0v1)).
-  --   sbt2_at_ap2 with g_F2 = h1, ca = codeH2_v0v1, cb = codeR_v0v1.
-  e_codeRHS_at :
-    (g : Fun1) (h1 h2 : Fun2) (X Y : Term) ->
-    Deriv (eqF (ap2 sbt2 (spec2_at X Y) (axN10_codeRHS g h1 h2))
-                (encCodeRHS g h1 h2 X Y))
-  e_codeRHS_at g h1 h2 X Y =
-    let sp = spec2_at X Y
-        step1 :
-          Deriv (eqF (ap2 sbt2 sp (axN10_codeRHS g h1 h2))
-                      (ap2 Pair (natCode tag_ap2)
-                        (ap2 Pair (codeFun2 h1)
-                          (ap2 Pair
-                            (ap2 sbt2 sp (axN10_codeH2_v0v1 h2))
-                            (ap2 sbt2 sp (axN10_codeR_v0v1 g h1 h2))))))
-        step1 = sbt2_at_ap2 zero (suc zero) (ap1 num X) (ap1 num Y) h1
-                  (axN10_codeH2_v0v1 h2) (axN10_codeR_v0v1 g h1 h2)
-        inner :
-          Deriv (eqF
-            (ap2 Pair (ap2 sbt2 sp (axN10_codeH2_v0v1 h2))
-                      (ap2 sbt2 sp (axN10_codeR_v0v1 g h1 h2)))
-            (ap2 Pair (encH2_at h2 X Y) (encR_at g h1 h2 X Y)))
-        inner =
-          ruleTrans (congL Pair (ap2 sbt2 sp (axN10_codeR_v0v1 g h1 h2))
-                                (e_codeH2_at h2 X Y))
-                    (congR Pair (encH2_at h2 X Y) (e_codeR_at g h1 h2 X Y))
-    in ruleTrans step1
-         (congR Pair (natCode tag_ap2)
-           (congR Pair (codeFun2 h1) inner))
-
-  sbf2_step :
-    (g : Fun1) (h1 h2 : Fun2) (X Y : Term) ->
-    Deriv (eqF (ap2 sbf2 (spec2_at X Y) (axN10_concrete g h1 h2))
-                (encodedAxRStep_Term g h1 h2 X Y))
-  sbf2_step g h1 h2 X Y =
-    let sp = spec2_at X Y
-        e_atomic :
-          Deriv (eqF (ap2 sbf2 sp (axN10_concrete g h1 h2))
-                      (ap2 Pair (natCode tag_eq)
-                        (ap2 Pair
-                          (ap2 sbt2 sp (axN10_codeLHS g h1 h2))
-                          (ap2 sbt2 sp (axN10_codeRHS g h1 h2)))))
-        e_atomic =
-          sbf2_at_atomic zero (suc zero) (ap1 num X) (ap1 num Y)
-            (axN10_codeLHS g h1 h2) (axN10_codeRHS g h1 h2)
-
-        e_inner :
-          Deriv (eqF
-            (ap2 Pair (ap2 sbt2 sp (axN10_codeLHS g h1 h2))
-                      (ap2 sbt2 sp (axN10_codeRHS g h1 h2)))
-            (ap2 Pair (encCodeLHS g h1 h2 X Y) (encCodeRHS g h1 h2 X Y)))
-        e_inner =
-          ruleTrans (congL Pair (ap2 sbt2 sp (axN10_codeRHS g h1 h2))
-                                (e_codeLHS_at g h1 h2 X Y))
-                    (congR Pair (encCodeLHS g h1 h2 X Y) (e_codeRHS_at g h1 h2 X Y))
-
-        e_outer :
-          Deriv (eqF
-            (ap2 Pair (natCode tag_eq)
-              (ap2 Pair (ap2 sbt2 sp (axN10_codeLHS g h1 h2))
-                        (ap2 sbt2 sp (axN10_codeRHS g h1 h2))))
-            (encodedAxRStep_Term g h1 h2 X Y))
-        e_outer = congR Pair (natCode tag_eq) e_inner
-    in ruleTrans e_atomic e_outer
+  -- One pass of  sbf  over the FormRStep skeleton.
+  onePassRStep :
+    (g : Fun1) (h1 h2 : Fun2) (k : Nat) (S : Term) (p0 p1 p0' p1' : Term) ->
+    Deriv (eqF (ap2 sbt (ap2 Pair (natCode k) S) p0) p0') ->
+    Deriv (eqF (ap2 sbt (ap2 Pair (natCode k) S) p1) p1') ->
+    Deriv (eqF (ap2 sbf (ap2 Pair (natCode k) S) (FormRStep g h1 h2 p0 p1))
+                (FormRStep g h1 h2 p0' p1'))
+  onePassRStep g h1 h2 k S p0 p1 p0' p1' e0 e1 =
+    sbf_step_atomic k S
+      (cAp2g (R g h1 h2) p0 (cAp1f s p1))
+      (cAp2g h1 (cAp2g h2 p0 p1) (cAp2g (R g h1 h2) p0 p1))
+      (cAp2g (R g h1 h2) p0' (cAp1f s p1'))
+      (cAp2g h1 (cAp2g h2 p0' p1') (cAp2g (R g h1 h2) p0' p1'))
+      (sbt_step_ap2 k S (R g h1 h2) p0 (cAp1f s p1) p0' (cAp1f s p1')
+        e0
+        (sbt_step_ap1 k S s p1 p1' e1))
+      (sbt_step_ap2 k S h1
+        (cAp2g h2 p0 p1) (cAp2g (R g h1 h2) p0 p1)
+        (cAp2g h2 p0' p1') (cAp2g (R g h1 h2) p0' p1')
+        (sbt_step_ap2 k S h2 p0 p1 p0' p1' e0 e1)
+        (sbt_step_ap2 k S (R g h1 h2) p0 p1 p0' p1' e0 e1))
 
 ------------------------------------------------------------------------
 -- Main theorem.
@@ -454,47 +310,59 @@ encodedAxRStep :
               (encodedAxRStep_Term g h1 h2 X Y))
 encodedAxRStep g h1 h2 X Y =
   let
-    sp : Term
-    sp = spec2_at X Y
+    spec0 : Term
+    spec0 = spec0_X X
+
+    spec1 : Term
+    spec1 = spec1_Y Y
 
     extra : Term
     extra = codeFun2 (R g h1 h2)
 
-    pa_const_term : Term
-    pa_const_term = packAx10_codeR_Term g h1 h2
+    pa : Term
+    pa = packAx10_codeR_Term g h1 h2
 
-    -- (a) thmT (Df_axRStep g h1 h2 X Y) =Deriv= sbf2 sp (thmT pa_const_term).
-    e_at_sb2 :
-      Deriv (eqF (ap1 thmT (Df_axRStep g h1 h2 X Y))
-                  (ap2 sbf2 sp (ap1 thmT pa_const_term)))
-    e_at_sb2 = thmT_at_sb2 sp pa_const_term
+    innerCode : Term
+    innerCode = ap2 Pair (natCode tag_sb) (ap2 Pair spec1 pa)
 
-    -- (b) thmT pa_const_term =Deriv= outputRHS_at extra.
-    e_axN10 :
-      Deriv (eqF (ap1 thmT pa_const_term) (outputRHS_at extra))
-    e_axN10 = thmT_at_axN10 extra
+    -- (a) thmT (Df) = sbf spec0 (thmT innerCode)   [thmT_at_sb].
+    e1 : Deriv (eqF (ap1 thmT (Df_axRStep g h1 h2 X Y))
+                     (ap2 sbf spec0 (ap1 thmT innerCode)))
+    e1 = thmT_at_sb spec0 innerCode
 
-    e_lift_axN10 :
-      Deriv (eqF (ap2 sbf2 sp (ap1 thmT pa_const_term))
-                  (ap2 sbf2 sp (outputRHS_at extra)))
-    e_lift_axN10 = congR sbf2 sp e_axN10
+    -- (b) thmT innerCode = sbf spec1 (thmT pa)      [thmT_at_sb].
+    e2 : Deriv (eqF (ap1 thmT innerCode) (ap2 sbf spec1 (ap1 thmT pa)))
+    e2 = thmT_at_sb spec1 pa
 
-    -- (c) outputRHS_at extra =Deriv= axN10_concrete g h1 h2.
-    e_bridge :
-      Deriv (eqF (outputRHS_at extra) (axN10_concrete g h1 h2))
-    e_bridge = outputRHS_bridge g h1 h2
+    -- (c) thmT pa = outputRHS_at extra              [thmT_at_axN10].
+    e3 : Deriv (eqF (ap1 thmT pa) (outputRHS_at extra))
+    e3 = thmT_at_axN10 extra
 
-    e_lift_bridge :
-      Deriv (eqF (ap2 sbf2 sp (outputRHS_at extra))
-                  (ap2 sbf2 sp (axN10_concrete g h1 h2)))
-    e_lift_bridge = congR sbf2 sp e_bridge
+    -- (d) outputRHS_at extra = axN10_concrete (= FormRStep ... cV0 cV1).
+    e4 : Deriv (eqF (outputRHS_at extra) (FormRStep g h1 h2 cV0 cV1))
+    e4 = outputRHS_bridge g h1 h2
 
-    -- (d) sbf2 sp axN10_concrete =Deriv= encodedAxRStep_Term g h1 h2 X Y.
-    e_sbf2 :
-      Deriv (eqF (ap2 sbf2 sp (axN10_concrete g h1 h2))
-                  (encodedAxRStep_Term g h1 h2 X Y))
-    e_sbf2 = sbf2_step g h1 h2 X Y
+    -- inner pass (var 1 := num Y).
+    innerPass :
+      Deriv (eqF (ap2 sbf spec1 (FormRStep g h1 h2 cV0 cV1))
+                  (FormRStep g h1 h2 cV0 (ap1 num Y)))
+    innerPass =
+      onePassRStep g h1 h2 (suc zero) (ap1 num Y) cV0 cV1 cV0 (ap1 num Y)
+        (sbt_at_var_nomatch (suc zero) zero (ap1 num Y) refl)
+        (sbt_at_var_match (suc zero) (ap1 num Y))
 
-  in ruleTrans e_at_sb2
-       (ruleTrans e_lift_axN10
-         (ruleTrans e_lift_bridge e_sbf2))
+    -- outer pass (var 0 := num X).
+    outerPass :
+      Deriv (eqF (ap2 sbf spec0 (FormRStep g h1 h2 cV0 (ap1 num Y)))
+                  (FormRStep g h1 h2 (ap1 num X) (ap1 num Y)))
+    outerPass =
+      onePassRStep g h1 h2 zero (ap1 num X) cV0 (ap1 num Y) (ap1 num X) (ap1 num Y)
+        (sbt_at_var_match zero (ap1 num X))
+        (sbt_num_inert zero (ap1 num X) Y)
+
+  in ruleTrans e1
+       (ruleTrans (congR sbf spec0 e2)
+         (ruleTrans (congR sbf spec0
+                       (congR sbf spec1 (ruleTrans e3 e4)))
+           (ruleTrans (congR sbf spec0 innerPass)
+                      outerPass)))

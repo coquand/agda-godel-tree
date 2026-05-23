@@ -83,17 +83,47 @@ private
 ------------------------------------------------------------------------
 -- Df_v_F2 .
 
+-- F2-level single  tag_sb  layer builder (mirrors PartRStep.sbLayerF1).
 private
-  innerSpec : Fun2
-  innerSpec =
-    pairF2 (pairF2 (kF2 (natCode zero)) numF2_first)
-           (pairF2 (kF2 (natCode (suc zero))) numF2_second)
+  sbLayerF2 : Nat -> Fun2 -> Fun2 -> Fun2
+  sbLayerF2 k vF inF =
+    pairF2 (kF2 (natCode tag_sb)) (pairF2 (pairF2 (kF2 (natCode k)) vF) inF)
 
-  midF2 : Fun2
-  midF2 = pairF2 innerSpec (kF2 packAx3_O)
+  sbLayerF2_eq :
+    (k : Nat) (vF inF : Fun2) (vT innerT : Term) (X Y : Term) ->
+    Deriv (eqF (ap2 vF X Y) vT) ->
+    Deriv (eqF (ap2 inF X Y) innerT) ->
+    Deriv (eqF (ap2 (sbLayerF2 k vF inF) X Y)
+                (ap2 Pair (natCode tag_sb)
+                  (ap2 Pair (ap2 Pair (natCode k) vT) innerT)))
+  sbLayerF2_eq k vF inF vT innerT X Y ev einner =
+    let e_specPair :
+          Deriv (eqF (ap2 (pairF2 (kF2 (natCode k)) vF) X Y)
+                      (ap2 Pair (natCode k) vT))
+        e_specPair =
+          ruleTrans (pairF2_eq (kF2 (natCode k)) vF X Y)
+            (ruleTrans
+              (congL Pair (ap2 vF X Y)
+                (kF2_eq_closed (natCode k) (closed_natCode k) X Y))
+              (congR Pair (natCode k) ev))
+        e_mid :
+          Deriv (eqF (ap2 (pairF2 (pairF2 (kF2 (natCode k)) vF) inF) X Y)
+                      (ap2 Pair (ap2 Pair (natCode k) vT) innerT))
+        e_mid =
+          ruleTrans (pairF2_eq (pairF2 (kF2 (natCode k)) vF) inF X Y)
+            (ruleTrans (congL Pair (ap2 inF X Y) e_specPair)
+                       (congR Pair (ap2 Pair (natCode k) vT) einner))
+    in ruleTrans
+         (pairF2_eq (kF2 (natCode tag_sb)) (pairF2 (pairF2 (kF2 (natCode k)) vF) inF) X Y)
+         (ruleTrans
+           (congL Pair (ap2 (pairF2 (pairF2 (kF2 (natCode k)) vF) inF) X Y)
+                       (kF2_eq_closed (natCode tag_sb) (closed_natCode tag_sb) X Y))
+           (congR Pair (natCode tag_sb) e_mid))
 
 Df_v_F2 : Fun2
-Df_v_F2 = pairF2 (kF2 (natCode tag_sb2)) midF2
+Df_v_F2 =
+  sbLayerF2 zero numF2_first
+    (sbLayerF2 (suc zero) numF2_second (kF2 packAx3_O))
 
 ------------------------------------------------------------------------
 -- Closure equation.  ap2 Df_v_F2 X Y =Deriv= Df_v X Y .
@@ -101,88 +131,17 @@ Df_v_F2 = pairF2 (kF2 (natCode tag_sb2)) midF2
 Df_v_F2_unfold :
   (X Y : Term) -> Deriv (eqF (ap2 Df_v_F2 X Y) (Df_v X Y))
 Df_v_F2_unfold X Y =
-  let
-    -- Targets at each layer.
-    numX = ap1 num X
-    numY = ap1 num Y
+  let i1 : Fun2
+      i1 = sbLayerF2 (suc zero) numF2_second (kF2 packAx3_O)
 
-    inner_left : Term
-    inner_left = ap2 Pair (natCode zero) numX
-
-    inner_right : Term
-    inner_right = ap2 Pair (natCode (suc zero)) numY
-
-    spec_target : Term
-    spec_target = ap2 Pair inner_left inner_right
-
-    mid_target : Term
-    mid_target = ap2 Pair spec_target packAx3_O
-
-    df_v_target : Term
-    df_v_target = ap2 Pair (natCode tag_sb2) mid_target
-
-    -- inner_left : pairF2 (kF2 0) numF2_first
-    e_inner_left :
-      Deriv (eqF (ap2 (pairF2 (kF2 (natCode zero)) numF2_first) X Y)
-                  inner_left)
-    e_inner_left =
-      ruleTrans (pairF2_eq (kF2 (natCode zero)) numF2_first X Y)
-        (ruleTrans
-          (congL Pair (ap2 numF2_first X Y)
-            (kF2_eq_closed (natCode zero) (closed_natCode zero) X Y))
-          (congR Pair (natCode zero) (numF2_first_eq X Y)))
-
-    -- inner_right : pairF2 (kF2 1) numF2_second
-    e_inner_right :
-      Deriv (eqF (ap2 (pairF2 (kF2 (natCode (suc zero))) numF2_second) X Y)
-                  inner_right)
-    e_inner_right =
-      ruleTrans (pairF2_eq (kF2 (natCode (suc zero))) numF2_second X Y)
-        (ruleTrans
-          (congL Pair (ap2 numF2_second X Y)
-            (kF2_eq_closed (natCode (suc zero)) (closed_natCode (suc zero)) X Y))
-          (congR Pair (natCode (suc zero)) (numF2_second_eq X Y)))
-
-    -- innerSpec evaluation : pair of inner_left, inner_right.
-    e_innerSpec :
-      Deriv (eqF (ap2 innerSpec X Y) spec_target)
-    e_innerSpec =
-      ruleTrans (pairF2_eq (pairF2 (kF2 (natCode zero)) numF2_first)
-                             (pairF2 (kF2 (natCode (suc zero))) numF2_second) X Y)
-        (ruleTrans
-          (congL Pair (ap2 (pairF2 (kF2 (natCode (suc zero))) numF2_second) X Y) e_inner_left)
-          (congR Pair inner_left e_inner_right))
-
-    -- packAx3_O constant.
-    e_pack :
-      Deriv (eqF (ap2 (kF2 packAx3_O) X Y) packAx3_O)
-    e_pack = kF2_eq_closed packAx3_O closed_packAx3_O X Y
-
-    -- midF2 evaluation.
-    e_mid :
-      Deriv (eqF (ap2 midF2 X Y) mid_target)
-    e_mid =
-      ruleTrans (pairF2_eq innerSpec (kF2 packAx3_O) X Y)
-        (ruleTrans
-          (congL Pair (ap2 (kF2 packAx3_O) X Y) e_innerSpec)
-          (congR Pair spec_target e_pack))
-
-    -- Top : pairF2 (kF2 tag_sb2) midF2.
-    e_tag :
-      Deriv (eqF (ap2 (kF2 (natCode tag_sb2)) X Y) (natCode tag_sb2))
-    e_tag = kF2_eq_closed (natCode tag_sb2) (closed_natCode tag_sb2) X Y
-
-    e_top :
-      Deriv (eqF (ap2 Df_v_F2 X Y) df_v_target)
-    e_top =
-      ruleTrans (pairF2_eq (kF2 (natCode tag_sb2)) midF2 X Y)
-        (ruleTrans
-          (congL Pair (ap2 midF2 X Y) e_tag)
-          (congR Pair (natCode tag_sb2) e_mid))
-
-    -- df_v_target is definitionally Df_v X Y (see PartV.Df_v).
-
-  in e_top
+      e1 = sbLayerF2_eq (suc zero) numF2_second (kF2 packAx3_O)
+             (ap1 num Y) packAx3_O X Y
+             (numF2_second_eq X Y)
+             (kF2_eq_closed packAx3_O closed_packAx3_O X Y)
+      e0 = sbLayerF2_eq zero numF2_first i1
+             (ap1 num X) _ X Y
+             (numF2_first_eq X Y) e1
+  in e0
 
 ------------------------------------------------------------------------
 -- thm12_v lifted to the Fun2 representation.

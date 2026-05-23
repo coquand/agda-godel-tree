@@ -46,6 +46,7 @@ open import BRA4.Thm12.PartRStep
         ; codeFun2_F1 ; codeFun2_F1_eq
         ; Df_axEqCongL_F1 ; Df_axEqCongL_F1_eq
         ; Df_axEqCongR_F1 ; Df_axEqCongR_F1_eq
+        ; Df_axEqCongL_cong ; Df_axEqCongR_cong
         ; Df_eqTrans_F1 ; Df_eqTrans_F1_eq
         ; Df_eqTrans_T_cong )
 
@@ -348,75 +349,11 @@ Df_C_F1_unfold g h1 h2 Df_g_F2 Df_h1_F1 Df_h2_F1 X =
           Deriv (eqF (Df_axEqCongL g (ap1 (encH_at_F1 h1) X) (ap1 (numH_F1 h1) X) (ap1 (encH_at_F1 h2) X))
                       (Df_axEqCongL g (encH_at h1 X) (ap1 num (ap1 h1 X)) (encH_at h2 X)))
         e_axEqCongL_args =
-          -- Df_axEqCongL is a function so we bridge each slot via congL/congR on the Pair structure.
-          -- Df_axEqCongL g tA tB tC = pi tag_sb3 (pi (spec3 tA tB tC) (packAx6 g))
-          -- where spec3 tA tB tC = pi (pi 0 tA) (pi (pi 1 tB) (pi 2 tC))
-          -- It suffices to apply cong on each tA / tB / tC slot.
-          let
-            eA : Deriv (eqF (ap1 (encH_at_F1 h1) X) (encH_at h1 X))
-            eA = encH_at_F1_eq h1 X
-            eB : Deriv (eqF (ap1 (numH_F1 h1) X) (ap1 num (ap1 h1 X)))
-            eB = numH_F1_eq h1 X
-            eC : Deriv (eqF (ap1 (encH_at_F1 h2) X) (encH_at h2 X))
-            eC = encH_at_F1_eq h2 X
-            -- We do the cong inside the Df_axEqCongL Term structure.
-            -- Df_axEqCongL g tA tB tC =
-            --   pi tag_sb3 (pi (pi (pi 0 tA) (pi (pi 1 tB) (pi 2 tC))) (packAx6 g))
-            -- packAx6 g doesn't depend on tA / tB / tC.
-            -- Apply congR / congL repeatedly.
-            packAx6g : Term
-            packAx6g = ap2 Pair (natCode tag_ax)
-                         (ap2 Pair (natCode (suc (suc (suc (suc (suc (suc zero)))))))
-                                   (codeFun2 g))
-
-            eAt : Deriv (eqF (ap2 Pair (natCode zero) (ap1 (encH_at_F1 h1) X))
-                              (ap2 Pair (natCode zero) (encH_at h1 X)))
-            eAt = congR Pair (natCode zero) eA
-
-            eBt : Deriv (eqF (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h1) X))
-                              (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h1 X))))
-            eBt = congR Pair (natCode (suc zero)) eB
-
-            eCt : Deriv (eqF (ap2 Pair (natCode (suc (suc zero))) (ap1 (encH_at_F1 h2) X))
-                              (ap2 Pair (natCode (suc (suc zero))) (encH_at h2 X)))
-            eCt = congR Pair (natCode (suc (suc zero))) eC
-
-            e_BC :
-              Deriv (eqF
-                (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h1) X))
-                          (ap2 Pair (natCode (suc (suc zero))) (ap1 (encH_at_F1 h2) X)))
-                (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h1 X)))
-                          (ap2 Pair (natCode (suc (suc zero))) (encH_at h2 X))))
-            e_BC =
-              ruleTrans
-                (congL Pair (ap2 Pair (natCode (suc (suc zero))) (ap1 (encH_at_F1 h2) X)) eBt)
-                (congR Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h1 X))) eCt)
-
-            e_spec :
-              Deriv (eqF
-                (ap2 Pair (ap2 Pair (natCode zero) (ap1 (encH_at_F1 h1) X))
-                  (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h1) X))
-                            (ap2 Pair (natCode (suc (suc zero))) (ap1 (encH_at_F1 h2) X))))
-                (ap2 Pair (ap2 Pair (natCode zero) (encH_at h1 X))
-                  (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h1 X)))
-                            (ap2 Pair (natCode (suc (suc zero))) (encH_at h2 X)))))
-            e_spec =
-              ruleTrans (congL Pair _ eAt) (congR Pair _ e_BC)
-
-            e_spec_pack :
-              Deriv (eqF
-                (ap2 Pair
-                  (ap2 Pair (ap2 Pair (natCode zero) (ap1 (encH_at_F1 h1) X))
-                    (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h1) X))
-                              (ap2 Pair (natCode (suc (suc zero))) (ap1 (encH_at_F1 h2) X))))
-                  packAx6g)
-                (ap2 Pair
-                  (ap2 Pair (ap2 Pair (natCode zero) (encH_at h1 X))
-                    (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h1 X)))
-                              (ap2 Pair (natCode (suc (suc zero))) (encH_at h2 X))))
-                  packAx6g))
-            e_spec_pack = congL Pair packAx6g e_spec
-          in congR Pair (natCode tag_sb3) e_spec_pack
+          Df_axEqCongL_cong g
+            (ap1 (encH_at_F1 h1) X) (encH_at h1 X)
+            (ap1 (numH_F1 h1) X) (ap1 num (ap1 h1 X))
+            (ap1 (encH_at_F1 h2) X) (encH_at h2 X)
+            (encH_at_F1_eq h1 X) (numH_F1_eq h1 X) (encH_at_F1_eq h2 X)
 
         -- Combine.
         e_eqCongL :
@@ -452,72 +389,15 @@ Df_C_F1_unfold g h1 h2 Df_g_F2 Df_h1_F1 Df_h2_F1 X =
                       (Df_axEqCongR g (ap1 (encH_at_F1 h2) X) (ap1 (numH_F1 h2) X) (ap1 (numH_F1 h1) X)))
         e_eqCongR_F1 = Df_axEqCongR_F1_eq g (encH_at_F1 h2) (numH_F1 h2) (numH_F1 h1) X
 
-        eA : Deriv (eqF (ap1 (encH_at_F1 h2) X) (encH_at h2 X))
-        eA = encH_at_F1_eq h2 X
-
-        eB : Deriv (eqF (ap1 (numH_F1 h2) X) (ap1 num (ap1 h2 X)))
-        eB = numH_F1_eq h2 X
-
-        eC : Deriv (eqF (ap1 (numH_F1 h1) X) (ap1 num (ap1 h1 X)))
-        eC = numH_F1_eq h1 X
-
-        packAx7g : Term
-        packAx7g = ap2 Pair (natCode tag_ax)
-                     (ap2 Pair (natCode (suc (suc (suc (suc (suc (suc (suc zero))))))))
-                               (codeFun2 g))
-
-        eAt : Deriv (eqF (ap2 Pair (natCode zero) (ap1 (encH_at_F1 h2) X))
-                          (ap2 Pair (natCode zero) (encH_at h2 X)))
-        eAt = congR Pair (natCode zero) eA
-
-        eBt : Deriv (eqF (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h2) X))
-                          (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h2 X))))
-        eBt = congR Pair (natCode (suc zero)) eB
-
-        eCt : Deriv (eqF (ap2 Pair (natCode (suc (suc zero))) (ap1 (numH_F1 h1) X))
-                          (ap2 Pair (natCode (suc (suc zero))) (ap1 num (ap1 h1 X))))
-        eCt = congR Pair (natCode (suc (suc zero))) eC
-
-        e_BC :
-          Deriv (eqF
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h2) X))
-                      (ap2 Pair (natCode (suc (suc zero))) (ap1 (numH_F1 h1) X)))
-            (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h2 X)))
-                      (ap2 Pair (natCode (suc (suc zero))) (ap1 num (ap1 h1 X)))))
-        e_BC =
-          ruleTrans
-            (congL Pair (ap2 Pair (natCode (suc (suc zero))) (ap1 (numH_F1 h1) X)) eBt)
-            (congR Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h2 X))) eCt)
-
-        e_spec :
-          Deriv (eqF
-            (ap2 Pair (ap2 Pair (natCode zero) (ap1 (encH_at_F1 h2) X))
-              (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h2) X))
-                        (ap2 Pair (natCode (suc (suc zero))) (ap1 (numH_F1 h1) X))))
-            (ap2 Pair (ap2 Pair (natCode zero) (encH_at h2 X))
-              (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h2 X)))
-                        (ap2 Pair (natCode (suc (suc zero))) (ap1 num (ap1 h1 X))))))
-        e_spec =
-          ruleTrans (congL Pair _ eAt) (congR Pair _ e_BC)
-
-        e_spec_pack :
-          Deriv (eqF
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) (ap1 (encH_at_F1 h2) X))
-                (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 (numH_F1 h2) X))
-                          (ap2 Pair (natCode (suc (suc zero))) (ap1 (numH_F1 h1) X))))
-              packAx7g)
-            (ap2 Pair
-              (ap2 Pair (ap2 Pair (natCode zero) (encH_at h2 X))
-                (ap2 Pair (ap2 Pair (natCode (suc zero)) (ap1 num (ap1 h2 X)))
-                          (ap2 Pair (natCode (suc (suc zero))) (ap1 num (ap1 h1 X)))))
-              packAx7g))
-        e_spec_pack = congL Pair packAx7g e_spec
-
         e_axEqCongR_args :
           Deriv (eqF (Df_axEqCongR g (ap1 (encH_at_F1 h2) X) (ap1 (numH_F1 h2) X) (ap1 (numH_F1 h1) X))
                       (Df_axEqCongR g (encH_at h2 X) (ap1 num (ap1 h2 X)) (ap1 num (ap1 h1 X))))
-        e_axEqCongR_args = congR Pair (natCode tag_sb3) e_spec_pack
+        e_axEqCongR_args =
+          Df_axEqCongR_cong g
+            (ap1 (encH_at_F1 h2) X) (encH_at h2 X)
+            (ap1 (numH_F1 h2) X) (ap1 num (ap1 h2 X))
+            (ap1 (numH_F1 h1) X) (ap1 num (ap1 h1 X))
+            (encH_at_F1_eq h2 X) (numH_F1_eq h2 X) (numH_F1_eq h1 X)
 
         e_eqCongR :
           Deriv (eqF (ap1 (Df_axEqCongR_F1 g (encH_at_F1 h2) (numH_F1 h2) (numH_F1 h1)) X)

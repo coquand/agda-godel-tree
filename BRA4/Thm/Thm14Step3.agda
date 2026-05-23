@@ -32,6 +32,9 @@ module BRA4.Thm.Thm14Step3 where
 open import BRA4.Base
 open import BRA4.Tags
 open import BRA4.ThmT              using ( thmT )
+open import BRA4.SbStep
+  using ( InertU ; NumCode ; ncNum ; ncAp1 ; ncAp2 ; sbt_inert_NumCode )
+open import BRA4.Sub               using ( sub )
 open import BRA4.Thm12.EncodedEqChain
   using ( Df_eqTrans )
 open import BRA4.Thm12.EncodedAxEqTrans
@@ -100,6 +103,18 @@ step3 x =
                          (encEqF (encSub (code i) (code i)) (code j))))
     step2_imp = impLift {P} step2
 
+    -- InertU witnesses : code t = num t , so every substituent is num-based.
+    iEncThmX : InertU (encThm (code x))
+    iEncThmX = sbt_inert_NumCode (encThm (code x))
+                 (ncAp1 thmT (code x) (ncNum x))
+
+    iCodeJ : InertU (code j)
+    iCodeJ = sbt_inert_NumCode (code j) (ncNum j)
+
+    iEncSub : InertU (encSub (code i) (code i))
+    iEncSub = sbt_inert_NumCode (encSub (code i) (code i))
+                (ncAp2 sub (code i) (code i) (ncNum i) (ncNum i))
+
     -- Flip Step 2 : "sub(i,i) = j" -> "j = sub(i,i)" .
     step2_flipped :
       Deriv (imp P (eqF (ap1 thmT Df_flipped_step2)
@@ -107,6 +122,7 @@ step3 x =
     step2_flipped =
       imp_encoded_eqSym P Df_sub_ii
                           (encSub (code i) (code i)) (code j)
+                          iEncSub iCodeJ
                           step2_imp
 
     -- Chain :  "th(x_) = j"  +  "j = sub(i,i)"  =>  "th(x_) = sub(i,i)" .
@@ -117,6 +133,7 @@ step3 x =
       imp_encoded_eqTrans P
         (Df_thmT x) Df_flipped_step2
         (encThm (code x)) (code j) (encSub (code i) (code i))
+        iEncThmX iCodeJ iEncSub
         step1_imp step2_flipped
 
   in step3_imp
