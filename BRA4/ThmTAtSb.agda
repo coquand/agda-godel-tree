@@ -165,17 +165,17 @@ private
     (input : Term) ->
     Deriv (eqF (ap1 sb_or_above input)
                 (ap2 condFork
-                  (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+                  (ap1 (C pi sb_branch_thmT mp_or_above) input)
                   (ap1 isSb input)))
   sb_or_above_unfold input =
-    ax_C condFork (C pi sb_branch_thmT sb3_or_above) isSb input
+    ax_C condFork (C pi sb_branch_thmT mp_or_above) isSb input
 
   pi_sb_mpor_unfold :
     (input : Term) ->
-    Deriv (eqF (ap1 (C pi sb_branch_thmT sb3_or_above) input)
-                (ap2 pi (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)))
+    Deriv (eqF (ap1 (C pi sb_branch_thmT mp_or_above) input)
+                (ap2 pi (ap1 sb_branch_thmT input) (ap1 mp_or_above input)))
   pi_sb_mpor_unfold input =
-    ax_C pi sb_branch_thmT sb3_or_above input
+    ax_C pi sb_branch_thmT mp_or_above input
 
   isAx_unfold :
     (input : Term) ->
@@ -294,36 +294,36 @@ private
     let e1 :
           Deriv (eqF (ap1 sb_or_above input)
                       (ap2 condFork
-                        (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+                        (ap1 (C pi sb_branch_thmT mp_or_above) input)
                         (ap1 isSb input)))
         e1 = sb_or_above_unfold input
 
         isSb_subst :
           Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+                       (ap1 (C pi sb_branch_thmT mp_or_above) input)
                        (ap1 isSb input))
                       (ap2 condFork
-                       (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+                       (ap1 (C pi sb_branch_thmT mp_or_above) input)
                        (ap1 s O)))
         isSb_subst =
-          congR condFork (ap1 (C pi sb_branch_thmT sb3_or_above) input) isSb_sO
+          congR condFork (ap1 (C pi sb_branch_thmT mp_or_above) input) isSb_sO
 
         cf_to_Fst :
           Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb_branch_thmT sb3_or_above) input) (ap1 s O))
-                      (ap1 Fst (ap1 (C pi sb_branch_thmT sb3_or_above) input)))
+                       (ap1 (C pi sb_branch_thmT mp_or_above) input) (ap1 s O))
+                      (ap1 Fst (ap1 (C pi sb_branch_thmT mp_or_above) input)))
         cf_to_Fst =
-          condFork_true_nc (ap1 (C pi sb_branch_thmT sb3_or_above) input) O
+          condFork_true_nc (ap1 (C pi sb_branch_thmT mp_or_above) input) O
 
         pi_eq :
-          Deriv (eqF (ap1 (C pi sb_branch_thmT sb3_or_above) input)
-                      (ap2 pi (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)))
+          Deriv (eqF (ap1 (C pi sb_branch_thmT mp_or_above) input)
+                      (ap2 pi (ap1 sb_branch_thmT input) (ap1 mp_or_above input)))
         pi_eq = pi_sb_mpor_unfold input
 
         Fst_pi :
-          Deriv (eqF (ap1 Fst (ap2 pi (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)))
+          Deriv (eqF (ap1 Fst (ap2 pi (ap1 sb_branch_thmT input) (ap1 mp_or_above input)))
                       (ap1 sb_branch_thmT input))
-        Fst_pi = axFst (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)
+        Fst_pi = axFst (ap1 sb_branch_thmT input) (ap1 mp_or_above input)
     in ruleTrans e1
          (ruleTrans isSb_subst
            (ruleTrans cf_to_Fst

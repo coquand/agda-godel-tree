@@ -96,12 +96,6 @@ private
   witness_mp_neq_sb : NatNeqWitness tag_mp tag_sb
   witness_mp_neq_sb = natEqFalse_to_witness tag_sb tag_mp refl
 
-  witness_mp_neq_sb2 : NatNeqWitness tag_mp tag_sb2
-  witness_mp_neq_sb2 = natEqFalse_to_witness tag_sb2 tag_mp refl
-
-  witness_mp_neq_sb3 : NatNeqWitness tag_mp tag_sb3
-  witness_mp_neq_sb3 = natEqFalse_to_witness tag_sb3 tag_mp refl
-
 ------------------------------------------------------------------------
 -- Position-extraction at packaged input  pi A Y .
 
@@ -188,49 +182,17 @@ private
     (input : Term) ->
     Deriv (eqF (ap1 sb_or_above input)
                 (ap2 condFork
-                  (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+                  (ap1 (C pi sb_branch_thmT mp_or_above) input)
                   (ap1 isSb input)))
   sb_or_above_unfold input =
-    ax_C condFork (C pi sb_branch_thmT sb3_or_above) isSb input
+    ax_C condFork (C pi sb_branch_thmT mp_or_above) isSb input
 
-  pi_sb_sb3or_unfold :
+  pi_sb_mpor_unfold :
     (input : Term) ->
-    Deriv (eqF (ap1 (C pi sb_branch_thmT sb3_or_above) input)
-                (ap2 pi (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)))
-  pi_sb_sb3or_unfold input =
-    ax_C pi sb_branch_thmT sb3_or_above input
-
-  sb3_or_above_unfold :
-    (input : Term) ->
-    Deriv (eqF (ap1 sb3_or_above input)
-                (ap2 condFork
-                  (ap1 (C pi sb3_branch_thmT sb2_or_above) input)
-                  (ap1 isSb3 input)))
-  sb3_or_above_unfold input =
-    ax_C condFork (C pi sb3_branch_thmT sb2_or_above) isSb3 input
-
-  pi_sb3_sb2or_unfold :
-    (input : Term) ->
-    Deriv (eqF (ap1 (C pi sb3_branch_thmT sb2_or_above) input)
-                (ap2 pi (ap1 sb3_branch_thmT input) (ap1 sb2_or_above input)))
-  pi_sb3_sb2or_unfold input =
-    ax_C pi sb3_branch_thmT sb2_or_above input
-
-  sb2_or_above_unfold :
-    (input : Term) ->
-    Deriv (eqF (ap1 sb2_or_above input)
-                (ap2 condFork
-                  (ap1 (C pi sb2_branch_thmT mp_or_above) input)
-                  (ap1 isSb2 input)))
-  sb2_or_above_unfold input =
-    ax_C condFork (C pi sb2_branch_thmT mp_or_above) isSb2 input
-
-  pi_sb2_mpor_unfold :
-    (input : Term) ->
-    Deriv (eqF (ap1 (C pi sb2_branch_thmT mp_or_above) input)
-                (ap2 pi (ap1 sb2_branch_thmT input) (ap1 mp_or_above input)))
-  pi_sb2_mpor_unfold input =
-    ax_C pi sb2_branch_thmT mp_or_above input
+    Deriv (eqF (ap1 (C pi sb_branch_thmT mp_or_above) input)
+                (ap2 pi (ap1 sb_branch_thmT input) (ap1 mp_or_above input)))
+  pi_sb_mpor_unfold input =
+    ax_C pi sb_branch_thmT mp_or_above input
 
   mp_or_above_unfold :
     (input : Term) ->
@@ -284,30 +246,6 @@ private
         s2 = constN_eq tag_mp input
     in ruleTrans s1 (congR natEqF (ap1 get_tag input) s2)
 
-  isSb2_unfold :
-    (input : Term) ->
-    Deriv (eqF (ap1 isSb2 input)
-                (ap2 natEqF (ap1 get_tag input) (natCode tag_sb2)))
-  isSb2_unfold input =
-    let s1 : Deriv (eqF (ap1 isSb2 input)
-                          (ap2 natEqF (ap1 get_tag input) (ap1 (constN tag_sb2) input)))
-        s1 = ax_C natEqF get_tag (constN tag_sb2) input
-        s2 : Deriv (eqF (ap1 (constN tag_sb2) input) (natCode tag_sb2))
-        s2 = constN_eq tag_sb2 input
-    in ruleTrans s1 (congR natEqF (ap1 get_tag input) s2)
-
-  isSb3_unfold :
-    (input : Term) ->
-    Deriv (eqF (ap1 isSb3 input)
-                (ap2 natEqF (ap1 get_tag input) (natCode tag_sb3)))
-  isSb3_unfold input =
-    let s1 : Deriv (eqF (ap1 isSb3 input)
-                          (ap2 natEqF (ap1 get_tag input) (ap1 (constN tag_sb3) input)))
-        s1 = ax_C natEqF get_tag (constN tag_sb3) input
-        s2 : Deriv (eqF (ap1 (constN tag_sb3) input) (natCode tag_sb3))
-        s2 = constN_eq tag_sb3 input
-    in ruleTrans s1 (congR natEqF (ap1 get_tag input) s2)
-
 ------------------------------------------------------------------------
 -- Tag-firing helpers.
 
@@ -340,36 +278,6 @@ private
         s2 = congL natEqF (natCode tag_sb) tag_eq_pf
         s3 : Deriv (eqF (ap2 natEqF (natCode tag_mp) (natCode tag_sb)) O)
         s3 = natEqF_at_neq tag_mp tag_sb witness_mp_neq_sb
-    in ruleTrans s1 (ruleTrans s2 s3)
-
-  isSb2_at_natCodeMp_O :
-    (input : Term) ->
-    Deriv (eqF (ap1 get_tag input) (natCode tag_mp)) ->
-    Deriv (eqF (ap1 isSb2 input) O)
-  isSb2_at_natCodeMp_O input tag_eq_pf =
-    let s1 : Deriv (eqF (ap1 isSb2 input)
-                         (ap2 natEqF (ap1 get_tag input) (natCode tag_sb2)))
-        s1 = isSb2_unfold input
-        s2 : Deriv (eqF (ap2 natEqF (ap1 get_tag input) (natCode tag_sb2))
-                         (ap2 natEqF (natCode tag_mp) (natCode tag_sb2)))
-        s2 = congL natEqF (natCode tag_sb2) tag_eq_pf
-        s3 : Deriv (eqF (ap2 natEqF (natCode tag_mp) (natCode tag_sb2)) O)
-        s3 = natEqF_at_neq tag_mp tag_sb2 witness_mp_neq_sb2
-    in ruleTrans s1 (ruleTrans s2 s3)
-
-  isSb3_at_natCodeMp_O :
-    (input : Term) ->
-    Deriv (eqF (ap1 get_tag input) (natCode tag_mp)) ->
-    Deriv (eqF (ap1 isSb3 input) O)
-  isSb3_at_natCodeMp_O input tag_eq_pf =
-    let s1 : Deriv (eqF (ap1 isSb3 input)
-                         (ap2 natEqF (ap1 get_tag input) (natCode tag_sb3)))
-        s1 = isSb3_unfold input
-        s2 : Deriv (eqF (ap2 natEqF (ap1 get_tag input) (natCode tag_sb3))
-                         (ap2 natEqF (natCode tag_mp) (natCode tag_sb3)))
-        s2 = congL natEqF (natCode tag_sb3) tag_eq_pf
-        s3 : Deriv (eqF (ap2 natEqF (natCode tag_mp) (natCode tag_sb3)) O)
-        s3 = natEqF_at_neq tag_mp tag_sb3 witness_mp_neq_sb3
     in ruleTrans s1 (ruleTrans s2 s3)
 
   isMp_at_natCodeMp_sO :
@@ -431,136 +339,45 @@ private
     in ruleTrans e1 (ruleTrans sub_isAx
          (ruleTrans cf_to_Snd (ruleTrans (cong1 Snd pi_eq) Snd_pi)))
 
-  sb_or_above_to_sb3_or_above :
+  sb_or_above_to_mp_or_above :
     (input : Term) ->
     Deriv (eqF (ap1 isSb input) O) ->
-    Deriv (eqF (ap1 sb_or_above input) (ap1 sb3_or_above input))
-  sb_or_above_to_sb3_or_above input isSb_O =
+    Deriv (eqF (ap1 sb_or_above input) (ap1 mp_or_above input))
+  sb_or_above_to_mp_or_above input isSb_O =
     let e1 :
           Deriv (eqF (ap1 sb_or_above input)
                       (ap2 condFork
-                        (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+                        (ap1 (C pi sb_branch_thmT mp_or_above) input)
                         (ap1 isSb input)))
         e1 = sb_or_above_unfold input
 
         sub_isSb :
           Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+                       (ap1 (C pi sb_branch_thmT mp_or_above) input)
                        (ap1 isSb input))
                       (ap2 condFork
-                       (ap1 (C pi sb_branch_thmT sb3_or_above) input) O))
+                       (ap1 (C pi sb_branch_thmT mp_or_above) input) O))
         sub_isSb =
-          congR condFork (ap1 (C pi sb_branch_thmT sb3_or_above) input) isSb_O
+          congR condFork (ap1 (C pi sb_branch_thmT mp_or_above) input) isSb_O
 
         cf_to_Snd :
           Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb_branch_thmT sb3_or_above) input) O)
-                      (ap1 Snd (ap1 (C pi sb_branch_thmT sb3_or_above) input)))
+                       (ap1 (C pi sb_branch_thmT mp_or_above) input) O)
+                      (ap1 Snd (ap1 (C pi sb_branch_thmT mp_or_above) input)))
         cf_to_Snd =
-          condFork_false (ap1 (C pi sb_branch_thmT sb3_or_above) input)
+          condFork_false (ap1 (C pi sb_branch_thmT mp_or_above) input)
 
         pi_eq :
-          Deriv (eqF (ap1 (C pi sb_branch_thmT sb3_or_above) input)
-                      (ap2 pi (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)))
-        pi_eq = pi_sb_sb3or_unfold input
+          Deriv (eqF (ap1 (C pi sb_branch_thmT mp_or_above) input)
+                      (ap2 pi (ap1 sb_branch_thmT input) (ap1 mp_or_above input)))
+        pi_eq = pi_sb_mpor_unfold input
 
         Snd_pi :
-          Deriv (eqF (ap1 Snd (ap2 pi (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)))
-                      (ap1 sb3_or_above input))
-        Snd_pi = axSnd (ap1 sb_branch_thmT input) (ap1 sb3_or_above input)
+          Deriv (eqF (ap1 Snd (ap2 pi (ap1 sb_branch_thmT input) (ap1 mp_or_above input)))
+                      (ap1 mp_or_above input))
+        Snd_pi = axSnd (ap1 sb_branch_thmT input) (ap1 mp_or_above input)
     in ruleTrans e1 (ruleTrans sub_isSb
          (ruleTrans cf_to_Snd (ruleTrans (cong1 Snd pi_eq) Snd_pi)))
-
-  sb3_or_above_to_sb2_or_above :
-    (input : Term) ->
-    Deriv (eqF (ap1 isSb3 input) O) ->
-    Deriv (eqF (ap1 sb3_or_above input) (ap1 sb2_or_above input))
-  sb3_or_above_to_sb2_or_above input isSb3_O =
-    let e1 :
-          Deriv (eqF (ap1 sb3_or_above input)
-                      (ap2 condFork
-                        (ap1 (C pi sb3_branch_thmT sb2_or_above) input)
-                        (ap1 isSb3 input)))
-        e1 = sb3_or_above_unfold input
-
-        sub_isSb3 :
-          Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb3_branch_thmT sb2_or_above) input)
-                       (ap1 isSb3 input))
-                      (ap2 condFork
-                       (ap1 (C pi sb3_branch_thmT sb2_or_above) input) O))
-        sub_isSb3 =
-          congR condFork (ap1 (C pi sb3_branch_thmT sb2_or_above) input) isSb3_O
-
-        cf_to_Snd :
-          Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb3_branch_thmT sb2_or_above) input) O)
-                      (ap1 Snd (ap1 (C pi sb3_branch_thmT sb2_or_above) input)))
-        cf_to_Snd =
-          condFork_false (ap1 (C pi sb3_branch_thmT sb2_or_above) input)
-
-        pi_eq :
-          Deriv (eqF (ap1 (C pi sb3_branch_thmT sb2_or_above) input)
-                      (ap2 pi (ap1 sb3_branch_thmT input) (ap1 sb2_or_above input)))
-        pi_eq = pi_sb3_sb2or_unfold input
-
-        Snd_pi :
-          Deriv (eqF (ap1 Snd (ap2 pi (ap1 sb3_branch_thmT input) (ap1 sb2_or_above input)))
-                      (ap1 sb2_or_above input))
-        Snd_pi = axSnd (ap1 sb3_branch_thmT input) (ap1 sb2_or_above input)
-    in ruleTrans e1 (ruleTrans sub_isSb3
-         (ruleTrans cf_to_Snd (ruleTrans (cong1 Snd pi_eq) Snd_pi)))
-
-  sb2_or_above_to_mp_or_above :
-    (input : Term) ->
-    Deriv (eqF (ap1 isSb2 input) O) ->
-    Deriv (eqF (ap1 sb2_or_above input) (ap1 mp_or_above input))
-  sb2_or_above_to_mp_or_above input isSb2_O =
-    let e1 :
-          Deriv (eqF (ap1 sb2_or_above input)
-                      (ap2 condFork
-                        (ap1 (C pi sb2_branch_thmT mp_or_above) input)
-                        (ap1 isSb2 input)))
-        e1 = sb2_or_above_unfold input
-
-        sub_isSb2 :
-          Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb2_branch_thmT mp_or_above) input)
-                       (ap1 isSb2 input))
-                      (ap2 condFork
-                       (ap1 (C pi sb2_branch_thmT mp_or_above) input) O))
-        sub_isSb2 =
-          congR condFork (ap1 (C pi sb2_branch_thmT mp_or_above) input) isSb2_O
-
-        cf_to_Snd :
-          Deriv (eqF (ap2 condFork
-                       (ap1 (C pi sb2_branch_thmT mp_or_above) input) O)
-                      (ap1 Snd (ap1 (C pi sb2_branch_thmT mp_or_above) input)))
-        cf_to_Snd =
-          condFork_false (ap1 (C pi sb2_branch_thmT mp_or_above) input)
-
-        pi_eq :
-          Deriv (eqF (ap1 (C pi sb2_branch_thmT mp_or_above) input)
-                      (ap2 pi (ap1 sb2_branch_thmT input) (ap1 mp_or_above input)))
-        pi_eq = pi_sb2_mpor_unfold input
-
-        Snd_pi :
-          Deriv (eqF (ap1 Snd (ap2 pi (ap1 sb2_branch_thmT input) (ap1 mp_or_above input)))
-                      (ap1 mp_or_above input))
-        Snd_pi = axSnd (ap1 sb2_branch_thmT input) (ap1 mp_or_above input)
-    in ruleTrans e1 (ruleTrans sub_isSb2
-         (ruleTrans cf_to_Snd (ruleTrans (cong1 Snd pi_eq) Snd_pi)))
-
-  sb_or_above_to_mp_or_above :
-    (input : Term) ->
-    Deriv (eqF (ap1 isSb input) O) ->
-    Deriv (eqF (ap1 isSb3 input) O) ->
-    Deriv (eqF (ap1 isSb2 input) O) ->
-    Deriv (eqF (ap1 sb_or_above input) (ap1 mp_or_above input))
-  sb_or_above_to_mp_or_above input isSb_O isSb3_O isSb2_O =
-    ruleTrans (sb_or_above_to_sb3_or_above input isSb_O)
-      (ruleTrans (sb3_or_above_to_sb2_or_above input isSb3_O)
-                  (sb2_or_above_to_mp_or_above input isSb2_O))
 
   mp_or_above_to_mp :
     (input : Term) ->
@@ -936,12 +753,6 @@ thmT_at_mp cPImpIdx cAIdx cImpVal cAVal ih1 ih2 wf_tag wf_ant =
       isSb_value : Deriv (eqF (ap1 isSb input_pkg') O)
       isSb_value = isSb_at_natCodeMp_O input_pkg' get_tag_value
 
-      isSb3_value : Deriv (eqF (ap1 isSb3 input_pkg') O)
-      isSb3_value = isSb3_at_natCodeMp_O input_pkg' get_tag_value
-
-      isSb2_value : Deriv (eqF (ap1 isSb2 input_pkg') O)
-      isSb2_value = isSb2_at_natCodeMp_O input_pkg' get_tag_value
-
       isMp_value : Deriv (eqF (ap1 isMp input_pkg') (ap1 s O))
       isMp_value = isMp_at_natCodeMp_sO input_pkg' get_tag_value
 
@@ -951,7 +762,7 @@ thmT_at_mp cPImpIdx cAIdx cImpVal cAVal ih1 ih2 wf_tag wf_ant =
 
       sbor_to_mpor :
         Deriv (eqF (ap1 sb_or_above input_pkg') (ap1 mp_or_above input_pkg'))
-      sbor_to_mpor = sb_or_above_to_mp_or_above input_pkg' isSb_value isSb3_value isSb2_value
+      sbor_to_mpor = sb_or_above_to_mp_or_above input_pkg' isSb_value
 
       mpor_to_mp :
         Deriv (eqF (ap1 mp_or_above input_pkg') (ap1 mp_branch_thmT input_pkg'))
@@ -1469,12 +1280,6 @@ imp_thmT_at_mp P cPImpIdx cAIdx cImpVal cAVal imp_ih1 imp_ih2 wf_tag wf_ant =
     isSb_value : Deriv (eqF (ap1 isSb input_pkg') O)
     isSb_value = isSb_at_natCodeMp_O input_pkg' get_tag_value
 
-    isSb3_value : Deriv (eqF (ap1 isSb3 input_pkg') O)
-    isSb3_value = isSb3_at_natCodeMp_O input_pkg' get_tag_value
-
-    isSb2_value : Deriv (eqF (ap1 isSb2 input_pkg') O)
-    isSb2_value = isSb2_at_natCodeMp_O input_pkg' get_tag_value
-
     isMp_value : Deriv (eqF (ap1 isMp input_pkg') (ap1 s O))
     isMp_value = isMp_at_natCodeMp_sO input_pkg' get_tag_value
 
@@ -1484,7 +1289,7 @@ imp_thmT_at_mp P cPImpIdx cAIdx cImpVal cAVal imp_ih1 imp_ih2 wf_tag wf_ant =
 
     sbor_to_mpor :
       Deriv (eqF (ap1 sb_or_above input_pkg') (ap1 mp_or_above input_pkg'))
-    sbor_to_mpor = sb_or_above_to_mp_or_above input_pkg' isSb_value isSb3_value isSb2_value
+    sbor_to_mpor = sb_or_above_to_mp_or_above input_pkg' isSb_value
 
     mpor_to_mp :
       Deriv (eqF (ap1 mp_or_above input_pkg') (ap1 mp_branch_thmT input_pkg'))

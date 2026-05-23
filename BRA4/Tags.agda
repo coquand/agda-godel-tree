@@ -74,9 +74,3 @@ tag_mp   = 3
 
 tag_ind  : Nat
 tag_ind  = 4
-
-tag_sb2  : Nat
-tag_sb2  = 5
-
-tag_sb3  : Nat
-tag_sb3  = 6

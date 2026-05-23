@@ -54,12 +54,11 @@ open import BRA4.Tags
 open import BRA4.Code
 open import BRA4.CoVSpec
 open import BRA4.SbF  using ( sbf )
--- NOTE: the  tag_sb2 / tag_sb3  dispatch branches are now DEAD (no encoding
--- emits those tags; all simultaneous substitutions were rewritten to nested
--- single-sb wraps -- see project_bra4_eliminate_sbt2_sbt3_consumers_done).
--- Their bodies are repointed from sbf2/sbf3 to plain sbf so the SbF2/SbF3
--- stacks can be deleted.  The cascade SHAPE is unchanged, so the dispatch
--- navigation lemmas (ThmTAtSb / ThmTAtMp / ThmTAtInd) are unaffected.
+-- NOTE: the old  tag_sb2 / tag_sb3  dispatch branches (used by the now-deleted
+-- sbf2/sbf3 simultaneous-substitution functors) have been REMOVED.  Every
+-- simultaneous substitution was rewritten to nested single-sb wraps -- see
+-- project_bra4_eliminate_sbt2_sbt3_consumers_done -- so the cascade now runs
+-- ax / sb / mp / ind only.
 open import BRA4.SbT using
   ( get_K ; get_inner ; get_table ; get_newK ; get_tag ; get_body
   ; lookupAt )
@@ -200,12 +199,6 @@ isAx = C natEqF get_tag (constN tag_ax)
 
 isSb : Fun1
 isSb = C natEqF get_tag (constN tag_sb)
-
-isSb2 : Fun1
-isSb2 = C natEqF get_tag (constN tag_sb2)
-
-isSb3 : Fun1
-isSb3 = C natEqF get_tag (constN tag_sb3)
 
 isMp : Fun1
 isMp = C natEqF get_tag (constN tag_mp)
@@ -523,18 +516,6 @@ get_sb_proof_val = lookupAt get_sb_proof_idx
 sb_branch_thmT : Fun1
 sb_branch_thmT = C sbf get_sb_spec get_sb_proof_val
 
--- sb2 / sb3 branches : same body shape pi cSpec cProofIdx as sb, but
--- with the 2-var / 3-var simultaneous-substitution functor sbf2 / sbf3
--- respectively.  The spec is the full pair-encoded 2- or 3-variable
--- specification (pi (pi (natCode k1) S1) (pi (natCode k2) S2) for sb2 ;
--- analogous 3-deep for sb3).  sub_proof_val is looked up the same way.
-
-sb2_branch_thmT : Fun1
-sb2_branch_thmT = C sbf get_sb_spec get_sb_proof_val
-
-sb3_branch_thmT : Fun1
-sb3_branch_thmT = C sbf get_sb_spec get_sb_proof_val
-
 ------------------------------------------------------------------------
 -- Section 8.  mp_branch_thmT .
 --
@@ -657,14 +638,8 @@ ind_or_else = C condFork (C pi ind_branch_thmT else_branch_thmT) isInd
 mp_or_above : Fun1
 mp_or_above = C condFork (C pi mp_branch_thmT ind_or_else) isMp
 
-sb2_or_above : Fun1
-sb2_or_above = C condFork (C pi sb2_branch_thmT mp_or_above) isSb2
-
-sb3_or_above : Fun1
-sb3_or_above = C condFork (C pi sb3_branch_thmT sb2_or_above) isSb3
-
 sb_or_above : Fun1
-sb_or_above = C condFork (C pi sb_branch_thmT sb3_or_above) isSb
+sb_or_above = C condFork (C pi sb_branch_thmT mp_or_above) isSb
 
 stepBody_thmT : Fun1
 stepBody_thmT = C condFork (C pi ax_branch_thmT sb_or_above) isAx
