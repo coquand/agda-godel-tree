@@ -6,17 +6,18 @@ equational system on binary trees with explicit substitution and
 primitive recursion (Guard, *Lecture notes on recursive arithmetic*,
 Argonne, 1963).
 
-The headline results, in `BRA2/GoedelIIFull.agda` (and
-`BRA2/Thm11.agda`):
+The headline results sit in `BRA4/GoedelI.agda` and
+`BRA4/Thm/Thm14GodelII.agda`:
 
 ```agda
-thm11   : Deriv G   -> Deriv bot   -- Goedel I
-godelII : Deriv Con -> Deriv bot   -- Goedel II
+godelI  : Deriv G          -> Deriv P_false   -- Goedel I
+godelII : Deriv ConSchema  -> Deriv falseF    -- Goedel II
 ```
 
 If the diagonal sentence `G` is provable in BRA, BRA is inconsistent;
-likewise if BRA's encoding of its own consistency `Con` is provable in
-BRA, BRA is inconsistent.  Constructive, Agda-checked, no postulates.
+likewise if BRA's encoding of its own consistency `ConSchema` is
+provable in BRA, BRA is inconsistent.  Constructive, Agda-checked, no
+postulates.
 
 A crucial ingredient (easy to miss in the source) is the asymmetric
 role of the numeral function `num` / `cor` (= Guard's underline
@@ -26,31 +27,36 @@ BRA term (the term "`f` applied to the numeral of `x`"), but
 \*not\* the code of any such syntactic term.  Theorem 12 internalises
 the equation between these two trees inside BRA, and that bridge is
 what makes the whole Goedel II chain go through.  See
-`BRA2/godelI-II-summary.tex`, section "Numerals: the asymmetry…".
+`BRA4/goedelII-summary.tex`, section "Numerals: the asymmetry…".
 
 A further conceptual point is that intermediate steps of Theorem 14
 prove `Deriv (atomic (eqn (thmT t) u))` where `u` is *not*
 `codeFormula P` for any formula `P` — the chain manipulates
 substituted-codes (with `cor x` placed in variable slots) through
 ordinary BRA equational reasoning, only collapsing to a literal
-`codeFormula bot` at the closure.  See `BRA2/godelI-II-summary.tex`,
+`codeFormula falseF` at the closure.  See `BRA4/goedelII-summary.tex`,
 section "What is going on at the encoded layer: a remarkable internal
 proof".
 
-For the mathematical write-up see `BRA2/godelI-II-summary.tex` (compile
-to `godelI-II-summary.pdf`).
+For the mathematical write-up see `BRA4/goedelII-summary.tex` (compile
+to `goedelII-summary.pdf`).
 
 ## Edition
 
-This repository tracks the **BRA2 edition** of the development.  BRA2
-collapses the prior Layer-1 / Layer-2 split (separate `Term` and
-`Tree` datatypes) into a single `Term` datatype with an
-`IsValue : Term -> Set` predicate certifying value-shape (codes are
-exactly value-shaped Terms).  The map `reify : Tree -> Term` of the
-prior edition is now the identity; substantive math is unchanged.
+This repository tracks the **BRA4 edition** of the development.  BRA4
+keeps the single-`Term` setup of the prior BRA2 edition (codes are
+exactly value-shaped Terms via an `IsValue : Term -> Set` predicate,
+with `reify : Tree -> Term` collapsed to the identity) and adds, on
+top of the diagonal G2 chain, the infrastructure for the Chaitin /
+Kritchman–Raz route to a second proof of G2: a universal step-
+interpreter `evalU` with its mu-loop, the open Π₁ Kolmogorov formula
+`Kgt`, the object-N pigeonhole engine `CountingObj`, and the
+Parsons-Skolemised Σ₁-induction skeleton (`SpikeParsons`, `SpikeD`).
+The diagonal `godelII` ships unconditionally; the Chaitin/KR route is
+an independent, second-pass enrichment.
 
-The legacy BRA edition is preserved on disk under `BRA/` for
-reference but is not tracked in git.
+Earlier editions (`BRA/`, `BRA2/`) are preserved on disk under their
+own directories for reference but are not tracked in git.
 
 ## Discipline
 
@@ -62,41 +68,35 @@ reference but is not tracked in git.
 - camelCase for every let-binding (mid-identifier `_` collides with
   Agda's mixfix grammar).
 
-## What's in `BRA2/`
+## What's in `BRA4/`
 
-The Agda development sits entirely under `BRA2/`.  Headline modules:
+The Agda development sits entirely under `BRA4/`.  Headline modules:
 
 | File                                    | Role                                                          |
 |-----------------------------------------|---------------------------------------------------------------|
-| `BRA2/GoedelIIFull.agda`                | Top-level `godelII : Deriv Con -> Deriv bot` (unconditional). |
-| `BRA2/GoedelII.agda`                    | Compose module: takes the Theorem 14 contract, produces godelII. |
-| `BRA2/Thm14Abstract.agda`               | Abstract Theorem 14 tower (Guard's section 3.5).              |
-| `BRA2/Th14Step5.agda`                   | Concrete `constr5_final` + `step5_l`.                         |
-| `BRA2/Thm12.agda`, `BRA2/Thm12/…`       | Theorem 12 closure (15 Param + Parts pairs).                  |
-| `BRA2/Thm/ThmT.agda`                    | The proof checker `thmT` and all `thmTDispX` dispatchers.     |
-| `BRA2/Sound*VProof.agda`                | Verifying bodies + eval-pass lemmas (sound `thmT`).           |
-| `BRA2/Base.agda`, `Term.agda`, `Formula.agda`, `Deriv.agda` | Base system: terms, formulas, derivability, the `IsValue` predicate. |
+| `BRA4/GoedelI.agda`                     | Goedel I: `godelI : Deriv G -> Deriv P_false`.                |
+| `BRA4/Thm/Thm14GodelII.agda`            | Goedel II: `godelII : Deriv ConSchema -> Deriv falseF`.       |
+| `BRA4/Thm/Thm14.agda`, `Thm14F.agda`, `Thm14Step1..5.agda` | The Theorem 14 cascade (Guard's section 3.5).  |
+| `BRA4/Thm12.agda`, `BRA4/Thm12/…`       | Theorem 12 closure (15 Param + Parts pairs).                  |
+| `BRA4/ThmT.agda`, `BRA4/ThmTAt*.agda`   | The proof checker `thmT` and the per-rule dispatchers.        |
+| `BRA4/Base.agda`, `Code.agda`, `Tags.agda` | Base re-exports, formula/term codes, dispatcher tags.      |
+| `BRA4/EvalU.agda`, `EvalUStep.agda`, `EvalUCorrect.agda`, `EvalUMu.agda` | Universal step-interpreter + mu-loop (Chaitin route). |
+| `BRA4/KFormula.agda`, `KRecog.agda`, `KOut.agda`, `KSearch.agda`, `KClash.agda`, `KGodel1.agda`, `KDiag.agda` | The open Π₁ Kolmogorov formula `Kgt` and the conditional Chaitin G1 barrier. |
+| `BRA4/CountingObj.agda`                 | The object-`N` pigeonhole engine (KR-C/KR-D counting).        |
+| `BRA4/goedelII-summary.tex`             | Mathematical write-up.                                        |
 
 ### Sound `thmT`
 
-The verifying-body cascade in `BRA2/Sound*` ensures that for every
-inductive premise-consuming dispatcher `X` (`mp`, `ruleInst`,
-`ruleSym`, `cong1`, `congL`, `congR`, `ruleTrans`, `ruleInst2`,
-`ruleIndBT`), the body `body_X` is a verifying variant `body_X_v` of
-the form
-
-```
-body_X_v = Post verifierX Pair
-verifierX = Comp2 IfLf <discriminant> (Comp2 Pair (KT codeTriv) <assembly>)
-```
-
-On a malformed input the discriminant is a leaf and the body outputs
-`codeTriv = falseT = code(0=0)`; on a Pair-shaped (well-formed) input
-the body assembles the conclusion code as before.  Consequence:
-`thmT(y)` is provably either `codeFormula(P)` for some formula `P`, or
-the explicit safe default `codeTriv`.  In particular `thmT(y) ≠
-codeFormula(bot)` for any `y` unless BRA is actually inconsistent, so
-`Con` carries its intended meaning.
+The verifier `BRA4/ThmT.agda` together with its per-rule dispatchers
+(`BRA4/ThmTAt*.agda`) is a validating decoder: on any input it returns
+either `codeFormula(P)` for some derivable formula `P`, or the
+explicit safe default `codeTriv = code(0=0)`.  Each premise-consuming
+dispatcher (`mp`, `ruleInst`, `ruleSym`, `cong1`, `congL`, `congR`,
+`ruleTrans`, `ruleInst2`, `ruleIndNat`, …) discriminates the input
+shape, returns `codeTriv` on a malformed cell, and only otherwise
+assembles the conclusion code.  Consequence: `thmT(y) ≠
+codeFormula(falseF)` for any `y` unless BRA is actually inconsistent,
+so `ConSchema` carries its intended meaning.
 
 ## Build
 
@@ -104,25 +104,27 @@ Requires Agda 2.7+ (the development is checked under both 2.7 and
 2.9.0).
 
 ```sh
-agda --safe BRA2/GoedelIIFull.agda
+agda --safe BRA4/Thm/Thm14GodelII.agda    # Goedel II (the headline)
+agda --safe BRA4/GoedelI.agda             # Goedel I
 ```
 
-Cold rebuild takes ~30 s on a recent laptop; cached typechecks of the
-headline file are under 1 s.  No postulates, no holes:
+Cold rebuild of the headline chain takes ~30 s on a recent laptop;
+cached typechecks are under 1 s.  No postulates, no holes:
 
 ```sh
-$ grep -rn '^postulate' BRA2/   # empty
-$ ls BRA2/GoedelIIFull.agdai    # exists after build
+$ grep -rn '^postulate' BRA4/   # empty
+$ ls BRA4/Thm/Thm14GodelII.agdai # exists after build
 ```
 
 ## Repository layout
 
 | Path                              | Status                                                             |
 |-----------------------------------|--------------------------------------------------------------------|
-| `BRA2/`                           | The active codebase (tracked).                                     |
-| `BRA2/godelI-II-summary.tex`      | Project paper (tracked).                                           |
+| `BRA4/`                           | The active codebase (tracked).                                     |
+| `BRA4/goedelII-summary.tex`       | Project paper (tracked).                                           |
+| `bra-godelII.tex`                 | Top-level project writeup (tracked).                               |
 | `README.md`                       | This file (tracked).                                               |
-| `BRA/`                            | Legacy BRA edition (untracked, kept on disk for reference).        |
+| `BRA/`, `BRA2/`                   | Legacy editions (untracked, kept on disk for reference).           |
 | `old/`                            | Legacy Agda, tex, notes, scratch — not tracked, kept on disk only. |
 
 The reference PDFs (Rose, Ryan, Simmons, guard15, Guard 1963 lecture
