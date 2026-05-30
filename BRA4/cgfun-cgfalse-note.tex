@@ -1,0 +1,286 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+
+\newcommand{\Term}{\mathrm{Term}}
+\newcommand{\Deriv}{\mathsf{Deriv}}
+\newcommand{\thmT}{\mathsf{thmT}}
+\newcommand{\evalU}{\mathsf{evalU}}
+\newcommand{\parse}{\mathsf{parse}}
+\newcommand{\Kcode}{\mathsf{Kcode}}
+\newcommand{\outK}{\mathsf{outKdef}}
+\newcommand{\closeW}{\mathsf{closeW}}
+\newcommand{\codeFalse}{\mathsf{codeFalse}}
+\newcommand{\codeF}{\mathsf{code}}
+\newcommand{\num}{\mathsf{num}}
+\newcommand{\Fun}[1]{\mathsf{Fun}_{#1}}
+\newcommand{\cgFun}{\mathsf{cgFun}}
+\newcommand{\cgFalse}{\mathsf{cgFalse}}
+\newcommand{\CGIcore}{\mathsf{CGI\_core\_num\_raw}}
+\newcommand{\CGIcoreself}{\mathsf{CGI\_core\_num\_raw\_self}}
+\newcommand{\Construct}{\mathsf{Construct}}
+\newcommand{\Discharge}{\mathsf{DischargeKdef}}
+\newcommand{\Chain}{\mathsf{ChainKdef}}
+\newcommand{\Lstar}{L^{\!\star}}
+\newcommand{\kmax}{k_{\max}}
+\newcommand{\Sig}{\Sigma}
+
+\title{Chaitin--G\"odel I in BRA4:\\
+  a uniform-in-$w$ contradiction map}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Chaitin's argument, recalled}
+
+Chaitin's proof of G\"odel's first incompleteness theorem~\cite{Chaitin1971,Chaitin1974}
+runs as follows. Fix a sound theory $T$ that interprets enough arithmetic, and fix a
+universal partial computable interpreter $U$ with a Kolmogorov-complexity bound
+$K_U(x) := \min\{|p| : U(p)\downarrow = x\}$. There is a constant $c$
+(depending only on $T$ and $U$) such that, for every $\Lstar$ and every
+integer $x'$,
+\[
+  T \vdash K_U(\underline{x'}) > \Lstar
+  \quad\Longrightarrow\quad
+  \text{$T$ is inconsistent, provided } \Lstar > c + \log \Lstar.
+\]
+The contradiction is exhibited by a single short program $g_{\Lstar}$:
+enumerate $\thmT(0), \thmT(1), \dots$ until a proof of the form
+$\codeF{K_U(\underline{?}) > \Lstar}$ is found, then output the
+witnessed integer~$x'$. The size of $g_{\Lstar}$ is $c + \log \Lstar$,
+strictly below $\Lstar$, so the very witness $x'$ that $T$ proves to be
+$K_U$-incompressible is itself $g_{\Lstar}$-output --- a contradiction
+to the size lemma internal to $T$.
+
+\section{The BRA4 formalisation: three layers}
+
+\subsection{The core: \texorpdfstring{$\CGIcore$}{CGI core num-raw}}
+
+The shipped core theorem (commit \texttt{2fce05d},
+\texttt{BRA4/ChaitinG1CoreNumRaw.agda}) is:
+\begin{align*}
+  \CGIcore :{}
+    & (w\ x : \Term) \to {} \\
+    & \Deriv\,(\mathsf{eqF}\,(\thmT\,w)\,(\Kcode_{\Lstar}\,x)) \to {} \\
+    & \Sig\,\Term\,(\lambda z.\, \Deriv\,(\mathsf{eqF}\,(\thmT\,z)\,\codeFalse)).
+\end{align*}
+No closure hypothesis on $w$, no \textsf{isNat}, no $\mathrm{Con}(T)$. The
+``small program'' $g_{\Lstar}$ is realised by the closed BRA function
+\texttt{gLcodeDef}~$\Lstar$; the search by \texttt{FirstHit.Search.gRec};
+the universal interpreter by \texttt{evalU}; the chain of operational
+steps closing $\evalU$ on \texttt{gLcodeDef}'s mu-loop by
+\texttt{ChainKdef.dEval\_witness}; the size atom by
+\texttt{dLenStarDef}. The output $z(w)$ is
+\[
+  \mathsf{cmp}\,
+    (\mathsf{cmp}\,(\mathsf{exfProof}\,(\mathsf{D}\,g_L\,n_0\,x')\,\codeFalse)\,
+                    \mathsf{cPos})\,
+    (\mathsf{cmp}\,\mathsf{outerWrap}\,\mathsf{cSizeProofDef}),
+\]
+i.e.\ a literal encoded modus-ponens / ex-falso assembly.
+
+\subsection{The $x$-free form: \texorpdfstring{$\CGIcoreself$}{CGI core num-raw self}}
+
+Whether $\thmT\,w$ has the form $\Kcode_{\Lstar}\,(\_)$ is read off by
+the BRA function $\outK_{\Lstar} = \mathsf{decode}\,\circ\,
+\mathsf{projKdef}\,\circ\,\thmT$. Hence the parameter $x$ in the
+hypothesis is redundant: it can only be $\outK_{\Lstar}\,w$. The
+self-referential form, shipped in
+\texttt{BRA4/ChaitinG1CoreNumRawSelf.agda}, is
+\begin{align*}
+  \CGIcoreself :{}
+    & (w : \Term) \to {} \\
+    & \Deriv\,(\mathsf{eqF}\,(\thmT\,w)\,(\Kcode_{\Lstar}\,(\outK_{\Lstar}\,w))) \to {} \\
+    & \Sig\,\Term\,(\lambda z.\, \Deriv\,(\mathsf{eqF}\,(\thmT\,z)\,\codeFalse)),
+\end{align*}
+and the proof is one line:
+$\CGIcoreself\,w\,h := \CGIcore\,w\,(\outK_{\Lstar}\,w)\,h$.
+
+\subsection{The decomposition: $\cgFun$ and $\cgFalse$}
+
+The $\Sigma$-payload above naturally factors as
+\[
+  \cgFun_{*} : (w : \Term) \to \Deriv(\dots) \to \Term,
+  \qquad
+  \cgFalse_{*} : (w : \Term)\,(d : \dots) \to \Deriv(\mathsf{eqF}\,(\thmT\,(\cgFun_{*}\,w\,d))\,\codeFalse),
+\]
+the two field projections of $\Sigma$. The first observation is that
+the produced \emph{Term} is in fact $d$-independent: every Term passing
+through \texttt{DischargeKdef} / \texttt{ChainKdef} /
+\texttt{cgiClash} is built from $\closeW\,w$ and a finite set of
+constants (the BRA combinators \texttt{gRec}, \texttt{predFlipDef}~$\Lstar$,
+\texttt{outKdef}~$\Lstar$, \texttt{runProg}, \texttt{fuelMu\_fun},
+\texttt{fuelG}, \texttt{thm12\_Fun2}~\texttt{runProg}, and the
+tag-/pi-/sb-encoding constants). This is because
+$\mathsf{leastNumber}\,B\,\textit{witness}
+   = \mathsf{mkLeast}\,(\mathsf{g}\,(s\,B))\,\dots$
+discards the witness for its first component (the Term $\kmax$),
+and the witness Derivs are only used to construct the proof half
+\textit{isPf}, not the Term \textit{pf}.
+
+The shipped file \texttt{BRA4/CgFun.agda} therefore exposes a uniform-in-$w$
+meta-Agda function
+\[
+  \cgFun : \Term \to \Term
+\]
+defined by replicating, in a single let-chain, the construction
+\begin{align*}
+  \mathit{cw} &:= \closeW\,w \\
+  \kmax       &:= \mathsf{gRec}\,O\,(s\,\mathit{cw}) \\
+  x'          &:= \outK_{\Lstar}\,\kmax \\
+  n_T         &:= \text{(sigma-pile fuel in }\kmax,\,
+                    \mathsf{fuelMu\_fun}\,\kmax\,\kmax,\,
+                    \mathsf{fuelG}\,\kmax\,O\text{)} \\
+  \cgFun\,w   &:= \mathsf{cmp}\,
+                  (\mathsf{cmp}\,(\mathsf{exfProof}\,D\,\codeFalse)\,\mathsf{cPos})\,
+                  (\mathsf{cmp}\,\mathsf{outerWrap}\,\mathsf{cSizeProofDef}),
+\end{align*}
+where $D$, $\mathsf{cPos}$, $\mathsf{outerWrap}$ are the let-bound
+syntactic functions of $\kmax$, $n_T$, $x'$ documented inside the
+file. The companion theorem is
+\begin{align*}
+  \cgFalse :{}
+    & (w : \Term) \to {} \\
+    & \Deriv\,(\mathsf{eqF}\,(\thmT\,w)\,(\Kcode_{\Lstar}\,(\outK_{\Lstar}\,w))) \to {} \\
+    & \Deriv\,(\mathsf{eqF}\,(\thmT\,(\cgFun\,w))\,\codeFalse),
+\end{align*}
+whose proof is the second $\Sigma$-projection
+$\cgFalse\,w\,d := \mathsf{snd}\,(\CGIcoreself\,w\,d)$, with the bridge
+$\cgFun\,w \equiv \mathsf{fst}\,(\CGIcoreself\,w\,d)$ holding by
+$\mathsf{refl}$ thanks to Agda's let-substitution and record-projection
+unfolding.
+
+\section{The subtlety: internal evaluation semantics and the correctness proof}
+
+\subsection{$\cgFun$ is a meta function, not a $\Fun{1}$}
+
+The reader might hope for $\cgFun : \Fun{1}$, i.e.\ an element of the
+BRA syntactic algebra $\{s, o, u, C\}$ over $\Fun{2} = \{v, R\}$. This
+is provably \emph{not possible} for the present construction. The Term
+$\cgFun\,w$ contains $\closeW\,w := \mathsf{substT}\,0\,O\,
+(\mathsf{substT}\,1\,O\,w)$, a meta-Agda function that pattern-matches
+on the constructor of $w$:
+\[
+  \closeW\,(\mathsf{var}\,0) = O,
+  \quad \closeW\,(\mathsf{var}\,5) = \mathsf{var}\,5.
+\]
+A BRA $\Fun{1}\,f$ over $\{s, o, u, C\}$ applied to $w$ yields a Term
+$\mathsf{ap}_1\,f\,w$ whose structure is fixed by $f$ and which can
+only \emph{embed} $w$ at fixed leaf positions; it cannot dispatch on
+$w$'s head constructor. The two witnesses
+$w \in \{\mathsf{var}\,0,\,\mathsf{var}\,5\}$ already force any
+candidate to produce different shapes ($O$ vs.\ $\mathsf{var}\,5$),
+which no closed combinator tree achieves. The closeW step is therefore
+intrinsically meta-level.
+
+The object-level substitution $\mathsf{sbt} : \Fun{2}$ shipped in
+\texttt{BRA4.SbT} does not help: $\mathsf{sbt}$ acts on the Cantor
+\emph{encoding} of Terms (firing on $\mathsf{ap}_2\,\mathsf{Pair}\,
+(\mathsf{natCode}\,\mathsf{tag\_var})\,(\mathsf{natCode}\,k)$, not on
+raw $\mathsf{var}\,k$).
+
+\subsection{Why $\closeW$ is needed in the first place}
+
+The module \texttt{BRA4.StepU2MuCorrect.Construct} that internally
+proves the mu-loop run
+\[
+  \mathsf{runs\_mu} :
+    \Deriv\bigl(\mathsf{iter}\,\mathsf{step}\,
+        (\mathsf{cfgEV}\,(\mathsf{mcodeMu}\,(\mathsf{mcode1}\,g_F))\,
+                          x_{\mathrm{outer}}\,K_0)\,
+        (\mathsf{fuel})
+      = \mathsf{cfgRT}\,\kmax\,K_0\bigr)
+\]
+requires three meta-level closedness conditions on its $\kmax$ parameter:
+\begin{align*}
+  k_{\max\_\mathsf{sub}_0} &: (a : \Term) \to \kmax[0 := a] = \kmax \\
+  k_{\max\_\mathsf{sub}_1} &: (a : \Term) \to \kmax[1 := a] = \kmax \\
+  k_{\max\_\mathsf{sim}}   &: (a\,b : \Term) \to \kmax[\![0 := a,\,1 := b]\!] = \kmax
+\end{align*}
+(all are \emph{meta} $\mathsf{Eq}$, not $\Deriv$). These are consumed
+by $\mathsf{eqSubst}$-transports inside the
+$\mathsf{ruleIndNat}$-with-substituted-motive proof of $\mathsf{runs\_mu}$.
+
+Since $\kmax = \mathsf{gRec}\,O\,(s\,(\closeW\,w))$, structural
+induction on $w$ (in \texttt{BRA4.CloseW}) discharges all three
+conditions for $\closeW\,w$. Without $\closeW$, the conditions fail at,
+e.g., $w := \mathsf{var}\,0$.
+
+\subsection{The internal evaluation correctness chain}
+
+The $\Deriv$-half $\cgFalse$ relies on closing the chain
+\[
+  \evalU\,(\parse\,\mathsf{gLnameDef})\,n_T
+    \stackrel{?}{=} s\,(\outK_{\Lstar}\,\kmax)
+\]
+through seven internal segments (\texttt{ChainKdef}):
+\texttt{stepU\_at\_evC}, \texttt{runs\_mu}, \texttt{stepU\_at\_rtC1},
+\texttt{stepU\_at\_evU}, \texttt{stepU\_at\_rtApp2},
+\texttt{runs2}\,$(\mathsf{Lift1}\,\outK_{\Lstar})$,
+\texttt{stepU\_at\_rtEmpty}, glued by \texttt{iter\_add\_T}'s
+fuel-composition lemma. This run is then internalised as the
+\textsf{thmT}-fact
+\[
+  \thmT\,\mathsf{cPos} \stackrel{\Deriv}{=}
+    \codeF{\mathsf{runProg}\,g_L\,n_T = s\,x'}
+\]
+via \texttt{Thm 13} (singulary). The negative leg
+$\thmT\,(\mathsf{cmp}\,\mathsf{outerWrap}\,\mathsf{cSize}) =
+\mathsf{cNeg}\,\codeF{\mathsf{runProg}\,g_L\,n_T = s\,x'}$ is obtained
+from the hypothesis on $w$ by two $\mathsf{thmT\_at\_sb}$
+substitutions (\texttt{passK}) followed by $\mathsf{encoded\_mp}$
+against \texttt{dLenStarDef}'s size atom. The clash is then a single
+$\mathsf{encoded\_mp}\,/\,\mathsf{encoded\_exfalso}$ pair.
+
+\subsection{No consistency hypothesis}
+
+Chaitin's original argument concludes ``$T$ is inconsistent'' (in the
+metatheory). The BRA4 formalisation strengthens this: the conclusion
+is an \emph{internal} $\Deriv\,(\thmT\,(\cgFun\,w) = \codeFalse)$,
+i.e.\ a BRA derivation that the constructed code $\cgFun\,w$ is a
+$T$-proof of $0=1$. No $\mathrm{Con}(T)$ premise is consumed, no
+\textsf{isNat} integrality predicate is consumed, and the whole
+self-referential firing condition is stated in $\num$-raw form (the
+subject slot is $\num\,x'$ for an arbitrary Term $x'$, no integrality
+required to align with the read-back).
+
+\section{Files}
+
+\begin{itemize}
+\item \texttt{BRA4/ChaitinG1CoreNumRaw.agda} --- $\CGIcore$
+  ($x$-parametric form, the workhorse).
+\item \texttt{BRA4/ChaitinG1CoreNumRawSelf.agda} --- $\CGIcoreself$
+  (the $x$-free, self-referential form, one-line specialisation of
+  the workhorse).
+\item \texttt{BRA4/CgFun.agda} --- $\cgFun : \Term \to \Term$ and
+  $\cgFalse$, the $\Sigma$-decomposition.
+\item \texttt{BRA4/CloseW.agda} --- the three structural-induction
+  lemmas $\mathsf{cl\_w\_sub}_0, \mathsf{cl\_w\_sub}_1,
+  \mathsf{cl\_w\_sim}$ enabling the $\Construct$ closure conditions
+  at $\kmax(w)$.
+\end{itemize}
+
+All files typecheck under \texttt{--safe --without-K --exact-split}
+with no holes and no postulates.
+
+\begin{thebibliography}{9}
+
+\bibitem{Chaitin1971}
+G.~J. Chaitin, ``Computational complexity and G\"odel's incompleteness theorem,''
+\emph{ACM SIGACT News}, no.~9, pp.~11--12, 1971.
+
+\bibitem{Chaitin1974}
+G.~J. Chaitin, ``Information-theoretic limitations of formal systems,''
+\emph{Journal of the ACM}, vol.~21, no.~3, pp.~403--424, 1974.
+
+\end{thebibliography}
+
+\end{document}
