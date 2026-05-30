@@ -19,9 +19,10 @@ open import BRA4.Tags using ( tag_neg ; tag_imp ; tag_eq ; tag_ap1 ; tag_s )
 open import BRA4.Code using ( codeTerm ; codeFormula ; codeFun1 ; codeFun2 )
 open import BRA4.LenR using ( lenR )
 open import BRA4.Num using ( num )
-open import BRA4.IsNat using ( num_eq_code )
+open import BRA4.IsNat using ( num_eq_code ; isNat )
 open import BRA4.NumContract using ( isNat_natCode )
 open import BRA4.EvalUEval using ( evalU )
+open import BRA4.ProgParse using ( parse )
 open import BRA4.NegAtomCode
   using ( NVList ; nvnil ; nvcons ; wrapAll ; skelOf ; skelOf_cong ; wrapAll_eq
         ; NoVar_codeTerm ; NoVar_codeFormula )
@@ -54,8 +55,11 @@ szLeqApp L e = ap1 (szLeqFun L) e
 pKgt : Term -> Formula
 pKgt L = eqF (szLeqApp L (var 0)) (ap1 s O)
 
+-- var 0 ranges over program NAMES (description strings); the universal
+-- machine DECODES with  parse  before running  evalU  (faithful K =
+-- length of the description, BRA4.ProgParse).
 qKgt : Term -> Term -> Formula
-qKgt L x = eqF (ap2 evalU (var 0) (var 1)) (ap1 s x)
+qKgt L x = eqF (ap2 evalU (ap1 parse (var 0)) (var 1)) (ap1 s x)
 
 Kgt : Term -> Term -> Formula
 Kgt L x = neg (neg (imp (pKgt L) (neg (qKgt L x))))
@@ -73,8 +77,8 @@ kgtConsts L =
   (nvcons (codeFormula (pKgt L)) (NoVar_codeFormula (pKgt L))
   (nvcons (natCode tag_neg) (NoVar_natCode tag_neg)
   (nvcons (natCode tag_eq) (NoVar_natCode tag_eq)
-  (nvcons (codeTerm (ap2 evalU (var 0) (var 1)))
-          (NoVar_codeTerm (ap2 evalU (var 0) (var 1)))
+  (nvcons (codeTerm (ap2 evalU (ap1 parse (var 0)) (var 1)))
+          (NoVar_codeTerm (ap2 evalU (ap1 parse (var 0)) (var 1)))
   (nvcons (natCode tag_ap1) (NoVar_natCode tag_ap1)
   (nvcons (codeFun1 s) (NoVar_codeFun1L s)
   nvnil))))))))
@@ -109,3 +113,13 @@ negKgtCodeOf_correct :
 negKgtCodeOf_correct L n =
   ruleTrans (negKgtCodeOf_eval L (natCode n))
             (skelOf_cong (kgtConsts L) (num_eq_code (natCode n) (isNat_natCode n)))
+
+-- The TERM-subject version: for ANY term  x  that is a numeral (isNat x), the
+-- num-headed code-builder rebuilds  codeFormula (Kgt L x)  -- the  num/codeTerm
+-- bridge  num_eq_code  at the Term  x  (no meta  Nat , no  natCode ).
+negKgtCodeOf_correct_T :
+  (L x : Term) -> isNat x ->
+  Deriv (eqF (ap1 (negKgtCodeOf L) x) (codeFormula (Kgt L x)))
+negKgtCodeOf_correct_T L x nx =
+  ruleTrans (negKgtCodeOf_eval L x)
+            (skelOf_cong (kgtConsts L) (num_eq_code x nx))

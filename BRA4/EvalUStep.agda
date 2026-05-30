@@ -657,6 +657,52 @@ stepU_at_evC g h1 h2 a K =
   in ruleTrans m1 (ruleTrans sk_s (ruleTrans sk_o (ruleTrans sk_u
        (ruleTrans sk_v (ruleTrans t_C val)))))
 
+-- Code-level C-dispatch: same transition as stepU_at_evC but for ARBITRARY
+-- child codes -- the first child  h1c  need NOT be  mcode1  of a pure Fun1 (it
+-- may be a mu-program code  mcodeMu ...).  The C-branch keys only on the head
+-- tag  tag_C  and on the generic payload accessors (gPayG/gPayH1/gPayH2_ev),
+-- so the proof is stepU_at_evC verbatim with  hd  and the three payload
+-- extractions redone for the general code  pi tag_C (pi gc (pi h1c h2c)) .
+stepU_at_evC_code : (gc h1c h2c a K : Term) ->
+  Deriv (eqF (ap1 stepU (cfgEV (ap2 pi (natCode tag_C) (ap2 pi gc (ap2 pi h1c h2c))) a K))
+              (cfgEV h1c a (kons (frmC1 gc h2c a) K)))
+stepU_at_evC_code gc h1c h2c a K =
+  let payload : Term
+      payload = ap2 pi gc (ap2 pi h1c h2c)
+      fc : Term
+      fc = ap2 pi (natCode tag_C) payload
+      c : Term
+      c = cfgEV fc a K
+      hd : Deriv (eqF (ap1 Fst fc) (natCode tag_C))
+      hd = axFst (natCode tag_C) payload
+      m1 = fireT evBranch modeRT isEV c (isEV_cfgEV fc a K)
+      sk_s = fireF evBody_s evCascO (testTag tag_s) c
+               (ttSkipAt tag_s tag_C fc a K hd (decideNatNeq tag_C tag_s (\ ())))
+      sk_o = fireF evBody_o evCascU (testTag tag_o) c
+               (ttSkipAt tag_o tag_C fc a K hd (decideNatNeq tag_C tag_o (\ ())))
+      sk_u = fireF evBody_u evCascV (testTag tag_u) c
+               (ttSkipAt tag_u tag_C fc a K hd (decideNatNeq tag_C tag_u (\ ())))
+      sk_v = fireF evBody_v evCascC (testTag tag_v) c
+               (ttSkipAt tag_v tag_C fc a K hd (decideNatNeq tag_C tag_v (\ ())))
+      t_C = fireT evBody_C evCascR (testTag tag_C) c (ttFireAt tag_C fc a K hd)
+      eG : Deriv (eqF (ap1 gPayG c) gc)
+      eG = ruleTrans (gPayG_ev fc a K)
+             (ruleTrans (cong1 Fst (axSnd (natCode tag_C) payload))
+                        (axFst gc (ap2 pi h1c h2c)))
+      eH1 : Deriv (eqF (ap1 gPayH1 c) h1c)
+      eH1 = ruleTrans (gPayH1_ev fc a K)
+              (ruleTrans (cong1 Fst (cong1 Snd (axSnd (natCode tag_C) payload)))
+                (ruleTrans (cong1 Fst (axSnd gc (ap2 pi h1c h2c)))
+                           (axFst h1c h2c)))
+      eH2 : Deriv (eqF (ap1 gPayH2 c) h2c)
+      eH2 = ruleTrans (gPayH2_ev fc a K)
+              (ruleTrans (cong1 Snd (cong1 Snd (axSnd (natCode tag_C) payload)))
+                (ruleTrans (cong1 Snd (axSnd gc (ap2 pi h1c h2c)))
+                           (axSnd h1c h2c)))
+      val = evBody_C_value fc a K gc h1c h2c eG eH1 eH2
+  in ruleTrans m1 (ruleTrans sk_s (ruleTrans sk_o (ruleTrans sk_u
+       (ruleTrans sk_v (ruleTrans t_C val)))))
+
 ------------------------------------------------------------------------
 -- Generalized true-firing: flag = s n for ANY n (condFork fires Fst).
 

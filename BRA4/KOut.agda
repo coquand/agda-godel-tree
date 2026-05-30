@@ -16,7 +16,7 @@ open import BRA4.Base
 open import BRA4.Code      using ( codeTerm ; codeFormula )
 open import BRA4.ThmT      using ( thmT )
 open import BRA4.Num       using ( num )
-open import BRA4.IsNat     using ( num_eq_code )
+open import BRA4.IsNat     using ( num_eq_code ; isNat )
 open import BRA4.NumContract using ( isNat_natCode )
 open import BRA4.Decode    using ( decode ; decode_num_id_at )
 open import BRA4.KFormula  using ( Kgt ; kgtConsts )
@@ -75,4 +75,25 @@ out_L_correct L w z0 matched =
       e4 : Deriv (eqF (ap1 decode (codeTerm (natCode z0))) (natCode z0))
       e4 = ruleTrans (cong1 decode (ruleSym (num_eq_code (natCode z0) (isNat_natCode z0))))
                      (decode_num_id_at (natCode z0))
+  in ruleTrans e1 (ruleTrans (cong1 decode (ruleTrans e2 e3)) e4)
+
+-- The TERM-subject version: from  thmT w = codeFormula (Kgt L x)  with  x  a
+-- numeral (isNat x), the projector reads the subject back as  x  itself (no
+-- meta  Nat , no  natCode ).  Same proof, the  decode/num  round-trip at  x .
+out_L_correct_T :
+  (L w x : Term) -> isNat x ->
+  Deriv (eqF (ap1 thmT w) (codeFormula (Kgt L x))) ->
+  Deriv (eqF (ap1 (out_L L) w) x)
+out_L_correct_T L w x nx matched =
+  let e1 : Deriv (eqF (ap1 (out_L L) w)
+                      (ap1 decode (ap1 (compose1U (proj_L L) thmT) w)))
+      e1 = compose1U_eq decode (compose1U (proj_L L) thmT) w
+      e2 : Deriv (eqF (ap1 (compose1U (proj_L L) thmT) w)
+                      (ap1 (proj_L L) (ap1 thmT w)))
+      e2 = compose1U_eq (proj_L L) thmT w
+      e3 : Deriv (eqF (ap1 (proj_L L) (ap1 thmT w)) (codeTerm x))
+      e3 = ruleTrans (cong1 (proj_L L) matched) (proj_at L x)
+      e4 : Deriv (eqF (ap1 decode (codeTerm x)) x)
+      e4 = ruleTrans (cong1 decode (ruleSym (num_eq_code x nx)))
+                     (decode_num_id_at x)
   in ruleTrans e1 (ruleTrans (cong1 decode (ruleTrans e2 e3)) e4)
