@@ -19,6 +19,15 @@ likewise if BRA's encoding of its own consistency `ConSchema` is
 provable in BRA, BRA is inconsistent.  Constructive, Agda-checked, no
 postulates.
 
+## Papers
+
+- [**Gödel II** — A formalisation of Gödel's Second Incompleteness
+  Theorem for the Basic Recursive Arithmetic of Church and
+  Guard](goedelII-summary.pdf) (source: `BRA4/goedelII-summary.tex`).
+- [**Chaitin–Gödel I** — an object-level diagonal program and an
+  internal implication](cgfun-cgfalse-note.pdf) (source:
+  `BRA4/cgfun-cgfalse-note.tex`).
+
 A crucial ingredient (easy to miss in the source) is the asymmetric
 role of the numeral function `num` / `cor` (= Guard's underline
 `x_`): for a primitive `f` of arity 1, `f(num x)` IS the code of a

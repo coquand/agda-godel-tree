@@ -14,12 +14,14 @@
 *.pdf
 
 # Whitelist policy: only the following files/dirs are tracked.
-#   /BRA4/           -- the active Agda codebase (.agda + .tex sources only)
-#   /bra-godelII.tex -- the project paper / writeup
-#   /README.md       -- public project README
+#   /BRA4/                   -- the active Agda codebase (.agda + .tex sources only)
+#   /bra-godelII.tex         -- the project paper / writeup
+#   /README.md               -- public project README
+#   /goedelII-summary.pdf    -- built paper: Goedel II (linked from README)
+#   /cgfun-cgfalse-note.pdf  -- built paper: Chaitin-Goedel I (linked from README)
 #
 # Everything else (including CLAUDE.md, BRA/ and BRA2/ legacy editions,
-# BRA4/*.md handoff notes, *.pdf references, build artefacts, and /old/)
+# BRA4/*.md handoff notes, other *.pdf references, build artefacts, and /old/)
 # is untracked.
 
 /*
@@ -28,3 +30,5 @@
 !/BRA4/
 !/bra-godelII.tex
 !/README.md
+!/goedelII-summary.pdf
+!/cgfun-cgfalse-note.pdf
