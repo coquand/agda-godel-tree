@@ -26,14 +26,8 @@
 \newcommand{\imp}{\mathbin{\Rightarrow}}
 \newcommand{\eqF}{\mathsf{eqF}}
 \newcommand{\GG}{\mathsf{G}}
-\newcommand{\Rf}{R}
 \newcommand{\Lstar}{L^{\!\star}}
 \newcommand{\kmax}{k_{\max}}
-\newcommand{\ruleInst}{\mathsf{ruleInst}}
-\newcommand{\compile}{\mathsf{compile}}
-\newcommand{\denote}{\mathsf{denote}}
-\newcommand{\Exp}{\mathsf{Exp}}
-\newcommand{\gFact}{\mathsf{gFact}}
 
 \title{Chaitin--G\"odel I in BRA4:\\
   a genuine $\Fun{1}$ diagonal with an internal implication}
@@ -70,7 +64,7 @@ The formalisation packages Chaitin's argument as a single closed
 $T$-derivation: it produces, from any putative $T$-proof that
 $\thmT\,w$ asserts incompressibility of its own read-back, a $T$-proof
 that a constructed code is a proof of $0=1$. Two design choices make
-this statement sharp.
+the statement sharp.
 
 \begin{enumerate}
 \item The ``construct the short program $g_{\Lstar}$'' step is a
@@ -85,194 +79,47 @@ this statement sharp.
 
 The headline theorem
 (\texttt{BRA4/CgFunFun1.agda}, \texttt{chaitinG1\_Fun1\_all}) is:
-\begin{align*}
-  \textsf{chaitinG1\_Fun1\_all} :{}
-    & (w : \Term) \to {} \\
-    & \Deriv\,\bigl(\,
-        \eqF\,(\ap{1}\,\thmT\,w)\,
-              (\ap{1}\,(\Kcode_{\Lstar})\,(\ap{1}\,\outK_{\Lstar}\,w))
-        \;\imp\;
-        \eqF\,(\ap{1}\,\thmT\,(\ap{1}\,\GG\,w))\,\codeFalse
-      \,\bigr).
-\end{align*}
+\[
+  \begin{aligned}
+  (w : \Term) \;\to\; \Deriv\,\Bigl(\;
+    & \underbrace{\eqF\,(\ap{1}\,\thmT\,w)\,
+          (\ap{1}\,\Kcode_{\Lstar}\,(\ap{1}\,\outK_{\Lstar}\,w))}_{\text{firing condition at }w} \\[2pt]
+    & {}\;\imp\;
+      \underbrace{\eqF\,(\ap{1}\,\thmT\,(\ap{1}\,\GG\,w))\,\codeFalse}_{\ap{1}\,\GG\,w\ \text{proves}\ 0=1}
+    \;\Bigr).
+  \end{aligned}
+\]
 Here $w$ is an \emph{arbitrary} Term: no closure hypothesis, no
 \textsf{isNat} integrality predicate, no $\mathrm{Con}(T)$ premise, and
 no closedness bookkeeping. In words: \emph{for every} $w$, $T$ proves
-``if $\thmT\,w$ is the incompressibility statement
-$\Kcode_{\Lstar}$ about its own read-back $\outK_{\Lstar}\,w$, then the
-code $\ap{1}\,\GG\,w$ is a $T$-proof of $0=1$''.
+``if $\thmT\,w$ is the incompressibility statement $\Kcode_{\Lstar}$
+about its own read-back $\outK_{\Lstar}\,w$, then the code
+$\ap{1}\,\GG\,w$ is a $T$-proof of $0=1$''.
 
-The antecedent $\eqF\,(\ap{1}\,\thmT\,w)\,(\Kcode_{\Lstar}\,(\outK_{\Lstar}\,w))$
-is the firing condition in $\num$-raw form: the subject slot is
-$\num\,x'$ for an arbitrary Term $x'$, with no integrality required to
-align with the read-back. Whether $\thmT\,w$ has the form
+The antecedent is the firing condition in $\num$-raw form: the subject
+slot is $\num\,x'$ for an arbitrary Term $x'$, with no integrality
+required to align with the read-back. Whether $\thmT\,w$ has the form
 $\Kcode_{\Lstar}\,(\_)$ is read off internally by the BRA function
 $\outK_{\Lstar} = \mathsf{decode}\circ\mathsf{projKdef}\circ\thmT$, so
 the witnessed integer is forced to be $\outK_{\Lstar}\,w$.
 
-\section{The diagonal program \texorpdfstring{$\GG$}{G}}
+The program $\GG$ is obtained by bracket abstraction: the Chaitin
+construction is a fixed one-variable object-level combinator context,
+and $\GG : \Fun{1}$ is its abstraction, with $\ap{1}\,\GG\,w$ equal to
+that construction --- as a \emph{proved} $T$-derivation, via combinatory
+completeness, not a definitional identity
+(\texttt{BRA4/AbsFun1.agda}, \texttt{BRA4/CgFunFun1.agda}). The
+implication is the deduction-theorem internalisation of the firing step
+(\texttt{BRA4/CgFalseImp.agda}). Because $\GG$ is an honest combinator,
+the statement holds at an arbitrary $w$ with no closedness side
+conditions.
 
-\subsection{Bracket abstraction: combinatory completeness}
-
-The short program is constructed by a one-variable bracket-abstraction
-DSL (\texttt{BRA4/AbsFun1.agda}). An expression $e : \Exp$ is a
-Term-valued expression in one distinguished variable, built from
-\begin{itemize}
-\item the variable leaf $\mathsf{evar}$;
-\item constant leaves $\mathsf{econst}\,c$ with $c : \Term$ var-free;
-\item object application nodes $\mathsf{eap}_1\,f$ ($f : \Fun{1}$) and
-  $\mathsf{eap}_2\,g$ ($g : \Fun{2}$).
-\end{itemize}
-Two maps interpret $\Exp$:
-\[
-  \denote : \Exp \to \Term \to \Term
-  \qquad\text{(plug $x$ for $\mathsf{evar}$),}
-  \qquad
-  \compile : \Exp \to \Fun{1}
-  \qquad\text{(bracket-abstract $\mathsf{evar}$),}
-\]
-with $\compile\,\mathsf{evar} = u$, $\compile\,(\mathsf{eap}_1\,f\,e) =
-\mathsf{compose1U}\,f\,(\compile\,e)$, and $\compile\,(\mathsf{eap}_2\,g\,a\,b)
-= C\,g\,(\compile\,a)\,(\compile\,b)$. The combinatory-completeness fact is a
-\emph{proved} $\Deriv$:
-\[
-  \mathsf{compile\_eq} : (e : \Exp)\,(x : \Term) \to
-    \Deriv\,\bigl(\eqF\,(\ap{1}\,(\compile\,e)\,x)\,(\denote\,e\,x)\bigr),
-\]
-by induction on $e$ from the axioms $\mathsf{ax\_u}$ (variable),
-$\mathsf{constTermFun1\_eq}$ (constant), and
-$\mathsf{axComp}/\mathsf{axComp2}$ with $\mathsf{cong}$ congruences
-(application nodes).
-
-\begin{remark}
-The factorisation is genuinely a $\Deriv$, not a meta-level (Agda)
-equality. $\ap{1}\,(\compile\,e)\,x$ has head constructor $\ap{1}$,
-while $\denote\,e\,x$ generally has a different head (e.g.\ $\ap{2}\,
-\mathsf{Pair}$): they are distinct Term normal forms. The combinator
-semantics lives only in $\Deriv$, through the $\mathsf{ax\_C}/
-\mathsf{axComp}/\mathsf{ax\_u}$ axioms. There is no definitional
-collapse to exploit.
-\end{remark}
-
-\subsection{The body expression}
-
-The Term that Chaitin's construction produces from $w$ is a fixed
-object-level combinator context $E[\,\cdot\,]$ with a single
-$w$-dependent slot. Every node of $E$ is an $\ap{1}/\ap{2}$ of an
-object $\Fun{1}/\Fun{2}$
-($\mathsf{gRec}$, $\mathsf{sigma}$, $\mathsf{pi}$, $\num$,
-$\mathsf{Pair}$, the fuel combinators $\mathsf{fuelMu}$, $\mathsf{fuelG}$,
-the read-back $\outK_{\Lstar}$, $\mathsf{runProg}$, $s$) or a
-var-free constant; the proof-assembly builders
-($\mathsf{cmp}$, $\mathsf{cImp}$, $\mathsf{cNeg}$, $\mathsf{cEqTm}$,
-$\mathsf{cAp1f}$, $\mathsf{cAp2f}$, $\mathsf{exfProof}$ and its
-$\mathsf{axK}/\mathsf{axNeg}/\mathsf{axS}/\mathsf{liftP}/\mathsf{bComb}$
-chains) are themselves pure $\ap{2}\,\mathsf{Pair}$-skeletons of their
-arguments. Hence $E[\,\cdot\,]$ is a one-variable $\Exp$, transcribed
-node-for-node into \texttt{bodyExp} (\texttt{BRA4/CgFunFun1.agda}) using
-$\Exp$ smart constructors that mirror each builder
-($\mathsf{ecmpE}$, $\mathsf{eexfProofE}$, \dots). The diagonal program
-and its defining fact are
-\[
-  \GG := \compile\,\texttt{bodyExp} : \Fun{1},
-  \qquad
-  \gFact\,w := \mathsf{compile\_eq}\,\texttt{bodyExp}\,(\closeW\,w).
-\]
-Here $\closeW\,w := \mathsf{substT}\,0\,O\,(\mathsf{substT}\,1\,O\,w)$
-forces the variables $0$ and $1$ in $w$ to $O$; on the denotation side
-$\denote\,\texttt{bodyExp}\,(\closeW\,w)$ is the Chaitin Term verbatim,
-because the private constants in \texttt{bodyExp} are replicated
-exactly. Thus
-\[
-  \gFact : (w : \Term) \to
-    \Deriv\,\bigl(\eqF\,(\ap{1}\,\GG\,(\closeW\,w))\,(\denote\,\texttt{bodyExp}\,(\closeW\,w))\bigr),
-\]
-a proved object equality identifying the program image $\ap{1}\,\GG$
-with the Chaitin construction.
-
-\section{The internal implication \texorpdfstring{$\imp$}{=>}}
-
-The ``if firing condition then inconsistent'' step is an object-level
-implication, obtained by internalising the deduction theorem
-(\texttt{BRA4/CgFalseImp.agda}). The parametric form carries an
-arbitrary antecedent context $\Rf : \Formula$:
-\begin{align*}
-  \mathsf{cgFalseImp} :{}
-    & (\Rf : \Formula)\,(w : \Term) \to {} \\
-    & \text{(closedness of $\Rf$ at vars $0,1$)} \to {} \\
-    & \Deriv\,\bigl(\Rf \imp
-        \eqF\,(\ap{1}\,\thmT\,(\closeW\,w))\,(\Kcode_{\Lstar}\,(\outK_{\Lstar}\,(\closeW\,w)))\bigr) \to {} \\
-    & \Deriv\,\bigl(\Rf \imp
-        \eqF\,(\ap{1}\,\thmT\,(\cgFun\,w))\,\codeFalse\bigr).
-\end{align*}
-The implication is a single $\Deriv$ over $\imp$; no meta-level arrow
-$\Deriv\,X \to \Deriv\,Y$ ever appears. The antecedent context $\Rf$
-threads through the $\mathsf{ruleIndNat}$ motive $Q := \Rf \imp P$ used
-in the operational core, and through the substitution bridges, with the
-closedness hypotheses on $\Rf$ supplying what those steps need.
-
-Setting $\Rf$ to the firing condition itself and applying internal
-reflexivity gives the un-parametrised form
-$\mathsf{cgFalseImpDed}$, and instantiating at the fresh witness
-$w := \mathsf{var}\,2$ gives the closed Hilbert formula
-$\mathsf{cgFalseImpAtVar2}$:
-\[
-  \Deriv\,\bigl(
-    \eqF\,(\ap{1}\,\thmT\,v_2)\,(\Kcode_{\Lstar}\,(\outK_{\Lstar}\,v_2))
-    \;\imp\;
-    \eqF\,(\ap{1}\,\thmT\,(\cgFun\,v_2))\,\codeFalse
-  \bigr),
-  \qquad v_2 = \mathsf{var}\,2.
-\]
-At $v_2$ all three substitution-closedness witnesses are reflexivity
-($\mathsf{substT}$ on $\mathsf{var}\,2$ leaves it fixed since $0,1 \neq
-2$), so $\closeW\,v_2 = v_2$ definitionally.
-
-\section{Assembling the headline}
-
-The headline $\textsf{chaitinG1\_Fun1\_all}$ combines the two pieces at
-the fresh witness and then instantiates. The construction:
-\begin{enumerate}
-\item At $v_2 = \mathsf{var}\,2$ we have $\closeW\,v_2 = v_2$, hence
-  $\gFact\,v_2 : \Deriv\,(\eqF\,(\ap{1}\,\GG\,v_2)\,(\cgFun\,v_2))$ ---
-  the program image \emph{is} the Chaitin construction at $v_2$.
-\item Re-index the conclusion's subject from $\cgFun\,v_2$ to
-  $\ap{1}\,\GG\,v_2$ under $\thmT$: from
-  $\mathsf{cong}_1\,\thmT\,(\mathsf{ruleSym}\,(\gFact\,v_2))$ and
-  $\mathsf{ax\_eqTrans}$ one builds
-  $\Deriv\,(\eqF\,(\thmT\,(\cgFun\,v_2))\,\codeFalse \imp
-            \eqF\,(\thmT\,(\ap{1}\,\GG\,v_2))\,\codeFalse)$, and
-  composes it after $\mathsf{cgFalseImpAtVar2}$ (via $\mathsf{compI}$),
-  yielding the implication at $v_2$ with subject $\ap{1}\,\GG\,v_2$.
-\item Apply $\ruleInst\,(2 := w)$. Because $v_2$ is the sole occurrence
-  and $\ap{1}\,\GG$ is mere data,
-  \[
-    \mathsf{substT}\,2\,w\,(\ap{1}\,\GG\,v_2)
-      = \ap{1}\,\GG\,(\mathsf{substT}\,2\,w\,v_2)
-      = \ap{1}\,\GG\,w,
-  \]
-  and the antecedent specialises to the firing condition at $w$. The
-  result holds for \emph{every} $w$.
-\end{enumerate}
-
-\begin{remark}[Why no closedness is needed]
-A genuine $\Fun{1}$ program is what removes the closedness bookkeeping.
-The substitution $\ruleInst\,(2 := w)$ commutes cleanly through the
-\emph{data} node $\ap{1}\,\GG$, so the subject becomes exactly
-$\ap{1}\,\GG\,w$ for arbitrary $w$. A meta-level term transformer would
-embed $\closeW\,w$ in its internal slots, and substituting
-$v_2 \mapsto w$ into the transformer's value at $v_2$ would not
-reproduce its value at $w$; that mismatch is precisely what forced
-closedness hypotheses in any term-transformer formulation. With an
-honest combinator $\GG$, the firing point is a fresh variable and
-the conclusion follows for all $w$ by one universal instantiation.
-\end{remark}
-
-\section{The subtlety: the internal evaluator and majorisation}
+\section{The subtle part: the internal evaluator and majorisation}
 
 The conclusion ultimately rests on an \emph{object-level} run of the
 universal interpreter $\evalU$ on the looping program $g_{\Lstar}$
-embedded in $\GG$. This is where the formalisation is delicate.
+embedded in $\GG$. This is where the formalisation is delicate, and it
+is the part worth documenting carefully.
 
 \subsection{Representation of the universal interpreter}
 
@@ -352,29 +199,26 @@ internalisation via Theorem~13. The negative leg
 $\thmT\,(\mathsf{cmp}\,\mathsf{outerWrap}\,\mathsf{cSize}) =
 \mathsf{cNeg}\,\codeF{\mathsf{runProg}\,g_L\,n_T = s\,x'}$ is obtained
 from the firing condition by two $\mathsf{thmT\_at\_sb}$ substitutions
-($\mathsf{passK}$) and an $\mathsf{encoded\_mp}$ against the size atom.
-The clash is then a single
-$\mathsf{encoded\_mp}\,/\,\mathsf{encoded\_exfalso}$ pair, internal
-throughout under the $\imp$-context.
+and an $\mathsf{encoded\_mp}$ against the size atom. The clash is then a
+single $\mathsf{encoded\_mp}\,/\,\mathsf{encoded\_exfalso}$ pair,
+internal throughout under the $\imp$-context.
 
 \subsection{No consistency hypothesis}
 
 Chaitin's original argument concludes ``$T$ is inconsistent'' (in the
 metatheory). The BRA4 formalisation strengthens this: the conclusion is
-an \emph{internal} implication
-$\Deriv\,(X(w) \imp \eqF\,(\thmT\,(\ap{1}\,\GG\,w))\,\codeFalse)$,
-i.e.\ a single BRA derivation that, on the firing condition, the
-constructed code $\ap{1}\,\GG\,w$ is a $T$-proof of $0=1$. No
-$\mathrm{Con}(T)$ premise is consumed, no \textsf{isNat} integrality
-predicate is consumed, and the firing condition is stated in $\num$-raw
-form.
+an \emph{internal} implication, a single BRA derivation that, on the
+firing condition, the constructed code $\ap{1}\,\GG\,w$ is a $T$-proof
+of $0=1$. No $\mathrm{Con}(T)$ premise is consumed, no \textsf{isNat}
+integrality predicate is consumed, and the firing condition is stated
+in $\num$-raw form.
 
 This is the precise interface offered to the later surprise-G\"odel-II
 descent: that descent will \emph{not} need to reprove any evaluator
 completeness, and will use the implication purely as a black-box arrow
 from a $\Deriv$-witness of the firing condition to a $\Deriv$-witness of
 $\codeFalse$. The Term-fuel completeness work paid for here --- and in
-particular the Gandy/Howard machinery of \S6.2 --- is invisible to the
+particular the Gandy/Howard machinery of \S3.2 --- is invisible to the
 descent. The contrast with consistency is sharp: the implication itself
 consumes no $\mathrm{Con}(T)$, but the surprise-G\"odel-II argument will
 consume internal consistency \emph{after}, and only after, the
@@ -383,17 +227,12 @@ implication has been discharged.
 \section{Files}
 
 \begin{itemize}
-\item \texttt{BRA4/AbsFun1.agda} --- the one-variable bracket-abstraction
-  DSL: $\Exp$, $\denote$, $\compile$, and the combinatory-completeness
-  evaluation $\mathsf{compile\_eq}$ (a proved $\Deriv$).
+\item \texttt{BRA4/AbsFun1.agda} --- the bracket-abstraction DSL in one
+  variable, and the combinatory-completeness evaluation (a proved $\Deriv$).
 \item \texttt{BRA4/CgFunFun1.agda} --- the genuine $\Fun{1}$ diagonal
-  $\GG = \compile\,\texttt{bodyExp}$, its defining fact $\gFact$, and
-  the headline $\textsf{chaitinG1\_Fun1\_all}$ (plus the $\Rf$-carrying
-  and the closed-witness corollaries).
+  $\GG$ and the headline $\textsf{chaitinG1\_Fun1\_all}$.
 \item \texttt{BRA4/CgFalseImp.agda} --- the internal implication
-  $\mathsf{cgFalseImp}$ (deduction-theorem internalisation), its
-  un-parametrised form $\mathsf{cgFalseImpDed}$, and the fresh-witness
-  instance $\mathsf{cgFalseImpAtVar2}$.
+  (deduction-theorem internalisation) and its fresh-witness instance.
 \item \texttt{BRA4/CloseW.agda} --- $\closeW$ and the structural lemmas
   it supports.
 \end{itemize}
