@@ -17,7 +17,7 @@
 #   /BRA4/                   -- the active Agda codebase (.agda + .tex sources only)
 #   /README.md               -- public project README
 #   /goedelII-summary.pdf    -- built paper: Goedel II (linked from README)
-#   /cgfun-cgfalse-note.pdf  -- built paper: Chaitin-Goedel I (linked from README)
+#   /ChaitinGodel.pdf        -- built paper: Chaitin-Goedel I (linked from README)
 #
 # Everything else (including CLAUDE.md, bra-godelII.tex, BRA/ and BRA2/
 # legacy editions, BRA4/*.md handoff notes, other *.pdf references, build
@@ -29,4 +29,4 @@
 !/BRA4/
 !/README.md
 !/goedelII-summary.pdf
-!/cgfun-cgfalse-note.pdf
+!/ChaitinGodel.pdf

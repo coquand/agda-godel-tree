@@ -25,7 +25,7 @@ postulates.
   Theorem for the Basic Recursive Arithmetic of Church and
   Guard](goedelII-summary.pdf) (source: `BRA4/goedelII-summary.tex`).
 - [**Chaitin–Gödel I** — an object-level diagonal program and an
-  internal implication](cgfun-cgfalse-note.pdf) (source:
+  internal implication](ChaitinGodel.pdf) (source:
   `BRA4/cgfun-cgfalse-note.tex`).
 
 A crucial ingredient (easy to miss in the source) is the asymmetric
