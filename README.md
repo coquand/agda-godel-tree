@@ -131,7 +131,6 @@ $ ls BRA4/Thm/Thm14GodelII.agdai # exists after build
 |-----------------------------------|--------------------------------------------------------------------|
 | `BRA4/`                           | The active codebase (tracked).                                     |
 | `BRA4/goedelII-summary.tex`       | Project paper (tracked).                                           |
-| `bra-godelII.tex`                 | Top-level project writeup (tracked).                               |
 | `README.md`                       | This file (tracked).                                               |
 | `BRA/`, `BRA2/`                   | Legacy editions (untracked, kept on disk for reference).           |
 | `old/`                            | Legacy Agda, tex, notes, scratch — not tracked, kept on disk only. |
