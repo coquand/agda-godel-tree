@@ -30,7 +30,7 @@
 \newcommand{\kmax}{k_{\max}}
 
 \title{Chaitin--G\"odel I in BRA4:\\
-  a genuine $\Fun{1}$ diagonal with an internal implication}
+  an object-level diagonal program and an internal implication}
 \author{}
 \date{}
 
@@ -119,7 +119,12 @@ conditions.
 The conclusion ultimately rests on an \emph{object-level} run of the
 universal interpreter $\evalU$ on the looping program $g_{\Lstar}$
 embedded in $\GG$. This is where the formalisation is delicate, and it
-is the part worth documenting carefully.
+is the part worth documenting carefully. Indeed, the main technical
+novelty of the formalisation is not the diagonal argument itself --- a
+faithful rendering of Chaitin's --- but the construction of
+\emph{object-level fuel majorants} that let evaluator completeness be
+expressed and proved entirely inside BRA. The diagonalisation is
+classical; the Term-valued fuel of \S3.2 is not.
 
 \subsection{Representation of the universal interpreter}
 
@@ -135,7 +140,7 @@ layout of $\mathsf{stepU}$ is not what makes the proof delicate; what
 matters is the \emph{shape} of the completeness statement the proof
 needs.
 
-\subsection{Gandy/Howard majorisation for Term-fuel completeness}
+\subsection{Gandy--Howard majorisation for Term-fuel completeness}
 
 A first attempt at a completeness statement would say: for every
 \emph{numeral} fuel $\overline{n}$ large enough, iterating
@@ -143,8 +148,11 @@ $\mathsf{stepU}$ on $g_{\Lstar}$ at $\overline{n}$ reaches the final
 configuration $\mathsf{cfgRT}\,(\num\,x')\,K_0$. Such a statement is
 useless inside an internal $\Deriv$-argument: $\thmT$, $\evalU$, and
 $\mathsf{stepU}$ all take Terms, not meta-Nats, so the fuel slot of the
-resulting $\thmT$-fact must itself be a Term. The completeness theorem
-actually needed has the form
+resulting $\thmT$-fact must itself be a Term. The obstruction is
+precise: since Theorem~13 internalises only statements about BRA terms,
+a completeness theorem quantified over meta-level naturals cannot be
+fed into the later derivation. The completeness theorem actually needed
+has the form
 \[
   (x : \Term) \to \Deriv\bigl(
     \mathsf{iter}\,\mathsf{stepU}\,
@@ -160,8 +168,8 @@ inner induction would need numerical control over how much fuel the
 recursive calls consume, but the actual running time is not available
 at the $\Deriv$-level.
 
-The resolution is the standard Gandy/Howard majorisation argument. One
-builds, by primitive recursion on the structure of $f$, a closed BRA
+The resolution adapts the classical Gandy--Howard majorisation method.
+One builds, by primitive recursion on the structure of $f$, a closed BRA
 combinator $\mathsf{fuelG}\,f : \Fun{1}$ that provably
 \emph{majorises} the numerical fuel any actual $\mathsf{stepU}$-run
 consumes at every Term input. The induction-with-substituted-motive
@@ -218,11 +226,24 @@ descent: that descent will \emph{not} need to reprove any evaluator
 completeness, and will use the implication purely as a black-box arrow
 from a $\Deriv$-witness of the firing condition to a $\Deriv$-witness of
 $\codeFalse$. The Term-fuel completeness work paid for here --- and in
-particular the Gandy/Howard machinery of \S3.2 --- is invisible to the
+particular the Gandy--Howard machinery of \S3.2 --- is invisible to the
 descent. The contrast with consistency is sharp: the implication itself
 consumes no $\mathrm{Con}(T)$, but the surprise-G\"odel-II argument will
 consume internal consistency \emph{after}, and only after, the
 implication has been discharged.
+
+\begin{remark}[Lineage]
+Although the result formalises Chaitin's theorem, its \emph{shape} ---
+an object-level proof predicate, a constructed code, and an internal
+implication $A \to \mathsf{Proof}(p,\,0=1)$ --- places it closer to the
+formal-provability tradition of Hilbert--Bernays~\cite{HilbertBernays},
+L\"ob~\cite{Loeb}, and Feferman~\cite{Feferman}, and to its modern
+mechanisations~\cite{Paulson}, than to Chaitin's original metatheoretic
+presentation. What is proved here is not the metatheorem ``$T \vdash A$
+implies $T$ inconsistent'' but the single internal derivation of the
+corresponding implication, in the style of those derivability-condition
+analyses.
+\end{remark}
 
 \section{Files}
 
@@ -249,6 +270,23 @@ G.~J. Chaitin, ``Computational complexity and G\"odel's incompleteness theorem,'
 \bibitem{Chaitin1974}
 G.~J. Chaitin, ``Information-theoretic limitations of formal systems,''
 \emph{Journal of the ACM}, vol.~21, no.~3, pp.~403--424, 1974.
+
+\bibitem{HilbertBernays}
+D.~Hilbert and P.~Bernays, \emph{Grundlagen der Mathematik}, vol.~II,
+Springer, 1939.
+
+\bibitem{Loeb}
+M.~H. L\"ob, ``Solution of a problem of Leon Henkin,''
+\emph{Journal of Symbolic Logic}, vol.~20, no.~2, pp.~115--118, 1955.
+
+\bibitem{Feferman}
+S.~Feferman, ``Arithmetization of metamathematics in a general setting,''
+\emph{Fundamenta Mathematicae}, vol.~49, pp.~35--92, 1960.
+
+\bibitem{Paulson}
+L.~C. Paulson, ``A mechanised proof of G\"odel's incompleteness theorems
+using Nominal Isabelle,'' \emph{Journal of Automated Reasoning},
+vol.~55, no.~1, pp.~1--37, 2015.
 
 \end{thebibliography}
 
