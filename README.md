@@ -53,7 +53,7 @@ to `goedelII-summary.pdf`).
 ## Edition
 
 This repository tracks the **BRA4 edition** of the development.  BRA4
-keeps the single-`Term` setup of the prior BRA2 edition (codes are
+uses a single-`Term` setup (codes are
 exactly value-shaped Terms via an `IsValue : Term -> Set` predicate,
 with `reify : Tree -> Term` collapsed to the identity) and adds, on
 top of the diagonal G2 chain, the infrastructure for the Chaitin /
@@ -63,9 +63,6 @@ interpreter `evalU` with its mu-loop, the open Π₁ Kolmogorov formula
 Parsons-Skolemised Σ₁-induction skeleton (`SpikeParsons`, `SpikeD`).
 The diagonal `godelII` ships unconditionally; the Chaitin/KR route is
 an independent, second-pass enrichment.
-
-Earlier editions (`BRA/`, `BRA2/`) are preserved on disk under their
-own directories for reference but are not tracked in git.
 
 ## Discipline
 
@@ -132,8 +129,6 @@ $ ls BRA4/Thm/Thm14GodelII.agdai # exists after build
 | `BRA4/`                           | The active codebase (tracked).                                     |
 | `BRA4/goedelII-summary.tex`       | Project paper (tracked).                                           |
 | `README.md`                       | This file (tracked).                                               |
-| `BRA/`, `BRA2/`                   | Legacy editions (untracked, kept on disk for reference).           |
-| `old/`                            | Legacy Agda, tex, notes, scratch — not tracked, kept on disk only. |
 
 The reference PDFs (Rose, Ryan, Simmons, guard15, Guard 1963 lecture
 notes, Chwistek 1939) sit at the repository root but are not tracked
