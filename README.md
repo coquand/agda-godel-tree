@@ -1,7 +1,7 @@
 # Goedel's Incompleteness Theorems in Basic Recursive Arithmetic
 
 An Agda formalization of Goedel's First and Second Incompleteness
-Theorems for **Basic Recursive Arithmetic** (BRA), a Guard-style
+Theorems for **Basic Recursive Arithmetic** (T), a Guard-style
 equational system on binary trees with explicit substitution and
 primitive recursion (Guard, *Lecture notes on recursive arithmetic*,
 Argonne, 1963).
@@ -14,9 +14,9 @@ godelI  : Deriv G          -> Deriv P_false   -- Goedel I
 godelII : Deriv ConSchema  -> Deriv falseF    -- Goedel II
 ```
 
-If the diagonal sentence `G` is provable in BRA, BRA is inconsistent;
-likewise if BRA's encoding of its own consistency `ConSchema` is
-provable in BRA, BRA is inconsistent.  Constructive, Agda-checked, no
+If the diagonal sentence `G` is provable in T, T is inconsistent;
+likewise if T's encoding of its own consistency `ConSchema` is
+provable in T, T is inconsistent.  Constructive, Agda-checked, no
 postulates.
 
 ## Papers
@@ -31,10 +31,10 @@ postulates.
 A crucial ingredient (easy to miss in the source) is the asymmetric
 role of the numeral function `num` / `cor` (= Guard's underline
 `x_`): for a primitive `f` of arity 1, `f(num x)` IS the code of a
-BRA term (the term "`f` applied to the numeral of `x`"), but
+T term (the term "`f` applied to the numeral of `x`"), but
 `num(f x)` is the numeral of the *value* `f x` and in general is
 \*not\* the code of any such syntactic term.  Theorem 12 internalises
-the equation between these two trees inside BRA, and that bridge is
+the equation between these two trees inside T, and that bridge is
 what makes the whole Goedel II chain go through.  See
 `BRA4/goedelII-summary.tex`, section "Numerals: the asymmetry…".
 
@@ -42,7 +42,7 @@ A further conceptual point is that intermediate steps of Theorem 14
 prove `Deriv (atomic (eqn (thmT t) u))` where `u` is *not*
 `codeFormula P` for any formula `P` — the chain manipulates
 substituted-codes (with `cor x` placed in variable slots) through
-ordinary BRA equational reasoning, only collapsing to a literal
+ordinary T equational reasoning, only collapsing to a literal
 `codeFormula falseF` at the closure.  See `BRA4/goedelII-summary.tex`,
 section "What is going on at the encoded layer: a remarkable internal
 proof".
@@ -104,7 +104,7 @@ dispatcher (`mp`, `ruleInst`, `ruleSym`, `cong1`, `congL`, `congR`,
 `ruleTrans`, `ruleInst2`, `ruleIndNat`, …) discriminates the input
 shape, returns `codeTriv` on a malformed cell, and only otherwise
 assembles the conclusion code.  Consequence: `thmT(y) ≠
-codeFormula(falseF)` for any `y` unless BRA is actually inconsistent,
+codeFormula(falseF)` for any `y` unless T is actually inconsistent,
 so `ConSchema` carries its intended meaning.
 
 ## Build
