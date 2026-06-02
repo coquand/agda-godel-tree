@@ -1,4 +1,4 @@
-# BRA — Goedel's Incompleteness Theorems in Basic Recursive Arithmetic
+# Goedel's Incompleteness Theorems in Basic Recursive Arithmetic
 
 An Agda formalization of Goedel's First and Second Incompleteness
 Theorems for **Basic Recursive Arithmetic** (BRA), a Guard-style
