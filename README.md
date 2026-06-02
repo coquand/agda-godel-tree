@@ -5,8 +5,7 @@ Theorems for **Basic Recursive Arithmetic** (T) — Church's basic
 recursive arithmetic in the formulation of Guard (*Lecture notes on
 recursive arithmetic*, Argonne, 1963): an equational Hilbert calculus
 of recursive functions on the natural numbers — numerals built from `O`
-and the successor `s`, with the combinators `o, u, v, C, R` — with
-explicit substitution.
+and the successor `s`, with the combinators `o, u, v, C, R`.
 
 The headline results sit in `T4/GoedelI.agda` and
 `T4/Thm/Thm14GodelII.agda`, and both conclude the **same** false
