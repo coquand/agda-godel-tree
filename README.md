@@ -6,8 +6,8 @@ equational system on binary trees with explicit substitution and
 primitive recursion (Guard, *Lecture notes on recursive arithmetic*,
 Argonne, 1963).
 
-The headline results sit in `BRA4/GoedelI.agda` and
-`BRA4/Thm/Thm14GodelII.agda`:
+The headline results sit in `T4/GoedelI.agda` and
+`T4/Thm/Thm14GodelII.agda`:
 
 ```agda
 godelI  : Deriv G          -> Deriv P_false   -- Goedel I
@@ -23,10 +23,10 @@ postulates.
 
 - [**Gödel II** — A formalisation of Gödel's Second Incompleteness
   Theorem for the Basic Recursive Arithmetic of Church and
-  Guard](goedelII-summary.pdf) (source: `BRA4/goedelII-summary.tex`).
+  Guard](goedelII-summary.pdf) (source: `T4/goedelII-summary.tex`).
 - [**Chaitin–Gödel I** — an object-level diagonal program and an
   internal implication](ChaitinGodel.pdf) (source:
-  `BRA4/cgfun-cgfalse-note.tex`).
+  `T4/cgfun-cgfalse-note.tex`).
 
 A crucial ingredient (easy to miss in the source) is the asymmetric
 role of the numeral function `num` / `cor` (= Guard's underline
@@ -36,23 +36,23 @@ T term (the term "`f` applied to the numeral of `x`"), but
 \*not\* the code of any such syntactic term.  Theorem 12 internalises
 the equation between these two trees inside T, and that bridge is
 what makes the whole Goedel II chain go through.  See
-`BRA4/goedelII-summary.tex`, section "Numerals: the asymmetry…".
+`T4/goedelII-summary.tex`, section "Numerals: the asymmetry…".
 
 A further conceptual point is that intermediate steps of Theorem 14
 prove `Deriv (atomic (eqn (thmT t) u))` where `u` is *not*
 `codeFormula P` for any formula `P` — the chain manipulates
 substituted-codes (with `cor x` placed in variable slots) through
 ordinary T equational reasoning, only collapsing to a literal
-`codeFormula falseF` at the closure.  See `BRA4/goedelII-summary.tex`,
+`codeFormula falseF` at the closure.  See `T4/goedelII-summary.tex`,
 section "What is going on at the encoded layer: a remarkable internal
 proof".
 
-For the mathematical write-up see `BRA4/goedelII-summary.tex` (compile
+For the mathematical write-up see `T4/goedelII-summary.tex` (compile
 to `goedelII-summary.pdf`).
 
 ## Edition
 
-This repository tracks the **BRA4 edition** of the development.  BRA4
+This repository tracks the **T4 edition** of the development.  T4
 uses a single-`Term` setup (codes are
 exactly value-shaped Terms via an `IsValue : Term -> Set` predicate,
 with `reify : Tree -> Term` collapsed to the identity) and adds, on
@@ -74,27 +74,27 @@ an independent, second-pass enrichment.
 - camelCase for every let-binding (mid-identifier `_` collides with
   Agda's mixfix grammar).
 
-## What's in `BRA4/`
+## What's in `T4/`
 
-The Agda development sits entirely under `BRA4/`.  Headline modules:
+The Agda development sits entirely under `T4/`.  Headline modules:
 
 | File                                    | Role                                                          |
 |-----------------------------------------|---------------------------------------------------------------|
-| `BRA4/GoedelI.agda`                     | Goedel I: `godelI : Deriv G -> Deriv P_false`.                |
-| `BRA4/Thm/Thm14GodelII.agda`            | Goedel II: `godelII : Deriv ConSchema -> Deriv falseF`.       |
-| `BRA4/Thm/Thm14.agda`, `Thm14F.agda`, `Thm14Step1..5.agda` | The Theorem 14 cascade (Guard's section 3.5).  |
-| `BRA4/Thm12.agda`, `BRA4/Thm12/…`       | Theorem 12 closure (15 Param + Parts pairs).                  |
-| `BRA4/ThmT.agda`, `BRA4/ThmTAt*.agda`   | The proof checker `thmT` and the per-rule dispatchers.        |
-| `BRA4/Base.agda`, `Code.agda`, `Tags.agda` | Base re-exports, formula/term codes, dispatcher tags.      |
-| `BRA4/EvalU.agda`, `EvalUStep.agda`, `EvalUCorrect.agda`, `EvalUMu.agda` | Universal step-interpreter + mu-loop (Chaitin route). |
-| `BRA4/KFormula.agda`, `KRecog.agda`, `KOut.agda`, `KSearch.agda`, `KClash.agda`, `KGodel1.agda`, `KDiag.agda` | The open Π₁ Kolmogorov formula `Kgt` and the conditional Chaitin G1 barrier. |
-| `BRA4/CountingObj.agda`                 | The object-`N` pigeonhole engine (KR-C/KR-D counting).        |
-| `BRA4/goedelII-summary.tex`             | Mathematical write-up.                                        |
+| `T4/GoedelI.agda`                     | Goedel I: `godelI : Deriv G -> Deriv P_false`.                |
+| `T4/Thm/Thm14GodelII.agda`            | Goedel II: `godelII : Deriv ConSchema -> Deriv falseF`.       |
+| `T4/Thm/Thm14.agda`, `Thm14F.agda`, `Thm14Step1..5.agda` | The Theorem 14 cascade (Guard's section 3.5).  |
+| `T4/Thm12.agda`, `T4/Thm12/…`       | Theorem 12 closure (15 Param + Parts pairs).                  |
+| `T4/ThmT.agda`, `T4/ThmTAt*.agda`   | The proof checker `thmT` and the per-rule dispatchers.        |
+| `T4/Base.agda`, `Code.agda`, `Tags.agda` | Base re-exports, formula/term codes, dispatcher tags.      |
+| `T4/EvalU.agda`, `EvalUStep.agda`, `EvalUCorrect.agda`, `EvalUMu.agda` | Universal step-interpreter + mu-loop (Chaitin route). |
+| `T4/KFormula.agda`, `KRecog.agda`, `KOut.agda`, `KSearch.agda`, `KClash.agda`, `KGodel1.agda`, `KDiag.agda` | The open Π₁ Kolmogorov formula `Kgt` and the conditional Chaitin G1 barrier. |
+| `T4/CountingObj.agda`                 | The object-`N` pigeonhole engine (KR-C/KR-D counting).        |
+| `T4/goedelII-summary.tex`             | Mathematical write-up.                                        |
 
 ### Sound `thmT`
 
-The verifier `BRA4/ThmT.agda` together with its per-rule dispatchers
-(`BRA4/ThmTAt*.agda`) is a validating decoder: on any input it returns
+The verifier `T4/ThmT.agda` together with its per-rule dispatchers
+(`T4/ThmTAt*.agda`) is a validating decoder: on any input it returns
 either `codeFormula(P)` for some derivable formula `P`, or the
 explicit safe default `codeTriv = code(0=0)`.  Each premise-consuming
 dispatcher (`mp`, `ruleInst`, `ruleSym`, `cong1`, `congL`, `congR`,
@@ -110,24 +110,24 @@ Requires Agda 2.7+ (the development is checked under both 2.7 and
 2.9.0).
 
 ```sh
-agda --safe BRA4/Thm/Thm14GodelII.agda    # Goedel II (the headline)
-agda --safe BRA4/GoedelI.agda             # Goedel I
+agda --safe T4/Thm/Thm14GodelII.agda    # Goedel II (the headline)
+agda --safe T4/GoedelI.agda             # Goedel I
 ```
 
 Cold rebuild of the headline chain takes ~30 s on a recent laptop;
 cached typechecks are under 1 s.  No postulates, no holes:
 
 ```sh
-$ grep -rn '^postulate' BRA4/   # empty
-$ ls BRA4/Thm/Thm14GodelII.agdai # exists after build
+$ grep -rn '^postulate' T4/   # empty
+$ ls T4/Thm/Thm14GodelII.agdai # exists after build
 ```
 
 ## Repository layout
 
 | Path                              | Status                                                             |
 |-----------------------------------|--------------------------------------------------------------------|
-| `BRA4/`                           | The active codebase (tracked).                                     |
-| `BRA4/goedelII-summary.tex`       | Project paper (tracked).                                           |
+| `T4/`                           | The active codebase (tracked).                                     |
+| `T4/goedelII-summary.tex`       | Project paper (tracked).                                           |
 | `README.md`                       | This file (tracked).                                               |
 
 The reference PDFs (Rose, Ryan, Simmons, guard15, Guard 1963 lecture

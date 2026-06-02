@@ -1,0 +1,305 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+
+\newcommand{\Term}{\mathrm{Term}}
+\newcommand{\Formula}{\mathrm{Formula}}
+\newcommand{\Deriv}{\mathsf{Deriv}}
+\newcommand{\thmT}{\mathsf{thmT}}
+\newcommand{\evalU}{\mathsf{evalU}}
+\newcommand{\parse}{\mathsf{parse}}
+\newcommand{\Kcode}{\mathsf{Kcode}}
+\newcommand{\outK}{\mathsf{outKdef}}
+\newcommand{\closeW}{\mathsf{closeW}}
+\newcommand{\codeFalse}{\mathsf{codeFalse}}
+\newcommand{\codeF}{\mathsf{code}}
+\newcommand{\num}{\mathsf{num}}
+\newcommand{\ap}[1]{\mathsf{ap}_{#1}}
+\newcommand{\Fun}[1]{\mathsf{Fun}_{#1}}
+\newcommand{\cgFun}{\mathsf{cgFun}}
+\newcommand{\imp}{\mathbin{\Rightarrow}}
+\newcommand{\eqF}{\mathsf{eqF}}
+\newcommand{\GG}{\mathsf{G}}
+\newcommand{\Lstar}{L^{\!\star}}
+\newcommand{\kmax}{k_{\max}}
+
+\title{Chaitin--G\"odel I in Basic Recursive Arithmetic:\\
+  an object-level diagonal program and an internal implication}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Chaitin's argument, recalled}
+
+Chaitin's proof of G\"odel's first incompleteness theorem~\cite{Chaitin1971,Chaitin1974}
+runs as follows. Fix a sound theory $T$ that interprets enough arithmetic, and fix a
+universal partial computable interpreter $U$ with a Kolmogorov-complexity bound
+$K_U(x) := \min\{|p| : U(p)\downarrow = x\}$. There is a constant $c$
+(depending only on $T$ and $U$) such that, for every $\Lstar$ and every
+integer $x'$,
+\[
+  T \vdash K_U(\underline{x'}) > \Lstar
+  \quad\Longrightarrow\quad
+  \text{$T$ is inconsistent, provided } \Lstar > c + \log \Lstar.
+\]
+The contradiction is exhibited by a single short program $g_{\Lstar}$:
+enumerate $\thmT(0), \thmT(1), \dots$ until a proof of the form
+$\codeF{K_U(\underline{?}) > \Lstar}$ is found, then output the
+witnessed integer~$x'$. The size of $g_{\Lstar}$ is $c + \log \Lstar$,
+strictly below $\Lstar$, so the very witness $x'$ that $T$ proves to be
+$K_U$-incompressible is itself $g_{\Lstar}$-output --- a contradiction
+to the size lemma internal to $T$.
+
+\section{The Basic Recursive Arithmetic statement}
+
+The formalisation packages Chaitin's argument as a single closed
+$T$-derivation: it produces, from any putative $T$-proof that
+$\thmT\,w$ asserts incompressibility of its own read-back, a $T$-proof
+that a constructed code is a proof of $0=1$. Two design choices make
+the statement sharp.
+
+\begin{enumerate}
+\item The ``construct the short program $g_{\Lstar}$'' step is a
+  genuine Basic Recursive Arithmetic combinator $\GG : \Fun{1}$, an honest object-level
+  program, not a meta-level term transformer. The constructed proof
+  code is literally $\ap{1}\,\GG\,w$.
+\item The ``if $\dots$ then inconsistent'' step is an
+  \emph{internal} Hilbert implication $\imp$ inside a single $\Deriv$,
+  not a meta-level function $\Deriv\,X \to \Deriv\,Y$. The deduction
+  content lives inside the object logic.
+\end{enumerate}
+
+The headline theorem
+(\texttt{T4/CgFunFun1.agda}, \texttt{chaitinG1\_Fun1\_all}) is:
+\[
+  \begin{aligned}
+  (w : \Term) \;\to\; \Deriv\,\Bigl(\;
+    & \underbrace{\eqF\,(\ap{1}\,\thmT\,w)\,
+          (\ap{1}\,\Kcode_{\Lstar}\,(\ap{1}\,\outK_{\Lstar}\,w))}_{\text{firing condition at }w} \\[2pt]
+    & {}\;\imp\;
+      \underbrace{\eqF\,(\ap{1}\,\thmT\,(\ap{1}\,\GG\,w))\,\codeFalse}_{\ap{1}\,\GG\,w\ \text{proves}\ 0=1}
+    \;\Bigr).
+  \end{aligned}
+\]
+Here $w$ is an \emph{arbitrary} Term: no closure hypothesis, no
+\textsf{isNat} integrality predicate, no $\mathrm{Con}(T)$ premise, and
+no closedness bookkeeping. In words: \emph{for every} $w$, $T$ proves
+``if $\thmT\,w$ is the incompressibility statement $\Kcode_{\Lstar}$
+about its own read-back $\outK_{\Lstar}\,w$, then the code
+$\ap{1}\,\GG\,w$ is a $T$-proof of $0=1$''.
+
+The antecedent is the firing condition in $\num$-raw form: the subject
+slot is $\num\,x'$ for an arbitrary Term $x'$, with no integrality
+required to align with the read-back. Whether $\thmT\,w$ has the form
+$\Kcode_{\Lstar}\,(\_)$ is read off internally by the Basic Recursive Arithmetic function
+$\outK_{\Lstar} = \mathsf{decode}\circ\mathsf{projKdef}\circ\thmT$, so
+the witnessed integer is forced to be $\outK_{\Lstar}\,w$.
+
+The program $\GG$ is obtained by bracket abstraction: the Chaitin
+construction is a fixed one-variable object-level combinator context,
+and $\GG : \Fun{1}$ is its abstraction, with $\ap{1}\,\GG\,w$ equal to
+that construction --- as a \emph{proved} $T$-derivation, via combinatory
+completeness, not a definitional identity
+(\texttt{T4/AbsFun1.agda}, \texttt{T4/CgFunFun1.agda}). The
+implication is the deduction-theorem internalisation of the firing step
+(\texttt{T4/CgFalseImp.agda}). Because $\GG$ is an honest combinator,
+the statement holds at an arbitrary $w$ with no closedness side
+conditions.
+
+\section{The subtle part: the internal evaluator and majorisation}
+
+The conclusion ultimately rests on an \emph{object-level} run of the
+universal interpreter $\evalU$ on the looping program $g_{\Lstar}$
+embedded in $\GG$. This is where the formalisation is delicate, and it
+is the part worth documenting carefully. Indeed, the main technical
+novelty of the formalisation is not the diagonal argument itself --- a
+faithful rendering of Chaitin's --- but the construction of
+\emph{object-level fuel majorants} that let evaluator completeness be
+expressed and proved entirely inside Basic Recursive Arithmetic. The diagonalisation is
+classical; the Term-valued fuel of \S3.2 is not.
+
+\subsection{Representation of the universal interpreter}
+
+Inside the formalisation, $\evalU$ is realised as a small CK-machine:
+configurations carry a control Term together with a continuation
+stack, and a one-step transition function $\mathsf{stepU}$ advances one
+rule at a time. Running the interpreter for fuel $n$ is iteration of
+$\mathsf{stepU}$ from a starting configuration. A second layer wraps
+the $\mu$-search loop of $g_{\Lstar}$, so that the interpreter's outer
+behaviour matches Chaitin's informal description ``enumerate $\thmT\,0,
+\thmT\,1, \dots$ until a fitting proof is found''. The rule-by-rule
+layout of $\mathsf{stepU}$ is not what makes the proof delicate; what
+matters is the \emph{shape} of the completeness statement the proof
+needs.
+
+\subsection{Gandy--Howard majorisation for Term-fuel completeness}
+
+A first attempt at a completeness statement would say: for every
+\emph{numeral} fuel $\overline{n}$ large enough, iterating
+$\mathsf{stepU}$ on $g_{\Lstar}$ at $\overline{n}$ reaches the final
+configuration $\mathsf{cfgRT}\,(\num\,x')\,K_0$. Such a statement is
+useless inside an internal $\Deriv$-argument: $\thmT$, $\evalU$, and
+$\mathsf{stepU}$ all take Terms, not meta-Nats, so the fuel slot of the
+resulting $\thmT$-fact must itself be a Term. The obstruction is
+precise: since Theorem~13 internalises only statements about Basic Recursive Arithmetic terms,
+a completeness theorem quantified over meta-level naturals cannot be
+fed into the later derivation. The completeness theorem actually needed
+has the form
+\[
+  (x : \Term) \to \Deriv\bigl(
+    \mathsf{iter}\,\mathsf{stepU}\,
+      (\mathsf{cfgEV}\,(\mathsf{mcode}\,f)\,x\,K_0)\,
+      (\mathsf{fuelG}\,f\,x)
+      = \mathsf{cfgRT}\,(\num\,(f\,x))\,K_0
+  \bigr),
+\]
+i.e.\ Term-input/Term-fuel completeness, where $\mathsf{fuelG}\,f$ is a
+closed Basic Recursive Arithmetic combinator. Proving such a statement by structural induction
+on the combinator tree of $f$ stalls at the $R$-recursion node: the
+inner induction would need numerical control over how much fuel the
+recursive calls consume, but the actual running time is not available
+at the $\Deriv$-level.
+
+The resolution adapts the classical Gandy--Howard majorisation
+method~\cite{Howard1973,Gandy1980}.
+One builds, by primitive recursion on the structure of $f$, a closed Basic
+Recursive Arithmetic combinator $\mathsf{fuelG}\,f : \Fun{1}$ that provably
+\emph{majorises} the numerical fuel any actual $\mathsf{stepU}$-run
+consumes at every Term input. The induction-with-substituted-motive
+then carries the stable shape ``the run completes at \emph{any} fuel
+$\geq \mathsf{fuelG}\,f\,x$'', which descends through the $R$-node
+because $\mathsf{fuelG}$ is itself defined by a recursive scheme that
+mirrors $f$. The $\mu$-loop wrapping $g_{\Lstar}$ requires the same
+idea one level higher: a majorising combinator $\mathsf{fuelMu}$
+controls the outer search depth and is layered on top of
+$\mathsf{fuelG}$ by the fuel-composition lemma $\mathsf{iter\_add\_T}$.
+The closed Term fuel that finally appears inside $\ap{1}\,\GG\,w$ is
+\[
+  n_T \;:=\; \mathsf{fuelMu}\,\kmax\,\kmax \;+\; \mathsf{fuelG}\,\kmax\,O,
+  \qquad
+  \kmax = \mathsf{gRec}\,O\,(s\,(\closeW\,w)),
+\]
+and the resulting positive $\thmT$-fact
+\[
+  \thmT\,\mathsf{cPos} \stackrel{\Deriv}{=}
+    \codeF{\mathsf{runProg}\,g_L\,n_T = s\,x'}
+\]
+follows from this run via Theorem~13 (singulary). Without majorisation
+there would simply be no Term to put in the fuel slot.
+
+\subsection{Closing the chain}
+
+With Term-fuel completeness in hand, the operational core closes the
+chain
+\[
+  \evalU\,(\parse\,\mathsf{gLnameDef})\,n_T = s\,(\outK_{\Lstar}\,\kmax)
+\]
+through seven internal segments (the module $\mathsf{ChainKdef}$),
+glued by $\mathsf{iter\_add\_T}$. The positive $\thmT$-fact above is its
+internalisation via Theorem~13. The negative leg
+$\thmT\,(\mathsf{cmp}\,\mathsf{outerWrap}\,\mathsf{cSize}) =
+\mathsf{cNeg}\,\codeF{\mathsf{runProg}\,g_L\,n_T = s\,x'}$ is obtained
+from the firing condition by two $\mathsf{thmT\_at\_sb}$ substitutions
+and an $\mathsf{encoded\_mp}$ against the size atom. The clash is then a
+single $\mathsf{encoded\_mp}\,/\,\mathsf{encoded\_exfalso}$ pair,
+internal throughout under the $\imp$-context.
+
+\subsection{No consistency hypothesis}
+
+Chaitin's original argument concludes ``$T$ is inconsistent'' (in the
+metatheory). The formalisation strengthens this: the conclusion is
+an \emph{internal} implication, a single Basic Recursive Arithmetic derivation that, on the
+firing condition, the constructed code $\ap{1}\,\GG\,w$ is a $T$-proof
+of $0=1$. No $\mathrm{Con}(T)$ premise is consumed, no \textsf{isNat}
+integrality predicate is consumed, and the firing condition is stated
+in $\num$-raw form.
+
+This is the precise interface offered to the later surprise-G\"odel-II
+descent: that descent will \emph{not} need to reprove any evaluator
+completeness, and will use the implication purely as a black-box arrow
+from a $\Deriv$-witness of the firing condition to a $\Deriv$-witness of
+$\codeFalse$. The Term-fuel completeness work paid for here --- and in
+particular the Gandy--Howard machinery of \S3.2 --- is invisible to the
+descent. The contrast with consistency is sharp: the implication itself
+consumes no $\mathrm{Con}(T)$, but the surprise-G\"odel-II argument will
+consume internal consistency \emph{after}, and only after, the
+implication has been discharged.
+
+\begin{remark}[Lineage]
+Although the result formalises Chaitin's theorem, its \emph{shape} ---
+an object-level proof predicate, a constructed code, and an internal
+implication $A \to \mathsf{Proof}(p,\,0=1)$ --- places it closer to the
+formal-provability tradition of Hilbert--Bernays~\cite{HilbertBernays},
+L\"ob~\cite{Loeb}, and Feferman~\cite{Feferman}, and to its modern
+mechanisations~\cite{Paulson}, than to Chaitin's original metatheoretic
+presentation. What is proved here is not the metatheorem ``$T \vdash A$
+implies $T$ inconsistent'' but the single internal derivation of the
+corresponding implication, in the style of those derivability-condition
+analyses.
+\end{remark}
+
+\section{Files}
+
+\begin{itemize}
+\item \texttt{T4/AbsFun1.agda} --- the bracket-abstraction DSL in one
+  variable, and the combinatory-completeness evaluation (a proved $\Deriv$).
+\item \texttt{T4/CgFunFun1.agda} --- the genuine $\Fun{1}$ diagonal
+  $\GG$ and the headline $\textsf{chaitinG1\_Fun1\_all}$.
+\item \texttt{T4/CgFalseImp.agda} --- the internal implication
+  (deduction-theorem internalisation) and its fresh-witness instance.
+\item \texttt{T4/CloseW.agda} --- $\closeW$ and the structural lemmas
+  it supports.
+\end{itemize}
+
+All files typecheck under \texttt{--safe --without-K --exact-split}
+with no holes and no postulates.
+
+\begin{thebibliography}{9}
+
+\bibitem{Chaitin1971}
+G.~J. Chaitin, ``Computational complexity and G\"odel's incompleteness theorem,''
+\emph{ACM SIGACT News}, no.~9, pp.~11--12, 1971.
+
+\bibitem{Chaitin1974}
+G.~J. Chaitin, ``Information-theoretic limitations of formal systems,''
+\emph{Journal of the ACM}, vol.~21, no.~3, pp.~403--424, 1974.
+
+\bibitem{Howard1973}
+W.~A. Howard, ``Hereditarily majorizable functionals of finite type,''
+in A.~S. Troelstra (ed.), \emph{Metamathematical Investigations of
+Intuitionistic Arithmetic and Analysis}, Lecture Notes in Mathematics,
+vol.~344, Springer, 1973, pp.~454--461.
+
+\bibitem{Gandy1980}
+R.~O. Gandy, ``Proofs of strong normalization,'' in J.~P. Seldin and
+J.~R. Hindley (eds.), \emph{To H.~B. Curry: Essays on Combinatory Logic,
+Lambda Calculus and Formalism}, Academic Press, 1980, pp.~457--477.
+
+\bibitem{HilbertBernays}
+D.~Hilbert and P.~Bernays, \emph{Grundlagen der Mathematik}, vol.~II,
+Springer, 1939.
+
+\bibitem{Loeb}
+M.~H. L\"ob, ``Solution of a problem of Leon Henkin,''
+\emph{Journal of Symbolic Logic}, vol.~20, no.~2, pp.~115--118, 1955.
+
+\bibitem{Feferman}
+S.~Feferman, ``Arithmetization of metamathematics in a general setting,''
+\emph{Fundamenta Mathematicae}, vol.~49, pp.~35--92, 1960.
+
+\bibitem{Paulson}
+L.~C. Paulson, ``A mechanised proof of G\"odel's incompleteness theorems
+using Nominal Isabelle,'' \emph{Journal of Automated Reasoning},
+vol.~55, no.~1, pp.~1--37, 2015.
+
+\end{thebibliography}
+
+\end{document}
