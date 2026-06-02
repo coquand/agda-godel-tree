@@ -101,15 +101,11 @@ closed_diag_inst =
     (closed_natCode iH)
 
 ------------------------------------------------------------------------
--- The target "false" formula  P_false = (O = s O)  ( = "0 = 1" ).
+-- GOEDEL I.  The target "false" formula is  falseF = (O = s O) ( = "0 = 1" ),
+-- the SAME formula concluded by Goedel II ( T4.Code.falseF ); we reuse it here
+-- rather than a local synonym so both theorems land on one canonical  0 = 1 .
 
-P_false : Formula
-P_false = atomic (eqn O (ap1 s O))
-
-------------------------------------------------------------------------
--- GOEDEL I.
-
-godelI : (d : Deriv G) -> Deriv P_false
+godelI : (d : Deriv G) -> Deriv falseF
 godelI d =
   let y : Term
       y = encode d
@@ -147,12 +143,12 @@ godelI d =
       eq_form : Formula
       eq_form = atomic (eqn (ap1 thmT y) diag_inst)
 
-      exFalso_imp : Deriv (imp eq_form (imp (neg eq_form) P_false))
-      exFalso_imp = axExFalso eq_form P_false
+      exFalso_imp : Deriv (imp eq_form (imp (neg eq_form) falseF))
+      exFalso_imp = axExFalso eq_form falseF
 
-      step_after_eq : Deriv (imp (neg eq_form) P_false)
+      step_after_eq : Deriv (imp (neg eq_form) falseF)
       step_after_eq = mp exFalso_imp eq2
 
-      result : Deriv P_false
+      result : Deriv falseF
       result = mp step_after_eq d_inst_neg
   in result

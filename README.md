@@ -1,17 +1,20 @@
 # Goedel's Incompleteness Theorems in Basic Recursive Arithmetic
 
 An Agda formalization of Goedel's First and Second Incompleteness
-Theorems for **Basic Recursive Arithmetic** (T), a Guard-style
-equational system on binary trees with explicit substitution and
-primitive recursion (Guard, *Lecture notes on recursive arithmetic*,
-Argonne, 1963).
+Theorems for **Basic Recursive Arithmetic** (T) — Church's basic
+recursive arithmetic in the formulation of Guard (*Lecture notes on
+recursive arithmetic*, Argonne, 1963): an equational Hilbert calculus
+of recursive functions on the natural numbers — numerals built from `O`
+and the successor `s`, with the combinators `o, u, v, C, R` — with
+explicit substitution.
 
 The headline results sit in `T4/GoedelI.agda` and
-`T4/Thm/Thm14GodelII.agda`:
+`T4/Thm/Thm14GodelII.agda`, and both conclude the **same** false
+formula `falseF = (O = s O)` (i.e. `0 = 1`):
 
 ```agda
-godelI  : Deriv G          -> Deriv P_false   -- Goedel I
-godelII : Deriv ConSchema  -> Deriv falseF    -- Goedel II
+godelI  : Deriv G          -> Deriv falseF   -- Goedel I
+godelII : Deriv ConSchema  -> Deriv falseF   -- Goedel II
 ```
 
 If the diagonal sentence `G` is provable in T, T is inconsistent;
@@ -34,7 +37,7 @@ role of the numeral function `num` / `cor` (= Guard's underline
 T term (the term "`f` applied to the numeral of `x`"), but
 `num(f x)` is the numeral of the *value* `f x` and in general is
 \*not\* the code of any such syntactic term.  Theorem 12 internalises
-the equation between these two trees inside T, and that bridge is
+the equation between these two terms inside T, and that bridge is
 what makes the whole Goedel II chain go through.  See
 `T4/goedelII-summary.tex`, section "Numerals: the asymmetry…".
 
@@ -53,9 +56,9 @@ to `goedelII-summary.pdf`).
 ## Edition
 
 This repository tracks the **T4 edition** of the development.  T4
-uses a single-`Term` setup (codes are
-exactly value-shaped Terms via an `IsValue : Term -> Set` predicate,
-with `reify : Tree -> Term` collapsed to the identity) and adds, on
+uses a single-`Term` syntax in which codes (Gödel numbers) are
+themselves Terms, so the proof predicate `thmT`, the diagonal, and the
+formula it codes all live in one type, and adds, on
 top of the diagonal G2 chain, the infrastructure for the Chaitin /
 Kritchman–Raz route to a second proof of G2: a universal step-
 interpreter `evalU` with its mu-loop, the open Π₁ Kolmogorov formula
@@ -68,9 +71,7 @@ an independent, second-pass enrichment.
 
 - `--safe --without-K --exact-split` on every file.
 - ASCII only.
-- Zero postulates, zero holes, no `with`-abstraction, no dot patterns
-  (one exception: `.O` / `.a .b` in `IsValue` pattern matches, the
-  canonical syntax for matching against an indexed family's index).
+- Zero postulates, zero holes, no `with`-abstraction, no dot patterns.
 - camelCase for every let-binding (mid-identifier `_` collides with
   Agda's mixfix grammar).
 
@@ -80,7 +81,7 @@ The Agda development sits entirely under `T4/`.  Headline modules:
 
 | File                                    | Role                                                          |
 |-----------------------------------------|---------------------------------------------------------------|
-| `T4/GoedelI.agda`                     | Goedel I: `godelI : Deriv G -> Deriv P_false`.                |
+| `T4/GoedelI.agda`                     | Goedel I: `godelI : Deriv G -> Deriv falseF`.                 |
 | `T4/Thm/Thm14GodelII.agda`            | Goedel II: `godelII : Deriv ConSchema -> Deriv falseF`.       |
 | `T4/Thm/Thm14.agda`, `Thm14F.agda`, `Thm14Step1..5.agda` | The Theorem 14 cascade (Guard's section 3.5).  |
 | `T4/Thm12.agda`, `T4/Thm12/…`       | Theorem 12 closure (15 Param + Parts pairs).                  |
