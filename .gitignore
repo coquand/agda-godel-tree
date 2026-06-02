@@ -18,6 +18,7 @@
 #   /README.md               -- public project README
 #   /goedelII-summary.pdf    -- built paper: Goedel II (linked from README)
 #   /ChaitinGodel.pdf        -- built paper: Chaitin-Goedel I (linked from README)
+#   /Guard-Recursive-Arithmetic.pdf -- Guard's lecture notes, the formalised source (linked from README)
 #
 # Everything else (including CLAUDE.md, bra-godelII.tex, BRA/ and BRA2/
 # legacy editions, T4/*.md handoff notes, other *.pdf references, build
@@ -30,3 +31,4 @@
 !/README.md
 !/goedelII-summary.pdf
 !/ChaitinGodel.pdf
+!/Guard-Recursive-Arithmetic.pdf

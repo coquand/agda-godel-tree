@@ -2,9 +2,11 @@
 
 An Agda formalization of Goedel's First and Second Incompleteness
 Theorems for **Basic Recursive Arithmetic** (T) — Church's basic
-recursive arithmetic in the formulation of Guard (*Lecture notes on
-recursive arithmetic*, Argonne, 1963): an equational Hilbert calculus
-of recursive functions on the natural numbers — numerals built from `O`
+recursive arithmetic in the formulation of Guard ([*Lecture Notes on
+Recursive Arithmetic*](Guard-Recursive-Arithmetic.pdf), Princeton,
+1962–63): a Skolem-style equational
+calculus of recursive functions on the natural numbers, presented in
+Hilbert style (axiom schemas + rules) — numerals built from `O`
 and the successor `s`, with the combinators `o, u, v, C, R`.
 
 The headline results sit in `T4/GoedelI.agda` and
@@ -29,6 +31,15 @@ postulates.
 - [**Chaitin–Gödel I** — an object-level diagonal program and an
   internal implication](ChaitinGodel.pdf) (source:
   `T4/cgfun-cgfalse-note.tex`).
+
+## Source notes
+
+The calculus T being formalised is Church's basic recursive arithmetic
+as presented in J. R. Guard's [**Lecture Notes on Recursive
+Arithmetic**](Guard-Recursive-Arithmetic.pdf) (Recursive Arithmetic
+Seminar, Princeton, 1962–63).  These are the lecture notes the
+development follows; the write-up `T4/goedelII-summary.tex` cites them
+by page (e.g. Def. 14, p. 19).
 
 A crucial ingredient (easy to miss in the source) is the asymmetric
 role of the numeral function `num` / `cor` (= Guard's underline
@@ -128,8 +139,9 @@ $ ls T4/Thm/Thm14GodelII.agdai # exists after build
 |-----------------------------------|--------------------------------------------------------------------|
 | `T4/`                           | The active codebase (tracked).                                     |
 | `T4/goedelII-summary.tex`       | Project paper (tracked).                                           |
+| `Guard-Recursive-Arithmetic.pdf`  | Guard's lecture notes — the formalised source (tracked).           |
 | `README.md`                       | This file (tracked).                                               |
 
-The reference PDFs (Rose, Ryan, Simmons, guard15, Guard 1963 lecture
-notes, Chwistek 1939) sit at the repository root but are not tracked
-in git; they are expected to be present locally for cross-reference.
+The other reference PDFs (Rose, Ryan, Simmons, guard15, Chwistek 1939)
+sit at the repository root but are not tracked in git; they are
+expected to be present locally for cross-reference.
