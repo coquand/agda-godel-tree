@@ -29,7 +29,7 @@
 \newcommand{\Lstar}{L^{\!\star}}
 \newcommand{\kmax}{k_{\max}}
 
-\title{Chaitin--G\"odel I in Basic Recursive Arithmetic (BRA4):\\
+\title{Chaitin--G\"odel I in Basic Recursive Arithmetic:\\
   an object-level diagonal program and an internal implication}
 \author{}
 \date{}
@@ -128,7 +128,7 @@ classical; the Term-valued fuel of \S3.2 is not.
 
 \subsection{Representation of the universal interpreter}
 
-Inside BRA4, $\evalU$ is realised as a small CK-machine:
+Inside the formalisation, $\evalU$ is realised as a small CK-machine:
 configurations carry a control Term together with a continuation
 stack, and a one-step transition function $\mathsf{stepU}$ advances one
 rule at a time. Running the interpreter for fuel $n$ is iteration of
@@ -215,7 +215,7 @@ internal throughout under the $\imp$-context.
 \subsection{No consistency hypothesis}
 
 Chaitin's original argument concludes ``$T$ is inconsistent'' (in the
-metatheory). The BRA4 formalisation strengthens this: the conclusion is
+metatheory). The formalisation strengthens this: the conclusion is
 an \emph{internal} implication, a single Basic Recursive Arithmetic derivation that, on the
 firing condition, the constructed code $\ap{1}\,\GG\,w$ is a $T$-proof
 of $0=1$. No $\mathrm{Con}(T)$ premise is consumed, no \textsf{isNat}
