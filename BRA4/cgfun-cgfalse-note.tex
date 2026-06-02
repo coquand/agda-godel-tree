@@ -29,7 +29,7 @@
 \newcommand{\Lstar}{L^{\!\star}}
 \newcommand{\kmax}{k_{\max}}
 
-\title{Chaitin--G\"odel I in BRA4:\\
+\title{Chaitin--G\"odel I in Basic Recursive Arithmetic (BRA4):\\
   an object-level diagonal program and an internal implication}
 \author{}
 \date{}
@@ -58,7 +58,7 @@ strictly below $\Lstar$, so the very witness $x'$ that $T$ proves to be
 $K_U$-incompressible is itself $g_{\Lstar}$-output --- a contradiction
 to the size lemma internal to $T$.
 
-\section{The BRA4 statement}
+\section{The Basic Recursive Arithmetic statement}
 
 The formalisation packages Chaitin's argument as a single closed
 $T$-derivation: it produces, from any putative $T$-proof that
@@ -68,7 +68,7 @@ the statement sharp.
 
 \begin{enumerate}
 \item The ``construct the short program $g_{\Lstar}$'' step is a
-  genuine BRA combinator $\GG : \Fun{1}$, an honest object-level
+  genuine Basic Recursive Arithmetic combinator $\GG : \Fun{1}$, an honest object-level
   program, not a meta-level term transformer. The constructed proof
   code is literally $\ap{1}\,\GG\,w$.
 \item The ``if $\dots$ then inconsistent'' step is an
@@ -99,7 +99,7 @@ $\ap{1}\,\GG\,w$ is a $T$-proof of $0=1$''.
 The antecedent is the firing condition in $\num$-raw form: the subject
 slot is $\num\,x'$ for an arbitrary Term $x'$, with no integrality
 required to align with the read-back. Whether $\thmT\,w$ has the form
-$\Kcode_{\Lstar}\,(\_)$ is read off internally by the BRA function
+$\Kcode_{\Lstar}\,(\_)$ is read off internally by the Basic Recursive Arithmetic function
 $\outK_{\Lstar} = \mathsf{decode}\circ\mathsf{projKdef}\circ\thmT$, so
 the witnessed integer is forced to be $\outK_{\Lstar}\,w$.
 
@@ -123,7 +123,7 @@ is the part worth documenting carefully. Indeed, the main technical
 novelty of the formalisation is not the diagonal argument itself --- a
 faithful rendering of Chaitin's --- but the construction of
 \emph{object-level fuel majorants} that let evaluator completeness be
-expressed and proved entirely inside BRA. The diagonalisation is
+expressed and proved entirely inside Basic Recursive Arithmetic. The diagonalisation is
 classical; the Term-valued fuel of \S3.2 is not.
 
 \subsection{Representation of the universal interpreter}
@@ -149,7 +149,7 @@ configuration $\mathsf{cfgRT}\,(\num\,x')\,K_0$. Such a statement is
 useless inside an internal $\Deriv$-argument: $\thmT$, $\evalU$, and
 $\mathsf{stepU}$ all take Terms, not meta-Nats, so the fuel slot of the
 resulting $\thmT$-fact must itself be a Term. The obstruction is
-precise: since Theorem~13 internalises only statements about BRA terms,
+precise: since Theorem~13 internalises only statements about Basic Recursive Arithmetic terms,
 a completeness theorem quantified over meta-level naturals cannot be
 fed into the later derivation. The completeness theorem actually needed
 has the form
@@ -162,15 +162,16 @@ has the form
   \bigr),
 \]
 i.e.\ Term-input/Term-fuel completeness, where $\mathsf{fuelG}\,f$ is a
-closed BRA combinator. Proving such a statement by structural induction
+closed Basic Recursive Arithmetic combinator. Proving such a statement by structural induction
 on the combinator tree of $f$ stalls at the $R$-recursion node: the
 inner induction would need numerical control over how much fuel the
 recursive calls consume, but the actual running time is not available
 at the $\Deriv$-level.
 
-The resolution adapts the classical Gandy--Howard majorisation method.
-One builds, by primitive recursion on the structure of $f$, a closed BRA
-combinator $\mathsf{fuelG}\,f : \Fun{1}$ that provably
+The resolution adapts the classical Gandy--Howard majorisation
+method~\cite{Howard1973,Gandy1980}.
+One builds, by primitive recursion on the structure of $f$, a closed Basic
+Recursive Arithmetic combinator $\mathsf{fuelG}\,f : \Fun{1}$ that provably
 \emph{majorises} the numerical fuel any actual $\mathsf{stepU}$-run
 consumes at every Term input. The induction-with-substituted-motive
 then carries the stable shape ``the run completes at \emph{any} fuel
@@ -215,7 +216,7 @@ internal throughout under the $\imp$-context.
 
 Chaitin's original argument concludes ``$T$ is inconsistent'' (in the
 metatheory). The BRA4 formalisation strengthens this: the conclusion is
-an \emph{internal} implication, a single BRA derivation that, on the
+an \emph{internal} implication, a single Basic Recursive Arithmetic derivation that, on the
 firing condition, the constructed code $\ap{1}\,\GG\,w$ is a $T$-proof
 of $0=1$. No $\mathrm{Con}(T)$ premise is consumed, no \textsf{isNat}
 integrality predicate is consumed, and the firing condition is stated
@@ -270,6 +271,17 @@ G.~J. Chaitin, ``Computational complexity and G\"odel's incompleteness theorem,'
 \bibitem{Chaitin1974}
 G.~J. Chaitin, ``Information-theoretic limitations of formal systems,''
 \emph{Journal of the ACM}, vol.~21, no.~3, pp.~403--424, 1974.
+
+\bibitem{Howard1973}
+W.~A. Howard, ``Hereditarily majorizable functionals of finite type,''
+in A.~S. Troelstra (ed.), \emph{Metamathematical Investigations of
+Intuitionistic Arithmetic and Analysis}, Lecture Notes in Mathematics,
+vol.~344, Springer, 1973, pp.~454--461.
+
+\bibitem{Gandy1980}
+R.~O. Gandy, ``Proofs of strong normalization,'' in J.~P. Seldin and
+J.~R. Hindley (eds.), \emph{To H.~B. Curry: Essays on Combinatory Logic,
+Lambda Calculus and Formalism}, Academic Press, 1980, pp.~457--477.
 
 \bibitem{HilbertBernays}
 D.~Hilbert and P.~Bernays, \emph{Grundlagen der Mathematik}, vol.~II,
