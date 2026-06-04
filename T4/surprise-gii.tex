@@ -1,0 +1,465 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ------------------------------------------------------------------
+% Notation, following Shoenfield (Mathematical Logic, Ch.6) as used in
+% the companion paper arGII, with code(.) for the Goedel encoding.
+% ------------------------------------------------------------------
+\newcommand{\code}[1]{\mathit{code}(#1)}
+\newcommand{\thmT}{\mathbf{thmT}}
+\newcommand{\num}{\mathbf{num}}
+\newcommand{\evalU}{\mathbf{U}}
+\newcommand{\parse}{\mathbf{parse}}
+\newcommand{\stepU}{\mathbf{step}}
+\newcommand{\defp}{\mathbf{def}}
+\newcommand{\CK}{\mathbf{CK}}
+\newcommand{\Kc}{K}
+\newcommand{\Fun}{\mathit{Fun}}
+\newcommand{\Term}{\mathit{Term}}
+\newcommand{\Con}{\mathrm{Con}}
+\newcommand{\fuelG}{\mathbf{fuel}}
+\newcommand{\fuelMu}{\mathbf{fuel}_\mu}
+\newcommand{\Lstar}{L^{\!\star}}
+\newcommand{\rta}{\rightarrow}
+\newcommand{\imp}{\supset}
+
+\title{A surprise-examination (sorites) proof of G\"odel's second\\
+  incompleteness theorem in Basic Recursive Arithmetic}
+\author{Thierry Coquand}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We describe a second, independent machine-checked proof of G\"odel's
+second incompleteness theorem for Church's Basic Recursive Arithmetic
+(BRA), following Chaitin's information-theoretic route and the
+surprise-examination argument of Kritchman and Raz. The formal system,
+its numerals, the encoding $\code{\cdot}$, the verifier $\thmT$ and the
+numeral functor $\num$ are exactly those of the companion paper
+\cite{arGII}, which gives a first proof of the same theorem along
+Guard's lines; we do not repeat their construction here. The two
+ingredients specific to this proof are (i)~an \emph{internal} form of
+Chaitin's first incompleteness theorem --- a single BRA implication
+built around an object-level interpreter --- and (ii)~a \emph{sorites},
+or heap-of-sand, descent that turns Chaitin's theorem into the second
+incompleteness theorem. The whole development is checked in Agda under
+\texttt{-{}-safe -{}-without-K -{}-exact-split} with no postulates and no
+holes, from the single hypothesis that $T$ does not prove $0=1$.
+\end{abstract}
+
+\section{The statement}
+
+We work entirely inside the system $T$ of Basic Recursive Arithmetic in
+the formulation of Guard, with Shoenfield's notation; the axioms, the
+numerals $\mathbf{k}_n = \mathbf{s}^n(\mathbf{O})$, the encoding
+$\code{\cdot}$, the verifier $\thmT \in \Fun_1$ (with
+$\vdash \thmT(\code{d}) = \code{A}$ whenever $d$ codes a derivation of
+$A$), the numeral functor $\num \in \Fun_1$ (with
+$\vdash \num(\mathbf{k}_n) = \code{\mathbf{k}_n}$) and the
+derivability-internalising Theorems~12 and~13 are all as set up in the
+companion paper~\cite{arGII}, to which we refer for every detail of the
+system. We write $\vdash A$ (or $\mathit{Deriv}(A)$) for ``$A$ is a
+theorem of $T$''.
+
+As in~\cite{arGII}, the consistency of $T$ is the \emph{open} formula
+\[
+  \Con_T \;\equiv\; \neg\,(\thmT(\mathbf{x}_0) = \code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}),
+\]
+with the single free variable $\mathbf{x}_0$. Since BRA has no object
+quantifiers, a theorem is an open formula read as implicitly universally
+quantified over its free variables, so $\Con_T$ says: \emph{for every
+term $\mathbf{x}_0$, $\mathbf{x}_0$ does not code a derivation of}
+$\mathbf{O}=\mathbf{s}\,\mathbf{O}$. The theorem we prove is the same
+meta-implication that the Guard-route proof establishes,
+\[
+  \boxed{\;\vdash \Con_T \;\Longrightarrow\; \vdash (\mathbf{O}=\mathbf{s}\,\mathbf{O}),\;}
+\]
+i.e.\ if $T$ proves its own consistency then $T$ is inconsistent. The
+arrow $\Longrightarrow$ is a meta-level implication between derivability
+judgements, realised in Agda as a total function
+$\mathit{Deriv}(\Con_T) \to \mathit{Deriv}(\mathbf{O}=\mathbf{s}\,\mathbf{O})$.
+The consistency hypothesis is consumed exactly once per step of the
+descent of \S\ref{sec:sorites}, and is the \emph{only} assumption: every
+other ingredient is constructed.
+
+\section{Chaitin's first incompleteness theorem, internalised}
+\label{sec:chaitin}
+
+Chaitin's proof of the first incompleteness theorem~\cite{Chaitin71,Chaitin74}
+replaces the liar sentence by Berry's paradox and Kolmogorov complexity.
+We need this argument not as a metatheorem but as a single BRA
+implication, with the underlying universal machine realised as an honest
+object-level program. This section describes that realisation in
+ordinary computational terms; the detailed Agda construction is part of
+the development cited in \S\ref{sec:formal}.
+
+\subsection{Programs as ternary numbers}
+
+A \emph{program} is simply a natural number. Read a number $p$ in base
+$3$; its digits, drawn from the three-symbol alphabet $\{1,2,3\}$, form a
+string, and that string is fed to a fixed parser $\parse$ that turns it
+into a syntax tree --- an expression of the object language. The
+\emph{length} $|p|$ of the program is the number of base-$3$ digits, so
+\[
+  |p| \le n \quad\Longleftrightarrow\quad p < 3^{\,n+1}.
+\]
+Thus the enumeration of programs is the \emph{identity}: the $k$-th
+program is the number $k$, and the finite set of programs of length at
+most $\Lstar$ is exactly the initial segment
+\[
+  \{\,p : p < N\,\}, \qquad N := 3^{\,\Lstar+1}.
+\]
+This is the single simplification that makes the whole argument
+feasible: there is no separate enumeration to verify --- ``the set of
+short programs'' \emph{is} an interval of numbers, and quantification
+over it is bounded quantification over $\{p<N\}$.
+
+\subsection{The universal interpreter as a CK machine}
+
+The interpreter $\evalU$ that runs a parsed program is realised as a small
+abstract machine of the Landin CK kind. A \emph{configuration} is a pair
+\[
+  \langle\, c,\; \kappa \,\rangle,
+\]
+where $c$ is the expression currently under evaluation (the
+\emph{control}) and $\kappa$ is a \emph{continuation stack} recording the
+contexts still to be returned to. A one-step transition function $\stepU$
+fires a single reduction rule: it either decomposes $c$, pushing the
+deferred work onto $\kappa$, or, when $c$ has reached a value, pops the
+top frame of $\kappa$ and plugs the value into it. Running the program
+for $l$ steps is the $l$-fold iteration $\stepU^{\,l}$ started from the
+initial configuration; the machine halts when the control is a value and
+the stack is empty, and the output is read off that final configuration.
+Around this evaluator we wrap one more layer, a bounded
+$\mu$-search loop, so that the outer behaviour of $\evalU$ matches the
+informal recipe ``enumerate $\thmT(0), \thmT(1), \dots$ until a fitting
+proof is found'' used by the diagonal program below.
+
+For a program $p$ we write
+\[
+  \defp_p(l, u) \;\equiv\; \text{``running $p$ for $l$ steps halts with output $u+1$''}
+\]
+(the $+1$ separates ``halted with value $u$'' from ``not yet halted'',
+coded by $0$); $\defp_p \in \Fun_2$ for each $p$. Folding the bounded
+disjunction of the $\defp_p$ over the finite set $\{p<N\}$ gives a single
+object function $\CK \in \Fun_2$ with
+\[
+  \CK(u, x) = \mathbf{O}
+  \;\Longleftrightarrow\;
+  \text{some program $p<N$, run for $x$ steps, outputs $u+1$,}
+\]
+i.e.\ $\CK(u,x)=\mathbf{O}$ expresses $\Kc(u)\le\Lstar$ at run-length
+$x$, and the Kolmogorov bound
+\[
+  \Kc(u) > \Lstar \quad\text{is expressed by}\quad \CK(u,x)\neq\mathbf{O}
+\]
+with $x$ a free run-length variable.
+
+\subsection{Term-valued fuel: a Gandy--Howard majorant}
+\label{sec:fuel}
+
+The delicate point is not the diagonal argument --- which is a faithful
+rendering of Chaitin's --- but the fact that the interpreter must be run
+\emph{inside} a $\thmT$-fact. Since $\thmT$, $\evalU$ and $\stepU$ all
+take object terms, the number of steps appearing in such a fact must
+itself be an object \emph{term}, not a meta-level natural; and
+Theorem~13 of~\cite{arGII} internalises only statements about BRA terms.
+A completeness statement of the naive form ``for every numeral $\bar n$
+large enough, $\stepU^{\,\bar n}$ on the program halts'' is therefore
+useless: it is quantified over meta-naturals and cannot be fed into an
+internal derivation. What is needed instead is a completeness statement
+with a closed \emph{combinator} in the fuel slot,
+\[
+  (x:\Term)\to\;\vdash\;
+     \bigl(\,\stepU^{\,\fuelG(f)(x)}(\text{init}(f,x)) = \text{halt}(f\cdot x)\,\bigr),
+\]
+where $\fuelG(f)\in\Fun_1$ is built once and for all from $f$.
+
+Proving such a statement by induction on the combinator tree of $f$
+stalls at the primitive-recursion node, where one would need numerical
+control over the running time of the recursive calls --- information not
+available at the derivation level. The resolution adapts the classical
+\emph{majorisation} method of Howard and Gandy~\cite{Howard73,Gandy80}:
+one defines, by primitive recursion mirroring the structure of $f$, a
+closed combinator $\fuelG(f)$ that provably \emph{majorises} the actual
+number of steps any run of $f$ consumes at every term input. The
+induction then carries the stable shape ``the run completes at
+\emph{any} fuel $\ge \fuelG(f)(x)$'', which descends through the
+recursion node because $\fuelG$ is itself recursive in step with $f$. The
+$\mu$-search loop needs the same idea one level higher, with a majorant
+$\fuelMu$ stacked on top of $\fuelG$ by a fuel-composition lemma. The
+closed term that finally occupies the fuel slot is
+$\fuelMu(\cdots) + \fuelG(\cdots)$. Without this majorisation there would
+simply be no term to put there.
+
+\subsection{The diagonal program and the internal implication}
+
+Chaitin's short program $g_{\Lstar}$ enumerates $\thmT(0), \thmT(1),
+\dots$ until it meets the code of a statement of the form
+$\Kc(?)>\Lstar$, and then outputs the witnessed number $?$. Its size is a
+constant plus the number of digits needed to write $\Lstar$, that is
+$c + \log\Lstar$, which is below $\Lstar$ once $\Lstar$ is large. The
+program $g_{\Lstar}$ is obtained as a genuine one-variable object
+combinator $G\in\Fun_1$ by bracket abstraction --- an honest BRA program,
+not a meta-level term transformer --- so that $G\cdot w$ is literally the
+constructed code, as a \emph{proved} $T$-equation. Let $\mathbf{out}(w)$
+be the object function that reads the witness off $w$. The internalised
+Chaitin theorem is the single BRA implication
+\[
+  \vdash\;\Bigl(\thmT(w) = \code{\,\Kc(\mathbf{out}(w))>\Lstar\,}\Bigr)
+        \;\imp\;
+        \Bigl(\thmT(G\cdot w) = \code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}\Bigr),
+  \tag{C}
+\]
+valid for \emph{every} term $w$, with no consistency premise. In words:
+$T$ proves that \emph{if} $\thmT(w)$ is the incompressibility statement
+about $w$'s own read-back, \emph{then} the code $G\cdot w$ is a $T$-proof
+of $0=1$. The deduction lives entirely inside the object logic as an
+implication; the run of the interpreter on $g_{\Lstar}$, with the
+Term-fuel of \S\ref{sec:fuel}, is what closes the positive leg of~(C).
+This is the only place where the evaluator machinery is needed; the
+descent of the next section uses~(C) purely as a black box.
+
+\section{The sorites descent}
+\label{sec:sorites}
+
+Chaitin's theorem says that, for a large enough $\Lstar$, no statement
+$\Kc(x)>\Lstar$ is provable in a consistent $T$, even though for each
+$x$ exactly one of $\Kc(x)\le\Lstar$, $\Kc(x)>\Lstar$ holds and the
+former, when true, is provable (by exhibiting and running the short
+program). Kritchman and Raz~\cite{KritchmanRaz} observed that this
+tension can be wound into the second incompleteness theorem by an
+argument modelled on the surprise-examination paradox.
+
+\subsection{The counting argument}
+
+Fix $\Lstar$ as in \S\ref{sec:chaitin} and put $N = 3^{\Lstar+1}$. Let
+\[
+  m \;=\; \#\{\,u \in [0,N] : \Kc(u) > \Lstar\,\}.
+\]
+Because there are only $N$ programs of length $\le\Lstar$, at most $N$ of
+the $N+1$ values in $[0,N]$ can be compressible, so at least one is
+incompressible: $m \ge 1$, and this is provable in $T$. Kritchman and Raz
+then prove, \emph{by induction on $i$ and inside $T$}, that
+$\vdash (m \ge i)$ for $i = 1, 2, \dots$. The induction step
+$\vdash(m\ge i)\Rightarrow\vdash(m\ge i{+}1)$ is exactly where Chaitin's
+theorem and one use of consistency enter (it is their displayed
+equations~(1) for Chaitin and~(2) for the $\Sigma_1$-completeness of
+$\Kc(\cdot)\le\Lstar$). But $m \le N+1$ outright, so the induction cannot
+run forever: once $i$ passes $N+1$, the provable statement $m \ge i$
+contradicts $m \le N+1$, and $T$ proves $0=1$.
+
+\subsection{Why this is a sorites, not a vicious circle}
+
+The original surprise-examination paradox (``there will be an exam next
+week but you will not know the day until it is held'') is usually
+analysed as a self-referential knowledge puzzle. The mathematical core
+that survives formalisation, however, has the shape of the
+\emph{sorites}, or heap-of-sand, paradox. Think of the interval $[0,N]$
+--- equivalently the population of incompressible numbers counted by $m$
+--- as a heap of sand. Each step of the induction removes one grain: it
+is, taken on its own, an entirely sound BRA derivation, consisting of one
+internal application of the Chaitin implication~(C) reflected through a
+single use of consistency. No individual grain-removal is the culprit.
+Yet after $N+1$ removals the heap is gone and $T$ has proved
+$\mathbf{O}=\mathbf{s}\,\mathbf{O}$. The contradiction lives only in the
+iteration, exactly as in the heap paradox, and it is the second
+incompleteness theorem --- the impossibility of $T$ proving its own
+consistency --- that explains why the seemingly innocuous step cannot in
+fact be taken all the way (cf.\ the resolution discussed
+in~\cite{KritchmanRaz}: the missing premise is the consistency of $T$
+itself).
+
+\subsection{The formal realisation: six steps}
+\label{sec:sixsteps}
+
+In the formalisation the count $m$ is carried by an open formula
+$S(r)$, indexed by a stage $r \in [0,N]$ and built as a negated big
+conjunction over ``days''. For programs $p_r,\dots,p_N$ (each of length
+$\le\Lstar$, ranging over $\{p<N\}$) write
+\[
+  \Kc(\mathbf{x}_0; p_r,\dots,p_N) \;\equiv\;
+    \bigwedge_{d=r}^{N} \defp_{p_d}(\mathbf{x}_0, d),
+\]
+``each program $p_d$ describes the day $d$, at the common run-length
+$\mathbf{x}_0$''. The stage formula is
+\[
+  S(r) \;\equiv\;
+    \vdash \neg\,\Kc(\mathbf{x}_0; p_r,\dots,p_N)
+    \qquad\text{(for every choice of $p_r$).}
+\]
+The descent climbs $S(0) \to S(1) \to \dots \to S(N)$, one grain at a
+time, and the inductive step $S(r)\to S(r+1)$ is the six-step block that
+realises Kritchman--Raz's induction step; it follows the high-level note
+\texttt{clos} of the development and reuses the implication~(C) as a
+black box.
+
+\begin{description}
+\item[Step 1 (run-monotonicity and the finite set).]
+From $S(r)$ one derives the implication
+``$\Kc(\mathbf{x}_0; p_{r+1},\dots,p_N) \imp \neg\defp_{p_r}(\mathbf{x}_1,r)$''
+at an \emph{independent} run-length $\mathbf{x}_1$, the two fuels
+$\mathbf{x}_0,\mathbf{x}_1$ being aligned to a common bound by
+monotonicity of the interpreter in its step count (running longer never
+unsays a halt). Folding the bounded disjunction over the finite set
+$\{p<N\}$ rewrites the consequent as $\Kc(r) > \Lstar$, giving
+\[
+  \vdash\;\Kc(\mathbf{x}_0; p_{r+1},\dots,p_N) \imp \bigl(\Kc(r)>\Lstar\bigr).
+\]
+
+\item[Step 2 (encode and substitute the numeral).]
+By Theorem~13 of~\cite{arGII} the Step-1 implication is internalised: one
+obtains a term $f$ with
+$\vdash \thmT(f\cdot\mathbf{x}_0)
+   = \code{\,\Kc(\num\,\mathbf{x}_0; p_{r+1},\dots,p_N) \imp \Kc(r)>\Lstar\,}$,
+the subject slot $\mathbf{x}_0$ being replaced inside the code by its
+numeral $\num\,\mathbf{x}_0$ (the consequent has no free $\mathbf{x}_0$
+and is left inert).
+
+\item[Step 3 (internal modus ponens).]
+An encoded modus ponens (the Carneiro-lifted $\mathbf{imp\_encoded\_mp}$
+of~\cite{arGII}) chains Step~2 with a $\thmT$-fact for the antecedent.
+
+\item[Step 4 (Theorem~13 for the conjunction).]
+Writing the big conjunction as $K_r(\mathbf{x}_0)=\mathbf{O}$, the
+$\Sigma_1$-completeness direction
+$\bigl(K_r(\mathbf{x}_0)=\mathbf{O}\bigr) \imp
+  \thmT(D\,\mathbf{x}_0) = \code{\,\Kc(\num\,\mathbf{x}_0; p_{r+1},\dots,p_N)\,}$
+supplies that antecedent fact (Kritchman--Raz's equation~(2)).
+
+\item[Step 5 (Chaitin).]
+The internal Chaitin implication~(C) is applied:
+$\vdash \bigl(\thmT(w)=\code{\Kc(r)>\Lstar}\bigr)
+   \imp \bigl(\thmT(G\cdot w)=\code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}\bigr)$.
+Composing Steps~3--5 yields
+$\vdash K_r(\mathbf{x}_0)=\mathbf{O}
+   \imp \bigl(\thmT(h\cdot\mathbf{x}_0)=\code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}\bigr)$.
+
+\item[Step 6 (consistency).]
+Finally $\Con_T$ is instantiated at $h\cdot\mathbf{x}_0$ and, by
+contraposition, refutes the consequent --- so the antecedent fails:
+$\vdash \neg\,\Kc(\mathbf{x}_0; p_{r+1},\dots,p_N)$, which is $S(r+1)$.
+This is the single use of consistency per grain (Kritchman--Raz's
+equation~(1)).
+\end{description}
+
+\paragraph{Base case.}
+$S(0)$ is hypothesis-free and combinatorial. There are $N+1$ days but
+only $N$ program slots, so any assignment of a program to each day forces
+a collision $p_i = p_j$ with $i\neq j$; the two day-conjuncts then assert
+that one program, at the same run-length, outputs both $\mathbf{s}^i$ and
+$\mathbf{s}^j$, which is impossible. Hence $\neg\Kc(\mathbf{x}_0;p_0,\dots,p_N)$.
+
+\paragraph{Final clash.}
+At the top stage $r=N$ the remaining conjunction is empty, hence
+provably true, so the Step-1 implication fires \emph{unconditionally}:
+$T$ proves $\Kc(N)>\Lstar$, the Chaitin diagonal makes its provability
+into a proof of $0=1$, and $\Con_T$ refutes it. The heap is empty and
+\[
+  \vdash (\mathbf{O}=\mathbf{s}\,\mathbf{O}).
+\]
+By external induction the chain $S(0)\to\dots\to S(N)$ closes the proof.
+This induction is not informal: it is carried out in the metatheory by
+Agda, as a recursion on the meta-natural $r$ that turns the six-step
+block into a function
+$\mathit{Deriv}(S(r)) \to \mathit{Deriv}(S(r+1))$ and iterates it from
+the base derivation of $S(0)$ up to $S(N)$.
+
+\section{The formalisation}
+\label{sec:formal}
+
+The proof is checked in Agda, in the same \texttt{T4} development as the
+Guard-route proof of~\cite{arGII}, under the global options
+\texttt{-{}-safe -{}-without-K -{}-exact-split}, with no postulates and no
+holes. The headline is a single function from a derivation of $\Con_T$ to
+a derivation of $\mathbf{O}=\mathbf{s}\,\mathbf{O}$; $\Con_T$ is the only
+hypothesis, and it is the same open consistency formula as
+in~\cite{arGII}.
+
+The one genuinely non-classical piece is the Gandy--Howard majorant of
+\S\ref{sec:fuel}. The diagonalisation is Chaitin's, but the closed object
+term occupying the fuel slot of the internal interpreter run has no
+counterpart in the informal argument, and its construction (by recursion
+mirroring the program, with a substituted-motive induction through the
+recursion node) is what lets evaluator completeness be \emph{stated and
+proved} inside BRA. It is worth noting, finally, that Guard's
+formulation of Basic Recursive Arithmetic --- syntax-first, with the
+verifier $\thmT$ and the numeral functor $\num$ as honest object
+functions --- proved well suited to expressing all of these results,
+including the internal Chaitin implication and the surprise descent.
+
+The development, including both proofs of the second incompleteness
+theorem, is available at
+\url{https://github.com/coquand/agda-godel-tree}.
+
+\begin{thebibliography}{10}
+
+\bibitem{arGII}
+T.~Coquand.
+\newblock Autoformalisation of G\"odel's second incompleteness theorem in
+  Basic Recursive Arithmetic.
+\newblock arXiv:2606.01898, 2026.
+\newblock \url{https://arxiv.org/abs/2606.01898}.
+
+\bibitem{Chaitin71}
+G.~J. Chaitin.
+\newblock Computational complexity and G\"odel's incompleteness theorem.
+\newblock {\em ACM SIGACT News}, 9:11--12, 1971.
+
+\bibitem{Chaitin74}
+G.~J. Chaitin.
+\newblock Information-theoretic limitations of formal systems.
+\newblock {\em Journal of the ACM}, 21(3):403--424, 1974.
+
+\bibitem{Gandy80}
+R.~O. Gandy.
+\newblock Proofs of strong normalization.
+\newblock In J.~P. Seldin and J.~R. Hindley, editors, {\em To H.~B. Curry:
+  Essays on Combinatory Logic, Lambda Calculus and Formalism}, pages
+  457--477. Academic Press, 1980.
+
+\bibitem{Guard63}
+J.~R. Guard.
+\newblock Lecture notes on recursive arithmetic.
+\newblock Unpublished lecture notes, 1963.
+
+\bibitem{Howard73}
+W.~A. Howard.
+\newblock Hereditarily majorizable functionals of finite type.
+\newblock In A.~S. Troelstra, editor, {\em Metamathematical Investigations of
+  Intuitionistic Arithmetic and Analysis}, volume 344 of {\em Lecture Notes in
+  Mathematics}, pages 454--461. Springer, 1973.
+
+\bibitem{Kikuchi97}
+M.~Kikuchi.
+\newblock Kolmogorov complexity and the second incompleteness theorem.
+\newblock {\em Archive for Mathematical Logic}, 36:437--443, 1997.
+
+\bibitem{KritchmanRaz}
+S.~Kritchman and R.~Raz.
+\newblock The surprise examination paradox and the second incompleteness
+  theorem.
+\newblock {\em Notices of the American Mathematical Society}, 57(11):1454--1458,
+  2010.
+
+\bibitem{Shoenfield}
+J.~R. Shoenfield.
+\newblock {\em Mathematical Logic}.
+\newblock Addison--Wesley, Reading, MA, 1967.
+
+\end{thebibliography}
+
+\end{document}

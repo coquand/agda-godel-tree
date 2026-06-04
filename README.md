@@ -31,6 +31,10 @@ postulates.
 - [**Chaitin–Gödel I** — an object-level diagonal program and an
   internal implication](ChaitinGodel.pdf) (source:
   `T4/cgfun-cgfalse-note.tex`).
+- [**Surprise–Gödel II** — a surprise-examination (sorites) proof of
+  Gödel's Second Incompleteness Theorem, via Chaitin–Gödel I and the
+  Kritchman–Raz descent](SurpriseGodelII.pdf) (source:
+  `T4/surprise-gii.tex`).
 
 ## Source notes
 
