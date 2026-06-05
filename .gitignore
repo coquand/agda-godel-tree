@@ -29,6 +29,8 @@
 
 !/.gitignore
 !/T4/
+# ...but T4/old/ is a local archive of superseded files -- do not track it.
+/T4/old/
 !/README.md
 !/goedelII-summary.pdf
 !/ChaitinGodel.pdf

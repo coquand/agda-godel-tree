@@ -17,7 +17,7 @@
 % the companion paper arGII, with code(.) for the Goedel encoding.
 % ------------------------------------------------------------------
 \newcommand{\code}[1]{\mathit{code}(#1)}
-\newcommand{\thmT}{\mathbf{thmT}}
+\newcommand{\thmT}{\mathbf{th}}
 \newcommand{\num}{\mathbf{num}}
 \newcommand{\evalU}{\mathbf{U}}
 \newcommand{\parse}{\mathbf{parse}}
@@ -28,6 +28,7 @@
 \newcommand{\Fun}{\mathit{Fun}}
 \newcommand{\Term}{\mathit{Term}}
 \newcommand{\Con}{\mathrm{Con}}
+\newcommand{\Thm}[1]{\mathit{Thm}(#1)}
 \newcommand{\fuelG}{\mathbf{fuel}}
 \newcommand{\fuelMu}{\mathbf{fuel}_\mu}
 \newcommand{\Lstar}{L^{\!\star}}
@@ -66,12 +67,12 @@ We work entirely inside the system $T$ of Basic Recursive Arithmetic in
 the formulation of Guard, with Shoenfield's notation; the axioms, the
 numerals $\mathbf{k}_n = \mathbf{s}^n(\mathbf{O})$, the encoding
 $\code{\cdot}$, the verifier $\thmT \in \Fun_1$ (with
-$\vdash \thmT(\code{d}) = \code{A}$ whenever $d$ codes a derivation of
+$\Thm{\thmT(\code{d}) = \code{A}}$ whenever $d$ codes a derivation of
 $A$), the numeral functor $\num \in \Fun_1$ (with
-$\vdash \num(\mathbf{k}_n) = \code{\mathbf{k}_n}$) and the
+$\Thm{\num(\mathbf{k}_n) = \code{\mathbf{k}_n}}$) and the
 derivability-internalising Theorems~12 and~13 are all as set up in the
 companion paper~\cite{arGII}, to which we refer for every detail of the
-system. We write $\vdash A$ (or $\mathit{Deriv}(A)$) for ``$A$ is a
+system. We write $\Thm{A}$ for ``$A$ is a
 theorem of $T$''.
 
 As in~\cite{arGII}, the consistency of $T$ is the \emph{open} formula
@@ -85,12 +86,12 @@ term $\mathbf{x}_0$, $\mathbf{x}_0$ does not code a derivation of}
 $\mathbf{O}=\mathbf{s}\,\mathbf{O}$. The theorem we prove is the same
 meta-implication that the Guard-route proof establishes,
 \[
-  \boxed{\;\vdash \Con_T \;\Longrightarrow\; \vdash (\mathbf{O}=\mathbf{s}\,\mathbf{O}),\;}
+  \boxed{\;\Thm{\Con_T} \;\Longrightarrow\; \Thm{\mathbf{O}=\mathbf{s}\,\mathbf{O}},\;}
 \]
 i.e.\ if $T$ proves its own consistency then $T$ is inconsistent. The
 arrow $\Longrightarrow$ is a meta-level implication between derivability
-judgements, realised in Agda as a total function
-$\mathit{Deriv}(\Con_T) \to \mathit{Deriv}(\mathbf{O}=\mathbf{s}\,\mathbf{O})$.
+judgements, realised in Agda as a total function transforming any proof
+of $\Con_T$ into a proof of $\mathbf{O}=\mathbf{s}\,\mathbf{O}$.
 The consistency hypothesis is consumed exactly once per step of the
 descent of \S\ref{sec:sorites}, and is the \emph{only} assumption: every
 other ingredient is constructed.
@@ -183,7 +184,7 @@ useless: it is quantified over meta-naturals and cannot be fed into an
 internal derivation. What is needed instead is a completeness statement
 with a closed \emph{combinator} in the fuel slot,
 \[
-  (x:\Term)\to\;\vdash\;
+  (x:\Term)\to\;\mathit{Thm}\,
      \bigl(\,\stepU^{\,\fuelG(f)(x)}(\text{init}(f,x)) = \text{halt}(f\cdot x)\,\bigr),
 \]
 where $\fuelG(f)\in\Fun_1$ is built once and for all from $f$.
@@ -219,9 +220,9 @@ constructed code, as a \emph{proved} $T$-equation. Let $\mathbf{out}(w)$
 be the object function that reads the witness off $w$. The internalised
 Chaitin theorem is the single BRA implication
 \[
-  \vdash\;\Bigl(\thmT(w) = \code{\,\Kc(\mathbf{out}(w))>\Lstar\,}\Bigr)
+  \mathit{Thm}\Bigl(\;\bigl(\thmT(w) = \code{\,\Kc(\mathbf{out}(w))>\Lstar\,}\bigr)
         \;\imp\;
-        \Bigl(\thmT(G\cdot w) = \code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}\Bigr),
+        \bigl(\thmT(G\cdot w) = \code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}\bigr)\;\Bigr),
   \tag{C}
 \]
 valid for \emph{every} term $w$, with no consistency premise. In words:
@@ -254,8 +255,8 @@ Because there are only $N$ programs of length $\le\Lstar$, at most $N$ of
 the $N+1$ values in $[0,N]$ can be compressible, so at least one is
 incompressible: $m \ge 1$, and this is provable in $T$. Kritchman and Raz
 then prove, \emph{by induction on $i$ and inside $T$}, that
-$\vdash (m \ge i)$ for $i = 1, 2, \dots$. The induction step
-$\vdash(m\ge i)\Rightarrow\vdash(m\ge i{+}1)$ is exactly where Chaitin's
+$\Thm{m \ge i}$ for $i = 1, 2, \dots$. The induction step
+$\Thm{m\ge i}\Rightarrow\Thm{m\ge i{+}1}$ is exactly where Chaitin's
 theorem and one use of consistency enter (it is their displayed
 equations~(1) for Chaitin and~(2) for the $\Sigma_1$-completeness of
 $\Kc(\cdot)\le\Lstar$). But $m \le N+1$ outright, so the induction cannot
@@ -298,7 +299,7 @@ $\le\Lstar$, ranging over $\{p<N\}$) write
 $\mathbf{x}_0$''. The stage formula is
 \[
   S(r) \;\equiv\;
-    \vdash \neg\,\Kc(\mathbf{x}_0; p_r,\dots,p_N)
+    \Thm{\neg\,\Kc(\mathbf{x}_0; p_r,\dots,p_N)}
     \qquad\text{(for every choice of $p_r$).}
 \]
 The descent climbs $S(0) \to S(1) \to \dots \to S(N)$, one grain at a
@@ -317,14 +318,14 @@ monotonicity of the interpreter in its step count (running longer never
 unsays a halt). Folding the bounded disjunction over the finite set
 $\{p<N\}$ rewrites the consequent as $\Kc(r) > \Lstar$, giving
 \[
-  \vdash\;\Kc(\mathbf{x}_0; p_{r+1},\dots,p_N) \imp \bigl(\Kc(r)>\Lstar\bigr).
+  \mathit{Thm}\bigl(\,\Kc(\mathbf{x}_0; p_{r+1},\dots,p_N) \imp (\Kc(r)>\Lstar)\,\bigr).
 \]
 
 \item[Step 2 (encode and substitute the numeral).]
 By Theorem~13 of~\cite{arGII} the Step-1 implication is internalised: one
 obtains a term $f$ with
-$\vdash \thmT(f\cdot\mathbf{x}_0)
-   = \code{\,\Kc(\num\,\mathbf{x}_0; p_{r+1},\dots,p_N) \imp \Kc(r)>\Lstar\,}$,
+$\Thm{\thmT(f\cdot\mathbf{x}_0)
+   = \code{\,\Kc(\num\,\mathbf{x}_0; p_{r+1},\dots,p_N) \imp \Kc(r)>\Lstar\,}}$,
 the subject slot $\mathbf{x}_0$ being replaced inside the code by its
 numeral $\num\,\mathbf{x}_0$ (the consequent has no free $\mathbf{x}_0$
 and is left inert).
@@ -342,16 +343,16 @@ supplies that antecedent fact (Kritchman--Raz's equation~(2)).
 
 \item[Step 5 (Chaitin).]
 The internal Chaitin implication~(C) is applied:
-$\vdash \bigl(\thmT(w)=\code{\Kc(r)>\Lstar}\bigr)
-   \imp \bigl(\thmT(G\cdot w)=\code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}\bigr)$.
+$\mathit{Thm}\bigl(\,(\thmT(w)=\code{\Kc(r)>\Lstar})
+   \imp (\thmT(G\cdot w)=\code{\mathbf{O}=\mathbf{s}\,\mathbf{O}})\,\bigr)$.
 Composing Steps~3--5 yields
-$\vdash K_r(\mathbf{x}_0)=\mathbf{O}
-   \imp \bigl(\thmT(h\cdot\mathbf{x}_0)=\code{\mathbf{O}=\mathbf{s}\,\mathbf{O}}\bigr)$.
+$\mathit{Thm}\bigl(\,K_r(\mathbf{x}_0)=\mathbf{O}
+   \imp (\thmT(h\cdot\mathbf{x}_0)=\code{\mathbf{O}=\mathbf{s}\,\mathbf{O}})\,\bigr)$.
 
 \item[Step 6 (consistency).]
 Finally $\Con_T$ is instantiated at $h\cdot\mathbf{x}_0$ and, by
 contraposition, refutes the consequent --- so the antecedent fails:
-$\vdash \neg\,\Kc(\mathbf{x}_0; p_{r+1},\dots,p_N)$, which is $S(r+1)$.
+$\Thm{\neg\,\Kc(\mathbf{x}_0; p_{r+1},\dots,p_N)}$, which is $S(r+1)$.
 This is the single use of consistency per grain (Kritchman--Raz's
 equation~(1)).
 \end{description}
@@ -369,13 +370,13 @@ provably true, so the Step-1 implication fires \emph{unconditionally}:
 $T$ proves $\Kc(N)>\Lstar$, the Chaitin diagonal makes its provability
 into a proof of $0=1$, and $\Con_T$ refutes it. The heap is empty and
 \[
-  \vdash (\mathbf{O}=\mathbf{s}\,\mathbf{O}).
+  \Thm{\mathbf{O}=\mathbf{s}\,\mathbf{O}}.
 \]
 By external induction the chain $S(0)\to\dots\to S(N)$ closes the proof.
 This induction is not informal: it is carried out in the metatheory by
 Agda, as a recursion on the meta-natural $r$ that turns the six-step
 block into a function
-$\mathit{Deriv}(S(r)) \to \mathit{Deriv}(S(r+1))$ and iterates it from
+$\Thm{S(r)} \to \Thm{S(r+1)}$ and iterates it from
 the base derivation of $S(0)$ up to $S(N)$.
 
 \section{The formalisation}
