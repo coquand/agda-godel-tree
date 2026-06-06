@@ -35,6 +35,12 @@ postulates.
   Gödel's Second Incompleteness Theorem, via Chaitin–Gödel I and the
   Kritchman–Raz descent](SurpriseGodelII.pdf) (source:
   `T4/surprise-gii.tex`).
+- [**Autoformalising Chaitin and the surprise incompleteness
+  theorem**](sorites.pdf) — a report on the experiment of having Claude
+  autoformalise Chaitin's proof of the first incompleteness theorem and
+  the Kritchman–Raz surprise-examination (sorites / heap-of-sand)
+  version of the second, in Agda for Church's Basic Recursive
+  Arithmetic.
 
 ## Source notes
 
