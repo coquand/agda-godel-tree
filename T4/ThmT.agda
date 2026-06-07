@@ -659,35 +659,41 @@ thmT_F2 : Fun2
 thmT_F2 = Post readOff_spec thmTState
 
 -- thmT y = thmT_F2 (o y) (I y) = thmT_F2 O y (after  ax_o + axI ).
-thmT : Fun1
-thmT = C thmT_F2 o I
+-- SEALED ( abstract ) so  ap1 thmT ...  stays NEUTRAL : thmT embeds the huge
+--  C / thmT_F2 ( Post readOff_spec ( cov_spec ... ) )  decoder.  Left transparent,
+-- this Fun1 VALUE is re-walked at every conversion comparing two  ap1 thmT _  types
+-- ( which is EVERY Deriv goal ) -- the ~80s cold-build cost of the clash.  All
+-- access goes through the equational  thmT_unfold  law, never raw reduction.
+abstract
+ thmT : Fun1
+ thmT = C thmT_F2 o I
 
-thmT_unfold_F2 :
-  (spec t : Term) ->
-  Deriv (eqF (ap2 thmT_F2 spec t) (ap1 readOff_spec (ap2 thmTState spec t)))
-thmT_unfold_F2 spec t = axPost readOff_spec thmTState spec t
+ thmT_unfold_F2 :
+   (spec t : Term) ->
+   Deriv (eqF (ap2 thmT_F2 spec t) (ap1 readOff_spec (ap2 thmTState spec t)))
+ thmT_unfold_F2 spec t = axPost readOff_spec thmTState spec t
 
--- thmT y = thmT_F2 O y .
-thmT_unfold :
-  (y : Term) ->
-  Deriv (eqF (ap1 thmT y) (ap2 thmT_F2 O y))
-thmT_unfold y =
-  let s1 :
-        Deriv (eqF (ap1 thmT y)
-                    (ap2 thmT_F2 (ap1 o y) (ap1 I y)))
-      s1 = ax_C thmT_F2 o I y
-      s2 : Deriv (eqF (ap1 o y) O)
-      s2 = ax_o y
-      s3 : Deriv (eqF (ap1 I y) y)
-      s3 = axI y
-      s4 :
-        Deriv (eqF (ap2 thmT_F2 (ap1 o y) (ap1 I y))
-                    (ap2 thmT_F2 O (ap1 I y)))
-      s4 = congL thmT_F2 (ap1 I y) s2
-      s5 :
-        Deriv (eqF (ap2 thmT_F2 O (ap1 I y)) (ap2 thmT_F2 O y))
-      s5 = congR thmT_F2 O s3
-  in ruleTrans s1 (ruleTrans s4 s5)
+ -- thmT y = thmT_F2 O y .
+ thmT_unfold :
+   (y : Term) ->
+   Deriv (eqF (ap1 thmT y) (ap2 thmT_F2 O y))
+ thmT_unfold y =
+   let s1 :
+         Deriv (eqF (ap1 thmT y)
+                     (ap2 thmT_F2 (ap1 o y) (ap1 I y)))
+       s1 = ax_C thmT_F2 o I y
+       s2 : Deriv (eqF (ap1 o y) O)
+       s2 = ax_o y
+       s3 : Deriv (eqF (ap1 I y) y)
+       s3 = axI y
+       s4 :
+         Deriv (eqF (ap2 thmT_F2 (ap1 o y) (ap1 I y))
+                     (ap2 thmT_F2 O (ap1 I y)))
+       s4 = congL thmT_F2 (ap1 I y) s2
+       s5 :
+         Deriv (eqF (ap2 thmT_F2 O (ap1 I y)) (ap2 thmT_F2 O y))
+       s5 = congR thmT_F2 O s3
+   in ruleTrans s1 (ruleTrans s4 s5)
 
 ------------------------------------------------------------------------
 -- Section 13.  thmT_at_O .
