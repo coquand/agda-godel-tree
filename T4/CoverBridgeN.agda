@@ -37,13 +37,18 @@ module T4.CoverBridgeN where
 ------------------------------------------------------------------------
 -- ltSplit + impCompUnder ( verbatim from CoverBridge ).
 
+ltSplitStep :
+  (k' m' : Nat) -> Or (Eq k' m') (Lt k' m') ->
+  Or (Eq (suc k') (suc m')) (Lt (suc k') (suc m'))
+ltSplitStep k' m' (inl e)  = inl (eqCong suc e)
+ltSplitStep k' m' (inr h') = inr (ltS k' m' h')
+
 ltSplit : (k m : Nat) -> Lt k (suc m) -> Or (Eq k m) (Lt k m)
 ltSplit zero    zero     _              = inl refl
 ltSplit zero    (suc m') _              = inr (ltZ m')
 ltSplit (suc k') zero    (ltS .k' .zero ())
-ltSplit (suc k') (suc m') (ltS .k' .(suc m') h) with ltSplit k' m' h
-... | inl e  = inl (eqCong suc e)
-... | inr h' = inr (ltS k' m' h')
+ltSplit (suc k') (suc m') (ltS .k' .(suc m') h) =
+  ltSplitStep k' m' (ltSplit k' m' h)
 
 impCompUnder :
   {H A B Cf : Formula} ->

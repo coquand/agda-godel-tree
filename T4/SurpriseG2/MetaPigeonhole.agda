@@ -71,19 +71,26 @@ data Or (P Q : Set) : Set where
   inl : P -> Or P Q
   inr : Q -> Or P Q
 
+ltSucCasesStep :
+  {a b : Nat} -> Or (Lt a b) (Eq a b) ->
+  Or (Lt (suc a) (suc b)) (Eq (suc a) (suc b))
+ltSucCasesStep {a} {b} (inl hab) = inl (ltS a b hab)
+ltSucCasesStep {a} {b} (inr eq)  = inr (eqCong suc eq)
+
 ltSucCases : {a b : Nat} -> Lt a (suc b) -> Or (Lt a b) (Eq a b)
 ltSucCases {zero}  {zero}  (ltZ _)     = inr refl
 ltSucCases {zero}  {suc b} (ltZ _)     = inl (ltZ b)
 ltSucCases {suc a} {zero}  (ltS _ _ h) = ltAbsurd h
-ltSucCases {suc a} {suc b} (ltS _ _ h) with ltSucCases h
-... | inl hab = inl (ltS a b hab)
-... | inr eq  = inr (eqCong suc eq)
+ltSucCases {suc a} {suc b} (ltS _ _ h) = ltSucCasesStep (ltSucCases h)
 
 -- "Strict" transitivity bridge :  Lt x vTgt -> Lt vTgt (suc M) -> Lt x M .
+ltStrictTransStep :
+  {x vTgt M : Nat} -> Lt x vTgt -> Or (Lt vTgt M) (Eq vTgt M) -> Lt x M
+ltStrictTransStep lxv (inl ltvM) = ltTrans lxv ltvM
+ltStrictTransStep lxv (inr eqvM) = eqSubst (\ z -> Lt _ z) eqvM lxv
+
 ltStrictTrans : {x vTgt M : Nat} -> Lt x vTgt -> Lt vTgt (suc M) -> Lt x M
-ltStrictTrans lxv lvM with ltSucCases lvM
-... | inl ltvM = ltTrans lxv ltvM
-... | inr eqvM = eqSubst (\ z -> Lt _ z) eqvM lxv
+ltStrictTrans lxv lvM = ltStrictTransStep lxv (ltSucCases lvM)
 
 -- Lt n (suc zero)  ->  Eq n zero .
 ltOneZero : {n : Nat} -> Lt n (suc zero) -> Eq n zero
@@ -106,13 +113,15 @@ zeroNotSuc n ()
 sucNotZero : (n : Nat) -> Not (Eq (suc n) zero)
 sucNotZero n ()
 
+natDecEqStep : {n m : Nat} -> NatDec n m -> NatDec (suc n) (suc m)
+natDecEqStep (natYes eq) = natYes (eqCong suc eq)
+natDecEqStep (natNo  ne) = natNo  (\ q -> ne (sucInj q))
+
 natDecEq : (a b : Nat) -> NatDec a b
 natDecEq zero    zero    = natYes refl
 natDecEq zero    (suc m) = natNo (zeroNotSuc m)
 natDecEq (suc n) zero    = natNo (sucNotZero n)
-natDecEq (suc n) (suc m) with natDecEq n m
-... | natYes eq = natYes (eqCong suc eq)
-... | natNo  ne = natNo  (\ q -> ne (sucInj q))
+natDecEq (suc n) (suc m) = natDecEqStep (natDecEq n m)
 
 ------------------------------------------------------------------------
 -- SECTION 3.  3-way Nat comparison.
@@ -122,14 +131,16 @@ data NatCmp (a b : Nat) : Set where
   eqC : Eq a b -> NatCmp a b
   gtC : Lt b a -> NatCmp a b
 
+natCmpStep : {n m : Nat} -> NatCmp n m -> NatCmp (suc n) (suc m)
+natCmpStep {n} {m} (ltC h)  = ltC (ltS n m h)
+natCmpStep {n} {m} (eqC eq) = eqC (eqCong suc eq)
+natCmpStep {n} {m} (gtC h)  = gtC (ltS m n h)
+
 natCmp : (a b : Nat) -> NatCmp a b
 natCmp zero    zero    = eqC refl
 natCmp zero    (suc m) = ltC (ltZ m)
 natCmp (suc n) zero    = gtC (ltZ n)
-natCmp (suc n) (suc m) with natCmp n m
-... | ltC h  = ltC (ltS n m h)
-... | eqC eq = eqC (eqCong suc eq)
-... | gtC h  = gtC (ltS m n h)
+natCmp (suc n) (suc m) = natCmpStep (natCmp n m)
 
 ------------------------------------------------------------------------
 -- SECTION 4.  Search for a duplicate of  vTgt  in  ix [0..k) .
@@ -170,16 +181,37 @@ pred1 : Nat -> Nat
 pred1 zero    = zero
 pred1 (suc n) = n
 
+renumStep : (vTgt x : Nat) -> NatCmp x vTgt -> Nat
+renumStep vTgt x (ltC _) = x
+renumStep vTgt x (eqC _) = x        -- never invoked when  x /= vTgt ; arbitrary.
+renumStep vTgt x (gtC _) = pred1 x
+
 renum : Nat -> Nat -> Nat
-renum vTgt x with natCmp x vTgt
-... | ltC _ = x
-... | eqC _ = x        -- never invoked when  x /= vTgt ; arbitrary.
-... | gtC _ = pred1 x
+renum vTgt x = renumStep vTgt x (natCmp x vTgt)
 
 -- The renumbered value is bounded by  M  given  x , vTgt  both  <= M  and  x /= vTgt .
 --
 -- The signature uses  M = suc m  explicitly so the bound is concrete
 -- ( Lt (renum vTgt x) (suc m) ).
+
+-- The  gtC  sub-case ( renumStep ... (gtC _) = pred1 x ), split on  x  explicitly.
+renumBoundGt :
+  (vTgt x m : Nat) ->
+  Lt x (suc (suc m)) -> Lt vTgt x ->
+  Lt (pred1 x) (suc m)
+renumBoundGt vTgt zero    m ltxM ltvx = ltAbsurd ltvx        -- vTgt < 0 impossible.
+renumBoundGt vTgt (suc x') m ltxM ltvx = ltPred ltxM          -- pred1 (suc x') = x' .
+
+renumBoundAux :
+  (vTgt x m : Nat) ->
+  Lt x (suc (suc m)) ->
+  Lt vTgt (suc (suc m)) ->
+  Not (Eq x vTgt) ->
+  (c : NatCmp x vTgt) ->
+  Lt (renumStep vTgt x c) (suc m)
+renumBoundAux vTgt x m ltxM ltvM ne (ltC ltxv) = ltStrictTrans ltxv ltvM
+renumBoundAux vTgt x m ltxM ltvM ne (eqC eq)   = emptyElim (ne eq)
+renumBoundAux vTgt x m ltxM ltvM ne (gtC ltvx) = renumBoundGt vTgt x m ltxM ltvx
 
 renumBound :
   (vTgt x m : Nat) ->
@@ -187,12 +219,7 @@ renumBound :
   Lt vTgt (suc (suc m)) ->
   Not (Eq x vTgt) ->
   Lt (renum vTgt x) (suc m)
-renumBound vTgt x m ltxM ltvM ne with natCmp x vTgt
-... | ltC ltxv = ltStrictTrans ltxv ltvM
-... | eqC eq   = emptyElim (ne eq)
-... | gtC ltvx with x
-... | zero    = ltAbsurd ltvx        -- vTgt < 0 impossible.
-... | suc x'  = ltPred ltxM           -- pred1 (suc x') = x' ; ltxM : Lt (suc x') (suc (suc m)).
+renumBound vTgt x m ltxM ltvM ne = renumBoundAux vTgt x m ltxM ltvM ne (natCmp x vTgt)
 
 -- The renumbering is injective on values  /= vTgt .
 
@@ -208,100 +235,52 @@ ltAsym h1 h2 = ltIrreflAux (ltSucCases h1)
     ltIrreflAux (inl ltVA) = ltIrrefl (ltTrans h2 ltVA)
     ltIrreflAux (inr eqVA) = ltIrrefl (eqSubst (\ z -> Lt _ z) eqVA h2)
 
+-- Clash helper : a value  below  vTgt cannot equal the renumbering of one  above .
+clashLtGt :
+  (vTgt a b : Nat) -> Lt a vTgt -> Lt vTgt b -> Eq a (pred1 b) -> Empty
+clashLtGt vTgt a zero     lav lvb eqa = ltAbsurd lvb
+clashLtGt vTgt a (suc b') lav lvb eqa =
+  -- eqa : Eq a b' . lvb : Lt vTgt (suc b') so Lt vTgt (suc a) via eqa.
+  ltAsym (eqSubst (\ z -> Lt vTgt (suc z)) (eqSym eqa) lvb) lav
+
+clashGtLt :
+  (vTgt a b : Nat) -> Lt vTgt a -> Lt b vTgt -> Eq (pred1 a) b -> Empty
+clashGtLt vTgt zero     b lva lbv eqa = ltAbsurd lva
+clashGtLt vTgt (suc a') b lva lbv eqa =
+  -- eqa : Eq a' b . lva : Lt vTgt (suc a') so Lt vTgt (suc b) via eqa.
+  ltAsym (eqSubst (\ z -> Lt vTgt (suc z)) eqa lva) lbv
+
+-- Both values above  vTgt : equal predecessors give equal originals.
+predEqG :
+  (vTgt a b : Nat) -> Lt vTgt a -> Lt vTgt b -> Eq (pred1 a) (pred1 b) -> Eq a b
+predEqG vTgt zero     b        lva lvb eqp = ltAbsurd lva
+predEqG vTgt (suc a') zero     lva lvb eqp = ltAbsurd lvb
+predEqG vTgt (suc a') (suc b') lva lvb eqp = eqCong suc eqp
+
+-- Injectivity, driven by the two comparison results passed explicitly
+-- ( the  with -free replacement for the original nested  with natCmp ... ;
+--   stated on  renumStep  so matching  ca / cb  performs the reductions ).
+renumInjAux :
+  (vTgt a b : Nat) ->
+  (ca : NatCmp a vTgt) -> (cb : NatCmp b vTgt) ->
+  Not (Eq a vTgt) -> Not (Eq b vTgt) ->
+  Eq (renumStep vTgt a ca) (renumStep vTgt b cb) ->
+  Eq a b
+renumInjAux vTgt a b (eqC ea)  cb        nea neb eq = emptyElim (nea ea)
+renumInjAux vTgt a b (ltC _ )  (eqC eb)  nea neb eq = emptyElim (neb eb)
+renumInjAux vTgt a b (gtC _ )  (eqC eb)  nea neb eq = emptyElim (neb eb)
+renumInjAux vTgt a b (ltC lav) (ltC lbv) nea neb eq = eq
+renumInjAux vTgt a b (ltC lav) (gtC lvb) nea neb eq = emptyElim (clashLtGt vTgt a b lav lvb eq)
+renumInjAux vTgt a b (gtC lva) (ltC lbv) nea neb eq = emptyElim (clashGtLt vTgt a b lva lbv eq)
+renumInjAux vTgt a b (gtC lva) (gtC lvb) nea neb eq = predEqG vTgt a b lva lvb eq
+
 renumInj :
   (vTgt a b : Nat) ->
   Not (Eq a vTgt) -> Not (Eq b vTgt) ->
   Eq (renum vTgt a) (renum vTgt b) ->
   Eq a b
 renumInj vTgt a b nea neb eq =
-  renumInj-aux vTgt a b nea neb eq (natCmp a vTgt) (natCmp b vTgt)
-  where
-    renumInj-aux :
-      (vTgt a b : Nat) ->
-      Not (Eq a vTgt) -> Not (Eq b vTgt) ->
-      Eq (renum vTgt a) (renum vTgt b) ->
-      NatCmp a vTgt -> NatCmp b vTgt ->
-      Eq a b
-    renumInj-aux vTgt a b nea neb eq (eqC ea) _         = emptyElim (nea ea)
-    renumInj-aux vTgt a b nea neb eq (ltC _ ) (eqC eb)  = emptyElim (neb eb)
-    renumInj-aux vTgt a b nea neb eq (gtC _ ) (eqC eb)  = emptyElim (neb eb)
-    renumInj-aux vTgt a b nea neb eq (ltC lav) (ltC lbv) =
-      -- Both branches : renum vTgt a = a, renum vTgt b = b, so eq : Eq a b directly.
-      -- But we need to align the with-reduction: use a helper that explicitly
-      -- shows  renum  evaluates to the right thing under ltC.
-      eqAtLtLt vTgt a b lav lbv eq
-      where
-        eqAtLtLt : (vTgt a b : Nat) -> Lt a vTgt -> Lt b vTgt ->
-                   Eq (renum vTgt a) (renum vTgt b) -> Eq a b
-        eqAtLtLt vTgt a b lav lbv eqr with natCmp a vTgt | natCmp b vTgt
-        ... | ltC _ | ltC _ = eqr
-        ... | ltC _ | eqC eb = emptyElim (ltIrrefl (eqSubst (\ z -> Lt z vTgt) eb lbv))
-        ... | ltC _ | gtC h = emptyElim (ltAsym (ltWeaken lbv) h)
-        ... | eqC ea | _    = emptyElim (ltIrrefl (eqSubst (\ z -> Lt z vTgt) ea lav))
-        ... | gtC h  | _    = emptyElim (ltAsym (ltWeaken lav) h)
-    renumInj-aux vTgt a b nea neb eq (ltC lav) (gtC lvb) =
-      emptyElim (clashLtGt vTgt a b lav lvb eq)
-      where
-        -- renum vTgt a = a, renum vTgt b = pred1 b (= b' where b = suc b').
-        -- Then eq : Eq a (pred1 b).  With lav : Lt a vTgt and lvb : Lt vTgt b,
-        -- pred1 b is at least vTgt (since b > vTgt means b >= vTgt+1 means pred1 b >= vTgt),
-        -- so a >= vTgt.  Contradicts a < vTgt.
-        clashLtGt : (vTgt a b : Nat) -> Lt a vTgt -> Lt vTgt b ->
-                    Eq (renum vTgt a) (renum vTgt b) -> Empty
-        clashLtGt vTgt a b lav lvb eqr with natCmp a vTgt | natCmp b vTgt
-        ... | ltC _ | gtC _ = clashStep vTgt a b lav lvb eqr
-          where
-            clashStep : (vTgt a b : Nat) -> Lt a vTgt -> Lt vTgt b ->
-                        Eq a (pred1 b) -> Empty
-            clashStep vTgt a zero    lav lvb eqa = ltAbsurd lvb
-            clashStep vTgt a (suc b') lav lvb eqa =
-              -- eqa : Eq a b' . lvb : Lt vTgt (suc b') so Lt vTgt (suc a) via eqa.
-              ltAsym (eqSubst (\ z -> Lt vTgt (suc z)) (eqSym eqa) lvb) lav
-        ... | ltC _ | ltC h = emptyElim (ltAsym (ltWeaken h) lvb)
-        ... | ltC _ | eqC eb = emptyElim (ltIrrefl (eqSubst (\ z -> Lt vTgt z) eb lvb))
-        ... | eqC ea | _    = emptyElim (ltIrrefl (eqSubst (\ z -> Lt z vTgt) ea lav))
-        ... | gtC h  | _    = emptyElim (ltAsym (ltWeaken lav) h)
-    renumInj-aux vTgt a b nea neb eq (gtC lva) (ltC lbv) =
-      emptyElim (clashGtLt vTgt a b lva lbv eq)
-      where
-        clashGtLt : (vTgt a b : Nat) -> Lt vTgt a -> Lt b vTgt ->
-                    Eq (renum vTgt a) (renum vTgt b) -> Empty
-        clashGtLt vTgt a b lva lbv eqr with natCmp a vTgt | natCmp b vTgt
-        ... | gtC _ | ltC _ = clashStep vTgt a b lva lbv eqr
-          where
-            clashStep : (vTgt a b : Nat) -> Lt vTgt a -> Lt b vTgt ->
-                        Eq (pred1 a) b -> Empty
-            clashStep vTgt zero    b lva lbv eqa = ltAbsurd lva
-            clashStep vTgt (suc a') b lva lbv eqa =
-              -- eqa : Eq a' b . lva : Lt vTgt (suc a') so Lt vTgt (suc b) via eqa.
-              ltAsym (eqSubst (\ z -> Lt vTgt (suc z)) eqa lva) lbv
-        ... | gtC _ | gtC h = emptyElim (ltAsym (ltWeaken h) lbv)
-        ... | gtC _ | eqC eb = emptyElim (ltIrrefl (eqSubst (\ z -> Lt z vTgt) eb lbv))
-        ... | eqC ea | _    = emptyElim (ltIrrefl (eqSubst (\ z -> Lt vTgt z) ea lva))
-        ... | ltC h  | _    = emptyElim (ltAsym (ltWeaken h) lva)
-    renumInj-aux vTgt a b nea neb eq (gtC lva) (gtC lvb) =
-      eqAtGtGt vTgt a b lva lvb eq
-      where
-        eqAtGtGt : (vTgt a b : Nat) -> Lt vTgt a -> Lt vTgt b ->
-                   Eq (renum vTgt a) (renum vTgt b) -> Eq a b
-        eqAtGtGt vTgt zero    b      lva lvb eqr = ltAbsurd lva
-        eqAtGtGt vTgt (suc a') zero  lva lvb eqr = ltAbsurd lvb
-        eqAtGtGt vTgt (suc a') (suc b') lva lvb eqr = eqHelper vTgt (suc a') (suc b') lva lvb eqr
-          where
-            eqHelper : (vTgt a b : Nat) -> Lt vTgt a -> Lt vTgt b ->
-                       Eq (renum vTgt a) (renum vTgt b) -> Eq a b
-            eqHelper vTgt a b lva lvb eqr with natCmp a vTgt | natCmp b vTgt
-            ... | gtC _ | gtC _ = predEq vTgt a b lva lvb eqr
-              where
-                predEq : (vTgt a b : Nat) -> Lt vTgt a -> Lt vTgt b ->
-                         Eq (pred1 a) (pred1 b) -> Eq a b
-                predEq vTgt zero    b lva lvb eqp = ltAbsurd lva
-                predEq vTgt (suc a') zero lva lvb eqp = ltAbsurd lvb
-                predEq vTgt (suc a') (suc b') lva lvb eqp = eqCong suc eqp
-            ... | gtC _ | ltC h = emptyElim (ltAsym (ltWeaken h) lvb)
-            ... | gtC _ | eqC eb = emptyElim (ltIrrefl (eqSubst (\ z -> Lt vTgt z) eb lvb))
-            ... | eqC ea | _    = emptyElim (ltIrrefl (eqSubst (\ z -> Lt vTgt z) ea lva))
-            ... | ltC h  | _    = emptyElim (ltAsym (ltWeaken h) lva)
+  renumInjAux vTgt a b (natCmp a vTgt) (natCmp b vTgt) nea neb eq
 
 ------------------------------------------------------------------------
 -- SECTION 6.  The Collide record and the pigeonhole theorem.
@@ -323,17 +302,17 @@ pigeonhole :
   ((i : Nat) -> Lt i (suc N) -> Lt (ix i) (suc M)) ->
   Lt M N ->
   Collide ix N
-pigeonhole ix zero    M bd ltMN = ltAbsurd ltMN
-pigeonhole ix (suc N') M bd ltMN with searchDup ix (ix (suc N')) (suc N')
-... | found i Lti eq_ix_i_v =
-    mkCollide i (suc N') (ltWeaken Lti) (ltSelf (suc N')) i_neq_top eq_ix_i_v
-  where
-    i_neq_top : Not (Eq i (suc N'))
-    i_neq_top eq = ltIrrefl (eqSubst (\ z -> Lt z (suc N')) eq Lti)
-... | notFound np with M
-... | zero =
-    -- All ix values are 0 (since they're < 1).  In particular ix 0 = 0 = vTgt = ix (suc N').
-    -- np 0 (Lt 0 (suc N')) refl is contradiction-by-equality.
+
+-- The  notFound  branch : no duplicate of  vTgt = ix (suc N')  among [0..N') .
+-- Split on  M  explicitly (the old nested  with M ).
+pigeonholeNF :
+  (ix : Nat -> Nat) (N' M : Nat) ->
+  ((i : Nat) -> Lt i (suc (suc N')) -> Lt (ix i) (suc M)) ->
+  Lt M (suc N') ->
+  ((i : Nat) -> Lt i (suc N') -> Not (Eq (ix i) (ix (suc N')))) ->
+  Collide ix (suc N')
+pigeonholeNF ix N' zero bd ltMN np =
+    -- All ix values are 0 (since they're < 1).  ix 0 = 0 = vTgt = ix (suc N').
     let ixZ_eq_Z : Eq (ix zero) zero
         ixZ_eq_Z = ltOneZero (bd zero (ltZ (suc N')))
 
@@ -343,11 +322,10 @@ pigeonhole ix (suc N') M bd ltMN with searchDup ix (ix (suc N')) (suc N')
         ixZ_eq_v : Eq (ix zero) (ix (suc N'))
         ixZ_eq_v = eqTrans ixZ_eq_Z (eqSym vTop_eq_Z)
 
-        -- Need  Lt 0 (suc N') :
         LtZ_SN : Lt zero (suc N')
         LtZ_SN = ltZ N'
     in  emptyElim (np zero LtZ_SN ixZ_eq_v)
-... | suc m =
+pigeonholeNF ix N' (suc m) bd ltMN np =
     let vTgt : Nat
         vTgt = ix (suc N')
 
@@ -395,3 +373,21 @@ pigeonhole ix (suc N') M bd ltMN with searchDup ix (ix (suc N')) (suc N')
         ixEQ = renumInj vTgt (ix i') (ix j') neIxI'V neIxJ'V ix'EQ
 
     in mkCollide i' j' (ltWeaken Lti') (ltWeaken Ltj') neI'J' ixEQ
+
+-- Dispatch on the duplicate search (the old  with searchDup ... ).
+pigeonholeStep :
+  (ix : Nat -> Nat) (N' M : Nat) ->
+  ((i : Nat) -> Lt i (suc (suc N')) -> Lt (ix i) (suc M)) ->
+  Lt M (suc N') ->
+  Search ix (ix (suc N')) (suc N') ->
+  Collide ix (suc N')
+pigeonholeStep ix N' M bd ltMN (found i Lti eq_ix_i_v) =
+    mkCollide i (suc N') (ltWeaken Lti) (ltSelf (suc N')) i_neq_top eq_ix_i_v
+  where
+    i_neq_top : Not (Eq i (suc N'))
+    i_neq_top eq = ltIrrefl (eqSubst (\ z -> Lt z (suc N')) eq Lti)
+pigeonholeStep ix N' M bd ltMN (notFound np) = pigeonholeNF ix N' M bd ltMN np
+
+pigeonhole ix zero    M bd ltMN = ltAbsurd ltMN
+pigeonhole ix (suc N') M bd ltMN =
+  pigeonholeStep ix N' M bd ltMN (searchDup ix (ix (suc N')) (suc N'))
