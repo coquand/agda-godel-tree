@@ -41,6 +41,13 @@ postulates.
   the Kritchman–Raz surprise-examination (sorites / heap-of-sand)
   version of the second, in Agda for Church's Basic Recursive
   Arithmetic.
+- [**A small library on Kolmogorov complexity in Basic Recursive
+  Arithmetic**](KolmogorovLibrary.pdf) (source:
+  `T4/kolmogorov-library.tex`) — the machine-checked Kolmogorov-complexity
+  results: the logarithmic upper bound `K(x) = O(log x)`, the counting
+  bound `#{x : K(x) <= L} <= 3^(L+1)`, the existence of incompressible
+  numbers and unboundedness of `K`, an abundance refinement, monotonicity,
+  and the non-computability of `K` by a Berry-program argument.
 
 ## Source notes
 
