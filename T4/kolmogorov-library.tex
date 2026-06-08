@@ -57,8 +57,9 @@ We work in the object theory $T$ of Basic Recursive Arithmetic, with
 terms built from $\mathbf{O}$, the unary $\mathbf{s}$ and the
 primitive-recursive functionals; the numeral of $n\in\mathbb N$ is
 $\overline n=\mathbf{s}^n\mathbf{O}$, and $\Thm{A}$ means ``$A$ is a
-theorem of $T$''. We use the universal machine of the Chaitin
-development.
+theorem of $T$''. Kolmogorov complexity~\cite{Kolmogorov65,LiVitanyi} is
+defined relative to the universal machine of the companion Chaitin
+development~\cite{arGII}.
 
 \paragraph{Programs as ternary numbers.}
 A \emph{program} is a natural number $p$, read in base $3$; its digits
@@ -172,9 +173,10 @@ $\Kc(x)\le a$ and $a\le b$ imply $\Kc(x)\le b$.
 
 \section{Non-computability of $\Kc$}
 
-The library culminates in Chaitin's observation that $\Kc$ itself is not
-computable. Say that a total combinator $K\!f\in\Fun_1$ \emph{computes}
-$\Kc$ if it decides the complexity predicate:
+The library culminates in the classical observation that $\Kc$ itself is
+not computable~\cite{Chaitin74,LiVitanyi}, by Berry's
+paradox~\cite{Russell08}. Say that a total combinator $K\!f\in\Fun_1$
+\emph{computes} $\Kc$ if it decides the complexity predicate:
 \[
   \ev(K\!f)(x)\le L \quad\Longleftrightarrow\quad \Kc(x)\le L
   \qquad(\text{for all }L,x).
@@ -222,12 +224,47 @@ The whole development is checked in Agda under
 holes. Theorem~\ref{thm:upper} is consistency-free; every other result
 uses $\Con_T$ as its sole hypothesis, through the single fact that one
 program describes one value. The reference semantics $\ev$ is connected to
-the object machine by a small reflection principle: an object equation
-$f(\overline k)=\overline{\varphi(k)}$ together with machine soundness and
-numeral injectivity (under $\Con_T$) pins the meta value
-$\ev(f)(k)=\varphi(k)$; this is what lets the Berry program be reasoned
+the object machine by a small \emph{derived lemma} --- not a new axiom or a
+reflection scheme: from an object equation
+$f(\overline k)=\overline{\varphi(k)}$, the already-proved soundness of the
+machine, and numeral injectivity ($\overline m=\overline n\Rightarrow m=n$,
+itself a consequence of $\Con_T$), one \emph{concludes} the meta equation
+$\ev(f)(k)=\varphi(k)$. This is what lets the Berry program be reasoned
 about value-by-value without ever unfolding the Cantor pairing of the
 universal machine.
 \end{remark}
+
+\begin{thebibliography}{10}
+
+\bibitem{Chaitin74}
+G.~J. Chaitin.
+\newblock Information-theoretic limitations of formal systems.
+\newblock {\em Journal of the ACM}, 21(3):403--424, 1974.
+
+\bibitem{arGII}
+T.~Coquand.
+\newblock Autoformalisation of G\"odel's second incompleteness theorem in
+  Basic Recursive Arithmetic.
+\newblock arXiv:2606.01898, 2026.
+\newblock \url{https://arxiv.org/abs/2606.01898}.
+
+\bibitem{Kolmogorov65}
+A.~N. Kolmogorov.
+\newblock Three approaches to the quantitative definition of information.
+\newblock {\em Problems of Information Transmission}, 1(1):1--7, 1965.
+
+\bibitem{LiVitanyi}
+M.~Li and P.~Vit\'anyi.
+\newblock {\em An Introduction to Kolmogorov Complexity and Its
+  Applications}.
+\newblock Springer, 3rd edition, 2008.
+
+\bibitem{Russell08}
+B.~Russell.
+\newblock Mathematical logic as based on the theory of types.
+\newblock {\em American Journal of Mathematics}, 30(3):222--262, 1908.
+\newblock (Berry's paradox, attributed to G.~G.~Berry.)
+
+\end{thebibliography}
 
 \end{document}
