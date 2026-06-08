@@ -1,0 +1,233 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ------------------------------------------------------------------
+% Notation, following the companion notes (Guard's Basic Recursive
+% Arithmetic, Shoenfield's notation) with code(.) for Goedel encoding.
+% ------------------------------------------------------------------
+\newcommand{\code}[1]{\mathit{code}(#1)}
+\newcommand{\thmT}{\mathbf{th}}
+\newcommand{\run}{\mathbf{run}}
+\newcommand{\ev}{\mathbf{ev}}
+\newcommand{\Fun}{\mathit{Fun}}
+\newcommand{\Term}{\mathit{Term}}
+\newcommand{\Con}{\mathrm{Con}}
+\newcommand{\Thm}[1]{\mathit{Thm}(#1)}
+\newcommand{\Kc}{K}
+\newcommand{\Kle}{\preccurlyeq}
+\newcommand{\nodes}{\mathit{nodes}}
+\newcommand{\Berry}{\mathbf{berry}}
+
+\title{A small library on Kolmogorov complexity\\ in Basic Recursive Arithmetic}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  This note records, in ordinary mathematical notation, the results about
+  Kolmogorov complexity that have been machine-checked in the \texttt{T4}
+  development (the same Basic Recursive Arithmetic framework as the
+  companion papers). They form a small self-contained library: an
+  \emph{upper bound} $\Kc(x)=O(\log x)$, a \emph{counting bound}
+  $\#\{x:\Kc(x)\le L\}\le 3^{\,L+1}$, the existence of \emph{incompressible}
+  numbers and the unboundedness of $\Kc$, an \emph{abundance} refinement,
+  \emph{monotonicity}, and finally the \emph{non-computability} of $\Kc$
+  by a Berry-program argument. Every statement is proved with no
+  postulates and no holes; only the lower bounds use a single consistency
+  hypothesis.
+\end{abstract}
+
+\section{Setup}
+
+We work in the object theory $T$ of Basic Recursive Arithmetic, with
+terms built from $\mathbf{O}$, the unary $\mathbf{s}$ and the
+primitive-recursive functionals; the numeral of $n\in\mathbb N$ is
+$\overline n=\mathbf{s}^n\mathbf{O}$, and $\Thm{A}$ means ``$A$ is a
+theorem of $T$''. We use the universal machine of the Chaitin
+development.
+
+\paragraph{Programs as ternary numbers.}
+A \emph{program} is a natural number $p$, read in base $3$; its digits
+form a string fed to a fixed parser, so the enumeration of programs is the
+identity and ``length $\le L$'' is the bounded condition
+\[
+   |p|\le L \quad\Longleftrightarrow\quad p < 3^{\,L+1}.
+\]
+The interpreter is the object function $\run\in\Fun_2$: $\run(\overline
+p,\overline N)$ runs program $p$ for $N$ steps. ``Program $p$, with fuel
+$N$, describes $x$'' is the provable $\Delta_0$ equation
+\[
+   \run(\overline p,\overline N)=\mathbf{s}\,\overline x,
+\]
+the leading $\mathbf{s}$ separating ``halted with value $x$'' from ``not
+yet halted''.
+
+\paragraph{The complexity predicate.}
+For $L,x\in\mathbb N$ we write $\Kc(x)\le L$ (the relation $\Kle$) for
+\[
+  \Kc(x)\le L \;\;:\equiv\;\;
+  \exists\,p<3^{\,L+1}\;\exists\,N\;\;
+  \Thm{\,\run(\overline p,\overline N)=\mathbf{s}\,\overline x\,}\,;
+\]
+``some program of length $\le L$ provably outputs $x$''. Thus $\Kc(x)$ is
+the least description length of $x$. Note that $\Kc(x)\le L$ is an
+\emph{existential} over the unbounded fuel $N$, hence not a decidable
+predicate; this is why several statements below appear in negative form.
+
+\paragraph{Reference semantics and consistency.}
+Each combinator $f\in\Fun_1$ has a meta value function
+$\ev(f):\mathbb N\to\mathbb N$ (the standard primitive-recursive
+semantics, against which the universal machine is proved correct). The
+only hypothesis used by the lower bounds is simple consistency,
+\[
+  \Con_T\;\equiv\;\neg\,\Thm{\,\mathbf{O}=\mathbf{s}\,\mathbf{O}\,}.
+\]
+
+\section{The upper bound}
+
+\begin{theorem}[Logarithmic upper bound]\label{thm:upper}
+For every $x\ge 1$ there are a program $p$ and a fuel $N$ with
+\[
+  p<3^{\,c+d\cdot D},\qquad
+  \Thm{\,\run(\overline p,\overline N)=\mathbf{s}\,\overline x\,},
+  \qquad\text{and}\qquad 3^{\,D-1}\le x,
+\]
+where $D$ is the number of base-$3$ digits of $x$ and $c,d$ are fixed
+constants. Consequently $\Kc(x)\le c+d\cdot D = O(\log_3 x)$.
+\end{theorem}
+
+The program is the base-$3$ Horner code of $x$: an honest object program
+whose size $\nodes$ is linear in $D$, run by the universal-machine
+correctness theorem; the bound $p<3^{\,\nodes+1}$ is the tight base-$3$
+combinatorial estimate $\,2\cdot p+3\le 3^{\,\nodes+1}$. This is the only
+result that needs no consistency hypothesis.
+
+\section{The counting bound}
+
+A program describes at most one value --- on pain of inconsistency, since
+two distinct outputs of one program at a common (monotonically aligned)
+fuel give $\Thm{\,\mathbf{s}\,\overline{x_i}=\mathbf{s}\,\overline{x_j}\,}$
+with $x_i\neq x_j$, hence $\Thm{\mathbf{O}=\mathbf{s}\,\mathbf{O}}$. Counting
+programs then bounds the values.
+
+\begin{theorem}[Counting bound]\label{thm:count}
+Assume $\Con_T$. There are at most $3^{\,L+1}$ numbers of complexity
+$\le L$:
+\[
+  \#\{\,x:\Kc(x)\le L\,\}\;\le\;3^{\,L+1}.
+\]
+Constructively: any sequence $x_0,x_1,\dots$ with $\Kc(x_i)\le L$ for all
+$i$ has a repeated value among its first $3^{\,L+1}+1$ entries.
+\end{theorem}
+
+The constructive form is the honest one: each value picks a describing
+program in the interval $\{p<3^{\,L+1}\}$, and the meta pigeonhole forces
+two of the first $3^{\,L+1}+1$ indices to share a program, hence (by
+determinism) to carry equal values.
+
+\section{Incompressibility and unboundedness}
+
+\begin{theorem}[Incompressible numbers exist]\label{thm:incompress}
+Assume $\Con_T$. For every $L$ it is not the case that every $i\le
+3^{\,L+1}$ has $\Kc(i)\le L$. Equivalently, some $i\le 3^{\,L+1}$ satisfies
+$\Kc(i)>L$.
+\end{theorem}
+
+\begin{corollary}[$\Kc$ is unbounded]\label{cor:unbounded}
+Assume $\Con_T$. For every $L$ it is not the case that $\Kc(i)\le L$ for
+all $i$.
+\end{corollary}
+
+There are $3^{\,L+1}+1$ numbers in $[0,3^{\,L+1}]$ but at most $3^{\,L+1}$
+of complexity $\le L$, so one of them is incompressible above $L$. Because
+$\Kc(x)\le L$ is not decidable, the statement is given in the negative
+form ``not all are compressible'' rather than as a pinned witness.
+
+\begin{theorem}[Abundance]\label{thm:abundance}
+Assume $\Con_T$. No injective block of $3^{\,L+1}+1$ distinct numbers can
+all have complexity $\le L$.
+\end{theorem}
+
+Taking the block to be the identity recovers
+Theorem~\ref{thm:incompress}; the general form shows incompressible
+numbers are unavoidable inside any large collection of distinct values.
+
+\begin{proposition}[Monotonicity]\label{prop:mono}
+$\Kc(x)\le a$ and $a\le b$ imply $\Kc(x)\le b$.
+\end{proposition}
+
+\section{Non-computability of $\Kc$}
+
+The library culminates in Chaitin's observation that $\Kc$ itself is not
+computable. Say that a total combinator $K\!f\in\Fun_1$ \emph{computes}
+$\Kc$ if it decides the complexity predicate:
+\[
+  \ev(K\!f)(x)\le L \quad\Longleftrightarrow\quad \Kc(x)\le L
+  \qquad(\text{for all }L,x).
+\]
+The two directions are soundness ($\Kc(x)\le L\Rightarrow\ev(K\!f)(x)\le
+L$, no over-estimate) and realisability ($\ev(K\!f)(x)\le L\Rightarrow
+\Kc(x)\le L$, the value is genuinely achieved).
+
+\begin{theorem}[Non-computability]\label{thm:noncomp}
+Assume $\Con_T$. No $K\!f\in\Fun_1$ computes $\Kc$.
+\end{theorem}
+
+The proof is the Berry paradox, realised as an honest object program.
+Fix a hypothetical $K\!f$. Build the fixed, $\mu$-free combinator
+\[
+  \Berry_{K\!f}\in\Fun_1,\qquad
+  \Berry_{K\!f}(L) \;=\; \text{the least } x<3^{\,L+1}+1
+                          \text{ with } \ev(K\!f)(x)>L,
+\]
+a bounded search ``scan the days $0,1,\dots,3^{\,L+1}$ and print the first
+incompressible one''. Three facts close the argument, for a suitable $L$.
+
+\begin{itemize}
+\item \emph{The search succeeds:} writing $b_L=\Berry_{K\!f}(L)$, one has
+  $\ev(K\!f)(b_L)>L$. Indeed if \emph{no} $x\le 3^{\,L+1}$ had
+  $\ev(K\!f)(x)>L$, then by realisability every such $x$ would have
+  $\Kc(x)\le L$, contradicting Theorem~\ref{thm:incompress}.
+\item \emph{$b_L$ has a short description:} the program
+  $\Berry_{K\!f}\circ\langle\text{constant }L\rangle$ runs to $b_L$, and
+  its size is $\nodes = \text{const}+O(\log L)$ (the constant absorbs the
+  fixed $\Berry_{K\!f}$, the logarithm is the base-$3$ Horner code of the
+  input $L$). By Theorem~\ref{thm:upper} this gives $\Kc(b_L)\le \nodes$.
+\item \emph{Exp beats linear:} since $\nodes=\text{const}+O(\log L)$,
+  there is an $L$ with $\nodes\le L$; take $L=3^{\,k}$ for $k$ large, where
+  the base-$3$ length of $L$ is $k+1$, so a constant plus a multiple of
+  $k+1$ stays below $3^{\,k}$.
+\end{itemize}
+For that $L$ we have simultaneously $\Kc(b_L)\le \nodes\le L$ (describable
+within length $L$) and $\ev(K\!f)(b_L)>L$. Soundness turns the first into
+$\ev(K\!f)(b_L)\le L$, contradicting the second. \qed
+
+\begin{remark}
+The whole development is checked in Agda under
+\texttt{-{}-safe -{}-without-K -{}-exact-split}, with no postulates and no
+holes. Theorem~\ref{thm:upper} is consistency-free; every other result
+uses $\Con_T$ as its sole hypothesis, through the single fact that one
+program describes one value. The reference semantics $\ev$ is connected to
+the object machine by a small reflection principle: an object equation
+$f(\overline k)=\overline{\varphi(k)}$ together with machine soundness and
+numeral injectivity (under $\Con_T$) pins the meta value
+$\ev(f)(k)=\varphi(k)$; this is what lets the Berry program be reasoned
+about value-by-value without ever unfolding the Cantor pairing of the
+universal machine.
+\end{remark}
+
+\end{document}
