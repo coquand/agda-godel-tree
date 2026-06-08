@@ -56,10 +56,11 @@
 We work in the object theory $T$ of Basic Recursive Arithmetic, with
 terms built from $\mathbf{O}$, the unary $\mathbf{s}$ and the
 primitive-recursive functionals; the numeral of $n\in\mathbb N$ is
-$\overline n=\mathbf{s}^n\mathbf{O}$, and $\Thm{A}$ means ``$A$ is a
-theorem of $T$''. Kolmogorov complexity~\cite{Kolmogorov65,LiVitanyi} is
-defined relative to the universal machine of the companion Chaitin
-development~\cite{arGII}.
+$\overline n=\mathbf{s}^n\mathbf{O}$, and $\Thm{A}$ is the \emph{meta}
+judgement ``$A$ is derivable in $T$'' --- in the formalisation, that the
+Agda type $\mathrm{Deriv}(A)$ is inhabited. Kolmogorov
+complexity~\cite{Kolmogorov65,LiVitanyi} is defined relative to the
+universal machine of the companion Chaitin development~\cite{arGII}.
 
 \paragraph{Programs as ternary numbers.}
 A \emph{program} is a natural number $p$, read in base $3$; its digits
@@ -89,14 +90,35 @@ the least description length of $x$. Note that $\Kc(x)\le L$ is an
 \emph{existential} over the unbounded fuel $N$, hence not a decidable
 predicate; this is why several statements below appear in negative form.
 
+\begin{remark}[A notational caveat: meta versus internal]
+The reader should keep in mind that, unlike in the companion
+Chaitin--G\"odel~I development, the predicate $\Kc(x)\le L$ here is a
+\emph{meta} (Agda) statement --- a meta existential $\exists\,p,N$ over the
+\emph{object-derivability} facts $\Thm{\run(\overline p,\overline
+N)=\mathbf{s}\,\overline x}$ --- so its negation $\Kc(x)>L$ is likewise a
+meta statement, whereas in Chaitin--G\"odel~I $\Kc(x)>L$ is the
+\emph{internal} open $\Pi_1$ BRA \emph{formula} $\mathbf{CK}(x,\cdot)\neq
+\mathbf{O}$ that $T$ may or may not prove; the two notions agree only
+through $\Sigma_1$-completeness, and the shared notation should not be read
+as identifying them.
+\end{remark}
+
 \paragraph{Reference semantics and consistency.}
 Each combinator $f\in\Fun_1$ has a meta value function
 $\ev(f):\mathbb N\to\mathbb N$ (the standard primitive-recursive
 semantics, against which the universal machine is proved correct). The
-only hypothesis used by the lower bounds is simple consistency,
+only hypothesis used by the lower bounds is simple consistency, taken here
+in its \emph{meta} form
 \[
-  \Con_T\;\equiv\;\neg\,\Thm{\,\mathbf{O}=\mathbf{s}\,\mathbf{O}\,}.
+  \mathrm{con}\;\equiv\;\neg\,\Thm{\,\mathbf{O}=\mathbf{s}\,\mathbf{O}\,},
 \]
+the Agda statement that the type
+$\mathrm{Deriv}(\mathbf{O}=\mathbf{s}\,\mathbf{O})$ is empty (``$T$ has no
+derivation of $0=1$''). This is again a meta statement, \emph{not} the
+internal open BRA formula
+$\Con_T\equiv(\thmT(\mathbf{x}_0)\neq\code{\mathbf{O}=\mathbf{s}\,\mathbf{O}})$
+of the G\"odel~II development --- an object sentence that $T$ itself may or
+may not prove.
 
 \section{The upper bound}
 
@@ -126,7 +148,7 @@ with $x_i\neq x_j$, hence $\Thm{\mathbf{O}=\mathbf{s}\,\mathbf{O}}$. Counting
 programs then bounds the values.
 
 \begin{theorem}[Counting bound]\label{thm:count}
-Assume $\Con_T$. There are at most $3^{\,L+1}$ numbers of complexity
+Assume $\mathrm{con}$. There are at most $3^{\,L+1}$ numbers of complexity
 $\le L$:
 \[
   \#\{\,x:\Kc(x)\le L\,\}\;\le\;3^{\,L+1}.
@@ -143,13 +165,13 @@ determinism) to carry equal values.
 \section{Incompressibility and unboundedness}
 
 \begin{theorem}[Incompressible numbers exist]\label{thm:incompress}
-Assume $\Con_T$. For every $L$ it is not the case that every $i\le
+Assume $\mathrm{con}$. For every $L$ it is not the case that every $i\le
 3^{\,L+1}$ has $\Kc(i)\le L$. Equivalently, some $i\le 3^{\,L+1}$ satisfies
 $\Kc(i)>L$.
 \end{theorem}
 
 \begin{corollary}[$\Kc$ is unbounded]\label{cor:unbounded}
-Assume $\Con_T$. For every $L$ it is not the case that $\Kc(i)\le L$ for
+Assume $\mathrm{con}$. For every $L$ it is not the case that $\Kc(i)\le L$ for
 all $i$.
 \end{corollary}
 
@@ -159,7 +181,7 @@ $\Kc(x)\le L$ is not decidable, the statement is given in the negative
 form ``not all are compressible'' rather than as a pinned witness.
 
 \begin{theorem}[Abundance]\label{thm:abundance}
-Assume $\Con_T$. No injective block of $3^{\,L+1}+1$ distinct numbers can
+Assume $\mathrm{con}$. No injective block of $3^{\,L+1}+1$ distinct numbers can
 all have complexity $\le L$.
 \end{theorem}
 
@@ -186,7 +208,7 @@ L$, no over-estimate) and realisability ($\ev(K\!f)(x)\le L\Rightarrow
 \Kc(x)\le L$, the value is genuinely achieved).
 
 \begin{theorem}[Non-computability]\label{thm:noncomp}
-Assume $\Con_T$. No $K\!f\in\Fun_1$ computes $\Kc$.
+Assume $\mathrm{con}$. No $K\!f\in\Fun_1$ computes $\Kc$.
 \end{theorem}
 
 The proof is the Berry paradox, realised as an honest object program.
@@ -222,13 +244,13 @@ $\ev(K\!f)(b_L)\le L$, contradicting the second. \qed
 The whole development is checked in Agda under
 \texttt{-{}-safe -{}-without-K -{}-exact-split}, with no postulates and no
 holes. Theorem~\ref{thm:upper} is consistency-free; every other result
-uses $\Con_T$ as its sole hypothesis, through the single fact that one
+uses $\mathrm{con}$ as its sole hypothesis, through the single fact that one
 program describes one value. The reference semantics $\ev$ is connected to
 the object machine by a small \emph{derived lemma} --- not a new axiom or a
 reflection scheme: from an object equation
 $f(\overline k)=\overline{\varphi(k)}$, the already-proved soundness of the
 machine, and numeral injectivity ($\overline m=\overline n\Rightarrow m=n$,
-itself a consequence of $\Con_T$), one \emph{concludes} the meta equation
+itself a consequence of $\mathrm{con}$), one \emph{concludes} the meta equation
 $\ev(f)(k)=\varphi(k)$. This is what lets the Berry program be reasoned
 about value-by-value without ever unfolding the Cantor pairing of the
 universal machine.
