@@ -61,8 +61,17 @@ searchRec Kf = R o (gStep Kf) Pair
 boundF : Fun1
 boundF = compose1U s (compose1U exp3 s)
 
-BerryF : Fun1 -> Fun1
-BerryF Kf = C (searchRec Kf) u boundF
+-- BerryF is SEALED abstract: its mcode is a huge tree, and leaving it
+-- transparent makes  nodes (mcode1 (berry Kf L)) / diagRank  in T4.KolmBerry
+-- walk the whole tree (cold typecheck blows up).  The single  BerryF_unfold
+-- law exposes its definition for the meta computation (berryMeta) without
+-- exposing the tree to the size/run machinery downstream.
+abstract
+  BerryF : Fun1 -> Fun1
+  BerryF Kf = C (searchRec Kf) u boundF
+
+  BerryF_unfold : (Kf : Fun1) -> Eq (BerryF Kf) (C (searchRec Kf) u boundF)
+  BerryF_unfold Kf = refl
 
 ------------------------------------------------------------------------
 -- SECTION 2.  The meta search.
@@ -163,8 +172,9 @@ berryMeta :
   Not (Deriv falseF) -> (Kf : Fun1) (L : Nat) ->
   Eq (evalN1 (BerryF Kf) L) (bfun Kf L)
 berryMeta con Kf L =
-  eqTrans (eqCong (\ z -> evalN2 (searchRec Kf) L z) (boundE con L))
-          (searchMeta con Kf L (suc (pow3 (suc L))))
+  eqTrans (eqCong (\ f -> evalN1 f L) (BerryF_unfold Kf))
+    (eqTrans (eqCong (\ z -> evalN2 (searchRec Kf) L z) (boundE con L))
+             (searchMeta con Kf L (suc (pow3 (suc L)))))
 
 ------------------------------------------------------------------------
 -- SECTION 5.  Meta search properties.
