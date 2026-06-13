@@ -9,19 +9,40 @@ calculus of recursive functions on the natural numbers, presented in
 Hilbert style (axiom schemas + rules) — numerals built from `O`
 and the successor `s`, with the combinators `o, u, v, C, R`.
 
-The headline results sit in `T4/GoedelI.agda` and
-`T4/Thm/Thm14GodelII.agda`, and both conclude the **same** false
-formula `falseF = (O = s O)` (i.e. `0 = 1`):
+The headline results sit in `T4/GoedelI.agda`,
+`T4/Thm/Thm14GodelII.agda`, and `T4/SurpriseGIIClosed.agda`, and all
+conclude the **same** false formula `falseF = (O = s O)` (i.e. `0 = 1`):
 
 ```agda
-godelI  : Deriv G          -> Deriv falseF   -- Goedel I
-godelII : Deriv ConSchema  -> Deriv falseF   -- Goedel II
+godelI       : Deriv G          -> Deriv falseF   -- Goedel I
+godelII      : Deriv ConSchema  -> Deriv falseF   -- Goedel II
+surpriseGII  : ConOpenInt       -> Deriv falseF   -- surprise-exam Goedel II
 ```
 
 If the diagonal sentence `G` is provable in T, T is inconsistent;
 likewise if T's encoding of its own consistency `ConSchema` is
 provable in T, T is inconsistent.  Constructive, Agda-checked, no
 postulates.
+
+**The clean surprise-examination Gödel II** is the one-line file
+`T4/SurpriseGIIClosed.agda`:
+
+```agda
+surpriseGII : ConOpenInt -> Deriv falseF
+```
+
+Its **sole** hypothesis is `ConOpenInt` — the *open consistency* of T,
+`Deriv (neg (eqF (ap1 thmT (var zero)) codeFalse))`, i.e. "T proves
+`¬ (thmT(x) = code(0=1))` for every `x`" (T proves its own
+consistency).  From it the file derives `Deriv falseF` (`T ⊢ 0=1`) by
+the Chaitin–Gödel I diagonal and the Kritchman–Raz surprise-examination
+descent (`T4/SurpriseGIINum.agda`).  There is **no** description-length
+or threshold hypothesis: the underlying `surpriseGII_num` carries a
+vestigial `Lstar : Nat` parameter the counts no longer use (the real
+threshold is the internal Chaitin fixed point `NthrN`), so the closed
+corollary fixes `Lstar := 0` and `ConOpenInt` is the only input.  Build
+it with `agda --safe T4/SurpriseGIIClosed.agda` — no postulates, holes,
+or extra hypotheses.
 
 ## Papers
 
