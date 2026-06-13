@@ -9,7 +9,7 @@
 --   tag_ax  : axiom case   (Pair tag_ax (Pair (natCode <idx>) extra))
 --   tag_sb  : ruleInst     (Pair tag_sb (Pair (Pair (natCode k) substituent) inner))
 --   tag_mp  : modus ponens (Pair tag_mp (Pair (encode dPQ) (encode dP)))
---   tag_ind : ruleIndNat   (Pair tag_ind (Pair (encode dB) (encode dS)))
+--   tag_ind : ruleIndNat   (Pair tag_ind (Pair (natCode k) (Pair (encode dB) (encode dS))))
 --
 -- AXIOM TAGS (inside the  Pair tag_ax (Pair (natCode <idx>) extra)  layer):
 --
@@ -211,4 +211,16 @@ encode (ruleInst k t dP) =
                           (encode dP))
 
 encode (ruleIndNat k {P} dB dS) =
-  pack tag_ind (ap2 Pair (encode dB) (encode dS))
+  pack tag_ind (ap2 Pair (natCode k) (ap2 Pair (encode dB) (encode dS)))
+
+encode (E_intro f t dP) =
+  pack tag_eintro (ap2 Pair (ap2 Pair (codeFun1 f) (codeTerm t))
+                            (encode dP))
+
+encode (E_elim f a A _ d1 d2) =
+  pack tag_eelim (ap2 Pair (ap2 Pair (codeFun1 f)
+                                     (ap2 Pair (natCode a) (codeFormula A)))
+                           (ap2 Pair (encode d1) (encode d2)))
+
+encode (eIntroAx f t) =
+  pack tag_eintroax (ap2 Pair (codeFun1 f) (codeTerm t))

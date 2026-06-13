@@ -94,6 +94,9 @@ isNeg = C natEqF get_tag (constN tag_neg)
 isImp : Fun1
 isImp = C natEqF get_tag (constN tag_imp)
 
+isExists : Fun1
+isExists = C natEqF get_tag (constN tag_exists)
+
 ------------------------------------------------------------------------
 -- Branch bodies.
 --
@@ -123,10 +126,23 @@ imp_branch_sbf =
   C pi (constN tag_imp)
        (C pi (lookupAt get_cP_imp) (lookupAt get_cQ_imp))
 
--- else_branch_sbf : validating-decoder fallback.
+-- exists_branch_sbf :
+--   pi (natCode tag_exists) (get_body)
+--   The body is  codeFun1 f , which is CLOSED (a Fun1 carries no
+--   numerical variables), so substitution is a no-op: we copy the body
+--   verbatim rather than recursing through the cov-table.
+
+exists_branch_sbf : Fun1
+exists_branch_sbf =
+  C pi (constN tag_exists) get_body
+
+-- else_branch_sbf : dispatch  exists -> validating-decoder fallback (o).
+-- (Kept under the same name so the existing cascade wiring and every
+-- sbf_at_* reduction lemma stay structurally unchanged; the old value
+-- o is preserved as the final fallback for genuinely unknown tags.)
 
 else_branch_sbf : Fun1
-else_branch_sbf = o
+else_branch_sbf = C condFork (C pi exists_branch_sbf o) isExists
 
 ------------------------------------------------------------------------
 -- Cascade: dispatch atomic -> neg -> imp -> else.

@@ -184,12 +184,22 @@ get_mp_pImp_idx = compose1U Fst get_body
 get_mp_pA_idx : Fun1
 get_mp_pA_idx = compose1U Snd get_body
 
--- ind branch: body = pi p_base_idx p_step_idx.
+-- ind branch: body = pi (natCode k) (pi p_base_idx p_step_idx).
+--   get_ind_var  = Fst body            (= natCode k, the induction variable)
+--   get_ind_rest = Snd body            (= pi p_base_idx p_step_idx)
+--   p_base_idx   = Fst (Snd body)
+--   p_step_idx   = Snd (Snd body)
+get_ind_var : Fun1
+get_ind_var = compose1U Fst get_body
+
+get_ind_rest : Fun1
+get_ind_rest = compose1U Snd get_body
+
 get_ind_pBase_idx : Fun1
-get_ind_pBase_idx = compose1U Fst get_body
+get_ind_pBase_idx = compose1U Fst get_ind_rest
 
 get_ind_pStep_idx : Fun1
-get_ind_pStep_idx = compose1U Snd get_body
+get_ind_pStep_idx = compose1U Snd get_ind_rest
 
 ------------------------------------------------------------------------
 -- Section 3.  Tag witnesses for top-level dispatch.
@@ -580,26 +590,37 @@ mp_branch_thmT : Fun1
 mp_branch_thmT = C condFork (C pi mp_inner baseValue_thmT) isMpTagOk
 
 ------------------------------------------------------------------------
--- Section 9.  ind_branch_thmT .
+-- Section 9.  ind_branch_thmT  (SOUND validator).
 --
--- body = pi p_base_idx p_step_idx .
--- pBase_val should = codeFormula (substF 0 O P_motive)  = P[0/x0]
--- pStep_val should = codeFormula (imp P_motive (substF 0 (s var0) P_motive))
+-- body = pi cVar (pi p_base_idx p_step_idx) , where  cVar = natCode k  is
+-- the induction variable (now recorded in the encoding, mirroring the sb
+-- branch's encoded spec).  Let
+--   motive   = Fst (Snd pStep_val)            (= codeFormula P)
+--   stepCons = Snd (Snd pStep_val)            (= codeFormula (substF k (s var k) P))
+--   pBase_val                                  (= codeFormula (substF k O P))
 --
--- Well-formedness :
---   Fst pStep_val = natCode tag_imp                                AND
---   Fst (Snd pStep_val) is a codeFormula that, when substF'd with
---   substituent O at index 0, equals pBase_val .
+-- Well-formedness (all three must hold for the branch to output  motive ):
+--   (i)   Fst pStep_val = natCode tag_imp                         [isIndStepImp]
+--   (ii)  pBase_val = sbf (Pair cVar (codeTerm O)) motive         [isBaseOk]
+--                   = sbf (pi cVar O) motive
+--   (iii) stepCons  = sbf (Pair cVar (codeTerm (s (var k)))) motive [isStepConsOk]
 --
--- The CORRECT output is P_motive's code  = Fst (Snd pStep_val) .
+-- where  codeTerm O = O  and
+--   codeTerm (s (var k)) = pi (natCode tag_ap1)
+--                             (pi (codeFun1 s) (codeTerm (var k)))
+--                        = pi (natCode tag_ap1)
+--                             (pi (natCode tag_s)
+--                                 (pi (natCode tag_var) cVar))
+-- (codeFun1 s = natCode tag_s ; codeTerm (var k) = pi (natCode tag_var) cVar).
 --
--- S6-Round 1 simplification : we DEFER the deep substF check (it
--- requires invoking sbf with substituent O and comparing the result
--- via natEqF, which compounds the coarse-equality concern).  Round 1
--- ships a minimal well-formedness check (tag of pStep_val is tag_imp);
--- the substF/equality check is delivered in the S6b closures phase.
+-- The object substitution on CODES is  sbf  (the same functor the sb branch
+-- uses) ; soundness of the two sbf checks rests on  sbfEq_codeFormula  in
+-- T4.SbDerived (used by thmT_complete on the completeness side).
 --
--- For ill-formed inputs, output codeTriv.
+-- natEqF is the coarse encoded-tree equality (the established S6 idiom) ;
+-- the real equalities are carried by  thmT_complete .
+--
+-- For ill-formed inputs, output  baseValue_thmT  ( = codeTriv ).
 
 get_pBase_val : Fun1
 get_pBase_val = lookupAt get_ind_pBase_idx
@@ -617,11 +638,199 @@ get_pStep_body = compose1U Snd get_pStep_val
 get_motive : Fun1
 get_motive = compose1U Fst get_pStep_body
 
+-- get_stepCons = Snd (Snd pStep_val) (= codeFormula (substF k (s var k) P))
+get_stepCons : Fun1
+get_stepCons = compose1U Snd get_pStep_body
+
 isIndStepImp : Fun1
 isIndStepImp = C natEqF get_pStep_tag (constN tag_imp)
 
+-- codeTerm (var k) = pi (natCode tag_var) cVar .
+ind_codeVar : Fun1
+ind_codeVar = C pi (constN tag_var) get_ind_var
+
+-- codeTerm (s (var k)) = pi (natCode tag_ap1) (pi (natCode tag_s) (codeTerm (var k))) .
+ind_codeStepSubst : Fun1
+ind_codeStepSubst =
+  C pi (constN tag_ap1) (C pi (constN tag_s) ind_codeVar)
+
+-- spec0   = Pair cVar (codeTerm O)        = pi cVar O
+ind_spec0 : Fun1
+ind_spec0 = C pi get_ind_var o
+
+-- specStep = Pair cVar (codeTerm (s var k)) = pi cVar (codeTerm (s var k))
+ind_specStep : Fun1
+ind_specStep = C pi get_ind_var ind_codeStepSubst
+
+-- expectedBase = sbf spec0 motive  (= codeFormula (substF k O P) if well-formed)
+ind_expectedBase : Fun1
+ind_expectedBase = C sbf ind_spec0 get_motive
+
+-- expectedStepCons = sbf specStep motive  (= codeFormula (substF k (s var k) P))
+ind_expectedStepCons : Fun1
+ind_expectedStepCons = C sbf ind_specStep get_motive
+
+isBaseOk : Fun1
+isBaseOk = C natEqF get_pBase_val ind_expectedBase
+
+isStepConsOk : Fun1
+isStepConsOk = C natEqF get_stepCons ind_expectedStepCons
+
+-- Cascade : output motive iff isIndStepImp AND isBaseOk AND isStepConsOk .
+ind_inner_stepCons : Fun1
+ind_inner_stepCons = C condFork (C pi get_motive baseValue_thmT) isStepConsOk
+
+ind_inner_base : Fun1
+ind_inner_base = C condFork (C pi ind_inner_stepCons baseValue_thmT) isBaseOk
+
 ind_branch_thmT : Fun1
-ind_branch_thmT = C condFork (C pi get_motive baseValue_thmT) isIndStepImp
+ind_branch_thmT = C condFork (C pi ind_inner_base baseValue_thmT) isIndStepImp
+
+------------------------------------------------------------------------
+-- Section 9b.  E_intro / E_elim branches (pure validating decoders).
+--
+-- Both E rules are CLOSED-conclusion formers, so the branch reads the
+-- conclusion code directly off the encoded body -- no sub-proof lookup
+-- (mirrors the ax-branch construction style ; matches the minimal-check
+-- philosophy already used by  ind_branch_thmT , which likewise defers
+-- deep sub-proof validation).  Full soundness of these branches (i.e.
+-- re-verifying the embedded sub-proofs + eigenvariable freshness) is a
+-- later, non-breaking strengthening of the bodies, not the types.
+--
+-- E_intro  body = pi (pi (codeFun1 f) (codeTerm t)) innerProofIdx .
+--   output = codeFormula (E f) = pi (natCode tag_exists) (codeFun1 f)
+--          = pi (natCode tag_exists) (Fst (Fst body)) .
+--
+-- E_elim   body = pi (pi (codeFun1 f) (pi (natCode a) (codeFormula A)))
+--                    (pi minorProofIdx eProofIdx) .
+--   output = codeFormula A = Snd (Snd (Fst body)) .
+
+get_eintro_fcode : Fun1
+get_eintro_fcode = compose1U Fst (compose1U Fst get_body)
+
+eintro_branch_thmT : Fun1
+eintro_branch_thmT = C pi (constN tag_exists) get_eintro_fcode
+
+-- E_elim   body = pi header rest ,
+--   header = pi cFcode (pi cNa cAcode) ,  rest = pi minorIdx eIdx .
+get_eelim_header : Fun1
+get_eelim_header = compose1U Fst get_body
+
+get_eelim_fcode : Fun1
+get_eelim_fcode = compose1U Fst get_eelim_header
+
+get_eelim_naA : Fun1
+get_eelim_naA = compose1U Snd get_eelim_header
+
+get_eelim_na : Fun1
+get_eelim_na = compose1U Fst get_eelim_naA
+
+get_eelim_Acode : Fun1
+get_eelim_Acode = compose1U Snd get_eelim_naA
+
+get_eelim_rest : Fun1
+get_eelim_rest = compose1U Snd get_body
+
+get_eelim_minorIdx : Fun1
+get_eelim_minorIdx = compose1U Fst get_eelim_rest
+
+get_eelim_eIdx : Fun1
+get_eelim_eIdx = compose1U Snd get_eelim_rest
+
+-- ====================================================================
+-- E_elim branch (SOUND validator).  body = pi (pi cFcode (pi cNa cAcode))
+--                                              (pi minorIdx eIdx) .
+-- Three checks (all must hold to output cAcode = codeFormula A) :
+--   (i)   isMinorOk : lookup(minorIdx) = code(imp (eqF (ap1 f (var a)) O) A)
+--   (ii)  isMajorOk : lookup(eIdx)     = code(E f) = pi (natCode tag_exists) cFcode
+--   (iii) isFreshOk : sbf (pi cNa O) cAcode = cAcode    (eigenvariable freshness :
+--           a NOT free in A  <=>  substF a O A = A , since this term language has
+--           NO term-level binder -- E f is closed -- so the O-substitution is a
+--           faithful freshness test ; reuses the  sbf  functor).
+--
+-- Built codes (plain Pair-builders, NOT self-encoders) :
+--   cVarA  = pi (natCode tag_var) cNa                       = codeTerm (var a)
+--   cApp   = pi (natCode tag_ap1) (pi cFcode cVarA)         = codeTerm (ap1 f (var a))
+--   cEqAt  = pi (natCode tag_eq) (pi cApp O)                = code (eqF (ap1 f (var a)) O)
+--   cMinor = pi (natCode tag_imp) (pi cEqAt cAcode)
+--   cMajor = pi (natCode tag_exists) cFcode
+--   freshLHS = sbf (pi cNa O) cAcode .
+
+eelim_cVarA : Fun1
+eelim_cVarA = C pi (constN tag_var) get_eelim_na
+
+eelim_cApp : Fun1
+eelim_cApp = C pi (constN tag_ap1) (C pi get_eelim_fcode eelim_cVarA)
+
+eelim_cEqAt : Fun1
+eelim_cEqAt = C pi (constN tag_eq) (C pi eelim_cApp o)
+
+eelim_cMinor : Fun1
+eelim_cMinor = C pi (constN tag_imp) (C pi eelim_cEqAt get_eelim_Acode)
+
+eelim_cMajor : Fun1
+eelim_cMajor = C pi (constN tag_exists) get_eelim_fcode
+
+eelim_freshSpec : Fun1
+eelim_freshSpec = C pi get_eelim_na o
+
+eelim_freshLHS : Fun1
+eelim_freshLHS = C sbf eelim_freshSpec get_eelim_Acode
+
+get_eelim_minor_val : Fun1
+get_eelim_minor_val = lookupAt get_eelim_minorIdx
+
+get_eelim_e_val : Fun1
+get_eelim_e_val = lookupAt get_eelim_eIdx
+
+isMinorOk : Fun1
+isMinorOk = C natEqF get_eelim_minor_val eelim_cMinor
+
+isMajorOk : Fun1
+isMajorOk = C natEqF get_eelim_e_val eelim_cMajor
+
+isFreshOk : Fun1
+isFreshOk = C natEqF eelim_freshLHS get_eelim_Acode
+
+-- Cascade : output cAcode iff isMinorOk AND isMajorOk AND isFreshOk .
+eelim_inner_fresh : Fun1
+eelim_inner_fresh = C condFork (C pi get_eelim_Acode baseValue_thmT) isFreshOk
+
+eelim_inner_major : Fun1
+eelim_inner_major = C condFork (C pi eelim_inner_fresh baseValue_thmT) isMajorOk
+
+eelim_branch_thmT : Fun1
+eelim_branch_thmT = C condFork (C pi eelim_inner_major baseValue_thmT) isMinorOk
+
+isEIntro : Fun1
+isEIntro = C natEqF get_tag (constN tag_eintro)
+
+isEElim : Fun1
+isEElim = C natEqF get_tag (constN tag_eelim)
+
+-- eIntroAx (exists-intro AXIOM)  body = pi (codeFun1 f) (codeTerm t) .
+--   output = codeFormula (imp (eqF (ap1 f t) O) (E f))
+--          = pi tag_imp (pi (pi tag_eq (pi (pi tag_ap1 (pi cG cT)) O))
+--                           (pi tag_exists cG))
+-- where  cG = Fst body = codeFun1 f ,  cT = Snd body = codeTerm t .
+-- Pure construction (an axiom schema) : SOUND by construction.
+
+get_eia_g : Fun1
+get_eia_g = compose1U Fst get_body
+
+get_eia_t : Fun1
+get_eia_t = compose1U Snd get_body
+
+eintroax_branch_thmT : Fun1
+eintroax_branch_thmT =
+  C pi (constN tag_imp)
+    (C pi
+      (C pi (constN tag_eq)
+        (C pi (C pi (constN tag_ap1) (C pi get_eia_g get_eia_t)) o))
+      (C pi (constN tag_exists) get_eia_g))
+
+isEIntroAx : Fun1
+isEIntroAx = C natEqF get_tag (constN tag_eintroax)
 
 ------------------------------------------------------------------------
 -- Section 10.  Else branch (validating-decoder fallback).
@@ -632,8 +841,23 @@ else_branch_thmT = baseValue_thmT
 ------------------------------------------------------------------------
 -- Section 11.  Main top-level cascade : ax / sb / mp / ind / else.
 
+-- E dispatch nodes, spliced between  ind  and  else .  Keeping the
+-- name  ind_or_else  (its FALSE arm now descends into the E cascade
+-- instead of straight to  else_branch_thmT ) so the only file that must
+-- track the rewiring is  T4.ThmTAtInd  (the sole unfolder of this body) ;
+-- all other consumers reference  ind_or_else  opaquely by name.
+
+eintroax_or_else : Fun1
+eintroax_or_else = C condFork (C pi eintroax_branch_thmT else_branch_thmT) isEIntroAx
+
+eelim_or_else : Fun1
+eelim_or_else = C condFork (C pi eelim_branch_thmT eintroax_or_else) isEElim
+
+eintro_or_above : Fun1
+eintro_or_above = C condFork (C pi eintro_branch_thmT eelim_or_else) isEIntro
+
 ind_or_else : Fun1
-ind_or_else = C condFork (C pi ind_branch_thmT else_branch_thmT) isInd
+ind_or_else = C condFork (C pi ind_branch_thmT eintro_or_above) isInd
 
 mp_or_above : Fun1
 mp_or_above = C condFork (C pi mp_branch_thmT ind_or_else) isMp

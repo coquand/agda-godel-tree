@@ -253,6 +253,10 @@ module Derive (sbt sbf : Fun2) (sbCon : SbContract sbt sbf) where
         outer = congR Pair (natCode tag_eq) (ruleTrans inner1 inner2)
     in ruleTrans step1 outer
 
+  sbfEq_codeFormula k t (E f) =
+    -- substF k t (E f) = E f (closed); codeFormula (E f) = Pair tag_exists (codeFun1 f).
+    sbf_at_exists k (codeTerm t) (codeFun1 f)
+
   sbfEq_codeFormula k t (neg P) =
     let spec : Term
         spec = ap2 Pair (natCode k) (codeTerm t)

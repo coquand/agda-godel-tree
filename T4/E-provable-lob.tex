@@ -1,0 +1,478 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathpartir}
+\usepackage{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ------------------------------------------------------------------
+% Notation (as in arGII.tex / GII.tex: code(u) for the encoding, thmT
+% the internal verifier, sub / num the substitution and numeral
+% functors, Deriv(A) for derivability).
+% ------------------------------------------------------------------
+\newcommand{\code}[1]{\mathit{code}(#1)}
+\newcommand{\sub}{\mathbf{sub}}
+\newcommand{\thmT}{\mathbf{thmT}}
+\newcommand{\num}{\mathbf{num}}
+\newcommand{\natEqF}{\mathbf{eq}}
+\newcommand{\runp}{\mathbf{run}}
+\newcommand{\Ee}{\mathbf{E}}
+\newcommand{\Prov}{\mathbf{Prov}}
+\newcommand{\Fun}{\mathit{Fun}}
+\newcommand{\Deriv}{\mathit{Deriv}}
+\newcommand{\Lstar}{L^{*}}
+\newcommand{\describe}{\mathbf{D}}
+
+\title{An existential layer for Basic Recursive Arithmetic:\\
+       object provability, L\"ob's theorem, generalised Chaitin,\\
+       and the short-tower obstruction}
+\author{T4 notes}
+\date{2026-06-11}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We extend the quantifier-free Basic Recursive Arithmetic (BRA) of Church and
+Guard with a single closed existential formula former $\Ee(\mathbf{f})$,
+``$\exists x.\,\mathbf{f}(x)=\mathbf{O}$'', for a unary combinator
+$\mathbf{f}$. Because a $\Fun_1$ carries no term variable, every $\Ee(\mathbf{f})$
+is a \emph{closed} $\Sigma_1$ sentence, so the extension is conservative over BRA.
+On top of it we define an object-level provability predicate
+$\Prov(A)$, prove L\"ob's theorem in the clean form
+$\Deriv(\Prov(A)\supset A)\to\Deriv(A)$ with \emph{no} side condition, and prove
+a generalised Chaitin theorem
+$\Prov(\describe\supset A)\Rightarrow\Prov(A)$ for the bounded describability
+predicate $\describe$ and a \emph{small} closed $A$. We then explain why the
+surprise--G\"odel-II climb $K(x,p_r,\dots,p_N)\supset\Prov^r(\mathbf{O}{=}\mathbf{s}\,\mathbf{O})$
+reduces, via this generalised Chaitin and a consistency-free induction, to one
+remaining problem: a \emph{short} (sub-budget) formulation of
+$\Prov^r(\mathbf{O}{=}\mathbf{s}\,\mathbf{O})$. The note's contribution is this
+reduction --- it recasts the obstruction as a concrete \emph{coding-length}
+problem rather than a consistency problem, removes the self-encoder by passing to
+a recogniser tower, and pins the residual $\Theta(L^{*})$ wall precisely to
+\emph{self-indexing} the level. We are explicit about what is and is not
+established: the L\"ob and (bounded) generalised-Chaitin results are
+machine-checked, the conservativity statement is a sketch, and the decisive
+question --- whether the $\Theta(L^{*})$ cost is intrinsic to consistency-freeness
+or only to consecutive-integer indexing --- is left open.
+\end{abstract}
+
+% ==================================================================
+\section{The existential former $\Ee$}
+% ==================================================================
+
+We work in the system recalled in~\cite{arGII}: terms are built from
+$\mathbf{O}$, variables $\mathbf{x}_i$ and the combinators
+$\mathbf{s},\mathbf{o},\mathbf{u},\mathbf{v},\mathbf{C},\mathbf{R}$, the unary
+ones forming $\Fun_1$ and the binary ones $\Fun_2$; formulas are equations
+between terms, closed under $\neg$ and $\supset$; and $\Deriv(A)$ denotes
+derivability in Guard's Hilbert calculus. The internal verifier $\thmT$ is the
+primitive-recursive proof checker, with $\code{A}$ the G\"odel handle of a
+formula and the completeness law (necessitation, D1)
+\[
+  \Deriv(A)\ \Longrightarrow\ \Deriv\bigl(\thmT(p)=\code{A}\bigr)
+  \quad\text{for a proof code }p=\mathit{encode}(A).
+\]
+
+\begin{definition}[the former $\Ee$]
+Extend the formula grammar by one clause:
+\[
+  \mathbf{A},\mathbf{B} \ ::=\ \mathbf{t_1}=\mathbf{t_2} \ \mid\ \neg\mathbf{A}
+  \ \mid\ \mathbf{A}\supset\mathbf{B} \ \mid\ \Ee(\mathbf{f}) \qquad(\mathbf{f}\in\Fun_1).
+\]
+The intended reading is
+\[
+  \Ee(\mathbf{f}) \ \equiv\ \exists x.\ \mathbf{f}(x)=\mathbf{O}.
+\]
+Since $\mathbf{f}\in\Fun_1$ contains no term variable, $\Ee(\mathbf{f})$ is a
+\emph{closed} formula: substitution is a no-op, $\sub(a,t,\Ee(\mathbf{f}))=\Ee(\mathbf{f})$.
+\end{definition}
+
+\noindent\emph{Rules.} We add the natural introduction and elimination rules,
+plus the implication form of introduction (which the elimination needs):
+\[
+\inferrule*[right=$\Ee$-I]{\Deriv\bigl(\mathbf{f}(t)=\mathbf{O}\bigr)}
+                          {\Deriv\bigl(\Ee(\mathbf{f})\bigr)}
+\qquad
+\inferrule*[right=$\Ee$-Iax]{\ }
+            {\Deriv\bigl(\mathbf{f}(t)=\mathbf{O}\ \supset\ \Ee(\mathbf{f})\bigr)}
+\]
+\[
+\inferrule*[right=$\Ee$-E]
+  {x\ \text{not free in } C \\
+   \Deriv\bigl(\mathbf{f}(x)=\mathbf{O}\ \supset\ C\bigr) \\
+   \Deriv\bigl(\Ee(\mathbf{f})\bigr)}
+  {\Deriv(C)}.
+\]
+The eigenvariable side condition in $\Ee$-E is automatic whenever $C$ is itself
+closed (e.g.\ $C=\Ee(\mathbf{g})$), which is the only case we use.
+
+\begin{proposition}[$\Pi_2$-conservativity, via $\mathrm{I}\Sigma_1$ --- sketch]\label{prop:cons}
+For every $\Ee$-free $\Pi_2$ formula $A$,
+\[
+  \mathrm{BRA}+\Ee \vdash A \quad\Longrightarrow\quad \mathrm{BRA}\vdash A.
+\]
+\end{proposition}
+\begin{proof}[Proof sketch]
+The route factors through $\mathrm{I}\Sigma_1$ and needs no cut-elimination for
+$\mathrm{BRA}+\Ee$.
+\begin{enumerate}
+\item \emph{Interpretation.} Read each $\Ee(\mathbf{f})$ as the ordinary
+arithmetic formula $\exists x\,(\mathbf{f}(x)=\mathbf{O})$. The two added rules
+are exactly the usual rules of a decidable existential quantifier --- $\Ee$-I is
+$\exists$-introduction, $\Ee$-E is $\exists$-elimination --- and the matrix
+$\mathbf{f}(x)=\mathbf{O}$ is primitive recursive (indeed quantifier-free).
+Because the bound variable never enters an induction formula, the layer is
+precisely $\Sigma_1$-existential reasoning over a p.r.\ predicate, so the
+interpretation lands inside $\mathrm{I}\Sigma_1$: $\mathrm{BRA}+\Ee$ is
+interpretable in $\mathrm{I}\Sigma_1$.
+\item \emph{Parsons.} $\mathrm{I}\Sigma_1$ is $\Pi_2$-conservative over PRA.
+\item \emph{Presentation.} BRA is Church's Skolem/combinator presentation of PRA.
+\end{enumerate}
+Hence an $\Ee$-free $\Pi_2$ theorem $A$ of $\mathrm{BRA}+\Ee$ has its translation
+(identical, since $A$ is $\Ee$-free) provable in $\mathrm{I}\Sigma_1$; by~(2) it
+is provable in PRA, and by~(3) in BRA.
+\end{proof}
+
+\begin{remark}[scope of the claim]
+We claim exactly $\Pi_2$-conservativity over BRA for $\Ee$-\emph{free} formulas
+--- \emph{not} full conservativity, and \emph{nothing} for formulas that
+themselves contain $\Ee$. The non-trivial half is the interpretation step~(1);
+Parsons' theorem alone does not give the result. We stress that the above is a
+\emph{sketch}, not a verified theorem of this note: a rigorous version must spell
+out the interpretation of Church's combinator terms together with the
+$\Ee$-rules into $\mathrm{I}\Sigma_1$, which we do not carry out here. In
+particular $\mathbf{C},\mathbf{R}$ remain the only recursion and the trusted base
+is unchanged but for the three new constructors.
+\end{remark}
+
+% ==================================================================
+\section{Object provability and L\"ob's theorem}
+% ==================================================================
+
+\begin{definition}[provability predicate]
+For a formula $A$, let $\mathbf{f}_A\in\Fun_1$ be the combinator
+\[
+  \mathbf{f}_A(x)\ =\ \sub\bigl(\mathbf{s}\,\mathbf{O},\ \natEqF(\thmT(x),\code{A})\bigr),
+\]
+where $\natEqF$ is the internal equality test ($\natEqF(a,b)=\mathbf{s}\,\mathbf{O}$
+if $a=b$, else $\mathbf{O}$) and $\sub(\mathbf{s}\,\mathbf{O},y)=\mathbf{O}$ iff
+$y=\mathbf{s}\,\mathbf{O}$. Thus $\mathbf{f}_A(x)=\mathbf{O}$ exactly when
+$\thmT(x)=\code{A}$, i.e.\ exactly when $x$ is a checked proof of $A$. Define
+\[
+  \Prov(A)\ :=\ \Ee(\mathbf{f}_A)\ \equiv\ \exists x.\ \thmT(x)=\code{A}.
+\]
+This is a closed formula, and its \emph{code} $\code{\Prov(A)}$ depends only on
+$\code{A}$ --- the (large) proof witness lives behind the $\Ee$, hidden.
+\end{definition}
+
+\begin{proposition}[necessitation]
+$\Deriv(A)\ \Longrightarrow\ \Deriv(\Prov(A)).$
+\end{proposition}
+\begin{proof}
+Take $t=\mathit{encode}(A)$ as the existential witness. By D1,
+$\thmT(t)=\code{A}$, so $\natEqF(\thmT(t),\code{A})=\mathbf{s}\,\mathbf{O}$ and
+$\mathbf{f}_A(t)=\sub(\mathbf{s}\,\mathbf{O},\mathbf{s}\,\mathbf{O})=\mathbf{O}$;
+apply $\Ee$-I.
+\end{proof}
+
+\begin{theorem}[L\"ob, with $\Prov$]\label{thm:lob}
+For every formula $A$,
+\[
+  \Deriv\bigl(\Prov(A)\supset A\bigr)\ \Longrightarrow\ \Deriv(A).
+\]
+There is \emph{no} freshness side condition on $A$.
+\end{theorem}
+\begin{proof}
+The existing thmT-atom L\"ob (the unconditional generalisation of Guard's clean
+diagonal G\"odel~II, see~\cite{arGII}) gives, for any proof-variable index $k$
+not free in $A$,
+\[
+  \Deriv\Bigl(\bigl(\thmT(\mathbf{x}_k)=\code{A}\bigr)\supset A\Bigr)
+  \ \Longrightarrow\ \Deriv(A).
+\]
+It suffices to turn an $\Prov(A)\supset A$ hypothesis into this open-atom
+hypothesis. The arithmetic of $\mathbf{f}_A$ gives the object implication
+$\bigl(\thmT(\mathbf{x}_k)=\code{A}\bigr)\supset\bigl(\mathbf{f}_A(\mathbf{x}_k)=\mathbf{O}\bigr)$
+(the necessitation computation, read as an implication), and $\Ee$-Iax gives
+$\bigl(\mathbf{f}_A(\mathbf{x}_k)=\mathbf{O}\bigr)\supset\Prov(A)$. Composing,
+\[
+  \bigl(\thmT(\mathbf{x}_k)=\code{A}\bigr)\ \supset\ \Prov(A)\ \supset\ A,
+\]
+which is the required open-atom hypothesis. Because $\Prov(A)$ is closed, no
+condition on $A$ is consumed by the bridge; the only index $k$ is chosen
+\emph{fresh} ($k>\max$ variable of $A$), so the side condition of the open-atom
+L\"ob holds automatically.
+\end{proof}
+
+% ==================================================================
+\section{Generalised Chaitin}
+% ==================================================================
+
+Fix a budget $\Lstar$ and $N=3^{\Lstar+1}$ (so a number $<N$ has at most
+$\Lstar+1$ base-$3$ digits). Programs \emph{are} numbers, read by the universal
+decoder $\runp$ (Church-coded): $\runp(x,n)$ is the output of program $x$ on
+fuel $n$. The \emph{bounded describability} predicate, with free program
+variable $\mathbf{x}_0$ and fuel variable $\mathbf{x}_1$, is
+\[
+  \describe(\mathbf{x}_0,r,\mathbf{x}_1)\ :=\
+   (\mathbf{x}_0\le\Lstar)\ \wedge\ \bigl(\runp(\mathbf{x}_0,\mathbf{x}_1)=\mathbf{s}\,r\bigr),
+\]
+read curried as the guard $G_A(r):=(\mathbf{x}_0\le\Lstar)\supset\bigl(\runp(\mathbf{x}_0,\mathbf{x}_1)=\mathbf{s}\,r\ \supset\ A\bigr)$,
+so that ``$D\supset A$'' is the $\Lstar$-bounded statement ``if $r$ is described
+in $\le\Lstar$ digits then $A$''.
+
+\begin{theorem}[generalised Chaitin]\label{thm:genchaitin}
+Let $A$ be a closed formula whose code is \emph{small}: precisely, the diagonal
+program $\delta$ built below, which embeds $\code{A}$, satisfies
+$\mathit{nodes}(\delta)\le\Lstar$. Then for every proof code $w$,
+\[
+  \Deriv\Bigl(\ \bigl(\thmT(w)=\code{G_A(\mathit{out}\,w)}\bigr)
+              \ \supset\ \bigl(\thmT(\delta(w))=\code{A}\bigr)\ \Bigr),
+\]
+that is, in the abbreviation $\Prov$,
+\[
+  \Prov(\describe\supset A)\ \Longrightarrow\ \Prov(A).
+\]
+\end{theorem}
+
+\noindent\emph{Construction.} The diagonal $\delta$ is the short self-referential
+program that searches $\thmT(0),\thmT(1),\dots$ for a proof $w$ whose conclusion
+is the guard $G_A$, reads off the subject $r=\mathit{out}\,w$, runs to its own
+output, and \emph{fires modus ponens}. Concretely, under the hypothesis
+$\thmT(w)=\code{G_A}$ one closes the open guard by substituting
+$\mathbf{x}_0:=\num(\delta),\ \mathbf{x}_1:=\num(\text{fuel})$, obtaining
+$\thmT(\cdot)=\code{(\delta\le\Lstar)\supset(\runp(\delta,\cdot)=\mathbf{s}\,r\supset A)}$,
+and discharges the two antecedents:
+\begin{itemize}
+  \item $\delta\le\Lstar$ --- the \emph{size-pin}. The diagonal genuinely is a
+        small program: $\mathit{nodes}(\delta)\le\Lstar$ gives, by the base-$3$
+        digit bound (Chaitin's $c+\log n<n$), $\mathit{rank}(\delta)<N$, hence
+        the object inequality $\delta\le N$ is provable. This is where the
+        smallness of $A$ is consumed: $\delta$ embeds $\code A$, so $\delta\le\Lstar$
+        forces $\code A$ to fit the budget.
+  \item $\runp(\delta,\cdot)=\mathbf{s}\,r$ --- the \emph{run}: the diagonal,
+        decoded and executed, outputs its recognised subject $r$.
+\end{itemize}
+Two internalised modus ponens then give $\thmT(\delta(w))=\code{A}$.
+
+\begin{remark}[why the bound is essential]
+With an \emph{unbounded} $\describe$, the antecedent ``$\runp(\mathbf{x}_0,\cdot)=\mathbf{s}\,r$''
+is provably true for the diagonal (it describes its own output), so
+$\Prov(\describe\supset A)\Rightarrow\Prov(A)$ collapses to internalised modus
+ponens with a provable antecedent --- trivial, and not Chaitin. The bound
+$\mathbf{x}_0\le\Lstar$ is exactly what makes $\describe$ non-trivial, and then
+the size-pin --- hence the smallness of $A$ --- is genuinely needed.
+\end{remark}
+
+\begin{remark}[status of the construction]
+In the formal development this bounded step is \emph{discharged}, not assumed: the
+size-pin $\delta\le\mathit{N}$ and the run $\runp(\delta,\cdot)=\mathbf{s}\,r$ are
+\emph{derived} from the single hypothesis $\mathit{nodes}(\delta)\le\Lstar$ (the
+smallness of $A$), and the two internalised modus ponens are explicit
+proof-terms. The account above is a \emph{sketch} that elides exactly those two
+derivations --- which are the substantial part --- and the high-level
+``$\Prov(\describe\supset A)\Rightarrow\Prov(A)$'' should be read with the
+precise hypothesis $\mathit{nodes}(\delta)\le\Lstar$ in force.
+\end{remark}
+
+% ==================================================================
+\section{The climb $K\supset\Prov^r(\mathbf{O}{=}\mathbf{s}\,\mathbf{O})$ and the short-tower obstruction}
+% ==================================================================
+
+Write $\bot:=(\mathbf{O}=\mathbf{s}\,\mathbf{O})$ and let
+$\Prov^0(\bot):=\bot$, $\Prov^{r+1}(\bot):=\Prov(\Prov^r(\bot))$. The
+surprise--G\"odel-II claim is the family, for the day-$[r..N]$ describability
+big conjunction $K(x,p_r,\dots,p_N)$,
+\[
+  C(r)\ :\equiv\quad \Deriv\bigl(\ K(x,p_r,\dots,p_N)\ \supset\ \Prov^r(\bot)\ \bigr).
+\]
+
+\paragraph{Base.} $C(0)$ is $K(x,p_0,\dots,p_N)\supset\bot$, i.e.\ $\neg K$ over
+all $N{+}1$ days, which is the pure pigeonhole (more days than short programs) ---
+consistency-free.
+
+\paragraph{Induction, consistency-free.} For $C(r)\to C(r+1)$ one proceeds
+exactly as in the surprise step, but replacing the ex-falso target $\bot$ by
+$\Prov^r(\bot)$ and replacing the role of the global consistency hypothesis by
+the induction hypothesis $C(r)$. Concretely: under $K(x,p_{r+1},\dots,p_N)$, the
+extra-day describability $\describe(g,r)$ together with the rest gives
+$K(x,p_r,\dots,p_N)$, whence $C(r)$ yields $\Prov^r(\bot)$; so the bounded guard
+$\describe\supset\Prov^r(\bot)$ is \emph{provable}, and Theorem~\ref{thm:genchaitin}
+at $A:=\Prov^r(\bot)$ fires it --- with \emph{no} consistency clash --- to
+$\Prov\bigl(\Prov^r(\bot)\bigr)=\Prov^{r+1}(\bot)$, i.e.\ $C(r+1)$. The induction
+hypothesis $C(r)$ plays the role the old day-clash assigned to $\mathrm{Con}$;
+since $C(0)$ is the pigeonhole, no global consistency is used anywhere.
+
+\paragraph{The single remaining problem.} The induction invokes
+Theorem~\ref{thm:genchaitin} at $A=\Prov^r(\bot)$, whose hypothesis is
+\[
+  \mathit{nodes}(\delta_{r})\ \le\ \Lstar,\qquad
+  \delta_{r}\ \text{the diagonal embedding}\ \code{\Prov^r(\bot)}.
+\]
+The literal nested $\Prov^r(\bot)$ has code of size $\Theta(r)\approx\Theta(N)$,
+busting the budget at once. A \emph{small-coded} tower fixes the functional
+dependence on $r$: one encodes $\Prov^r(\bot)$ not as the nested formula but as a
+fixed closed sentence $\Ee(g)$ whose combinator $g$ carries the compact base-$3$
+numeral $r$ and recognises the previous level, giving
+\[
+  \code{\Prov^r(\bot)}\ =\ \mathrm{Const}\ +\ O(\log r).
+\]
+This is small \emph{as a function of $r$} (the literal tower is $\Theta(r)$); but
+it is \emph{not} small relative to the budget. Since $r\le N=3^{\Lstar+1}$, for
+$r$ near $N$ the numeral alone has $\sim\Lstar$ base-$3$ digits, i.e.\
+\[
+  \code{\Prov^r(\bot)}\ =\ \Theta(\Lstar),
+\]
+and the budget \emph{is} $\Lstar$. Naming the index $r$ already saturates the
+budget: the diagonal cannot be strictly smaller than the level $r$ it must
+encode, and $r$ is sized to the budget itself. This is the precise asymmetry with
+ordinary Chaitin, where the diagonal encodes the \emph{threshold} $\Lstar$ in
+$O(\log\Lstar)$ digits, not an index up to $N$. Re-defining $\Lstar$ from the
+$r$-th diagonal makes $N$ vary with $r$ and breaks the shared $N$ of the family
+$C(r)$; and the alternative of reading $r$ as a runtime witness rather than
+embedding $\code{\Prov^r(\bot)}$ requires an object code-builder for one
+$\Prov$-layer, which is the impossible self-encoder (a node and a leaf would
+have to receive the two distinct double-codes a structural fold demands).
+
+\medskip
+\noindent Thus the climb $K(x,p_r,\dots,p_N)\supset\Prov^r(\bot)$ reduces, with
+everything else in place (the existential layer, $\Prov$, L\"ob, generalised
+Chaitin, the consistency-free induction), to a single open problem:
+
+\begin{quote}\itshape
+Find a formulation of $\Prov^r(\bot)$ whose code is \emph{strictly sub-budget}, of
+size $o(\Lstar)$ rather than $\Theta(\Lstar)$, for all $r\le N=3^{\Lstar+1}$.
+\end{quote}
+
+% ==================================================================
+\section{A possible way forward: short notations, and its limit}
+% ==================================================================
+
+The obstruction is about the \emph{absolute} size of $\code{\Prov^r(\bot)}$,
+which is $\Theta(\Lstar)$ because the index $r$ is written out. One would like a
+\emph{short notation}: bake into the formula not the numeral $r$ but a short
+program $e$ with $\mathit{eval}(e)=r$, and set
+\[
+  P_e\ :=\ \Ee\bigl(g_e\bigr),\qquad
+  g_e(w)=\mathbf{O}\iff \thmT(w)\ \text{witnesses stage}\ \mathit{eval}(e)\ \text{of the tower}.
+\]
+Then $\code{P_e}=\mathrm{Const}+O(|e|)$ rather than $\mathrm{Const}+O(\log r)$.
+
+\paragraph{The catch, and how the recognition tower meets it.}
+A short notation helps only if the logic can \emph{interpret} it when forming
+the code, i.e.\ $g_e$ must compute/recognise the $\mathit{eval}(e)$-th stage
+\emph{without carrying that stage in its own code}:
+\[
+  \boxed{\ g_e\ \text{computes/recognises}\ \mathrm{tower}(\mathit{eval}(e))\ \text{without carrying the tower in}\ \code{g_e}.\ }
+\]
+This is exactly what a \emph{recogniser} (as opposed to a code-builder) does. In
+the shipped recognition tower one sets $\mathrm{Tower}(\mathbf{O})=\bot$ and
+$\mathrm{Tower}(r{+}1)=\Ee(\mathrm{gFun}_r)$, where $\mathrm{gFun}_r$ carries only
+a \emph{compact label} (a base-$3$ numeral) and checks a fixed $\mathit{Fst}/\mathit{Snd}$
+projection of $\thmT(w)$ against it --- it never reconstructs
+$\code{\mathrm{Tower}(r)}$. Replacing the stored numeral by ``read $e$, run the
+fixed evaluator to $r=\mathit{eval}(e)$, form the comparison numeral, compare''
+keeps $\code{g_e}=\mathrm{Const}+O(|e|)$: the evaluator and the numeral-former are
+\emph{fixed} constants, and the long label $r$ is produced at \emph{run time},
+not stored. So the boxed condition is met, and the dangerous code-builder
+$c\mapsto\code{\Prov(A_c)}$ --- the impossible self-encoder --- never appears.
+
+\paragraph{The bridge, one direction only.}
+The surprise step needs ``$P_{e_{r+1}}$ behaves as $\Prov(P_{e_r})$''. The
+generalised-Chaitin step delivers a $\thmT(\delta)=\code{P_{e_r}}$, i.e.\ a
+$\Prov(P_{e_r})$-witness, and the recogniser turns it into the next stage:
+\[
+  \Deriv\bigl(\thmT(w)=\code{\mathrm{Tower}(r)}\bigr)\ \Longrightarrow\ \Deriv\bigl(\mathrm{Tower}(r{+}1)\bigr)
+\]
+holds (it is the recogniser firing under the trivially-true hypothesis). This is
+the climb-\emph{up} direction, and it is all the induction uses. The
+\emph{converse} $\Deriv(\mathrm{Tower}(r{+}1))\to\Deriv(\Prov(\mathrm{Tower}(r)))$
+would need recogniser \emph{soundness} (passing the projection implies
+$\thmT(w)=\code{\mathrm{Tower}(r)}$), which the recognition tower does not prove:
+it is complete-only, recognise~$\neq$~reconstruct. Hence $P_{e_{r+1}}$ is a
+genuinely \emph{weaker, short-coded surrogate} for $\Prov(P_{e_r})$ --- entailed
+by it, but not equivalent to it.
+
+\paragraph{Where the difficulty re-concentrates.}
+With recognition the bridge and the self-encoder are dealt with; the whole
+question becomes the length $|e_r|$ of the notation, over the \emph{whole} climb
+$r=0,1,\dots,N$. For the top, compressible, level this is favourable:
+$N=3^{\Lstar+1}$ itself has a notation $e_N$ of length $O(\log\Lstar)$. But the
+induction over the consecutive-day conjunction $K(x,p_r,\dots,p_N)$ traverses
+\emph{every} $r\le N$, and a generic --- Kolmogorov-incompressible --- index $r$
+has no notation shorter than $\Theta(\log r)=\Theta(\Lstar)$, so the intermediate
+stages still bust the budget. Re-indexing to skip the incompressible levels
+conflicts with the consecutive-day form of $K$ (and an incremental $e_{r+1}=\mathrm{succ}(e_r)$
+makes $|e_r|$ grow with $r$). Thus the recognition/short-notation route
+\emph{relocates} the obstruction --- from a self-encoder to the notation length
+--- but does not, by itself, dissolve it: the missing ingredient is a notation
+system, or a restructured induction, under which \emph{every} stage actually
+used has a sub-budget code.
+
+% ==================================================================
+\section{Is the $\Theta(\Lstar)$ bound intrinsic?}
+% ==================================================================
+
+The value of the diagnosis in Sections~4--5 is that it turns the failure into one
+sharp question: is the $\Theta(\Lstar)$ cost of a positive stage \emph{intrinsic},
+or an artefact of how the climb is indexed?
+
+\paragraph{An information-theoretic lower bound --- for self-indexing.}
+There are $N{+}1=3^{\Lstar+1}{+}1$ levels. Any stage formula that must
+\emph{distinguish its own level} $r$ from the others carries at least
+$\log(N{+}1)=\Theta(\Lstar)$ bits of ``which level'' information, so its code is
+$\Omega(\Lstar)$ for generic $r$ --- whether recognised or reconstructed,
+short-named or numeral-named, tag-separated or not. Hence the bound \emph{is}
+intrinsic to any \emph{self-indexing} positive stage; the single obstruction is
+that a self-identifying late level costs the whole budget.
+
+\paragraph{But not intrinsic to the climb.}
+Crucially, the descent --- the original surprise proof, using $\mathrm{Con}$ ---
+shows a level need \emph{not} be self-identified: its per-stage conclusion is the
+\emph{constant} $\code{\bot}$, and ``which day'' lives only in the
+\emph{hypothesis} $K(x,p_r,\dots,p_N)$, where the budget does not apply. So the
+$\Theta(\Lstar)$ cost is an artefact of demanding that each \emph{positive} stage
+name its own level, not of the climb as such; it is a coding-length phenomenon,
+not a consistency one.
+
+\paragraph{The decisive test (direction~3).}
+This isolates the real mathematical question. Seek an \emph{index-free} positive
+surrogate: a single, fixed, sub-budget sentence $S$ whose intended reading at day
+$r$ is fixed by the surrounding conjunction $K(x,p_r,\dots,p_N)$ rather than by a
+numeral baked into $\code{S}$, such that the consistency-free generalised-Chaitin
+step still climbs to it. If such an $S$ exists, the climb goes through within
+budget and yields a consistency-free positive G\"odel~II. If, instead, every
+consistency-free positive surrogate provably \emph{must} self-identify its level,
+then the $\Theta(\Lstar)$ wall is genuinely intrinsic to consistency-freeness, and
+the descent (with $\mathrm{Con}$) is the only budget-respecting route. Settling
+this dichotomy --- not L\"ob or generalised Chaitin themselves --- is the
+mathematical content this note leaves open.
+
+\paragraph{Status of this note.}
+As a finished paper this is not complete: Proposition~\ref{prop:cons} is a sketch,
+and the generalised-Chaitin construction is stated above the level of its
+size/run derivations (which are discharged formally). As a research note its
+contribution is the reduction itself --- recasting the surprise/G\"odel-II
+obstruction as a concrete \emph{coding-length} problem (represent
+$\Prov^r(\bot)$, or an index-free surrogate, below budget) rather than a
+consistency problem, with the self-encoder removed by recognition and the
+remaining wall pinned to self-indexing.
+
+\begin{thebibliography}{9}
+\bibitem{arGII} T4 notes, \emph{A road to G\"odel's second incompleteness theorem in Basic Recursive Arithmetic} (\texttt{arGII.tex}).
+\bibitem{Guard63} J.~Guard, \emph{Automated Logic and the recursive functions} (Church's Basic Recursive Arithmetic), 1963.
+\bibitem{Church} A.~Church, \emph{The calculi of lambda-conversion} / Princeton lectures on recursive arithmetic.
+\bibitem{Parsons} C.~Parsons, \emph{On a number-theoretic choice schema and its relation to induction}, in Intuitionism and Proof Theory, 1970 ($\mathrm{I}\Sigma_1$ is $\Pi_2$-conservative over PRA).
+\end{thebibliography}
+
+\end{document}

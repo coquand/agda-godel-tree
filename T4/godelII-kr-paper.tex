@@ -1,0 +1,326 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\code}[1]{\ulcorner #1 \urcorner}
+\newcommand{\evalU}{\mathsf{U}}
+\newcommand{\Prov}{\mathsf{Pr}}
+\newcommand{\Con}{\mathrm{Con}}
+\newcommand{\Kgt}{\mathsf{K{>}}}
+\newcommand{\Valid}{\mathsf{Valid}}
+\newcommand{\NoCert}{\mathsf{NoCert}}
+\newcommand{\ext}{\mathsf{ext}}
+\newcommand{\lnc}{\mathsf{lnc}}
+\newcommand{\false}{\mathsf{false}}
+\newcommand{\thmT}{\mathsf{thmT}}
+\DeclareMathOperator{\len}{len}
+
+\title{Kritchman--Raz G\"odel~II in quantifier-free BRA:\\
+       a count-free paper proof}
+\author{T4 notes --- for checking before any formalization}
+\date{2026-05-26}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We give a complete paper argument for
+$\;\texttt{godelII\_kr} : \mathsf{Deriv}(\Con) \to \mathsf{Deriv}(\false)\;$
+in Guard's quantifier-free, PRA-like Basic Recursive Arithmetic (BRA), along the
+Chaitin/Kritchman--Raz route (no diagonal, no G\"odel sentence). The proof is
+written so that every object the induction touches is \emph{quantifier-free and
+decidable}, and the only counting is over a \emph{decidable} set (programs of
+bounded length). The surprise-exam induction is recast count-free as
+$\forall x\,P(x,n)$ over an open QF matrix, with the certificate/candidate that
+``changes during the induction'' governed by a primitive-recursive substitution
+$l$ --- so the Skolem proof-builder is primitive recursive (P\'eter), expressible
+by the recursion already in BRA. The single heavy piece is isolated and named: the
+\emph{formalized} Chaitin barrier $T \vdash \Con \to \neg\Prov_T(\code{\Kgt(L,z)})$
+(Kikuchi's Thm 3.3), built once. Everything else is the standard derivability
+conditions D1--D3, quantifier-free logic, a primitive recursion, and one
+pigeonhole over the decidable program set.
+\end{abstract}
+
+% ==================================================================
+\section{Setting, and what is dropped}
+% ==================================================================
+
+$T$ is the theory whose proofs the internal verifier $\thmT$ checks --- here BRA
+itself: quantifier-free, total primitive recursive, with the Hilbert proof type
+$\mathsf{Deriv}$, the necessitation operator (D1, \texttt{thmT\_complete\_rec}), and
+provable closure under modus ponens (D2/D3, \texttt{encoded\_mp}). We write
+$\Prov_T(c)$ for ``$c$ is (the code of) a $T$-provable formula'', and
+\[
+  \Con \;:=\; \neg\big(\thmT(\mathit{var}\,0) = \code{\false}\big)
+\]
+for the consistency schema (open in the proof code). The goal is
+\[
+  \boxed{\ \texttt{godelII\_kr} : \mathsf{Deriv}(\Con) \longrightarrow
+  \mathsf{Deriv}(\false)\ }
+\]
+i.e.\ BRA does not prove its own consistency.
+
+\paragraph{What is \emph{not} used (dropped as artifacts of an earlier design).}
+Nothing in this proof re-quotes the subject. Outputs are plain integers, coded
+once. Consequently there is \textbf{no} $\code{\code{\cdot}}$ double-coding, \textbf{no}
+$\mathsf{numEqCode}$/$\mathsf{decode}$ reconciliation, and \textbf{no}
+$\mathsf{parse}$/$\mathsf{DefWit}$/linearized-formula naming layer. ``Description''
+means \emph{program}; the universal machine maps it to its output. (The $\mathsf{Bin}$
+rank-compression of \emph{programs} into $[0,N)$ \emph{is} used --- legitimately ---
+in one pigeonhole; that is the only place a length is turned into a number.)
+
+% ==================================================================
+\section{Machine, size, and the $\Pi_1$ complexity formula}
+% ==================================================================
+
+The universal step-interpreter $\evalU(p,t)$ runs program $p$ for $t$ steps and
+returns $s\cdot m$ if it has halted with output $m$, else $O$ (built and verified:
+\texttt{EvalU}/\texttt{EvalUCorrect}). Size is description length,
+$|p| := \len_R(p)$, with $\mathsf{szLeq}(L,p) = s\,O$ iff $|p|\le L$.
+
+\begin{definition}[Incompressibility, open $\Pi_1$]
+With program variable $p=\mathit{var}\,0$ and runtime $t=\mathit{var}\,1$ free,
+\[
+  \Kgt(L,x) \;:=\; \neg\big(\mathsf{szLeq}(L,p)=s\,O \;\wedge\; \evalU(p,t)=s\cdot x\big),
+\]
+read under the implicit universal closure over $p,t$: ``no program of size $\le L$
+outputs $x$'', i.e.\ $K(x)>L$. The subject $x$ is a plain integer, occurring once.
+(This is \texttt{KFormula.Kgt}.)
+\end{definition}
+
+The key fact about the machine, used twice below, is \textbf{$\Sigma_1$-completeness}:
+if $p$ really halts with output $m$ at time $t$, then $\mathsf{Deriv}(\evalU(p,t)=s\cdot m)$
+(\texttt{evalU\_correct\_num} + D1).
+
+% ==================================================================
+\section{The count-free device: certificates}
+% ==================================================================
+
+The surprise exam is ``about'' the number $\delta=\#\{x<N : K(x)>L\}$. But $K(x)>L$
+is $\Pi_1$, so $\delta$ is the count of an \emph{undecidable} predicate and is
+\textbf{not} a BRA term; trying to force a decidable proxy lets $T$ evaluate it and
+dissolves the climb. We avoid $\delta$ entirely. The only thing we ever count is the
+\emph{decidable} set of short programs.
+
+\begin{definition}[Compressibility certificate]
+Fix $N := 2^{L+1}$. A \emph{length-$j$ certificate} is a single coded list
+$d$ decoding to
+\[
+  d \;=\; \big((c_1,p_1,t_1),\dots,(c_j,p_j,t_j)\big),
+\]
+and $\Valid(d,j)$ is the \textbf{decidable} ($\Sigma_0$) predicate asserting:
+the $c_i<N$ are pairwise distinct; each $|p_i|\le L$; and each $\evalU(p_i,t_i)=s\cdot c_i$.
+A certificate is a finite QF-checkable witness that $j$ distinct numbers below $N$
+are compressible.
+\end{definition}
+
+\begin{definition}[The open invariant]
+\[
+  \NoCert(j) \;:=\; \forall d.\ \neg\,\Valid(d,j),
+\]
+i.e.\ the open formula $\neg\,\Valid(\mathit{var}\,0,\,j)$ with $d=\mathit{var}\,0$ free
+(implicit universal closure) and $j$ a parameter. The matrix $\neg\,\Valid$ is QF and
+decidable, so $\NoCert(j)$ is a \textbf{bona-fide BRA formula} --- an open $\Pi_1$
+formula, exactly the form BRA handles, never a count.
+\end{definition}
+
+\noindent$\NoCert(j)$ means ``fewer than $j$ numbers below $N$ are compressible.''
+It is the count-free surrogate: ``$\delta\ge k$'' becomes $\NoCert(N-k+1)$, but we
+never speak of $\delta$ --- only of the open formula $\NoCert(\cdot)$.
+
+\begin{remark}[where ``$x$ changes during the induction'']
+The induction below proves $\forall d.\,\neg\Valid(d,N-n)$ by recursion on $n$. The
+certificate $d$ is the universally-quantified $x$, and the step instantiates the
+previous invariant at a \emph{shifted} certificate $l(d,n)=\ext(d,\lnc(d),p,t)$
+(extend $d$ by the least non-certified candidate). Both $\lnc$ (least number $<N$
+not appearing in $d$) and $\ext$ (cons a triple) are primitive recursive. This is
+precisely recursion with parameter substitution; by P\'eter's theorem it stays
+primitive recursive, so the proof-builder is a genuine BRA $\mathit{Fun}_1$
+realizable by the shipped \texttt{R}/\texttt{CoVSpec}. This is the move that makes
+the changing witness legitimate in a quantifier-free PRA-like system.
+\end{remark}
+
+% ==================================================================
+\section{The Chaitin machine and the formalized barrier (the heart)}
+% ==================================================================
+
+\paragraph{The machine.} For the budget $L$, let $g_L$ be the program that scans
+proof-codes $c=0,1,2,\dots$, tests whether $\thmT(c)=\code{\Kgt(L,n)}$ for some
+numeral $n$, and at the first such $c$ outputs that $n$ and halts. Then
+$|g_L| = c_0 + |L|_{\mathrm{bin}}$ for a fixed constant $c_0$.
+
+\begin{lemma}[Self-description; pin $L$]\label{lem:dlen}
+There is a least $L$ with $c_0 + |L|_{\mathrm{bin}} \le L$ (true for all large $L$);
+fix it. Then $|g_L|\le L$. This is one arithmetic fact (\texttt{Bin}:
+$\len_R$-of-ones $\le$ value), discharged once --- not per instance.
+\end{lemma}
+
+\paragraph{The meta barrier (Chaitin G1).} This is already built
+(\texttt{KClash.kr\_clash} / \texttt{KDiag.chaitin\_G1\_diag}).
+
+\begin{proposition}[Chaitin G1, meta]\label{prop:g1}
+Given $\mathsf{Deriv}(\Con)$: for no numeral $z$ is there $\mathsf{Deriv}(\Prov_T(\code{\Kgt(L,z)}))$.
+\end{proposition}
+\begin{proof}
+Suppose $\pi$ proves $\Kgt(L,z)$. Scanning, $g_L$ reaches the first hit $c^\ast$
+($c^\ast\le\pi$), outputs some $z^\ast$ with $\thmT(c^\ast)=\code{\Kgt(L,z^\ast)}$,
+and halts at some time $t^\ast$: $\evalU(g_L,t^\ast)=s\cdot z^\ast$. Since
+$|g_L|\le L$ (Lemma~\ref{lem:dlen}), the triple $(z^\ast,g_L,t^\ast)$ is a length-$1$
+certificate, so $\Sigma_1$-completeness gives $\mathsf{Deriv}(\neg\Kgt(L,z^\ast))$;
+and $\thmT(c^\ast)$ gives $\mathsf{Deriv}(\Kgt(L,z^\ast))$. Hence
+$\mathsf{Deriv}(\false)$ under $\Con$.
+\end{proof}
+
+\paragraph{The formalized barrier (Kikuchi Thm 3.3) --- the one heavy piece.}
+The climb (\S5) needs Proposition~\ref{prop:g1} \emph{inside $T$}: the same argument,
+formalized, is reasoning about the primitive-recursive objects $\evalU$, $g_L$, the
+scan, and about provability --- all PRA-formalizable.
+
+\begin{proposition}[Formalized barrier]\label{prop:fbar}
+$T$ proves, uniformly in $z$,
+\[
+  \Con \;\longrightarrow\; \neg\,\Prov_T\big(\code{\Kgt(L,z)}\big).
+\]
+Equivalently $T \vdash \Prov_T(\code{\Kgt(L,z)}) \to \Prov_T(\code{\false})$:
+internalize Proposition~\ref{prop:g1}. ``$g_L$ finds an existing proof'' is provable
+$\Sigma_1$-completeness for the scan; ``the output is compressible by $g_L$'' is
+provable $\Sigma_1$-completeness for the length-$1$ certificate (using $|g_L|\le L$);
+combining the two provabilities under $\Prov_T$ uses D2 (provable closure under MP).
+\end{proposition}
+
+\noindent This is the heart of the whole proof and the genuine remaining
+construction: it is the in-$T$ form of \texttt{kr\_clash}. It is a \emph{single}
+$T$-theorem, built once, uniform in $z$; it is where $\Con$ and the machine enter.
+Everything in \S5 is bookkeeping around it.
+
+% ==================================================================
+\section{The climb}
+% ==================================================================
+
+\paragraph{Invariant and builder.} For $n=0,\dots,N$ put
+\[
+  S(n) \;:=\; \NoCert(N-n) \;=\; \forall d.\ \neg\,\Valid(d,\,N-n),
+\]
+an open QF formula. We build a primitive-recursive proof-builder $q$ with
+$\mathsf{Deriv}\big(\Prov_T(\code{S(n)})\big)$ for the relevant $n$, by recursion
+$q(n{+}1)=h(n,q(n))$ (the substitution $l$ lives inside $h$, applied to the open
+formula; cf.\ the remark in \S3).
+
+\begin{lemma}[Base $S(0)$: the program pigeonhole]\label{lem:base}
+$T \vdash \NoCert(N)$.
+\end{lemma}
+\begin{proof}
+A length-$N$ certificate has $N$ distinct $c_i<N$ (so all of $[0,N)$), each with a
+program $p_i$, $|p_i|\le L$. Distinct outputs force distinct programs, so we get $N$
+distinct programs of length $\le L$. But $\#\{p : |p|\le L\}\le 2^{L+1}-1 < N$
+(rank-compress programs into $[0,N)$, \texttt{Bin}). $N$ distinct objects cannot inject
+into a set of size $<N$ --- \texttt{CountingObj.no\_injection\_obj}. So no length-$N$
+certificate: $\NoCert(N)$. (The only count in the proof; over the \emph{decidable}
+program set.)
+\end{proof}
+
+\begin{lemma}[Step $S(n)\to S(n{+}1)$, under $\Con$]\label{lem:step}
+From $T\vdash\NoCert(N-n)$ and $\mathsf{Deriv}(\Con)$, build $T\vdash\NoCert(N-n-1)$.
+\end{lemma}
+\begin{proof}
+Write $j:=N-n$. To prove $\NoCert(j-1)=\forall d.\,\neg\Valid(d,j-1)$, take $d$ free,
+assume $\Valid(d,j-1)$, and derive $\false$. Let $x_0 := \lnc(d)$, the least
+candidate $<N$ not in $d$ (it exists: $d$ lists $j-1<N$ candidates). All in $T$:
+
+\emph{Subclaim (QF):} $T \vdash \Valid(d,j-1)\to \Kgt(L,x_0)$. Take $p,t$ free and
+assume $\mathsf{szLeq}(L,p)=s\,O \wedge \evalU(p,t)=s\cdot x_0$. Then
+$d' := \ext(d,x_0,p,t)$ satisfies $\Valid(d',j)$ (distinctness holds since
+$x_0\notin d$). Instantiating $\NoCert(j)$ ($=q(n)$, the IH) at $d'$ gives
+$\neg\Valid(d',j)$ --- contradiction. So $\neg(\mathsf{szLeq}(L,p)=s\,O\wedge
+\evalU(p,t)=s\cdot x_0)$ for all $p,t$, i.e.\ $\Kgt(L,x_0)$. This is pure QF logic:
+instantiate the universal $\NoCert(j)$ at a \emph{constructed} certificate.
+
+\emph{Closing with the barrier.} By necessitation (D1) of the subclaim,
+$T\vdash \Valid(d,j-1)\to \Prov_T(\code{\Kgt(L,x_0)})$ (using provable $\Sigma_0$-completeness
+of the decidable $\Valid$, and D2 to discharge the implication under $\Prov_T$;
+$\code{\Kgt(L,x_0)}$ is built by a PR function of $d$ since $x_0=\lnc(d)$). The
+formalized barrier (Prop.~\ref{prop:fbar}) at $z:=x_0$ gives
+$T\vdash \Con\to\neg\Prov_T(\code{\Kgt(L,x_0)})$, and $\mathsf{Deriv}(\Con)$ discharges
+$\Con$ inside $T$ (D2). So under $\Valid(d,j-1)$, $T$ proves both
+$\Prov_T(\code{\Kgt(L,x_0)})$ and its negation: $T\vdash\Valid(d,j-1)\to\false$, i.e.\
+$T\vdash \neg\Valid(d,j-1)$. As $d$ is free, $T\vdash\NoCert(j-1)$. The new builder
+$q(n{+}1)$ is $q(n)$ instantiated at $\ext(\mathit{var}\,0,\lnc(\mathit{var}\,0),p,t)$,
+wrapped by the fixed barrier/D-steps --- a primitive-recursive transform of $q(n)$.
+\end{proof}
+
+\begin{lemma}[Finish $S(N)$]\label{lem:finish}
+$T\vdash\NoCert(0)$ gives $\mathsf{Deriv}(\false)$.
+\end{lemma}
+\begin{proof}
+$\NoCert(0)=\forall d.\,\neg\Valid(d,0)$. But the empty list is a valid length-$0$
+certificate: $\Valid(d,0)=s\,O$ provably (no conditions). Instantiating $\NoCert(0)$
+at the empty $d$ gives $\neg\Valid(\_,0)$; with $\Valid(\_,0)=s\,O$, $T\vdash\false$;
+$\Con$ then yields $\mathsf{Deriv}(\false)$.
+\end{proof}
+
+% ==================================================================
+\section{Assembly}
+% ==================================================================
+
+\begin{theorem}
+$\texttt{godelII\_kr} : \mathsf{Deriv}(\Con)\to\mathsf{Deriv}(\false)$.
+\end{theorem}
+\begin{proof}
+One object \texttt{ruleIndNat} over $n$ with the open motive $S(n)=\NoCert(N-n)$:
+base Lemma~\ref{lem:base}, step Lemma~\ref{lem:step} (carrying the PR builder $q$).
+Instantiate at $n:=N$ (\texttt{ruleInst}, $N$ Bin-compressed) to get
+$T\vdash\NoCert(0)$; Lemma~\ref{lem:finish} closes. $\Con$ is consumed once, inside
+Proposition~\ref{prop:fbar}.
+\end{proof}
+
+\paragraph{Expressibility ledger (why this lives in QF-BRA).}
+\begin{center}
+\begin{tabular}{ll}
+$\evalU,\ \mathsf{szLeq},\ \Valid,\ \lnc,\ \ext$ & total primitive recursive \\
+$\Kgt(L,x)$ & open $\Pi_1$ (QF matrix, free $p,t$) \\
+$\NoCert(j)=\forall d.\neg\Valid(d,j)$ & open $\Pi_1$ (QF matrix, free $d$) \\
+the only count (base) & over the \emph{decidable} program set \\
+the proof-builder $q$ & primitive recursive (P\'eter; \texttt{R}/\texttt{CoVSpec}) \\
+$\delta$ (the incompressible count) & \emph{never formed} \\
+\end{tabular}
+\end{center}
+No undecidable count, no quantified object sentence, ever appears as a BRA object.
+
+\paragraph{Real obligations (honest inventory).}
+\begin{enumerate}
+\item \textbf{Proposition~\ref{prop:fbar} (formalized barrier).} The single heavy
+  construction: the in-$T$ Chaitin clash, uniform in $z$. Built once. Needs provable
+  $\Sigma_1$-completeness for the scan and for the length-$1$ certificate, glued by
+  D2. This is Kikuchi's Thm 3.3; the meta version (\texttt{kr\_clash}) exists.
+\item \textbf{Search-correctness.} ``$g_L$ finds an existing proof and outputs its
+  subject'' --- the content behind Prop.~\ref{prop:g1} and the scan half of
+  Prop.~\ref{prop:fbar} (\texttt{EvalUMu} + recogniser).
+\item \textbf{Lemma~\ref{lem:base} (program pigeonhole).} \texttt{CountingObj} +
+  \texttt{Bin} rank-compression; mechanical.
+\item \textbf{The recursion $q$ and the step's QF subclaim.} Ordinary PR builder
+  (\texttt{SpikeParsons}-shaped) whose step instantiates the open invariant at
+  $\ext(\,\cdot\,,\lnc(\cdot),p,t)$; D1--D3 are \texttt{thmT\_complete\_rec} /
+  \texttt{encoded\_mp}.
+\item \textbf{Lemma~\ref{lem:dlen}, Lemma~\ref{lem:finish}.} One arithmetic fact;
+  one empty-certificate clash.
+\end{enumerate}
+
+Items 2--5 are standard (PRA-level) and largely have shipped infrastructure. The
+substance to verify by checking \emph{this} document is: (i) certificates make the
+invariant genuinely QF and the only count decidable --- so no dissolution and no
+naming layer; and (ii) the step (Lemma~\ref{lem:step}) is valid --- the QF subclaim
+plus the formalized barrier --- with $\lnc/\ext$ the PR substitution that keeps the
+builder primitive recursive. Item 1 is the one genuine theorem to write; it is named
+and standard, not a wall.
+
+\end{document}

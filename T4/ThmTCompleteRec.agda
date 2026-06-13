@@ -82,3 +82,14 @@ thmT_complete_rec (ruleIndNat k {P} dB dS) =
   thmT_complete_ruleIndNat k P dB dS
     (thmT_complete_rec dB)
     (thmT_complete_rec dS)
+
+thmT_complete_rec (E_intro f t dP) =
+  thmT_complete_E_intro f t dP
+
+thmT_complete_rec (E_elim f a A nf d1 d2) =
+  thmT_complete_E_elim f a A nf d1 d2
+    (thmT_complete_rec d1)
+    (thmT_complete_rec d2)
+
+thmT_complete_rec (eIntroAx f t) =
+  thmT_complete_eIntroAx f t

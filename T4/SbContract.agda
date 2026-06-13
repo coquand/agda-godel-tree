@@ -171,3 +171,11 @@ record SbContract (sbt sbf : Fun2) : Set where
                     (ap2 Pair
                       (ap2 sbf (ap2 Pair (natCode k) S) cP)
                       (ap2 sbf (ap2 Pair (natCode k) S) cQ))))
+
+    -- exists case:  E f  is CLOSED (the body  cB = codeFun1 f  carries
+    -- no numerical variable), so sbf is the identity on its code.
+    sbf_at_exists :
+      (k : Nat) (S cB : Term) ->
+      Deriv (eqF (ap2 sbf (ap2 Pair (natCode k) S)
+                   (ap2 Pair (natCode tag_exists) cB))
+                  (ap2 Pair (natCode tag_exists) cB))

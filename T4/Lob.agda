@@ -137,6 +137,8 @@ closed_codeFormula (neg p)   =
 closed_codeFormula (imp p q) =
   closed_ap2 Pair _ _ (closed_natCode _)
     (closed_ap2 Pair _ _ (closed_codeFormula p) (closed_codeFormula q))
+closed_codeFormula (E f) =
+  closed_ap2 Pair _ _ (closed_natCode _) (closed_codeFun1 f)
 
 ------------------------------------------------------------------------
 -- Guard-style encoded Term abbreviations (IDENTICAL to T4.Thm.Thm14F,

@@ -223,6 +223,7 @@ private
               (substF-comm k1 k2 neq a b cav p))
       (eqCong (\ q' -> imp (substF k2 (substT k1 a b) (substF k1 a p)) q')
               (substF-comm k1 k2 neq a b cav q))
+  substF-comm k1 k2 neq a b cav (E f) = refl
 
   ----------------------------------------------------------------------
   -- substT  idempotence at the same index.
@@ -263,6 +264,7 @@ private
     eqTrans
       (eqCong (\ p' -> imp p' (substF k X (substF k Y q))) (substF-idem k X Y p))
       (eqCong (\ q' -> imp (substF k (substT k X Y) p) q') (substF-idem k X Y q))
+  substF-idem k X Y (E f) = refl
 
   ----------------------------------------------------------------------
   -- Self-var:  substF k (var k) F = F .
@@ -295,6 +297,7 @@ private
     eqTrans
       (eqCong (\ p' -> imp p' (substF k (var k) q)) (substF-self-var k p))
       (eqCong (\ q' -> imp p q') (substF-self-var k q))
+  substF-self-var k (E f) = refl
 
   ----------------------------------------------------------------------
   -- Round-trip:  under  c =/= k  and  NatLe (maxVarT t) c ,
@@ -377,6 +380,7 @@ private
                  (substF-roundtrip c k cNeK X p le_p))
          (eqCong (\ q' -> imp (substF k X p) q')
                  (substF-roundtrip c k cNeK X q le_q))
+  substF-roundtrip c k cNeK X (E f) le = refl
 
 ------------------------------------------------------------------------
 -- Section 2.  The forward H : Fun2 -> Fun2 iterated transformer.

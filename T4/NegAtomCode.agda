@@ -26,7 +26,7 @@ module T4.NegAtomCode where
 open import T4.Base
 open import T4.Tags using ( tag_neg ; tag_imp ; tag_eq ; tag_ap1 ; tag_ap2
                             ; tag_var ; tag_s ; tag_o ; tag_u ; tag_C
-                            ; tag_v ; tag_R )
+                            ; tag_v ; tag_R ; tag_exists )
 open import T4.Code using ( codeTerm ; codeFormula ; codeFun1 ; codeFun2 )
 open import T4.LenR using ( lenR )
 open import T4.ThmT using ( thmT )
@@ -65,6 +65,8 @@ NoVar_codeFormula (neg p)   =
 NoVar_codeFormula (imp p q) =
   mkAnd (NoVar_natCode tag_imp)
     (mkAnd (NoVar_codeFormula p) (NoVar_codeFormula q))
+NoVar_codeFormula (E f) =
+  mkAnd (NoVar_natCode tag_exists) (NoVar_codeFun1L f)
 
 ------------------------------------------------------------------------
 -- SECTION 2.  A NoVar-carrying list of constants + the spine builders.

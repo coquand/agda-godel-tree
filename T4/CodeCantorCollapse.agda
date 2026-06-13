@@ -108,6 +108,8 @@ codeFormula_to_nat (neg P) =
   cantor tag_neg (codeFormula_to_nat P)
 codeFormula_to_nat (imp P Q) =
   cantor tag_imp (cantor (codeFormula_to_nat P) (codeFormula_to_nat Q))
+codeFormula_to_nat (E f) =
+  cantor tag_exists (codeFun1_to_nat f)
 
 ------------------------------------------------------------------------
 -- Wait : the codeFormula(neg P) case is  pi (natCode tag_neg) (codeFormula P) ,
@@ -181,6 +183,11 @@ codeFormula_eq (imp P Q) =
                 tag_imp (codeFormula_to_nat P) (codeFormula_to_nat Q)
                 (axRefl (natCode tag_imp))
                 (codeFormula_eq P) (codeFormula_eq Q)
+codeFormula_eq (E f) =
+  -- codeFormula (E f) = pi tag_exists (codeFun1 f) -- pi_collapse with 2 args
+  pi_collapse (natCode tag_exists) (codeFun1 f) tag_exists (codeFun1_to_nat f)
+              (axRefl (natCode tag_exists))
+              (codeFun1_eq f)
 
 ------------------------------------------------------------------------
 -- Derived natEqF reflexivity on  codeT / codeF .

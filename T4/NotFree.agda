@@ -47,6 +47,7 @@ notFreeT k (ap2 g a b) = Both (notFreeT k a) (notFreeT k b)
 notFreeF : Nat -> Formula -> Set
 notFreeF k (atomic (eqn a b)) = Both (notFreeT k a) (notFreeT k b)
 notFreeF k (neg p)            = notFreeF k p
+notFreeF k (E f)              = Unit          -- E f is closed.
 notFreeF k (imp p q)          = Both (notFreeF k p) (notFreeF k q)
 
 ------------------------------------------------------------------------
@@ -76,6 +77,7 @@ substF_notFree k (atomic (eqn a b)) X nf =
     (eqTrans (eqCong (\ a' -> eqn a' (substT k X b)) (substT_notFree k a X (fst1 nf)))
              (eqCong (eqn a)                          (substT_notFree k b X (snd1 nf))))
 substF_notFree k (neg p)   X nf = eqCong neg (substF_notFree k p X nf)
+substF_notFree k (E f)     X nf = refl
 substF_notFree k (imp p q) X nf =
   eqTrans (eqCong (\ p' -> imp p' (substF k X q)) (substF_notFree k p X (fst1 nf)))
           (eqCong (imp p)                         (substF_notFree k q X (snd1 nf)))
@@ -203,6 +205,9 @@ module FreshNF (sbt sbf : Fun2) (sbCon : SbContract sbt sbf) where
         inner = ruleTrans (congL Pair (ap2 sbf spec (codeFormula q)) ih_p)
                           (congR Pair (codeFormula p) ih_q)
     in ruleTrans step1 (congR Pair (natCode tag_imp) inner)
+  sbfInert_codeFormula k S (E f) nf =
+    -- codeFormula (E f) = Pair tag_exists (codeFun1 f); sbf is identity on it.
+    sbf_at_exists k S (codeFun1 f)
 
 ------------------------------------------------------------------------
 -- From a maxVar bound to the structural freshness predicate.
@@ -222,6 +227,7 @@ notFree_above_F k (atomic (eqn a b)) le =
   both (notFree_above_T k a (le-trans (maxN-le-left  (maxVarT a) (maxVarT b)) le))
        (notFree_above_T k b (le-trans (maxN-le-right (maxVarT a) (maxVarT b)) le))
 notFree_above_F k (neg p)   le = notFree_above_F k p le
+notFree_above_F k (E f)     le = tt
 notFree_above_F k (imp p q) le =
   both (notFree_above_F k p (le-trans (maxN-le-left  (maxVarF p) (maxVarF q)) le))
        (notFree_above_F k q (le-trans (maxN-le-right (maxVarF p) (maxVarF q)) le))
@@ -255,6 +261,7 @@ substF_back k (atomic (eqn a b)) nf =
                      (substT_back k a (fst1 nf)))
              (eqCong (eqn a) (substT_back k b (snd1 nf))))
 substF_back k (neg p)   nf = eqCong neg (substF_back k p nf)
+substF_back k (E f)     nf = refl
 substF_back k (imp p q) nf =
   eqTrans (eqCong (\ p' -> imp p' (substF k (var zero) (substF zero (var k) q)))
                   (substF_back k p (fst1 nf)))
@@ -279,6 +286,7 @@ notFree0_after_F :
 notFree0_after_F k (atomic (eqn a b)) nfk =
   both (notFree0_after_T k a nfk) (notFree0_after_T k b nfk)
 notFree0_after_F k (neg p)   nfk = notFree0_after_F k p nfk
+notFree0_after_F k (E f)     nfk = tt
 notFree0_after_F k (imp p q) nfk =
   both (notFree0_after_F k p nfk) (notFree0_after_F k q nfk)
 
@@ -303,6 +311,7 @@ notFree_preserve_F j k (atomic (eqn a b)) nf jk =
   both (notFree_preserve_T j k a (fst1 nf) jk)
        (notFree_preserve_T j k b (snd1 nf) jk)
 notFree_preserve_F j k (neg p)   nf jk = notFree_preserve_F j k p nf jk
+notFree_preserve_F j k (E f)     nf jk = tt
 notFree_preserve_F j k (imp p q) nf jk =
   both (notFree_preserve_F j k p (fst1 nf) jk)
        (notFree_preserve_F j k q (snd1 nf) jk)
@@ -350,6 +359,7 @@ substF_back_at i k (atomic (eqn a b)) nf =
                      (substT_back_at i k a (fst1 nf)))
              (eqCong (eqn a) (substT_back_at i k b (snd1 nf))))
 substF_back_at i k (neg p)   nf = eqCong neg (substF_back_at i k p nf)
+substF_back_at i k (E f)     nf = refl
 substF_back_at i k (imp p q) nf =
   eqTrans (eqCong (\ p' -> imp p' (substF k (var i) (substF i (var k) q)))
                   (substF_back_at i k p (fst1 nf)))
@@ -375,6 +385,7 @@ notFree_self_after_F :
 notFree_self_after_F i k (atomic (eqn a b)) ik =
   both (notFree_self_after_T i k a ik) (notFree_self_after_T i k b ik)
 notFree_self_after_F i k (neg p)   ik = notFree_self_after_F i k p ik
+notFree_self_after_F i k (E f)     ik = tt
 notFree_self_after_F i k (imp p q) ik =
   both (notFree_self_after_F i k p ik) (notFree_self_after_F i k q ik)
 
@@ -400,6 +411,7 @@ notFree_preserve_at_F i j k (atomic (eqn a b)) nf jk =
   both (notFree_preserve_at_T i j k a (fst1 nf) jk)
        (notFree_preserve_at_T i j k b (snd1 nf) jk)
 notFree_preserve_at_F i j k (neg p)   nf jk = notFree_preserve_at_F i j k p nf jk
+notFree_preserve_at_F i j k (E f)     nf jk = tt
 notFree_preserve_at_F i j k (imp p q) nf jk =
   both (notFree_preserve_at_F i j k p (fst1 nf) jk)
        (notFree_preserve_at_F i j k q (snd1 nf) jk)

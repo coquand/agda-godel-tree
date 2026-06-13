@@ -66,3 +66,7 @@ open import T4.ThmTCompleteAxFunctor public
 open import T4.ThmTCompleteAxForm public
   using ( thmT_complete_axS
         ; thmT_complete_axNeg )
+open import T4.ThmTCompleteE public
+  using ( thmT_complete_E_intro
+        ; thmT_complete_E_elim
+        ; thmT_complete_eIntroAx )

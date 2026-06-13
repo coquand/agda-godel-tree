@@ -57,6 +57,9 @@ tag_neg  = 11
 tag_imp  : Nat
 tag_imp  = 12
 
+tag_exists : Nat
+tag_exists = 13
+
 ------------------------------------------------------------------------
 -- Rule slot tags (used by thmT's top-level dispatch).  These live in
 -- a SEPARATE namespace from the Term / Formula tags above; they are
@@ -74,3 +77,12 @@ tag_mp   = 3
 
 tag_ind  : Nat
 tag_ind  = 4
+
+tag_eintro : Nat
+tag_eintro = 5
+
+tag_eelim : Nat
+tag_eelim = 6
+
+tag_eintroax : Nat
+tag_eintroax = 7

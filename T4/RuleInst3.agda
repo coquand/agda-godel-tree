@@ -48,6 +48,7 @@ simSubst3F k0 t0 k1 t1 k2 t2 (neg p) =
   neg (simSubst3F k0 t0 k1 t1 k2 t2 p)
 simSubst3F k0 t0 k1 t1 k2 t2 (imp p q) =
   imp (simSubst3F k0 t0 k1 t1 k2 t2 p) (simSubst3F k0 t0 k1 t1 k2 t2 q)
+simSubst3F k0 t0 k1 t1 k2 t2 (E f) = E f       -- E f is closed.
 
 ------------------------------------------------------------------------
 -- Helpers.
@@ -544,3 +545,8 @@ five_step_F k0 t0 k1 t1 k2 t2 c1 c2
        (eqCong (\ P' -> imp P' (substF c2 t2 (substF c1 t1 (substF k0 t0
                                     (substF k2 (var c2) (substF k1 (var c1) Q)))))) eq_P)
        (eqCong (imp (simSubst3F k0 t0 k1 t1 k2 t2 P)) eq_Q)
+
+five_step_F k0 t0 k1 t1 k2 t2 c1 c2
+            _ _ _ _ _ _ _ _ _ _
+            _ _ _
+            (E f) leC1 leC2 = refl       -- E f is closed; all substs are no-ops.

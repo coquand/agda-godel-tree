@@ -125,10 +125,7 @@ thmT_complete_ruleIndNat :
                          (codeFormula (imp P (substF k (ap1 s (var k)) P))))) ->
   Deriv (eqF (ap1 thmT (encode (ruleIndNat k dB dS))) (codeFormula P))
 thmT_complete_ruleIndNat k P dB dS ih_base ih_step =
-  thmT_at_ind_codeF (encode dB) (encode dS) (codeFormula P)
-                     (codeFormula (substF k O P))
-                     (codeFormula (substF k (ap1 s (var k)) P))
-                     ih_base ih_step
+  thmT_at_ind_codeF k P (encode dB) (encode dS) ih_base ih_step
 
 ------------------------------------------------------------------------
 -- CASE  axK A B .   P = imp A (imp B A) .

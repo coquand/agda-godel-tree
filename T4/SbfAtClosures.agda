@@ -1630,6 +1630,324 @@ sbf_at_atomic k S ca cb =
   in ruleTrans chain_to_atombr atombr_value
 
 ------------------------------------------------------------------------
+-- sbf_at_exists :  the SbContract closure for the existential former.
+--
+-- The body  cB = codeFun1 f  is CLOSED, so the branch copies it
+-- verbatim (no cov-table recursion).  Dispatch reaches the deepest
+-- cascade slot: isEq = isNeg = isImp = O, isExists = sO.
+
+private
+  -- Tag inequality witnesses against tag_exists.
+  witness_exists_neq_eq : NatNeqWitness tag_exists tag_eq
+  witness_exists_neq_eq = natEqFalse_to_witness tag_eq tag_exists refl
+
+  witness_exists_neq_neg : NatNeqWitness tag_exists tag_neg
+  witness_exists_neq_neg = natEqFalse_to_witness tag_neg tag_exists refl
+
+  witness_exists_neq_imp : NatNeqWitness tag_exists tag_imp
+  witness_exists_neq_imp = natEqFalse_to_witness tag_imp tag_exists refl
+
+  -- isExists unfolding (mirror of isImp_unfold).
+  isExists_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 isExists input)
+                (ap2 natEqF (ap1 get_tag input) (natCode tag_exists)))
+  isExists_unfold input =
+    let s1 :
+          Deriv (eqF (ap1 isExists input)
+                      (ap2 natEqF (ap1 get_tag input) (ap1 (constN tag_exists) input)))
+        s1 = ax_C natEqF get_tag (constN tag_exists) input
+        s2 : Deriv (eqF (ap1 (constN tag_exists) input) (natCode tag_exists))
+        s2 = constN_eq tag_exists input
+    in ruleTrans s1 (congR natEqF (ap1 get_tag input) s2)
+
+  -- Tag-firing at a tag_exists input.
+  isEq_at_natCodeExists_O :
+    (input : Term) ->
+    Deriv (eqF (ap1 get_tag input) (natCode tag_exists)) ->
+    Deriv (eqF (ap1 isEq input) O)
+  isEq_at_natCodeExists_O input tag_pf =
+    let s1 = isEq_unfold input
+        s2 = congL natEqF (natCode tag_eq) tag_pf
+        s3 = natEqF_at_neq tag_exists tag_eq witness_exists_neq_eq
+    in ruleTrans s1 (ruleTrans s2 s3)
+
+  isNeg_at_natCodeExists_O :
+    (input : Term) ->
+    Deriv (eqF (ap1 get_tag input) (natCode tag_exists)) ->
+    Deriv (eqF (ap1 isNeg input) O)
+  isNeg_at_natCodeExists_O input tag_pf =
+    let s1 = isNeg_unfold input
+        s2 = congL natEqF (natCode tag_neg) tag_pf
+        s3 = natEqF_at_neq tag_exists tag_neg witness_exists_neq_neg
+    in ruleTrans s1 (ruleTrans s2 s3)
+
+  isImp_at_natCodeExists_O :
+    (input : Term) ->
+    Deriv (eqF (ap1 get_tag input) (natCode tag_exists)) ->
+    Deriv (eqF (ap1 isImp input) O)
+  isImp_at_natCodeExists_O input tag_pf =
+    let s1 = isImp_unfold input
+        s2 = congL natEqF (natCode tag_imp) tag_pf
+        s3 = natEqF_at_neq tag_exists tag_imp witness_exists_neq_imp
+    in ruleTrans s1 (ruleTrans s2 s3)
+
+  isExists_at_natCodeExists_sO :
+    (input : Term) ->
+    Deriv (eqF (ap1 get_tag input) (natCode tag_exists)) ->
+    Deriv (eqF (ap1 isExists input) (ap1 s O))
+  isExists_at_natCodeExists_sO input tag_pf =
+    let s1 = isExists_unfold input
+        s2 = congL natEqF (natCode tag_exists) tag_pf
+        s3 = natEq_eq tag_exists
+    in ruleTrans s1 (ruleTrans s2 s3)
+
+  -- New cascade projections reaching the exists slot.
+  neg_or_above_to_imp_or_else :
+    (input : Term) ->
+    Deriv (eqF (ap1 isNeg input) O) ->
+    Deriv (eqF (ap1 neg_or_above input) (ap1 imp_or_else input))
+  neg_or_above_to_imp_or_else input isNeg_O =
+    let e1 = neg_or_above_unfold input
+        isNeg_subst =
+          congR condFork (ap1 (C pi neg_branch_sbf imp_or_else) input) isNeg_O
+        condFork_to_Snd =
+          condFork_false (ap1 (C pi neg_branch_sbf imp_or_else) input)
+        pi_eq = pi_neg_imp_unfold input
+        Snd_pi = axSnd (ap1 neg_branch_sbf input) (ap1 imp_or_else input)
+    in ruleTrans e1
+         (ruleTrans isNeg_subst
+           (ruleTrans condFork_to_Snd
+             (ruleTrans (cong1 Snd pi_eq) Snd_pi)))
+
+  imp_or_else_to_else :
+    (input : Term) ->
+    Deriv (eqF (ap1 isImp input) O) ->
+    Deriv (eqF (ap1 imp_or_else input) (ap1 else_branch_sbf input))
+  imp_or_else_to_else input isImp_O =
+    let e1 = imp_or_else_unfold input
+        isImp_subst =
+          congR condFork (ap1 (C pi imp_branch_sbf else_branch_sbf) input) isImp_O
+        condFork_to_Snd =
+          condFork_false (ap1 (C pi imp_branch_sbf else_branch_sbf) input)
+        pi_eq = pi_imp_else_unfold input
+        Snd_pi = axSnd (ap1 imp_branch_sbf input) (ap1 else_branch_sbf input)
+    in ruleTrans e1
+         (ruleTrans isImp_subst
+           (ruleTrans condFork_to_Snd
+             (ruleTrans (cong1 Snd pi_eq) Snd_pi)))
+
+  else_branch_sbf_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 else_branch_sbf input)
+                (ap2 condFork (ap1 (C pi exists_branch_sbf o) input)
+                              (ap1 isExists input)))
+  else_branch_sbf_unfold input =
+    ax_C condFork (C pi exists_branch_sbf o) isExists input
+
+  pi_exists_o_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 (C pi exists_branch_sbf o) input)
+                (ap2 pi (ap1 exists_branch_sbf input) (ap1 o input)))
+  pi_exists_o_unfold input =
+    ax_C pi exists_branch_sbf o input
+
+  else_branch_to_exists :
+    (input : Term) ->
+    Deriv (eqF (ap1 isExists input) (ap1 s O)) ->
+    Deriv (eqF (ap1 else_branch_sbf input) (ap1 exists_branch_sbf input))
+  else_branch_to_exists input isExists_sO =
+    let e1 = else_branch_sbf_unfold input
+        isExists_subst =
+          congR condFork (ap1 (C pi exists_branch_sbf o) input) isExists_sO
+        condFork_to_Fst =
+          condFork_true_nc (ap1 (C pi exists_branch_sbf o) input) O
+        pi_eq = pi_exists_o_unfold input
+        Fst_pi = axFst (ap1 exists_branch_sbf input) (ap1 o input)
+    in ruleTrans e1
+         (ruleTrans isExists_subst
+           (ruleTrans condFork_to_Fst
+             (ruleTrans (cong1 Fst pi_eq) Fst_pi)))
+
+  exists_branch_sbf_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 exists_branch_sbf input)
+                (ap2 pi (ap1 (constN tag_exists) input) (ap1 get_body input)))
+  exists_branch_sbf_unfold input =
+    ax_C pi (constN tag_exists) get_body input
+
+sbf_at_exists :
+  (k : Nat) (S cB : Term) ->
+  Deriv (eqF (ap2 sbf (ap2 pi (natCode k) S)
+               (ap2 pi (natCode tag_exists) cB))
+              (ap2 pi (natCode tag_exists) cB))
+sbf_at_exists k S cB =
+  let spec : Term
+      spec = ap2 pi (natCode k) S
+
+      input : Term
+      input = ap2 pi (natCode tag_exists) cB
+
+      -- tag_exists = 13; natCode tag_exists = s (natCode 12).
+      A_outer : Term
+      A_outer = natCode (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))
+
+      P_outer : Term
+      P_outer = pi_succ_outer A_outer cB
+
+      prev : Term
+      prev = ap2 (cov_spec baseValue_sbf stepFun_sbf) spec P_outer
+
+      input_pkg' : Term
+      input_pkg' = ap2 pi P_outer (ap1 Snd prev)
+
+      step1 :
+        Deriv (eqF (ap2 sbf spec input) (ap1 readOff_spec (ap2 sbfState spec input)))
+      step1 = sbf_unfold spec input
+
+      input_eq_sP_outer :
+        Deriv (eqF input (ap1 s P_outer))
+      input_eq_sP_outer = pi_at_succ A_outer cB
+
+      cov_lift :
+        Deriv (eqF (ap2 (cov_spec baseValue_sbf stepFun_sbf) spec input)
+                    (ap2 (cov_spec baseValue_sbf stepFun_sbf) spec (ap1 s P_outer)))
+      cov_lift = congR (cov_spec baseValue_sbf stepFun_sbf) spec input_eq_sP_outer
+
+      cov_step :
+        Deriv (eqF (ap2 (cov_spec baseValue_sbf stepFun_sbf) spec (ap1 s P_outer))
+                    (ap1 (state_step_spec stepFun_sbf) prev))
+      cov_step = cov_spec_step_univ baseValue_sbf stepFun_sbf spec P_outer
+
+      sbfState_eq :
+        Deriv (eqF (ap2 sbfState spec input) (ap1 (state_step_spec stepFun_sbf) prev))
+      sbfState_eq = ruleTrans cov_lift cov_step
+
+      readOff_lift :
+        Deriv (eqF (ap1 readOff_spec (ap2 sbfState spec input))
+                    (ap1 readOff_spec (ap1 (state_step_spec stepFun_sbf) prev)))
+      readOff_lift = cong1 readOff_spec sbfState_eq
+
+      readOff_eval :
+        Deriv (eqF (ap1 readOff_spec (ap1 (state_step_spec stepFun_sbf) prev))
+                    (ap2 stepFun_sbf (ap1 Fst prev) (ap1 Snd prev)))
+      readOff_eval = readOff_state_step_univ stepFun_sbf prev
+
+      Fst_prev_eq :
+        Deriv (eqF (ap1 Fst prev) P_outer)
+      Fst_prev_eq = fst_cov_spec_eq baseValue_sbf stepFun_sbf spec P_outer
+
+      stepFun_lift :
+        Deriv (eqF (ap2 stepFun_sbf (ap1 Fst prev) (ap1 Snd prev))
+                    (ap2 stepFun_sbf P_outer (ap1 Snd prev)))
+      stepFun_lift = congL stepFun_sbf (ap1 Snd prev) Fst_prev_eq
+
+      Post_eq :
+        Deriv (eqF (ap2 stepFun_sbf P_outer (ap1 Snd prev))
+                    (ap1 stepBody_sbf (ap2 pi P_outer (ap1 Snd prev))))
+      Post_eq = axPost stepBody_sbf pi P_outer (ap1 Snd prev)
+
+      -- get_tag input_pkg' = natCode tag_exists.
+      get_tag_eq_Fst_sP :
+        Deriv (eqF (ap1 get_tag input_pkg') (ap1 Fst (ap1 s P_outer)))
+      get_tag_eq_Fst_sP = get_tag_at_pi P_outer (ap1 Snd prev)
+
+      Fst_input :
+        Deriv (eqF (ap1 Fst input) (natCode tag_exists))
+      Fst_input = axFst (natCode tag_exists) cB
+
+      Fst_sP_to_Fst_input :
+        Deriv (eqF (ap1 Fst (ap1 s P_outer)) (ap1 Fst input))
+      Fst_sP_to_Fst_input = cong1 Fst (ruleSym input_eq_sP_outer)
+
+      get_tag_value :
+        Deriv (eqF (ap1 get_tag input_pkg') (natCode tag_exists))
+      get_tag_value = ruleTrans get_tag_eq_Fst_sP
+                       (ruleTrans Fst_sP_to_Fst_input Fst_input)
+
+      isEq_value : Deriv (eqF (ap1 isEq input_pkg') O)
+      isEq_value = isEq_at_natCodeExists_O input_pkg' get_tag_value
+
+      isNeg_value : Deriv (eqF (ap1 isNeg input_pkg') O)
+      isNeg_value = isNeg_at_natCodeExists_O input_pkg' get_tag_value
+
+      isImp_value : Deriv (eqF (ap1 isImp input_pkg') O)
+      isImp_value = isImp_at_natCodeExists_O input_pkg' get_tag_value
+
+      isExists_value : Deriv (eqF (ap1 isExists input_pkg') (ap1 s O))
+      isExists_value = isExists_at_natCodeExists_sO input_pkg' get_tag_value
+
+      -- Dispatch chain down to exists_branch_sbf.
+      stepBody_to_neg_or :
+        Deriv (eqF (ap1 stepBody_sbf input_pkg') (ap1 neg_or_above input_pkg'))
+      stepBody_to_neg_or = stepBody_sbf_to_neg_or_above input_pkg' isEq_value
+
+      negor_to_impor :
+        Deriv (eqF (ap1 neg_or_above input_pkg') (ap1 imp_or_else input_pkg'))
+      negor_to_impor = neg_or_above_to_imp_or_else input_pkg' isNeg_value
+
+      impor_to_else :
+        Deriv (eqF (ap1 imp_or_else input_pkg') (ap1 else_branch_sbf input_pkg'))
+      impor_to_else = imp_or_else_to_else input_pkg' isImp_value
+
+      else_to_exists :
+        Deriv (eqF (ap1 else_branch_sbf input_pkg') (ap1 exists_branch_sbf input_pkg'))
+      else_to_exists = else_branch_to_exists input_pkg' isExists_value
+
+      stepBody_to_exists :
+        Deriv (eqF (ap1 stepBody_sbf input_pkg') (ap1 exists_branch_sbf input_pkg'))
+      stepBody_to_exists =
+        ruleTrans stepBody_to_neg_or
+          (ruleTrans negor_to_impor
+            (ruleTrans impor_to_else else_to_exists))
+
+      -- exists_branch value: pi (natCode tag_exists) cB.
+      existsbr_unfold :
+        Deriv (eqF (ap1 exists_branch_sbf input_pkg')
+                    (ap2 pi (ap1 (constN tag_exists) input_pkg') (ap1 get_body input_pkg')))
+      existsbr_unfold = exists_branch_sbf_unfold input_pkg'
+
+      constN_at :
+        Deriv (eqF (ap1 (constN tag_exists) input_pkg') (natCode tag_exists))
+      constN_at = constN_eq tag_exists input_pkg'
+
+      Snd_sP_eq :
+        Deriv (eqF (ap1 Snd (ap1 s P_outer)) (ap1 Snd input))
+      Snd_sP_eq = cong1 Snd (ruleSym input_eq_sP_outer)
+
+      Snd_input_eq_cB :
+        Deriv (eqF (ap1 Snd input) cB)
+      Snd_input_eq_cB = axSnd (natCode tag_exists) cB
+
+      get_body_value : Deriv (eqF (ap1 get_body input_pkg') cB)
+      get_body_value =
+        let s1 :
+              Deriv (eqF (ap1 get_body input_pkg') (ap1 Snd (ap1 s P_outer)))
+            s1 = get_body_at_pi P_outer (ap1 Snd prev)
+        in ruleTrans s1 (ruleTrans Snd_sP_eq Snd_input_eq_cB)
+
+      existsbr_value :
+        Deriv (eqF (ap1 exists_branch_sbf input_pkg')
+                    (ap2 pi (natCode tag_exists) cB))
+      existsbr_value =
+        ruleTrans existsbr_unfold
+          (ruleTrans (congL pi (ap1 get_body input_pkg') constN_at)
+                     (congR pi (natCode tag_exists) get_body_value))
+
+      chain_to_stepBody :
+        Deriv (eqF (ap2 sbf spec input) (ap1 stepBody_sbf input_pkg'))
+      chain_to_stepBody =
+        ruleTrans step1
+          (ruleTrans readOff_lift
+            (ruleTrans readOff_eval
+              (ruleTrans stepFun_lift Post_eq)))
+
+      chain_to_existsbr :
+        Deriv (eqF (ap2 sbf spec input) (ap1 exists_branch_sbf input_pkg'))
+      chain_to_existsbr = ruleTrans chain_to_stepBody stepBody_to_exists
+  in ruleTrans chain_to_existsbr existsbr_value
+
+------------------------------------------------------------------------
 -- SbContract record assembly.
 --
 -- Bundles all 8 closure equations of  sbt  and  sbf  into the contract
@@ -1650,4 +1968,5 @@ sbContract = record
   ; sbf_at_atomic      = sbf_at_atomic
   ; sbf_at_neg         = sbf_at_neg
   ; sbf_at_imp         = sbf_at_imp
+  ; sbf_at_exists      = sbf_at_exists
   }

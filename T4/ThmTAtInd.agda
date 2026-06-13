@@ -43,7 +43,12 @@ open import T4.CoVSpec
 open import T4.CoVSpecUniv
 open import T4.CoVSpecFst
 open import T4.SbT          using ( get_K ; get_inner ; get_table ; get_newK ; get_tag ; get_body
-                                     ; lookupAt )
+                                     ; lookupAt ; sbt )
+open import T4.SbF          using ( sbf )
+open import T4.SbContract   using ( SbContract )
+open import T4.SbfAtClosures using ( sbContract )
+open import T4.SbDerived    using ( module Derive )
+open import T4.CodeCantorCollapse using ( natEqF_codeF_refl )
 open import T4.ThmT
 open import T4.StabilityNatFuel
 open import T4.Stability
@@ -67,6 +72,9 @@ open import BRA3.SubT.V2NatNeq   using
 open import BRA3.RuleInst2       using ( natEq-refl ; true_neq_false )
 open import BRA3.RecBRA3AtPairUniv using ( sub_self ; iter_base_univ )
 import BRA3.ChurchT92
+
+-- Specialise  sbfEq_codeFormula  to T4's concrete  sbt , sbf .
+open Derive sbt sbf sbContract using ( sbfEq_codeFormula )
 
 ------------------------------------------------------------------------
 -- NatNeqWitnesses : tag_ind /= tag_ax / tag_sb / tag_mp .
@@ -143,20 +151,21 @@ private
         s1 = compose1U_eq Snd get_inner (ap2 pi A Y)
     in ruleTrans s1 (cong1 Snd (get_inner_at_pi A Y))
 
-  get_ind_pBase_idx_at_pi :
-    (A Y : Term) -> Deriv (eqF (ap1 get_ind_pBase_idx (ap2 pi A Y))
+  -- body = pi cVar rest ;  get_ind_var = Fst body , get_ind_rest = Snd body .
+  get_ind_var_at_pi :
+    (A Y : Term) -> Deriv (eqF (ap1 get_ind_var (ap2 pi A Y))
                                   (ap1 Fst (ap1 Snd (ap1 s A))))
-  get_ind_pBase_idx_at_pi A Y =
-    let s1 : Deriv (eqF (ap1 get_ind_pBase_idx (ap2 pi A Y))
+  get_ind_var_at_pi A Y =
+    let s1 : Deriv (eqF (ap1 get_ind_var (ap2 pi A Y))
                           (ap1 Fst (ap1 get_body (ap2 pi A Y))))
         s1 = compose1U_eq Fst get_body (ap2 pi A Y)
     in ruleTrans s1 (cong1 Fst (get_body_at_pi A Y))
 
-  get_ind_pStep_idx_at_pi :
-    (A Y : Term) -> Deriv (eqF (ap1 get_ind_pStep_idx (ap2 pi A Y))
+  get_ind_rest_at_pi :
+    (A Y : Term) -> Deriv (eqF (ap1 get_ind_rest (ap2 pi A Y))
                                   (ap1 Snd (ap1 Snd (ap1 s A))))
-  get_ind_pStep_idx_at_pi A Y =
-    let s1 : Deriv (eqF (ap1 get_ind_pStep_idx (ap2 pi A Y))
+  get_ind_rest_at_pi A Y =
+    let s1 : Deriv (eqF (ap1 get_ind_rest (ap2 pi A Y))
                           (ap1 Snd (ap1 get_body (ap2 pi A Y))))
         s1 = compose1U_eq Snd get_body (ap2 pi A Y)
     in ruleTrans s1 (cong1 Snd (get_body_at_pi A Y))
@@ -210,20 +219,24 @@ private
                 (ap2 pi (ap1 mp_branch_thmT input) (ap1 ind_or_else input)))
   pi_mp_indor_unfold input = ax_C pi mp_branch_thmT ind_or_else input
 
+  -- NOTE: the FALSE arm of  ind_or_else  is now  eintro_or_above  (the E
+  -- cascade), not  else_branch_thmT  -- see  T4.ThmT  Section 11.  The ind
+  -- TRUE path (isInd = sO -> Fst -> ind_branch_thmT) is unaffected by what
+  -- the false arm is, so only these unfold types reference the new arm.
   ind_or_else_unfold :
     (input : Term) ->
     Deriv (eqF (ap1 ind_or_else input)
                 (ap2 condFork
-                  (ap1 (C pi ind_branch_thmT else_branch_thmT) input)
+                  (ap1 (C pi ind_branch_thmT eintro_or_above) input)
                   (ap1 isInd input)))
   ind_or_else_unfold input =
-    ax_C condFork (C pi ind_branch_thmT else_branch_thmT) isInd input
+    ax_C condFork (C pi ind_branch_thmT eintro_or_above) isInd input
 
   pi_ind_else_unfold :
     (input : Term) ->
-    Deriv (eqF (ap1 (C pi ind_branch_thmT else_branch_thmT) input)
-                (ap2 pi (ap1 ind_branch_thmT input) (ap1 else_branch_thmT input)))
-  pi_ind_else_unfold input = ax_C pi ind_branch_thmT else_branch_thmT input
+    Deriv (eqF (ap1 (C pi ind_branch_thmT eintro_or_above) input)
+                (ap2 pi (ap1 ind_branch_thmT input) (ap1 eintro_or_above input)))
+  pi_ind_else_unfold input = ax_C pi ind_branch_thmT eintro_or_above input
 
   isAx_unfold :
     (input : Term) ->
@@ -354,10 +367,10 @@ private
     Deriv (eqF (ap1 ind_or_else input) (ap1 ind_branch_thmT input))
   ind_or_else_to_ind input isInd_sO =
     let e1 = ind_or_else_unfold input
-        sub_isInd = congR condFork (ap1 (C pi ind_branch_thmT else_branch_thmT) input) isInd_sO
-        cf_to_Fst = condFork_true_nc (ap1 (C pi ind_branch_thmT else_branch_thmT) input) O
+        sub_isInd = congR condFork (ap1 (C pi ind_branch_thmT eintro_or_above) input) isInd_sO
+        cf_to_Fst = condFork_true_nc (ap1 (C pi ind_branch_thmT eintro_or_above) input) O
         pi_eq = pi_ind_else_unfold input
-        Fst_pi = axFst (ap1 ind_branch_thmT input) (ap1 else_branch_thmT input)
+        Fst_pi = axFst (ap1 ind_branch_thmT input) (ap1 eintro_or_above input)
     in ruleTrans e1 (ruleTrans sub_isInd
          (ruleTrans cf_to_Fst (ruleTrans (cong1 Fst pi_eq) Fst_pi)))
 
@@ -383,34 +396,44 @@ private
          (ruleTrans HP_at_ct (ruleTrans (ruleSym readOff_eq) thmTF2_eq_sym))
 
 ------------------------------------------------------------------------
--- Leq lemmas for sub-positions cPBaseIdx, cPStepIdx of pi cPBaseIdx cPStepIdx.
+-- Leq lemmas for sub-positions cPBaseIdx, cPStepIdx of the ind body
+--  Y_body = pi cVar (pi cPBaseIdx cPStepIdx) .  One extra  leq_pi_right
+-- step (rest <= Y_body) compared with the old body  pi cPBaseIdx cPStepIdx .
 
 leq_cPStepIdx_P_outer_ind :
-  (cPBaseIdx cPStepIdx : Term) ->
+  (cVar cPBaseIdx cPStepIdx : Term) ->
   Deriv (leq cPStepIdx
             (pi_succ_outer (natCode (suc (suc (suc zero))))
-                           (ap2 pi cPBaseIdx cPStepIdx)))
-leq_cPStepIdx_P_outer_ind cPBaseIdx cPStepIdx =
+                           (ap2 pi cVar (ap2 pi cPBaseIdx cPStepIdx))))
+leq_cPStepIdx_P_outer_ind cVar cPBaseIdx cPStepIdx =
   let A : Term
       A = natCode (suc (suc (suc zero))) -- natCode 3
+      rest : Term
+      rest = ap2 pi cPBaseIdx cPStepIdx
       Y : Term
-      Y = ap2 pi cPBaseIdx cPStepIdx
+      Y = ap2 pi cVar rest
       X : Term
       X = ap2 sigma (ap2 sigma A Y) (ap1 tau (ap2 sigma A Y))
-      l1 = leq_pi_right cPBaseIdx cPStepIdx
+      l0 : Deriv (leq cPStepIdx rest)
+      l0 = leq_pi_right cPBaseIdx cPStepIdx
+      l1 : Deriv (leq rest Y)
+      l1 = leq_pi_right cVar rest
       l2 = leq_sigma_right X Y
-  in leq_trans cPStepIdx Y (ap2 sigma X Y) l1 l2
+      l01 = leq_trans cPStepIdx rest Y l0 l1
+  in leq_trans cPStepIdx Y (ap2 sigma X Y) l01 l2
 
 leq_cPBaseIdx_P_outer_ind :
-  (cPBaseIdx cPStepIdx : Term) ->
+  (cVar cPBaseIdx cPStepIdx : Term) ->
   Deriv (leq cPBaseIdx
             (pi_succ_outer (natCode (suc (suc (suc zero))))
-                           (ap2 pi cPBaseIdx cPStepIdx)))
-leq_cPBaseIdx_P_outer_ind cPBaseIdx cPStepIdx =
+                           (ap2 pi cVar (ap2 pi cPBaseIdx cPStepIdx))))
+leq_cPBaseIdx_P_outer_ind cVar cPBaseIdx cPStepIdx =
   let A : Term
       A = natCode (suc (suc (suc zero)))
+      rest : Term
+      rest = ap2 pi cPBaseIdx cPStepIdx
       Y : Term
-      Y = ap2 pi cPBaseIdx cPStepIdx
+      Y = ap2 pi cVar rest
       X : Term
       X = ap2 sigma (ap2 sigma A Y) (ap1 tau (ap2 sigma A Y))
       l1 : Deriv (leq cPBaseIdx (ap2 sigma cPBaseIdx cPStepIdx))
@@ -426,23 +449,61 @@ leq_cPBaseIdx_P_outer_ind cPBaseIdx cPStepIdx =
       l3_pi = ruleTrans cong_sub_sym l3
       l12 = leq_trans cPBaseIdx (ap2 sigma cPBaseIdx cPStepIdx)
                        (ap1 tau (ap2 sigma cPBaseIdx cPStepIdx)) l1 l2
+      -- cPBaseIdx <= rest
       l123 = leq_trans cPBaseIdx (ap1 tau (ap2 sigma cPBaseIdx cPStepIdx))
-                        (ap2 pi cPBaseIdx cPStepIdx) l12 l3_pi
+                        rest l12 l3_pi
+      -- rest <= Y_body
+      lR : Deriv (leq rest Y)
+      lR = leq_pi_right cVar rest
+      l1234 = leq_trans cPBaseIdx rest Y l123 lR
       l5 = leq_sigma_right X Y
-  in leq_trans cPBaseIdx Y (ap2 sigma X Y) l123 l5
+  in leq_trans cPBaseIdx Y (ap2 sigma X Y) l1234 l5
 
 ------------------------------------------------------------------------
 -- ind_branch_thmT unfoldings.
 
 private
+  -- Outer condFork : isIndStepImp -> ind_inner_base | baseValue .
   ind_branch_thmT_unfold :
     (input : Term) ->
     Deriv (eqF (ap1 ind_branch_thmT input)
                 (ap2 condFork
-                  (ap1 (C pi get_motive baseValue_thmT) input)
+                  (ap1 (C pi ind_inner_base baseValue_thmT) input)
                   (ap1 isIndStepImp input)))
   ind_branch_thmT_unfold input =
-    ax_C condFork (C pi get_motive baseValue_thmT) isIndStepImp input
+    ax_C condFork (C pi ind_inner_base baseValue_thmT) isIndStepImp input
+
+  pi_inner_base_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 (C pi ind_inner_base baseValue_thmT) input)
+                (ap2 pi (ap1 ind_inner_base input) (ap1 baseValue_thmT input)))
+  pi_inner_base_unfold input = ax_C pi ind_inner_base baseValue_thmT input
+
+  -- Middle condFork : isBaseOk -> ind_inner_stepCons | baseValue .
+  ind_inner_base_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 ind_inner_base input)
+                (ap2 condFork
+                  (ap1 (C pi ind_inner_stepCons baseValue_thmT) input)
+                  (ap1 isBaseOk input)))
+  ind_inner_base_unfold input =
+    ax_C condFork (C pi ind_inner_stepCons baseValue_thmT) isBaseOk input
+
+  pi_inner_stepCons_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 (C pi ind_inner_stepCons baseValue_thmT) input)
+                (ap2 pi (ap1 ind_inner_stepCons input) (ap1 baseValue_thmT input)))
+  pi_inner_stepCons_unfold input = ax_C pi ind_inner_stepCons baseValue_thmT input
+
+  -- Inner condFork : isStepConsOk -> get_motive | baseValue .
+  ind_inner_stepCons_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 ind_inner_stepCons input)
+                (ap2 condFork
+                  (ap1 (C pi get_motive baseValue_thmT) input)
+                  (ap1 isStepConsOk input)))
+  ind_inner_stepCons_unfold input =
+    ax_C condFork (C pi get_motive baseValue_thmT) isStepConsOk input
 
   pi_motive_unfold :
     (input : Term) ->
@@ -490,23 +551,136 @@ private
                 (ap1 Fst (ap1 get_pStep_body input)))
   get_motive_unfold input = compose1U_eq Fst get_pStep_body input
 
+  get_stepCons_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 get_stepCons input)
+                (ap1 Snd (ap1 get_pStep_body input)))
+  get_stepCons_unfold input = compose1U_eq Snd get_pStep_body input
+
+  isBaseOk_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 isBaseOk input)
+                (ap2 natEqF (ap1 get_pBase_val input) (ap1 ind_expectedBase input)))
+  isBaseOk_unfold input = ax_C natEqF get_pBase_val ind_expectedBase input
+
+  isStepConsOk_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 isStepConsOk input)
+                (ap2 natEqF (ap1 get_stepCons input) (ap1 ind_expectedStepCons input)))
+  isStepConsOk_unfold input = ax_C natEqF get_stepCons ind_expectedStepCons input
+
+  -- ind_expectedBase input = sbf (pi (get_ind_var input) O) (get_motive input) .
+  ind_expectedBase_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 ind_expectedBase input)
+                (ap2 sbf (ap2 pi (ap1 get_ind_var input) O) (ap1 get_motive input)))
+  ind_expectedBase_unfold input =
+    let s1 : Deriv (eqF (ap1 ind_expectedBase input)
+                         (ap2 sbf (ap1 ind_spec0 input) (ap1 get_motive input)))
+        s1 = ax_C sbf ind_spec0 get_motive input
+        spec0_eq : Deriv (eqF (ap1 ind_spec0 input)
+                               (ap2 pi (ap1 get_ind_var input) (ap1 o input)))
+        spec0_eq = ax_C pi get_ind_var o input
+        o_eq : Deriv (eqF (ap1 o input) O)
+        o_eq = ax_o input
+        spec0_val : Deriv (eqF (ap1 ind_spec0 input)
+                                (ap2 pi (ap1 get_ind_var input) O))
+        spec0_val = ruleTrans spec0_eq (congR pi (ap1 get_ind_var input) o_eq)
+    in ruleTrans s1 (congL sbf (ap1 get_motive input) spec0_val)
+
+  -- codeStepSubst value = pi (natCode tag_ap1) (pi (natCode tag_s)
+  --                            (pi (natCode tag_var) (get_ind_var input))) .
+  ind_codeVar_val :
+    (input : Term) ->
+    Deriv (eqF (ap1 ind_codeVar input)
+                (ap2 pi (natCode tag_var) (ap1 get_ind_var input)))
+  ind_codeVar_val input =
+    let s1 = ax_C pi (constN tag_var) get_ind_var input
+        s2 = constN_eq tag_var input
+    in ruleTrans s1 (congL pi (ap1 get_ind_var input) s2)
+
+  ind_codeStepSubst_val :
+    (input : Term) ->
+    Deriv (eqF (ap1 ind_codeStepSubst input)
+                (ap2 pi (natCode tag_ap1)
+                  (ap2 pi (natCode tag_s)
+                    (ap2 pi (natCode tag_var) (ap1 get_ind_var input)))))
+  ind_codeStepSubst_val input =
+    let s1 : Deriv (eqF (ap1 ind_codeStepSubst input)
+                         (ap2 pi (ap1 (constN tag_ap1) input)
+                                 (ap1 (C pi (constN tag_s) ind_codeVar) input)))
+        s1 = ax_C pi (constN tag_ap1) (C pi (constN tag_s) ind_codeVar) input
+        tap1_eq = constN_eq tag_ap1 input
+        inner_eq : Deriv (eqF (ap1 (C pi (constN tag_s) ind_codeVar) input)
+                               (ap2 pi (natCode tag_s)
+                                 (ap2 pi (natCode tag_var) (ap1 get_ind_var input))))
+        inner_eq =
+          let t1 = ax_C pi (constN tag_s) ind_codeVar input
+              ts_eq = constN_eq tag_s input
+              cv_eq = ind_codeVar_val input
+          in ruleTrans t1 (ruleTrans (congL pi (ap1 ind_codeVar input) ts_eq)
+                                     (congR pi (natCode tag_s) cv_eq))
+    in ruleTrans s1 (ruleTrans (congL pi (ap1 (C pi (constN tag_s) ind_codeVar) input) tap1_eq)
+                               (congR pi (natCode tag_ap1) inner_eq))
+
+  -- ind_expectedStepCons input = sbf (pi (get_ind_var input) codeStepSubstVal)
+  --                                  (get_motive input) .
+  ind_expectedStepCons_unfold :
+    (input : Term) ->
+    Deriv (eqF (ap1 ind_expectedStepCons input)
+                (ap2 sbf (ap2 pi (ap1 get_ind_var input)
+                          (ap2 pi (natCode tag_ap1)
+                            (ap2 pi (natCode tag_s)
+                              (ap2 pi (natCode tag_var) (ap1 get_ind_var input)))))
+                         (ap1 get_motive input)))
+  ind_expectedStepCons_unfold input =
+    let s1 : Deriv (eqF (ap1 ind_expectedStepCons input)
+                         (ap2 sbf (ap1 ind_specStep input) (ap1 get_motive input)))
+        s1 = ax_C sbf ind_specStep get_motive input
+        specStep_eq : Deriv (eqF (ap1 ind_specStep input)
+                                  (ap2 pi (ap1 get_ind_var input) (ap1 ind_codeStepSubst input)))
+        specStep_eq = ax_C pi get_ind_var ind_codeStepSubst input
+        specStep_val : Deriv (eqF (ap1 ind_specStep input)
+                                   (ap2 pi (ap1 get_ind_var input)
+                                     (ap2 pi (natCode tag_ap1)
+                                       (ap2 pi (natCode tag_s)
+                                         (ap2 pi (natCode tag_var) (ap1 get_ind_var input))))))
+        specStep_val = ruleTrans specStep_eq
+                         (congR pi (ap1 get_ind_var input) (ind_codeStepSubst_val input))
+    in ruleTrans s1 (congL sbf (ap1 get_motive input) specStep_val)
+
 ------------------------------------------------------------------------
 -- The main UNIVERSAL closure proof.
 
 thmT_at_ind :
-  (cPBaseIdx cPStepIdx : Term)
+  (cVar cPBaseIdx cPStepIdx : Term)
   (cBaseVal cStepVal : Term)
   (ih_base : Deriv (eqF (ap1 thmT cPBaseIdx) cBaseVal))
   (ih_step : Deriv (eqF (ap1 thmT cPStepIdx) cStepVal))
-  (wf_step_tag : Deriv (eqF (ap1 Fst cStepVal) (natCode tag_imp))) ->
-  Deriv (eqF (ap1 thmT (ap2 pi (natCode tag_ind) (ap2 pi cPBaseIdx cPStepIdx)))
+  (wf_step_tag : Deriv (eqF (ap1 Fst cStepVal) (natCode tag_imp)))
+  (wf_base : Deriv (eqF (ap2 natEqF cBaseVal
+                          (ap2 sbf (ap2 pi cVar O) (ap1 Fst (ap1 Snd cStepVal))))
+                        (ap1 s O)))
+  (wf_step : Deriv (eqF (ap2 natEqF (ap1 Snd (ap1 Snd cStepVal))
+                          (ap2 sbf (ap2 pi cVar
+                                     (ap2 pi (natCode tag_ap1)
+                                       (ap2 pi (natCode tag_s)
+                                         (ap2 pi (natCode tag_var) cVar))))
+                                   (ap1 Fst (ap1 Snd cStepVal))))
+                        (ap1 s O))) ->
+  Deriv (eqF (ap1 thmT (ap2 pi (natCode tag_ind)
+                          (ap2 pi cVar (ap2 pi cPBaseIdx cPStepIdx))))
               (ap1 Fst (ap1 Snd cStepVal)))
-thmT_at_ind cPBaseIdx cPStepIdx cBaseVal cStepVal ih_base ih_step wf_step_tag =
-  let input : Term
-      input = ap2 pi (natCode tag_ind) (ap2 pi cPBaseIdx cPStepIdx)
+thmT_at_ind cVar cPBaseIdx cPStepIdx cBaseVal cStepVal
+            ih_base ih_step wf_step_tag wf_base wf_step =
+  let rest : Term
+      rest = ap2 pi cPBaseIdx cPStepIdx
+
+      input : Term
+      input = ap2 pi (natCode tag_ind) (ap2 pi cVar rest)
 
       Y_body : Term
-      Y_body = ap2 pi cPBaseIdx cPStepIdx
+      Y_body = ap2 pi cVar rest
 
       A_outer : Term
       A_outer = natCode (suc (suc (suc zero)))
@@ -568,24 +742,38 @@ thmT_at_ind cPBaseIdx cPStepIdx cBaseVal cStepVal ih_base ih_step wf_step_tag =
           (ruleTrans sbor_to_mpor
             (ruleTrans mpor_to_indor indor_to_ind))
 
-      -- (3) Snd input_pkg' chain.
+      -- (3) Snd input_pkg' chain (now: Y_body = pi cVar rest).
       Snd_sP_eq = cong1 Snd (ruleSym input_eq_sP_outer)
       Snd_input_eq_Yb = axSnd (natCode tag_ind) Y_body
       Snd_sP_to_Y = ruleTrans Snd_sP_eq Snd_input_eq_Yb
 
+      get_ind_var_value :
+        Deriv (eqF (ap1 get_ind_var input_pkg') cVar)
+      get_ind_var_value =
+        let s1 = get_ind_var_at_pi P_outer (ap1 Snd prev)
+            Fst_Y = axFst cVar rest
+        in ruleTrans s1 (ruleTrans (cong1 Fst Snd_sP_to_Y) Fst_Y)
+
+      get_ind_rest_value :
+        Deriv (eqF (ap1 get_ind_rest input_pkg') rest)
+      get_ind_rest_value =
+        let s1 = get_ind_rest_at_pi P_outer (ap1 Snd prev)
+            Snd_Y = axSnd cVar rest
+        in ruleTrans s1 (ruleTrans (cong1 Snd Snd_sP_to_Y) Snd_Y)
+
       get_ind_pBase_idx_value :
         Deriv (eqF (ap1 get_ind_pBase_idx input_pkg') cPBaseIdx)
       get_ind_pBase_idx_value =
-        let s1 = get_ind_pBase_idx_at_pi P_outer (ap1 Snd prev)
-            Fst_Y = axFst cPBaseIdx cPStepIdx
-        in ruleTrans s1 (ruleTrans (cong1 Fst Snd_sP_to_Y) Fst_Y)
+        let e1 = compose1U_eq Fst get_ind_rest input_pkg'
+            Fst_rest = axFst cPBaseIdx cPStepIdx
+        in ruleTrans e1 (ruleTrans (cong1 Fst get_ind_rest_value) Fst_rest)
 
       get_ind_pStep_idx_value :
         Deriv (eqF (ap1 get_ind_pStep_idx input_pkg') cPStepIdx)
       get_ind_pStep_idx_value =
-        let s1 = get_ind_pStep_idx_at_pi P_outer (ap1 Snd prev)
-            Snd_Y = axSnd cPBaseIdx cPStepIdx
-        in ruleTrans s1 (ruleTrans (cong1 Snd Snd_sP_to_Y) Snd_Y)
+        let e1 = compose1U_eq Snd get_ind_rest input_pkg'
+            Snd_rest = axSnd cPBaseIdx cPStepIdx
+        in ruleTrans e1 (ruleTrans (cong1 Snd get_ind_rest_value) Snd_rest)
 
       get_K_value = get_K_at_pi P_outer (ap1 Snd prev)
       get_table_value = get_table_at_pi P_outer (ap1 Snd prev)
@@ -601,7 +789,7 @@ thmT_at_ind cPBaseIdx cPStepIdx cBaseVal cStepVal ih_base ih_step wf_step_tag =
                   (congR (iter Snd) (HistP_sbt baseValue_thmT stepFun_thmT O P_outer)
                           pStep_iter_arg)
       pStep_val_to_HP = ruleTrans pStep_val_unfold (cong1 Fst pStep_iter_full)
-      leq_pStep = leq_cPStepIdx_P_outer_ind cPBaseIdx cPStepIdx
+      leq_pStep = leq_cPStepIdx_P_outer_ind cVar cPBaseIdx cPStepIdx
       pStep_val_value =
         ruleTrans pStep_val_to_HP
                   (HP_thmT_eq_thmT_under_leq cPStepIdx P_outer leq_pStep)
@@ -611,14 +799,28 @@ thmT_at_ind cPBaseIdx cPStepIdx cBaseVal cStepVal ih_base ih_step wf_step_tag =
         Deriv (eqF (ap1 get_pStep_val input_pkg') cStepVal)
       get_pStep_val_eq = ruleTrans pStep_val_to_thmT ih_step
 
-      -- (5) pBase_val lookup -- computed for symmetry / future use ;
-      --     currently UNUSED in the proof (ind_branch_thmT doesn't read it).
-      --     We omit the leq+HP-bridge chain here to keep the file lean,
-      --     since the value isn't consumed.  ih_base is therefore also
-      --     unused (kept in the signature for downstream consistency).
+      -- (5) pBase_val lookup = cBaseVal (via ih_base + stability) -- NOW USED.
+      pBase_val_unfold = lookupAt_unfold get_ind_pBase_idx input_pkg'
+      pBase_iter_arg = ruleTrans (congL sub (ap1 get_ind_pBase_idx input_pkg') get_K_value)
+                                  (congR sub P_outer get_ind_pBase_idx_value)
+      pBase_iter_full =
+        ruleTrans (congL (iter Snd) (ap2 sub (ap1 get_K input_pkg')
+                                                (ap1 get_ind_pBase_idx input_pkg'))
+                          get_table_value)
+                  (congR (iter Snd) (HistP_sbt baseValue_thmT stepFun_thmT O P_outer)
+                          pBase_iter_arg)
+      pBase_val_to_HP = ruleTrans pBase_val_unfold (cong1 Fst pBase_iter_full)
+      leq_pBase = leq_cPBaseIdx_P_outer_ind cVar cPBaseIdx cPStepIdx
+      pBase_val_value =
+        ruleTrans pBase_val_to_HP
+                  (HP_thmT_eq_thmT_under_leq cPBaseIdx P_outer leq_pBase)
+      pBase_val_to_thmT = ruleTrans pBase_val_value (ruleSym (thmT_unfold cPBaseIdx))
+
+      get_pBase_val_eq :
+        Deriv (eqF (ap1 get_pBase_val input_pkg') cBaseVal)
+      get_pBase_val_eq = ruleTrans pBase_val_to_thmT ih_base
 
       -- (6) isIndStepImp = sO via wf_step_tag + IH-substitution.
-      -- get_pStep_tag input_pkg' = Fst (get_pStep_val input_pkg') = Fst cStepVal = natCode tag_imp.
       get_pStep_tag_step1 :
         Deriv (eqF (ap1 get_pStep_tag input_pkg')
                     (ap1 Fst (ap1 get_pStep_val input_pkg')))
@@ -633,58 +835,146 @@ thmT_at_ind cPBaseIdx cPStepIdx cBaseVal cStepVal ih_base ih_step wf_step_tag =
       get_pStep_tag_value =
         ruleTrans get_pStep_tag_step1 (ruleTrans get_pStep_tag_step2 wf_step_tag)
 
-      isIndStepImp_step1 :
-        Deriv (eqF (ap1 isIndStepImp input_pkg')
-                    (ap2 natEqF (ap1 get_pStep_tag input_pkg') (natCode tag_imp)))
-      isIndStepImp_step1 = isIndStepImp_unfold input_pkg'
-
-      isIndStepImp_step2 :
-        Deriv (eqF (ap2 natEqF (ap1 get_pStep_tag input_pkg') (natCode tag_imp))
-                    (ap2 natEqF (natCode tag_imp) (natCode tag_imp)))
-      isIndStepImp_step2 = congL natEqF (natCode tag_imp) get_pStep_tag_value
-
-      isIndStepImp_step3 :
-        Deriv (eqF (ap2 natEqF (natCode tag_imp) (natCode tag_imp)) (ap1 s O))
-      isIndStepImp_step3 = natEq_eq tag_imp
-
       isIndStepImp_value :
         Deriv (eqF (ap1 isIndStepImp input_pkg') (ap1 s O))
       isIndStepImp_value =
-        ruleTrans isIndStepImp_step1
-          (ruleTrans isIndStepImp_step2 isIndStepImp_step3)
+        ruleTrans (isIndStepImp_unfold input_pkg')
+          (ruleTrans (congL natEqF (natCode tag_imp) get_pStep_tag_value)
+                     (natEq_eq tag_imp))
 
-      -- (7) ind_branch_thmT -> get_motive.
-      ind_branch_to_motive :
-        Deriv (eqF (ap1 ind_branch_thmT input_pkg') (ap1 get_motive input_pkg'))
-      ind_branch_to_motive =
-        let e1 = ind_branch_thmT_unfold input_pkg'
-            sub_isStep = congR condFork (ap1 (C pi get_motive baseValue_thmT) input_pkg')
-                                        isIndStepImp_value
-            cf_to_Fst = condFork_true_nc (ap1 (C pi get_motive baseValue_thmT) input_pkg') O
-            pi_eq = pi_motive_unfold input_pkg'
-            Fst_pi = axFst (ap1 get_motive input_pkg') (ap1 baseValue_thmT input_pkg')
-        in ruleTrans e1 (ruleTrans sub_isStep
-             (ruleTrans cf_to_Fst (ruleTrans (cong1 Fst pi_eq) Fst_pi)))
+      -- (7) get_motive input_pkg' = Fst (Snd cStepVal).
+      get_pStep_body_value :
+        Deriv (eqF (ap1 get_pStep_body input_pkg') (ap1 Snd cStepVal))
+      get_pStep_body_value =
+        ruleTrans (get_pStep_body_unfold input_pkg') (cong1 Snd get_pStep_val_eq)
 
-      -- (8) get_motive input_pkg' = Fst (Snd cStepVal).
       get_motive_value :
         Deriv (eqF (ap1 get_motive input_pkg') (ap1 Fst (ap1 Snd cStepVal)))
       get_motive_value =
-        let s1 : Deriv (eqF (ap1 get_motive input_pkg')
-                             (ap1 Fst (ap1 get_pStep_body input_pkg')))
-            s1 = get_motive_unfold input_pkg'
-            s2 : Deriv (eqF (ap1 get_pStep_body input_pkg')
-                             (ap1 Snd (ap1 get_pStep_val input_pkg')))
-            s2 = get_pStep_body_unfold input_pkg'
-            s3 : Deriv (eqF (ap1 Snd (ap1 get_pStep_val input_pkg'))
-                             (ap1 Snd cStepVal))
-            s3 = cong1 Snd get_pStep_val_eq
-            s4 : Deriv (eqF (ap1 Fst (ap1 get_pStep_body input_pkg'))
-                             (ap1 Fst (ap1 Snd cStepVal)))
-            s4 = cong1 Fst (ruleTrans s2 s3)
-        in ruleTrans s1 s4
+        ruleTrans (get_motive_unfold input_pkg') (cong1 Fst get_pStep_body_value)
 
-      -- (9) Final assembly.
+      get_stepCons_value :
+        Deriv (eqF (ap1 get_stepCons input_pkg') (ap1 Snd (ap1 Snd cStepVal)))
+      get_stepCons_value =
+        ruleTrans (get_stepCons_unfold input_pkg') (cong1 Snd get_pStep_body_value)
+
+      -- (8) isBaseOk = sO  via wf_base .
+      ind_expectedBase_value :
+        Deriv (eqF (ap1 ind_expectedBase input_pkg')
+                    (ap2 sbf (ap2 pi cVar O) (ap1 Fst (ap1 Snd cStepVal))))
+      ind_expectedBase_value =
+        ruleTrans (ind_expectedBase_unfold input_pkg')
+          (ruleTrans (congL sbf (ap1 get_motive input_pkg')
+                       (congL pi O get_ind_var_value))
+                     (congR sbf (ap2 pi cVar O) get_motive_value))
+
+      isBaseOk_value :
+        Deriv (eqF (ap1 isBaseOk input_pkg') (ap1 s O))
+      isBaseOk_value =
+        ruleTrans (isBaseOk_unfold input_pkg')
+          (ruleTrans (congL natEqF (ap1 ind_expectedBase input_pkg') get_pBase_val_eq)
+            (ruleTrans (congR natEqF cBaseVal ind_expectedBase_value) wf_base))
+
+      -- (9) isStepConsOk = sO  via wf_step .
+      ind_specStep_value :
+        Deriv (eqF (ap2 pi (ap1 get_ind_var input_pkg')
+                     (ap2 pi (natCode tag_ap1)
+                       (ap2 pi (natCode tag_s)
+                         (ap2 pi (natCode tag_var) (ap1 get_ind_var input_pkg')))))
+                    (ap2 pi cVar
+                     (ap2 pi (natCode tag_ap1)
+                       (ap2 pi (natCode tag_s)
+                         (ap2 pi (natCode tag_var) cVar)))))
+      ind_specStep_value =
+        let inner : Deriv (eqF (ap2 pi (natCode tag_var) (ap1 get_ind_var input_pkg'))
+                               (ap2 pi (natCode tag_var) cVar))
+            inner = congR pi (natCode tag_var) get_ind_var_value
+            inner_s : Deriv (eqF (ap2 pi (natCode tag_s)
+                                   (ap2 pi (natCode tag_var) (ap1 get_ind_var input_pkg')))
+                                 (ap2 pi (natCode tag_s)
+                                   (ap2 pi (natCode tag_var) cVar)))
+            inner_s = congR pi (natCode tag_s) inner
+            inner_ap1 : Deriv (eqF (ap2 pi (natCode tag_ap1)
+                                     (ap2 pi (natCode tag_s)
+                                       (ap2 pi (natCode tag_var) (ap1 get_ind_var input_pkg'))))
+                                   (ap2 pi (natCode tag_ap1)
+                                     (ap2 pi (natCode tag_s)
+                                       (ap2 pi (natCode tag_var) cVar))))
+            inner_ap1 = congR pi (natCode tag_ap1) inner_s
+            -- rewrite the substituent (Snd component) then the variable (Fst component)
+            step_snd = congR pi (ap1 get_ind_var input_pkg') inner_ap1
+            step_fst = congL pi (ap2 pi (natCode tag_ap1)
+                                  (ap2 pi (natCode tag_s)
+                                    (ap2 pi (natCode tag_var) cVar)))
+                              get_ind_var_value
+        in ruleTrans step_snd step_fst
+
+      ind_expectedStepCons_value :
+        Deriv (eqF (ap1 ind_expectedStepCons input_pkg')
+                    (ap2 sbf (ap2 pi cVar
+                               (ap2 pi (natCode tag_ap1)
+                                 (ap2 pi (natCode tag_s)
+                                   (ap2 pi (natCode tag_var) cVar))))
+                             (ap1 Fst (ap1 Snd cStepVal))))
+      ind_expectedStepCons_value =
+        ruleTrans (ind_expectedStepCons_unfold input_pkg')
+          (ruleTrans (congL sbf (ap1 get_motive input_pkg') ind_specStep_value)
+                     (congR sbf (ap2 pi cVar
+                                  (ap2 pi (natCode tag_ap1)
+                                    (ap2 pi (natCode tag_s)
+                                      (ap2 pi (natCode tag_var) cVar))))
+                            get_motive_value))
+
+      isStepConsOk_value :
+        Deriv (eqF (ap1 isStepConsOk input_pkg') (ap1 s O))
+      isStepConsOk_value =
+        ruleTrans (isStepConsOk_unfold input_pkg')
+          (ruleTrans (congL natEqF (ap1 ind_expectedStepCons input_pkg') get_stepCons_value)
+            (ruleTrans (congR natEqF (ap1 Snd (ap1 Snd cStepVal)) ind_expectedStepCons_value)
+                       wf_step))
+
+      -- (10) Cascade : ind_branch -> ind_inner_base -> ind_inner_stepCons -> get_motive.
+      descent1 :
+        Deriv (eqF (ap1 ind_branch_thmT input_pkg') (ap1 ind_inner_base input_pkg'))
+      descent1 =
+        let e1 = ind_branch_thmT_unfold input_pkg'
+            sub1 = congR condFork (ap1 (C pi ind_inner_base baseValue_thmT) input_pkg')
+                                  isIndStepImp_value
+            cf1 = condFork_true_nc (ap1 (C pi ind_inner_base baseValue_thmT) input_pkg') O
+            pi1 = pi_inner_base_unfold input_pkg'
+            Fst1 = axFst (ap1 ind_inner_base input_pkg') (ap1 baseValue_thmT input_pkg')
+        in ruleTrans e1 (ruleTrans sub1
+             (ruleTrans cf1 (ruleTrans (cong1 Fst pi1) Fst1)))
+
+      descent2 :
+        Deriv (eqF (ap1 ind_inner_base input_pkg') (ap1 ind_inner_stepCons input_pkg'))
+      descent2 =
+        let e1 = ind_inner_base_unfold input_pkg'
+            sub1 = congR condFork (ap1 (C pi ind_inner_stepCons baseValue_thmT) input_pkg')
+                                  isBaseOk_value
+            cf1 = condFork_true_nc (ap1 (C pi ind_inner_stepCons baseValue_thmT) input_pkg') O
+            pi1 = pi_inner_stepCons_unfold input_pkg'
+            Fst1 = axFst (ap1 ind_inner_stepCons input_pkg') (ap1 baseValue_thmT input_pkg')
+        in ruleTrans e1 (ruleTrans sub1
+             (ruleTrans cf1 (ruleTrans (cong1 Fst pi1) Fst1)))
+
+      descent3 :
+        Deriv (eqF (ap1 ind_inner_stepCons input_pkg') (ap1 get_motive input_pkg'))
+      descent3 =
+        let e1 = ind_inner_stepCons_unfold input_pkg'
+            sub1 = congR condFork (ap1 (C pi get_motive baseValue_thmT) input_pkg')
+                                  isStepConsOk_value
+            cf1 = condFork_true_nc (ap1 (C pi get_motive baseValue_thmT) input_pkg') O
+            pi1 = pi_motive_unfold input_pkg'
+            Fst1 = axFst (ap1 get_motive input_pkg') (ap1 baseValue_thmT input_pkg')
+        in ruleTrans e1 (ruleTrans sub1
+             (ruleTrans cf1 (ruleTrans (cong1 Fst pi1) Fst1)))
+
+      ind_branch_to_motive :
+        Deriv (eqF (ap1 ind_branch_thmT input_pkg') (ap1 get_motive input_pkg'))
+      ind_branch_to_motive = ruleTrans descent1 (ruleTrans descent2 descent3)
+
+      -- (11) Final assembly.
       chain_to_stepBody :
         Deriv (eqF (ap1 thmT input) (ap1 stepBody_thmT input_pkg'))
       chain_to_stepBody =
@@ -704,39 +994,114 @@ thmT_at_ind cPBaseIdx cPStepIdx cBaseVal cStepVal ih_base ih_step wf_step_tag =
   in ruleTrans chain_to_motive get_motive_value
 
 ------------------------------------------------------------------------
--- Corollary :  thmT_at_ind_codeF  -- specialised to a Formula motive.
+-- Corollary :  thmT_at_ind_codeF  -- specialised to a real Formula motive.
 --
--- Given that  ih_step  says  thmT cPStepIdx = codeFormula (imp P_motive cStepCons) ,
--- derive  wf_step_tag  via axFst and conclude that the output equals
---  codeFormula P_motive .
+-- Given the induction variable  k  and the motive Formula  P , with
+--   ih_base : thmT cPBaseIdx = codeFormula (substF k O P)
+--   ih_step : thmT cPStepIdx = codeFormula (imp P (substF k (s var k) P))
+-- the two  sbf  well-formedness checks are SOUND :  the substitution
+-- equalities are exactly  sbfEq_codeFormula  at substituents  O  and
+--  s (var k) , and  natEqF  fires by  natEqF_codeF_refl .
 
 thmT_at_ind_codeF :
+  (k : Nat) (P : Formula)
   (cPBaseIdx cPStepIdx : Term)
-  (P_motive cBaseVal cStepCons : Term)
-  (ih_base : Deriv (eqF (ap1 thmT cPBaseIdx) cBaseVal))
+  (ih_base : Deriv (eqF (ap1 thmT cPBaseIdx) (codeFormula (substF k O P))))
   (ih_step : Deriv (eqF (ap1 thmT cPStepIdx)
-                         (ap2 pi (natCode tag_imp) (ap2 pi P_motive cStepCons)))) ->
-  Deriv (eqF (ap1 thmT (ap2 pi (natCode tag_ind) (ap2 pi cPBaseIdx cPStepIdx)))
-              P_motive)
-thmT_at_ind_codeF cPBaseIdx cPStepIdx P_motive cBaseVal cStepCons ih_base ih_step =
-  let cStepVal : Term
-      cStepVal = ap2 pi (natCode tag_imp) (ap2 pi P_motive cStepCons)
+                         (codeFormula (imp P (substF k (ap1 s (var k)) P))))) ->
+  Deriv (eqF (ap1 thmT (ap2 pi (natCode tag_ind)
+                          (ap2 pi (natCode k) (ap2 pi cPBaseIdx cPStepIdx))))
+              (codeFormula P))
+thmT_at_ind_codeF k P cPBaseIdx cPStepIdx ih_base ih_step =
+  let cVar : Term
+      cVar = natCode k
+
+      baseF : Formula
+      baseF = substF k O P
+
+      stepF : Formula
+      stepF = substF k (ap1 s (var k)) P
+
+      cBaseVal : Term
+      cBaseVal = codeFormula baseF
+
+      cStepCons : Term
+      cStepCons = codeFormula stepF
+
+      cStepVal : Term
+      cStepVal = codeFormula (imp P stepF)
+      -- = ap2 pi (natCode tag_imp) (ap2 pi (codeFormula P) cStepCons)
+
+      -- codeStepSubst value = code of  s (var k) .
+      codeStepSubst : Term
+      codeStepSubst = ap2 pi (natCode tag_ap1)
+                        (ap2 pi (natCode tag_s)
+                          (ap2 pi (natCode tag_var) cVar))
+
+      motiveLit : Term
+      motiveLit = ap1 Fst (ap1 Snd cStepVal)
+
+      stepConsLit : Term
+      stepConsLit = ap1 Snd (ap1 Snd cStepVal)
 
       -- wf_step_tag : Fst cStepVal = natCode tag_imp.
       wf_step_tag : Deriv (eqF (ap1 Fst cStepVal) (natCode tag_imp))
-      wf_step_tag = axFst (natCode tag_imp) (ap2 pi P_motive cStepCons)
+      wf_step_tag = axFst (natCode tag_imp) (ap2 pi (codeFormula P) cStepCons)
 
-      -- Output : Fst (Snd cStepVal) = Fst (pi P_motive cStepCons) = P_motive.
+      -- Bridges  motiveLit = codeFormula P  and  stepConsLit = cStepCons .
       Snd_step :
-        Deriv (eqF (ap1 Snd cStepVal) (ap2 pi P_motive cStepCons))
-      Snd_step = axSnd (natCode tag_imp) (ap2 pi P_motive cStepCons)
+        Deriv (eqF (ap1 Snd cStepVal) (ap2 pi (codeFormula P) cStepCons))
+      Snd_step = axSnd (natCode tag_imp) (ap2 pi (codeFormula P) cStepCons)
 
-      Fst_Snd_step :
-        Deriv (eqF (ap1 Fst (ap1 Snd cStepVal)) P_motive)
-      Fst_Snd_step = ruleTrans (cong1 Fst Snd_step) (axFst P_motive cStepCons)
+      motiveLit_eq : Deriv (eqF motiveLit (codeFormula P))
+      motiveLit_eq = ruleTrans (cong1 Fst Snd_step) (axFst (codeFormula P) cStepCons)
 
-      raw : Deriv (eqF (ap1 thmT (ap2 pi (natCode tag_ind) (ap2 pi cPBaseIdx cPStepIdx)))
-                        (ap1 Fst (ap1 Snd cStepVal)))
-      raw = thmT_at_ind cPBaseIdx cPStepIdx cBaseVal cStepVal
-                        ih_base ih_step wf_step_tag
-  in ruleTrans raw Fst_Snd_step
+      stepConsLit_eq : Deriv (eqF stepConsLit cStepCons)
+      stepConsLit_eq = ruleTrans (cong1 Snd Snd_step) (axSnd (codeFormula P) cStepCons)
+
+      -- sbf substitution equalities (the genuine soundness content).
+      sbfEq_base :
+        Deriv (eqF (ap2 sbf (ap2 pi cVar O) (codeFormula P)) cBaseVal)
+      sbfEq_base = sbfEq_codeFormula k O P
+
+      sbfEq_step :
+        Deriv (eqF (ap2 sbf (ap2 pi cVar codeStepSubst) (codeFormula P)) cStepCons)
+      sbfEq_step = sbfEq_codeFormula k (ap1 s (var k)) P
+
+      -- wf_base : natEqF cBaseVal (sbf (pi cVar O) motiveLit) = sO .
+      bridge_base :
+        Deriv (eqF cBaseVal (ap2 sbf (ap2 pi cVar O) motiveLit))
+      bridge_base =
+        ruleTrans (ruleSym sbfEq_base)
+          (congR sbf (ap2 pi cVar O) (ruleSym motiveLit_eq))
+
+      wf_base :
+        Deriv (eqF (ap2 natEqF cBaseVal (ap2 sbf (ap2 pi cVar O) motiveLit))
+                    (ap1 s O))
+      wf_base =
+        ruleTrans (congR natEqF cBaseVal (ruleSym bridge_base))
+                  (natEqF_codeF_refl baseF)
+
+      -- wf_step : natEqF stepConsLit (sbf (pi cVar codeStepSubst) motiveLit) = sO .
+      bridge_step :
+        Deriv (eqF cStepCons (ap2 sbf (ap2 pi cVar codeStepSubst) motiveLit))
+      bridge_step =
+        ruleTrans (ruleSym sbfEq_step)
+          (congR sbf (ap2 pi cVar codeStepSubst) (ruleSym motiveLit_eq))
+
+      wf_step :
+        Deriv (eqF (ap2 natEqF stepConsLit
+                     (ap2 sbf (ap2 pi cVar codeStepSubst) motiveLit))
+                    (ap1 s O))
+      wf_step =
+        ruleTrans (congL natEqF (ap2 sbf (ap2 pi cVar codeStepSubst) motiveLit)
+                    stepConsLit_eq)
+          (ruleTrans (congR natEqF cStepCons (ruleSym bridge_step))
+                     (natEqF_codeF_refl stepF))
+
+      raw : Deriv (eqF (ap1 thmT (ap2 pi (natCode tag_ind)
+                          (ap2 pi cVar (ap2 pi cPBaseIdx cPStepIdx))))
+                        motiveLit)
+      raw = thmT_at_ind cVar cPBaseIdx cPStepIdx cBaseVal cStepVal
+                        ih_base ih_step wf_step_tag wf_base wf_step
+  in ruleTrans raw motiveLit_eq

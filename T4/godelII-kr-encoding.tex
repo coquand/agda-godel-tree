@@ -1,0 +1,462 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathpartir}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  breaklines=true,
+  keepspaces=true,
+  showstringspaces=false,
+}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ------------------------------------------------------------------
+% Notation
+% ------------------------------------------------------------------
+\newcommand{\code}[1]{\ulcorner #1 \urcorner}
+\newcommand{\thmT}{\mathbf{thmT}}
+\newcommand{\evalU}{\mathbf{evalU}}
+\newcommand{\num}{\mathbf{num}}
+\newcommand{\lenR}{\mathbf{lenR}}
+\newcommand{\Deriv}{\mathsf{Deriv}}
+\newcommand{\Con}{\mathrm{Con}_T}
+\newcommand{\Kgt}{\mathbf{Kgt}}
+\newcommand{\Comp}{\mathbf{Comp}}
+\newcommand{\Inc}{\mathbf{Inc}}
+\newcommand{\false}{\mathsf{false}}
+\newcommand{\sze}{\mathbf{szLeq}}
+
+\title{Encoding Kritchman--Raz G\"odel~II in quantifier-free BRA\\
+       \large A blueprint for the eval/Chaitin route}
+\author{T4 project notes}
+\date{2026-05-26}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We describe, concretely and at the level of the actual Agda signatures, how the
+second incompleteness theorem can be encoded in Guard's Basic Recursive
+Arithmetic (BRA) along the \emph{Kritchman--Raz} route: a Chaitin/Berry
+incompleteness theorem \emph{without self-reference or diagonalization}, replaced
+by a counting argument and a descending (``surprise examination'') induction.
+The target is
+\[
+  \texttt{godelII\_kr} \;:\; \Deriv\,\mathrm{ConSchema} \;\longrightarrow\; \Deriv\,\false .
+\]
+The document is written after the universal step-interpreter
+\texttt{evalU} and the conditional Chaitin G\"odel~I barrier
+\texttt{chaitin\_G1\_diag} were built and machine-checked
+(\texttt{--safe --without-K --exact-split}, no postulates, no holes). We fix the
+formulas, give the three-layer architecture, identify exactly which pieces are on
+disk and which remain, and state the single honest caveat (the cliff that sank
+Nelson's predicative version of the same proof).
+\end{abstract}
+
+\tableofcontents
+
+% ==================================================================
+\section{Setting and goal}
+% ==================================================================
+
+BRA is Guard/Church's quantifier-free, total primitive-recursive arithmetic. Terms
+are built from the combinators $s,o,u,v,C,R$ and application $\mathsf{ap}_1,
+\mathsf{ap}_2$; formulas are atomic equations, negations and implications only.
+The trusted base is an inductively-defined Hilbert proof type
+\[
+  \Deriv : \mathit{Formula} \to \mathsf{Set},
+\]
+with $14$ axioms and the three rules \texttt{mp}, \texttt{ruleInst},
+\texttt{ruleIndNat} (numeral induction). \emph{Nothing else} produces a
+$\Deriv$. A statement of the form $\Deriv\,A \to \Deriv\,B$ is therefore a
+genuine meta-theorem: ``from any object proof of $A$ we can effectively build an
+object proof of $B$.''
+
+The internal verifier $\thmT : \mathit{Fun}_1$ is a validating decoder:
+$\thmT(\pi)$ returns $\code{0=0}$ unless $\pi$ codes a $T$-derivation, in which
+case it returns the code of the derived formula. The two derivability facts we
+use are
+\begin{description}
+\item[(D1)] \emph{necessitation / $\Sigma_1$-completeness}, packaged as
+  \texttt{thmT\_complete\_rec}: from $\Deriv\,A$ one builds
+  $\Deriv\big(\thmT(\code{A}) = \code{A}\big)$, i.e.\ $T$ proves what $T$ proves;
+\item[(Con)] the consistency schema
+  \[
+    \mathrm{ConSchema} \;=\; \neg\big(\thmT(\mathit{var}\,0) = \code{\false}\big),
+  \]
+  open in the proof code: ``no code is a $T$-proof of $\false$.''
+\end{description}
+
+\paragraph{Goal.} A third, independent proof of G\"odel~II for BRA, distinct from
+the shipped diagonal \texttt{Thm14GodelII} and from the (abandoned) Berry-$\sigma$
+route:
+\[
+  \boxed{\;\texttt{godelII\_kr} : \Deriv\,\mathrm{ConSchema} \longrightarrow \Deriv\,\false\;}
+\]
+with \emph{no} G\"odel sentence, \emph{no} $\mathbf{sub}$/diagonal, and \emph{no}
+self-referential Berry formula. The self-reference is replaced by a count and a
+descending induction; the ``naming'' is done by a fixed constant-size machine, not
+by an object formula.
+
+% ==================================================================
+\section{The two predicates: a faithful, machine-based complexity}
+% ==================================================================
+
+Kolmogorov complexity is taken in its genuine machine form, matching Kikuchi
+($K(x)=\mu e.\,\varphi_e(0)\simeq x$) and Nelson (\emph{elements.pdf} \S18: the
+shortest register machine outputting $x$). The enabling object is the
+\textbf{universal step-interpreter}
+\[
+  \evalU : \mathit{Fun}_2, \qquad \evalU(e,n) \;=\; \text{``run program $e$ for
+  $n$ steps; return $s\,x$ if it halts with output $x$, else $0$.''}
+\]
+\texttt{evalU} is a small-step CK machine: a non-recursive one-step combinator
+\texttt{stepU} iterated by the recursor (fuel $n$). This is exactly Nelson's
+register machine, whose one-step transition is expressible \emph{without}
+recursion (Leivant), with the run as the fuelled iteration. It is built and
+verified in \texttt{EvalU\,/\,EvalUStep\,/\,EvalUCorrect}, with a reference
+semantics and
+\[
+  \texttt{evalU\_correct\_num} : \text{if the reference machine halts with } x,
+  \text{ then } \Deriv\big(\evalU(e,n) = s\,x\big).
+\]
+This last fact is precisely \textbf{$\Sigma_1$-completeness for the machine}: a
+true halting run is provable.
+
+\begin{definition}[Size budget]
+Let $L$ be a length budget (a numeral). The code-size indicator
+$\sze_L : \mathit{Fun}_1$ returns $s\,O$ iff $\lenR(e) \le L$ (file
+\texttt{KFormula}, \texttt{szLeqFun}).
+\end{definition}
+
+\begin{definition}[The $\Pi_1$ incompressibility formula]
+With free object variables $\mathit{var}\,0 = e$ (program) and
+$\mathit{var}\,1 = n$ (runtime),
+\[
+  \Kgt\,L\,x \;:=\; \neg\neg\big(\;\sze_L(e)=s\,O \;\rightarrow\;
+  \neg(\evalU(e,n)=s\,x)\;\big),
+\]
+which is classically $\neg\big(\sze_L(e)=s\,O \wedge \evalU(e,n)=s\,x\big)$.
+Read with the implicit universal closure over its free variables it is the
+$\Pi_1$ statement ``no program of size $\le L$ outputs $x$ in any number of
+steps'', i.e.\ $K(x) > L$. This is \texttt{KFormula.Kgt}.
+\end{definition}
+
+\begin{definition}[The decidable bounded complement]
+\emph{Compressibility} is the bounded existential
+\[
+  \Comp_L(x) \;:\equiv\; \exists\, e < 2^{L+1}\;\exists\, n \le B.\;
+  \evalU(e,n) = s\,x,
+\]
+where $B = \mathbf{exp2}(\mathrm{poly}(L))$ is the Solovay search bound. Because
+both quantifiers are bounded and $\evalU$ is total, $\Comp_L$ is
+\textbf{decidable, $\Sigma_0$}: it is computed by a primitive-recursive
+characteristic function $\Comp_L^{\,?} : \mathit{Fun}_1$ (a fuelled bounded
+search). This is exactly Nelson's \emph{elements.pdf} \S19~\#5 device: ``the
+register machine by a bounded unary predicate symbol, $K$ by an unbounded
+function symbol (its value is bounded, but its definition uses the unbounded
+notion of a halting machine).''
+\end{definition}
+
+\begin{remark}
+The decidability of $\Comp_L$ is the structural keystone. It lets the surprise-exam
+invariant ``at least $j$ values are incompressible'' be written as an
+\emph{object atomic} formula (\S5), avoiding the $\Sigma_2$/$\Pi_1^{\Sigma_1}$
+wall that killed the $\sigma$-route. The universal machine is what makes
+$\Comp_L$ a bona-fide bounded predicate rather than a proof-search surrogate.
+\end{remark}
+
+% ==================================================================
+\section{Layer 1: the Chaitin G\"odel~I barrier (built)}
+% ==================================================================
+
+The barrier is Chaitin's theorem in non-self-referential form: \emph{under
+$\Con$, $T$ cannot prove $\Kgt\,L\,x$ for any specific numeral $x$ that a small
+machine outputs.}
+
+\paragraph{The diagonal machine.} Fix $L$. The Chaitin machine for $T$ is the
+program
+\[
+  g_L \;=\; \mathit{out}_L \circ \big(\mu n.\,[\,\mathit{predFlip}_L(n)=0\,]\big),
+\]
+where the $\mu$-loop searches proof codes $n$ in length-lex order for a $T$-proof
+of $\Kgt\,L\,y$ (some $y$), and $\mathit{out}_L$ extracts the subject $y$ of the
+found proof. The recogniser $\mathit{hitL} = \mathbf{hitK}\,L\,(\mathit{out}_L\,L)$
+fires (returns $s\,O$) exactly at a position carrying such a proof
+(\texttt{KRecog}, \texttt{KOut}). The $\mu$-loop is realised by \texttt{EvalUMu}
+as an abstract, equational simulation (it never traverses $\thmT$; the per-position
+predicate evaluation is a black box \texttt{predReaches}, and the fuel stays
+symbolic).
+
+\paragraph{The clash.} The heart is \texttt{KClash.kr\_clash}:
+
+\begin{lstlisting}
+kr_clash :
+  Deriv ConSchema ->
+  (L gLcode nTerm zTerm w0 : Term) -> Closed nTerm -> Closed zTerm ->
+  Deriv (eqF (szLeqApp L gLcode) (ap1 s O)) ->            -- dLen : |g_L| <= L
+  Deriv (eqF (ap2 evalU gLcode nTerm) (ap1 s zTerm)) ->   -- dEval: machine halts with z
+  Deriv (eqF (ap1 thmT w0) (codeFormula (Kgt L zTerm))) -> -- dNeg : T proves Kgt L z
+  Deriv falseF
+\end{lstlisting}
+
+\noindent Its content is the Berry/Chaitin contradiction. The two positive facts
+(\texttt{dLen}: the machine is small; \texttt{dEval}: it halts with output $z$)
+are combined by \texttt{andIntro} and necessitated once by (D1) into
+\[
+  \Deriv\big(\thmT(\text{cPos}) = \code{\,\sze_L(\code{g_L})=1 \wedge
+  \evalU(\code{g_L},n)=s\,z\,}\big),
+\]
+i.e.\ $T$ proves ``$z$ is compressible by $g_L$''
+($\neg\Kgt\,L\,z$, after instantiating the open $\Kgt$ at $e:=\code{g_L},\,n$).
+Together with \texttt{dNeg} ($T$ proves $\Kgt\,L\,z$), two \texttt{encoded\_mp}
+steps give $\Deriv(\thmT(\text{finalProof}) = \code{\false})$; then $\Con$
+(\texttt{ruleInst}) plus \texttt{axExFalso} discharge it to $\Deriv\,\false$.
+
+\paragraph{The standalone barrier.} \texttt{KSearch.Build} produces \texttt{dNeg}
+from a firing of the search, and \texttt{KGodel1\,/\,KDiag} assemble the whole
+thing with \texttt{dEval} \emph{derived} (not assumed) from the equational
+$\mu$-simulation:
+
+\begin{lstlisting}
+chaitin_G1_diag :
+  Deriv ConSchema -> (L : Term) (k0 z0 : Nat) ->
+  -- universal-machine simulation (black boxes, uniform; never compute thmT):
+  predReaches -> outLReaches ->
+  -- the search fired: a T-proof of Kgt L z0 sits at the first hit k0:
+  Deriv (eqF (ap1 (hitK L (out_L L)) (natCode k0)) (ap1 s O)) ->  -- fire
+  noHitBelow ->
+  Deriv (eqF (ap1 (out_L L) (natCode k0)) (natCode z0)) ->        -- dSubj
+  Deriv (eqF (szLeqApp L (gLcode L)) (ap1 s O)) ->                -- dLen
+  Deriv falseF
+\end{lstlisting}
+
+\begin{proposition}[built]
+\texttt{chaitin\_G1\_diag} typechecks \texttt{--safe} with no postulates. The
+Kolmogorov bound $K(z_0) \le L$ is genuine: $z_0$ is the output of $g_L$ and
+$|g_L| \le L$ (\texttt{dLen}), so the witnessing program is the machine itself.
+This is the faithful Chaitin construction (Nelson: ``if $\lambda$ is of low
+complexity the machine is itself of length less than $\lambda$'').
+\end{proposition}
+
+% ==================================================================
+\section{Layer 2: counting --- $\delta \ge 1$}
+% ==================================================================
+
+Let $N = 2^{L+1}$ (Bin-compressed). There are strictly fewer than $2^{L+1}=N$
+programs of size $\le L$, and each outputs at most one value, so the compressible
+$x<N$ inject into the $<N$ programs:
+\[
+  \#\{\,x<N : \Comp_L(x)\,\} \;\le\; \#\{\text{programs of size}\le L\} \;<\; N.
+\]
+Hence some $x<N$ is incompressible: $\delta := \#\{x<N : \Kgt\,L\,x\} \ge 1$.
+
+\paragraph{Realisation.} The object-$N$ pigeonhole is already shipped as
+\texttt{CountingObj.no\_injection\_obj}:
+\begin{lstlisting}
+no_injection_obj : (idx : Fun1)(N : Term) -> Closed N ->
+  MapsBelowObj idx N -> InjBelowObj idx N -> Deriv falseF
+\end{lstlisting}
+where the count $\mathit{csumObj}\,\mathit{idx}$ is a single BRA recursor and every
+fact is one \texttt{ruleIndNat} on the index, instantiated at the abstract closed
+$N$. To get $\delta \ge 1$ one instantiates with
+\[
+  \mathit{idx}(x) \;=\; \text{the canonical (shortest) program of $x$},
+\]
+the map provided by $\Comp_L^{\,?}$. Injectivity of $\mathit{idx}$ on the
+compressibles is immediate (a program has one output), so no \texttt{con\_inj} is
+even needed on this layer --- it is purely arithmetical.
+
+\begin{remark}
+This is lighter than the equational route's pigeonhole (which counts \emph{short
+formulas} via \texttt{rank}/\texttt{con\_inj}). With the machine, compressibles
+are counted by \emph{programs}, exactly Kritchman--Raz / Nelson \S18 (``fewer than
+$2^{\ell+1}$ register machines with at most $\ell$ bits'').
+\end{remark}
+
+% ==================================================================
+\section{Layer 3: the surprise-exam climb (the seam)}
+% ==================================================================
+
+This is the only genuinely remaining mathematical assembly, and the place every
+version of this proof concentrates its risk. Its \emph{mechanism} is validated by
+the toy \texttt{SpikeD.surpriseExam} (GREEN); what remains is to plug the real
+Layer-1/Layer-2 pieces into that skeleton.
+
+\paragraph{The invariant.} Using the decidable $\Comp_L^{\,?}$, define the object
+count term $\mathit{cc}(N) = \sum_{x<N}\Comp_L^{\,?}(x)$ and the \emph{object
+atomic} invariant
+\[
+  \mathrm{INV}(j) \;:\equiv\; \thmT\big(q(j)\big) =
+  \code{\,\mathit{cc}(N) \le N - j\,},
+\]
+i.e.\ ``$T$ proves that at least $j$ of the $x<N$ are incompressible'', where
+$q : \mathit{Fun}_1$ is the explicit primitive-recursive proof-builder
+(Skolemising the $\Sigma_1$ induction \`a la Parsons; cf.\ \texttt{SpikeParsons}).
+Crucially $\mathrm{INV}(j)$ is $\Sigma_0$: $\mathit{cc}(N)\le N-j$ is a single
+atomic $\mathbf{leq}$ over a decidable count.
+
+\paragraph{The step $j \to j+1$ (under $\Con$).} Suppose $\mathrm{INV}(j)$ and
+that exactly $j$ remain ($\mathit{cc}(N) = N-j$). Then:
+\begin{enumerate}
+\item \textbf{advance.} The $N-j$ compressible values are \emph{actually}
+  compressible, so by machine $\Sigma_1$-completeness
+  (\texttt{evalU\_correct\_num} + (D1)) $T$ proves each of them compressible.
+  Hence $T$ proves ``$\le j$ are incompressible''. Combined with the IH
+  ($T$ proves ``$\ge j$''), the remaining $j$ are \emph{forced}: $T$ proves
+  $\Kgt\,L\,x$ for each of those specific $x$.
+\item \textbf{barrier.} But for any specific $x$ that the machine can output,
+  \texttt{chaitin\_G1\_diag} turns ``$T$ proves $\Kgt\,L\,x$'' into
+  $\Deriv\,\false$ (under $\Con$). Contradiction. Therefore $\mathrm{INV}(j+1)$:
+  ``$\ge j+1$ are incompressible''.
+\end{enumerate}
+The boundary case $j=\delta$ (where the forced set is empty) is absorbed exactly
+as in \texttt{SpikeD}: the \texttt{barrier} hypothesis is \emph{guarded} by the
+invariant, which is itself only ever built by the induction, so the step is
+non-vacuous and the boundary collapses through \texttt{barrier}\,+\,ex-falso.
+
+\paragraph{The finish.} A single object \texttt{ruleIndNat} over $j$ carries
+$\mathrm{INV}$; instantiating at $j := N+1$ contradicts $\delta \le N$
+(\texttt{notLeqSucSelf} + \texttt{axExFalso}), giving $\Deriv\,\false$. This is the
+\texttt{mono\_php}/\texttt{no\_injection\_obj} finish.
+
+\begin{remark}[why this is engineering, not a wall]
+The surprise-exam induction is $\Sigma_1$ (``$\exists$ proof'') over a
+\emph{decidable} matrix ($\mathit{cc}(N)\le N-j$), so by Parsons
+($I\Sigma_1$ is $\Pi_2$-conservative over PRA/BRA) it internalises with a
+primitive-recursive Skolem builder and a quantifier-free motive --- precisely the
+shape \texttt{SpikeParsons}/\texttt{SpikeD} realise. The $\sigma$-route died
+because its invariant was $\Pi_1^{\Sigma_1}$ (a $\Sigma_1$ ``least'' clause inside
+the object text, not Skolemisable to a QF motive). Here the only $\Sigma_1$ content
+is provability itself, which Skolemises to the proof; the predicate $\Comp_L$ is
+decidable. Standard + (D1) + $\Con$ is therefore \emph{sufficient}.
+\end{remark}
+
+% ==================================================================
+\section{Assembly}
+% ==================================================================
+
+\begin{theorem}[target]
+\[
+  \texttt{godelII\_kr} : \Deriv\,\mathrm{ConSchema} \longrightarrow \Deriv\,\false
+\]
+is obtained by: (Layer~2) $\delta \ge 1$ via \texttt{no\_injection\_obj}; the
+descending \texttt{ruleIndNat} of \S5 with step \texttt{advance} (machine
+$\Sigma_1$-completeness) and step \texttt{barrier}
+(\texttt{chaitin\_G1\_diag}); finish at $j:=N+1$ against $\delta \le N$.
+$\Con$ is consumed exactly once, inside \texttt{chaitin\_G1\_diag}.
+\end{theorem}
+
+The dependency graph:
+\[
+\begin{array}{l}
+\texttt{EvalU/EvalUStep/EvalUCorrect}\ \text{(machine, $\Sigma_1$-compl.)}\\
+\quad\downarrow\\
+\texttt{KFormula.Kgt}\ +\ \texttt{EvalUMu}\ (\mu)\ +\ \texttt{KRecog/KOut/KSearch/KClash}\\
+\quad\downarrow\\
+\texttt{KGodel1/KDiag.chaitin\_G1\_diag}\ \text{[Layer 1, built]}
+\qquad
+\texttt{CountingObj}\ \text{[Layer 2 engine, built]}\\
+\hspace{3.2cm}\searrow \hspace{3.0cm}\swarrow\\
+\hspace{3.2cm}\texttt{godelII\_kr}\ \text{(Layer 3 climb = \texttt{SpikeD} skeleton + real pieces)}
+\end{array}
+\]
+
+% ==================================================================
+\section{Status: what is built, what remains}
+% ==================================================================
+
+\paragraph{Built and machine-checked} (\texttt{--safe --without-K --exact-split},
+no postulates, no holes):
+\begin{itemize}
+\item the universal machine \texttt{evalU} and its correctness
+  (\texttt{EvalU}, \texttt{EvalUStep}, \texttt{EvalUCorrect});
+\item the $\mu$-operator as an equational simulation (\texttt{EvalUMu});
+\item the $\Pi_1$ complexity formula \texttt{KFormula.Kgt} and its code-builder
+  \texttt{negKgtCodeOf} with proved correctness;
+\item the recogniser/output extractors (\texttt{KRecog}, \texttt{KOut}), the
+  search wiring (\texttt{KSearch}), and the clash (\texttt{KClash.kr\_clash});
+\item the standalone conditional barrier
+  \texttt{KGodel1.G1.chaitin\_G1} / \texttt{KDiag.chaitin\_G1\_diag}
+  (Layer~1) with \texttt{dEval} \emph{derived};
+\item the object-$N$ pigeonhole engine \texttt{CountingObj.no\_injection\_obj}
+  (Layer~2 engine);
+\item the climb skeleton \texttt{SpikeD.surpriseExam} and the Parsons
+  Skolemisation toy \texttt{SpikeParsons} (Layer~3 mechanism, GREEN).
+\end{itemize}
+
+\paragraph{Remaining (formalization labor, not open questions):}
+\begin{enumerate}
+\item \textbf{KR-C wiring.} The bounded characteristic function
+  $\Comp_L^{\,?}:\mathit{Fun}_1$ (fuelled bounded $\evalU$ search) and the
+  program-injection $\mathit{idx}$ feeding \texttt{no\_injection\_obj} to yield
+  $\delta \ge 1$. Mechanical: the engine is shipped.
+\item \textbf{dLen (the canonical $L$).} Discharge $|g_L| \le L$ once, by pinning
+  $L := \mu m.\,(c + \log_2 m < m)$ (the Bin code-size fixpoint). A single
+  arithmetical fact, not per-step. This is the one place an explicit, computable
+  $L$ replaces the abandoned search-bound parameter $\rho$.
+\item \textbf{KR-D climb assembly.} Instantiate the \texttt{SpikeD} skeleton with
+  the real motive $\mathrm{INV}(j)=\thmT(q(j))=\code{\mathit{cc}(N)\le N-j}$,
+  \texttt{advance} (machine $\Sigma_1$-completeness, necessitated once per step
+  uniformly in $j$) and \texttt{barrier} (\texttt{chaitin\_G1\_diag}). The residual
+  effort is discharging \texttt{chaitin\_G1\_diag}'s antecedents
+  \emph{uniformly in $j$}: the simulation black boxes (\texttt{predReaches},
+  \texttt{outLReaches}) come from \texttt{EvalUMu}/\texttt{EvalUCorrect}, and the
+  search-firing (\texttt{fire}, \texttt{dSubj}) is supplied by the step's own ``$T$
+  proves $x$ incompressible''. This is the ``reflection-flavoured'' weaving ---
+  validated as a mechanism by \texttt{SpikeD}.
+\end{enumerate}
+
+% ==================================================================
+\section{The one honest caveat (Nelson's cliff)}
+% ==================================================================
+
+This is the first attempt to port a Kritchman--Raz/Chaitin Berry-G2 into a
+quantifier-free PR system, and Nelson's \emph{elements.pdf} is both the closest
+precedent and a cautionary one: his program (this exact route, in a deliberately
+weak predicative arithmetic $S^*$) \emph{failed} at the inductive climb. The
+Buss--Tao afterword pinpoints why: the step secretly needs $\Con(S^*)$ (the
+Chaitin machine cannot be \emph{given} $\delta$, and the search alternative
+assumes consistency), and Nelson's rank-and-level proof-length bound was false
+(Tao--Tausk).
+
+The BRA encoding stays on the safe side of that cliff by two structural choices
+that the design already makes:
+\begin{itemize}
+\item \textbf{keep $\Con$ as the antecedent.} \texttt{chaitin\_G1\_diag} (and hence
+  \texttt{godelII\_kr}) takes $\Deriv\,\mathrm{ConSchema}$ as a hypothesis. We are
+  proving G\"odel~II ($\Deriv\,\Con \to \Deriv\,\false$), \emph{not} Nelson's
+  unconditional inconsistency. The ``barrier is false at $j=\delta$'' implication
+  is the engine of the descent, not a bug.
+\item \textbf{count, never name $\delta$.} The induction ranges over an ordinary
+  numeral $j$; there is no object ``least incompressible'' formula. The only
+  $\Sigma_1$ content is provability.
+\end{itemize}
+Finally, the decisive resource Nelson lacked is present: BRA has exponentiation
+totality (\texttt{Exp.agda}), so the Solovay search bound $B=\mathbf{exp2}(\cdots)$
+and the per-instance length fact \texttt{dLen} are genuinely dischargeable, rather
+than requiring his false length-independent estimate. We seek \emph{one}
+derivation at a concrete $L,N$ with full \texttt{ruleIndNat} and \texttt{exp2}, so
+no universal, length-independent bound is needed.
+
+\paragraph{Summary judgement.} There is no remaining \emph{logical-strength}
+obstacle: the climb is $\Sigma_1$ over a decidable matrix (Parsons), (D1)/(Con)
+are in hand, and Layer~1 is built. The remaining risk is bookkeeping in the
+uniform antecedent-discharge of Layer~3 (the seam), whose mechanism is validated
+by \texttt{SpikeD}. G\"odel~II is moreover \emph{already} shipped via the diagonal
+proof, so this route is an independent, von-Neumann-style enrichment, and a clean
+KILL at any sub-gate would be an acceptable, low-cost outcome.
+
+\end{document}

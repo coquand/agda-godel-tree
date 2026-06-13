@@ -262,3 +262,7 @@ substF_cong_imp Hyp k a b h (imp p q) =
       step2 = composeImpR_under Hyp pB qA qB E_q
 
   in composeUnder Hyp (imp pA qA) (imp pB qA) (imp pB qB) step1 step2
+-- E f is closed:  substF k _ (E f) = E f , so the two sides coincide and
+-- the goal collapses to the identity implication, lifted under Hyp.
+substF_cong_imp Hyp k a b h (E f) =
+  liftP Hyp (identP (E f))

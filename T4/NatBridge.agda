@@ -75,6 +75,7 @@ codeFormulaNat (neg p)            = cantor tag_neg (codeFormulaNat p)
 codeFormulaNat (imp p q)          = cantor tag_imp
                                       (cantor (codeFormulaNat p)
                                               (codeFormulaNat q))
+codeFormulaNat (E f)              = cantor tag_exists (codeFun1Nat f)
 
 ------------------------------------------------------------------------
 -- Deriv-level bridge:  Pair (natCode a) (natCode b) = natCode (cantor a b) .
@@ -251,3 +252,8 @@ codeFormula_eq (imp p q) =
   in ruleTrans
        (congR Pair (natCode tag_imp) inner)
        (pi_bridge tag_imp (cantor (codeFormulaNat p) (codeFormulaNat q)))
+
+codeFormula_eq (E f) =
+  ruleTrans
+    (congR Pair (natCode tag_exists) (codeFun1_eq f))
+    (pi_bridge tag_exists (codeFun1Nat f))

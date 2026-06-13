@@ -93,6 +93,7 @@ codeFormula (atomic (eqn a b)) = ap2 Pair (natCode tag_eq)
 codeFormula (neg p)            = ap2 Pair (natCode tag_neg) (codeFormula p)
 codeFormula (imp p q)          = ap2 Pair (natCode tag_imp)
                                    (ap2 Pair (codeFormula p) (codeFormula q))
+codeFormula (E f)              = ap2 Pair (natCode tag_exists) (codeFun1 f)
 
 ------------------------------------------------------------------------
 -- Canonical "trivial truth"  0 = 0  used as the fallback output of
