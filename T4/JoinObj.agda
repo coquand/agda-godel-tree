@@ -34,9 +34,9 @@ open import T4.Base
 
 open import T4.ParReflPres using ( Tm ; code )
 open import T4.ParConfl    using
-  ( Sg ; mkSg ; car ; prf ; Conj ; mkConj ; prjL ; prjR ; StepsM ; stepsParsM )
+  ( car ; prf ; prjL ; prjR ; StepsM ; stepsParsM )
 open import T4.ParsObj     using ( Pars ; parsObjOf )
-open import T4.ParConflObj using ( ConflObj )
+open import T4.ParConflObj using ( ConflObj ; mkConflObj ; mkPsObj )
 open import T4.ParHeadline using ( Join ; Conv ; convJoin )
 
 ------------------------------------------------------------------------
@@ -47,9 +47,9 @@ open import T4.ParHeadline using ( Join ; Conv ; convJoin )
 
 joinObjOf : {t uu : Tm} -> Join t uu -> ConflObj t uu
 joinObjOf {t} {uu} j =
-  mkSg (car j)
-       (mkConj (parsObjOf t (car j) (stepsParsM (prjL (prf j))))
-               (parsObjOf uu (car j) (stepsParsM (prjR (prf j)))))
+  mkConflObj (car j)
+       (mkPsObj t  (car j) (parsObjOf t  (car j) (stepsParsM (prjL (prf j)))))
+       (mkPsObj uu (car j) (parsObjOf uu (car j) (stepsParsM (prjR (prf j)))))
 
 ------------------------------------------------------------------------
 -- SECTION 2.  Meta convertibility -> object joinability.
