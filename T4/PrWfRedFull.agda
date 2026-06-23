@@ -25,6 +25,8 @@ open import T4.PrTriShadow
         ; Fun1M ; Fun2M ; f1S ; f1Zero ; f1Id ; f1Comp ; f2Proj ; f2Rec
         ; codeF1 ; codeF2 ; codeDer )
 open import T4.PrWfFunShadow using ( wfFun_codeF1 ; wfFun_codeF2 )
+open import T4.PrWfFun using ( wfFun )
+open import T4.PrCodeObj using ( cRec )
 open import T4.PrWfFunRec
   using ( wfFunRec ; funValid ; wfFunRec_reflO ; wfFunRec_ap1c ; wfFunRec_ap2c
         ; wfFunRec_rO ; wfFunRec_rU ; wfFunRec_rV ; wfFunRec_rC ; wfFunRec_rRb
@@ -101,11 +103,9 @@ wfFunRec_shadow (mRb g h1 h2 d) =
                      (wfFunRec_shadow d))
 wfFunRec_shadow (mRs g h1 h2 d1 d2) =
   ruleTrans (wfFunRec_rRs (codeF1 g) (codeF2 h1) (codeF2 h2) (codeDer d1) (codeDer d2))
-            (piBothO (ap2 pi (funValid (codeF1 g))
-                             (ap2 pi (funValid (codeF2 h1)) (funValid (codeF2 h2))))
+            (piBothO (ap1 wfFun (cRec (codeF1 g) (codeF2 h1) (codeF2 h2)))
                      (ap2 pi (ap1 wfFunRec (codeDer d1)) (ap1 wfFunRec (codeDer d2)))
-                     (fv3_zero (codeF1 g) (codeF2 h1) (codeF2 h2)
-                               (funValid_codeF1 g) (funValid_codeF2 h1) (funValid_codeF2 h2))
+                     (wfFun_codeF2 (f2Rec g h1 h2))
                      (piBothO (ap1 wfFunRec (codeDer d1)) (ap1 wfFunRec (codeDer d2))
                               (wfFunRec_shadow d1) (wfFunRec_shadow d2)))
 

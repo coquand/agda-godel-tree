@@ -28,7 +28,9 @@ open import T4.PrWfFunRec using ( funValid ; funValidF ; funValidF_eq )
 open import T4.PrWfFunRec
   using ( wfFunRec ; derTagIdx ; derBunIdx ; bunGidx ; bunSndIdx ; bunH1idx ; bunH2idx
         ; fvB ; fv3 ; unaryCell ; wfAdCell ; ap1cCell ; ap2cCell ; rcUnaryCell ; rcBinCell
+        ; recRForm ; recRwf
         ; ff_l2 ; ff_l3 ; ff_l4 ; ff_l5 ; ff_l6 ; ff_l7 ; ff_l8 ; fnCellNode ; testTag )
+open import T4.PrWfFun using ( wfFun )
 open import T4.PrSrcUOpaque using ( funP ; gP ; h1P ; h2P )
 
 open import T4.DerCodeS using ( dtag ; pL ; pR )
@@ -155,14 +157,24 @@ private
     in ruleTrans (ax_C pi fv3 unaryCell opk)
          (ruleTrans (congL pi (ap1 unaryCell opk) (fv3_op p ne))
                     (congR pi (fv3val p) (recPL p ne)))
+  -- FIX(B): reconstructed R-combinator term  Pair (natCode 8) (funP p) .
+  reconRterm : Term -> Term
+  reconRterm p = ap2 Pair (natCode 8) (funP p)
   rcBin_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 rcBinCell (opkg p))
-               (ap2 pi (fv3val p) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))))
+               (ap2 pi (ap1 wfFun (reconRterm p))
+                       (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))))
   rcBin_op p ne =
     let opk = opkg p
-    in ruleTrans (ax_C pi fv3 wfAdCell opk)
-         (ruleTrans (congL pi (ap1 wfAdCell opk) (fv3_op p ne))
-                    (congR pi (fv3val p) (ad_val p ne)))
+        recRForm_op : Deriv (eqF (ap1 recRForm opk) (reconRterm p))
+        recRForm_op = ruleTrans (ax_C Pair (constN 8) derBunIdx opk)
+                        (ruleTrans (congL Pair (ap1 derBunIdx opk) (constN_eq 8 opk))
+                                   (congR Pair (natCode 8) (recBun p ne)))
+        recRwf_op : Deriv (eqF (ap1 recRwf opk) (ap1 wfFun (reconRterm p)))
+        recRwf_op = ruleTrans (compose1U_eq wfFun recRForm opk) (cong1 wfFun recRForm_op)
+    in ruleTrans (ax_C pi recRwf wfAdCell opk)
+         (ruleTrans (congL pi (ap1 wfAdCell opk) recRwf_op)
+                    (congR pi (ap1 wfFun (reconRterm p)) (ad_val p ne)))
 
   module Node (p : Term) (ne : Deriv (neg (eqF p O))) (lbl : Term) where
     opk = opkg p
@@ -364,7 +376,9 @@ wfFunRec_op_rRb_imp p ne =
 wfFunRec_op_rRs_imp : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (imp (neg (eqF (ap1 Fst p) (natCode 1)))
              (imp (eqF (ap1 Fst (dtag p)) dgRs)
-                  (eqF (ap1 wfFunRec p) (ap2 pi (fv3val p) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))))))
+                  (eqF (ap1 wfFunRec p)
+                       (ap2 pi (ap1 wfFun (ap2 Pair (natCode 8) (funP p)))
+                               (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))))))
 wfFunRec_op_rRs_imp p ne =
   let open Node p ne dgRs
       node_fires =
@@ -391,4 +405,6 @@ wfFunRec_op_rRs_imp p ne =
                          (natEqSkip_imp htag derTagIdx 8 7 opk (wn 8 7 (\ ())) nieq_imp))
                       (fork_true_to_fst_imp htag rcBinCell Z (testTag 8) opk
                          (natEqFire_imp htag derTagIdx 8 opk nieq_imp))))))))
-  in mkChain p ne negLeaf htag rcBinCell (ap2 pi (fv3val p) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))) step2 node_fires (rcBin_op p ne)
+  in mkChain p ne negLeaf htag rcBinCell
+       (ap2 pi (ap1 wfFun (ap2 Pair (natCode 8) (funP p))) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p))))
+       step2 node_fires (rcBin_op p ne)

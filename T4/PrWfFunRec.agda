@@ -35,6 +35,7 @@ open import T4.PrDerCode
         ; dgReflO ; dgAp1c ; dgAp2c ; dgRo ; dgRu ; dgRv ; dgRC ; dgRb ; dgRs
         ; filler ; bun3 )
 open import T4.PrWfFun using ( wfFun )
+open import T4.PrCodeObj using ( cRec )
 
 -- DEEP funcode validity wired in as funValid/funValidF (replacing the shallow
 -- T4.PrFunValid.funValid that was too weak for compound-fun congruences).
@@ -92,8 +93,16 @@ ap2cCell : Fun1                     -- pi (funValid g)(pi (wfFunRec l)(wfFunRec 
 ap2cCell = C pi fvB wfAdCell
 rcUnaryCell : Fun1                  -- pi (fv3 g h1 h2)(wfFunRec l)
 rcUnaryCell = C pi fv3 unaryCell
-rcBinCell : Fun1                    -- pi (fv3 g h1 h2)(pi (wfFunRec l)(wfFunRec r))
-rcBinCell = C pi fv3 wfAdCell
+-- FIX(B): the derRs (tag 8) cell validates the RECONSTRUCTED R-combinator
+-- Pair (natCode 8) bundle = cRec g h1 h2 (deep wfFun, supplying both the shallow
+-- reassembly for the src endpoint AND the deep component validities), because the
+-- triF residual third arm reuses the bundle wholesale as ap2c (Pair 8 bundle) .
+recRForm : Fun1                     -- Pair (natCode 8) (the bundle)
+recRForm = C Pair (constN 8) derBunIdx
+recRwf : Fun1                       -- wfFun (Pair 8 bundle)
+recRwf = compose1U wfFun recRForm
+rcBinCell : Fun1                    -- pi (wfFun (cRec g h1 h2))(pi (wfFunRec l)(wfFunRec r))
+rcBinCell = C pi recRwf wfAdCell
 
 testTag : Nat -> Fun1
 testTag k = C natEqF derTagIdx (constN k)
@@ -257,12 +266,18 @@ module Node (lab l r : Term) where
   rcBin_of : (g h1 h2 : Term) ->
     Deriv (eqF (ap1 Snd lab) (ap2 Pair g (ap2 Pair h1 h2))) ->
     Deriv (eqF (ap1 rcBinCell input_pkg)
-               (ap2 pi (ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2)))
+               (ap2 pi (ap1 wfFun (cRec g h1 h2))
                        (ap2 pi (ap1 wfFunRec l) (ap1 wfFunRec r))))
   rcBin_of g h1 h2 e =
-    ruleTrans (ax_C pi fv3 wfAdCell input_pkg)
-      (ruleTrans (congL pi (ap1 wfAdCell input_pkg) (fv3_of g h1 h2 e))
-                 (congR pi (ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2))) ad_val))
+    let recRForm_eq : Deriv (eqF (ap1 recRForm input_pkg) (cRec g h1 h2))
+        recRForm_eq = ruleTrans (ax_C Pair (constN 8) derBunIdx input_pkg)
+                        (ruleTrans (congL Pair (ap1 derBunIdx input_pkg) (constN_eq 8 input_pkg))
+                                   (congR Pair (natCode 8) (ruleTrans derBun_eq e)))
+        recRwf_eq : Deriv (eqF (ap1 recRwf input_pkg) (ap1 wfFun (cRec g h1 h2)))
+        recRwf_eq = ruleTrans (compose1U_eq wfFun recRForm input_pkg) (cong1 wfFun recRForm_eq)
+    in ruleTrans (ax_C pi recRwf wfAdCell input_pkg)
+         (ruleTrans (congL pi (ap1 wfAdCell input_pkg) recRwf_eq)
+                    (congR pi (ap1 wfFun (cRec g h1 h2)) ad_val))
 
 ------------------------------------------------------------------------
 -- SECTION 4.  Unary congruence / redex equations.
@@ -356,7 +371,7 @@ wfFunRec_rV d1 d2 =
 
 wfFunRec_rRs : (g h1 h2 d1 d2 : Term) ->
   Deriv (eqF (ap1 wfFunRec (derRs g h1 h2 d1 d2))
-             (ap2 pi (ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2)))
+             (ap2 pi (ap1 wfFun (cRec g h1 h2))
                      (ap2 pi (ap1 wfFunRec d1) (ap1 wfFunRec d2))))
 wfFunRec_rRs g h1 h2 d1 d2 =
   let open Node (ap2 Pair dgRs (bun3 g h1 h2)) d1 d2
