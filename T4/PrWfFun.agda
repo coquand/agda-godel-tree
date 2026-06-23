@@ -23,10 +23,12 @@ open import T4.Base
 
 open import T4.PrCodeObj using ( cSuc ; cZero ; cId ; cProj ; cComp ; cRec )
 open import T4.PrDerCode using ( bun3 )
+open import T4.PrFunValidCanon using ( funValidF )
 open import T4.BinTree using ( binNode ; binRec ; nIdx ; lIdx ; rIdx )
 open import T4.ParsObj using ( foldOf ; test1 ; stepOf ; module NP )
 open import T4.LenR    using ( get_rc )
-open import T4.FoldRec using ( lookupAt ; fold_at_O )
+open import T4.FoldRec using ( lookupAt ; fold_at_O ; get_newK ; get_newK_at_pi )
+open import T4.PiPositivity using ( pi_at_succ )
 open import T4.ProgParse using ( get_tag )
 open import T4.LeqPiLeft using ( leq_pi_left )
 open import T4.LeqMono   using ( leq_pi_right ; leq_trans )
@@ -46,6 +48,10 @@ leafCell : Fun1
 leafCell = Z
 fv3cell : Fun1                       -- pi (wfFun g) (pi (wfFun h1) (wfFun h2))
 fv3cell = C pi (lookupAt nIdx) (C pi (lookupAt lIdx) (lookupAt rIdx))
+selfChk : Fun1                       -- shallow self-reassembly check  funValid f
+selfChk = compose1U funValidF get_newK
+compCell : Fun1                      -- pi (funValid f) (pi (wfFun g)(pi (wfFun h1)(wfFun h2)))
+compCell = C pi selfChk fv3cell
 rejectCell : Fun1
 rejectCell = constN 1
 
@@ -53,11 +59,11 @@ testHd : Nat -> Fun1
 testHd k = C natEqF get_tag (constN k)
 
 wfn_l8 : Fun1
-wfn_l8 = C condFork (C pi fv3cell rejectCell) (testHd 8)
+wfn_l8 = C condFork (C pi compCell rejectCell) (testHd 8)
 wfn_l7 : Fun1
 wfn_l7 = C condFork (C pi leafCell wfn_l8) (testHd 7)
 wfn_l6 : Fun1
-wfn_l6 = C condFork (C pi fv3cell wfn_l7) (testHd 6)
+wfn_l6 = C condFork (C pi compCell wfn_l7) (testHd 6)
 wfn_l5 : Fun1
 wfn_l5 = C condFork (C pi leafCell wfn_l6) (testHd 5)
 wfn_l4 : Fun1
@@ -125,7 +131,7 @@ wfFun_cProj =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) input_pkg (idxTest_skip get_tag 7 3 input_pkg (wn 7 3 (\ ())) head_eq))
           (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) input_pkg (idxTest_skip get_tag 7 4 input_pkg (wn 7 4 (\ ())) head_eq))
             (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) input_pkg (idxTest_skip get_tag 7 5 input_pkg (wn 7 5 (\ ())) head_eq))
-              (ruleTrans (fork_false_to_snd fv3cell wfn_l7 (testHd 6) input_pkg (idxTest_skip get_tag 7 6 input_pkg (wn 7 6 (\ ())) head_eq))
+              (ruleTrans (fork_false_to_snd compCell wfn_l7 (testHd 6) input_pkg (idxTest_skip get_tag 7 6 input_pkg (wn 7 6 (\ ())) head_eq))
                          (fork_true_to_fst leafCell wfn_l8 (testHd 7) input_pkg (idxTest_fire get_tag 7 input_pkg head_eq)))))
   in ruleTrans to_cellNode (ruleTrans fires (axZ input_pkg))
 
@@ -169,29 +175,46 @@ module CompNode (kp : Nat) (g h1 h2 : Term) (w1 : NatNeqWitness (suc kp) 1) wher
           (ruleTrans (ax_C pi (lookupAt lIdx) (lookupAt rIdx) input_pkg)
             (ruleTrans (congL pi (ap1 (lookupAt rIdx) input_pkg) recL)
                        (congR pi (ap1 wfFun h1) recR)))))
+  -- self-reassembly (shallow funValid of the whole funcode), for the S-fact.
+  theNode : Term
+  theNode = ap2 pi (ap1 s (natCode kp)) (bun3 g h1 h2)
+  newK_eq : Deriv (eqF (ap1 get_newK input_pkg) theNode)
+  newK_eq = ruleTrans (get_newK_at_pi P_outer (ap1 Snd prev))
+                      (ruleSym (pi_at_succ (natCode kp) (bun3 g h1 h2)))
+  selfChk_val : Deriv (eqF (ap1 selfChk input_pkg) (ap1 funValidF theNode))
+  selfChk_val = ruleTrans (compose1U_eq funValidF get_newK input_pkg) (cong1 funValidF newK_eq)
+  compCell_val : Deriv (eqF (ap1 compCell input_pkg)
+                            (ap2 pi (ap1 funValidF theNode)
+                                    (ap2 pi (ap1 wfFun g) (ap2 pi (ap1 wfFun h1) (ap1 wfFun h2)))))
+  compCell_val =
+    ruleTrans (ax_C pi selfChk fv3cell input_pkg)
+      (ruleTrans (congL pi (ap1 fv3cell input_pkg) selfChk_val)
+                 (congR pi (ap1 funValidF theNode) fv3_val))
 
 wfFun_cComp : (g h1 h2 : Term) ->
   Deriv (eqF (ap1 wfFun (cComp g h1 h2))
-             (ap2 pi (ap1 wfFun g) (ap2 pi (ap1 wfFun h1) (ap1 wfFun h2))))
+             (ap2 pi (ap1 funValidF (cComp g h1 h2))
+                     (ap2 pi (ap1 wfFun g) (ap2 pi (ap1 wfFun h1) (ap1 wfFun h2)))))
 wfFun_cComp g h1 h2 =
   let open CompNode 5 g h1 h2 (decideNatNeq 6 1 (\ ()))
       fires =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) input_pkg (idxTest_skip get_tag 6 3 input_pkg (wn 6 3 (\ ())) head_eq))
           (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) input_pkg (idxTest_skip get_tag 6 4 input_pkg (wn 6 4 (\ ())) head_eq))
             (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) input_pkg (idxTest_skip get_tag 6 5 input_pkg (wn 6 5 (\ ())) head_eq))
-                       (fork_true_to_fst fv3cell wfn_l7 (testHd 6) input_pkg (idxTest_fire get_tag 6 input_pkg head_eq))))
-  in ruleTrans to_cellNode (ruleTrans fires fv3_val)
+                       (fork_true_to_fst compCell wfn_l7 (testHd 6) input_pkg (idxTest_fire get_tag 6 input_pkg head_eq))))
+  in ruleTrans to_cellNode (ruleTrans fires compCell_val)
 
 wfFun_cRec : (g h1 h2 : Term) ->
   Deriv (eqF (ap1 wfFun (cRec g h1 h2))
-             (ap2 pi (ap1 wfFun g) (ap2 pi (ap1 wfFun h1) (ap1 wfFun h2))))
+             (ap2 pi (ap1 funValidF (cRec g h1 h2))
+                     (ap2 pi (ap1 wfFun g) (ap2 pi (ap1 wfFun h1) (ap1 wfFun h2)))))
 wfFun_cRec g h1 h2 =
   let open CompNode 7 g h1 h2 (decideNatNeq 8 1 (\ ()))
       fires =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) input_pkg (idxTest_skip get_tag 8 3 input_pkg (wn 8 3 (\ ())) head_eq))
           (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) input_pkg (idxTest_skip get_tag 8 4 input_pkg (wn 8 4 (\ ())) head_eq))
             (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) input_pkg (idxTest_skip get_tag 8 5 input_pkg (wn 8 5 (\ ())) head_eq))
-              (ruleTrans (fork_false_to_snd fv3cell wfn_l7 (testHd 6) input_pkg (idxTest_skip get_tag 8 6 input_pkg (wn 8 6 (\ ())) head_eq))
+              (ruleTrans (fork_false_to_snd compCell wfn_l7 (testHd 6) input_pkg (idxTest_skip get_tag 8 6 input_pkg (wn 8 6 (\ ())) head_eq))
                 (ruleTrans (fork_false_to_snd leafCell wfn_l8 (testHd 7) input_pkg (idxTest_skip get_tag 8 7 input_pkg (wn 8 7 (\ ())) head_eq))
-                           (fork_true_to_fst fv3cell rejectCell (testHd 8) input_pkg (idxTest_fire get_tag 8 input_pkg head_eq))))))
-  in ruleTrans to_cellNode (ruleTrans fires fv3_val)
+                           (fork_true_to_fst compCell rejectCell (testHd 8) input_pkg (idxTest_fire get_tag 8 input_pkg head_eq))))))
+  in ruleTrans to_cellNode (ruleTrans fires compCell_val)

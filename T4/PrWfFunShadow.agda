@@ -19,6 +19,9 @@ open import T4.PrTriShadow
 open import T4.PrWfFun
   using ( wfFun ; wfFun_cSuc ; wfFun_cZero ; wfFun_cId ; wfFun_cProj
         ; wfFun_cComp ; wfFun_cRec )
+open import T4.PrCodeObj using ( cComp ; cRec )
+open import T4.PrFunValidCanon
+  using ( funValidF ; funValidF_eq ; funValid_cComp ; funValid_cRec )
 open import T4.ParEnds using ( pi_O_O )
 
 open import BRA3.Church using ( pi )
@@ -46,11 +49,25 @@ wfFun_codeF1 f1S              = wfFun_cSuc
 wfFun_codeF1 f1Zero           = wfFun_cZero
 wfFun_codeF1 f1Id             = wfFun_cId
 wfFun_codeF1 (f1Comp g h1 h2) =
-  ruleTrans (wfFun_cComp (codeF2 g) (codeF1 h1) (codeF1 h2))
-            (fv3O (codeF2 g) (codeF1 h1) (codeF1 h2)
-                  (wfFun_codeF2 g) (wfFun_codeF1 h1) (wfFun_codeF1 h2))
+  let G = codeF2 g
+      H1 = codeF1 h1
+      H2 = codeF1 h2
+      selfO : Deriv (eqF (ap1 funValidF (cComp G H1 H2)) O)
+      selfO = ruleTrans (funValidF_eq (cComp G H1 H2)) (funValid_cComp G H1 H2)
+  in ruleTrans (wfFun_cComp G H1 H2)
+       (piBothO (ap1 funValidF (cComp G H1 H2))
+                (ap2 pi (ap1 wfFun G) (ap2 pi (ap1 wfFun H1) (ap1 wfFun H2)))
+                selfO
+                (fv3O G H1 H2 (wfFun_codeF2 g) (wfFun_codeF1 h1) (wfFun_codeF1 h2)))
 wfFun_codeF2 f2Proj           = wfFun_cProj
 wfFun_codeF2 (f2Rec g h1 h2)  =
-  ruleTrans (wfFun_cRec (codeF1 g) (codeF2 h1) (codeF2 h2))
-            (fv3O (codeF1 g) (codeF2 h1) (codeF2 h2)
-                  (wfFun_codeF1 g) (wfFun_codeF2 h1) (wfFun_codeF2 h2))
+  let G = codeF1 g
+      H1 = codeF2 h1
+      H2 = codeF2 h2
+      selfO : Deriv (eqF (ap1 funValidF (cRec G H1 H2)) O)
+      selfO = ruleTrans (funValidF_eq (cRec G H1 H2)) (funValid_cRec G H1 H2)
+  in ruleTrans (wfFun_cRec G H1 H2)
+       (piBothO (ap1 funValidF (cRec G H1 H2))
+                (ap2 pi (ap1 wfFun G) (ap2 pi (ap1 wfFun H1) (ap1 wfFun H2)))
+                selfO
+                (fv3O G H1 H2 (wfFun_codeF1 g) (wfFun_codeF2 h1) (wfFun_codeF2 h2)))
