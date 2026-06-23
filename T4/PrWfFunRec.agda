@@ -34,8 +34,16 @@ open import T4.PrDerCode
   using ( derLeaf ; ap1c ; ap2c ; derO ; derU ; derV ; derC ; derRb ; derRs
         ; dgReflO ; dgAp1c ; dgAp2c ; dgRo ; dgRu ; dgRv ; dgRC ; dgRb ; dgRs
         ; filler ; bun3 )
-open import T4.PrFunValid using ( funValid )
-open import T4.PrFunValidCanon using ( funValidF ; funValidF_eq )
+open import T4.PrWfFun using ( wfFun )
+
+-- DEEP funcode validity wired in as funValid/funValidF (replacing the shallow
+-- T4.PrFunValid.funValid that was too weak for compound-fun congruences).
+funValid : Term -> Term
+funValid x = ap1 wfFun x
+funValidF : Fun1
+funValidF = wfFun
+funValidF_eq : (x : Term) -> Deriv (eqF (ap1 funValidF x) (funValid x))
+funValidF_eq x = axRefl (ap1 wfFun x)
 open import T4.BinTree using ( binLeaf ; binNode ; binRec ; nIdx ; lIdx ; rIdx )
 open import T4.ParsObj using ( foldOf ; test1 ; module NP )
 open import T4.LenR    using ( get_rc )

@@ -24,8 +24,7 @@ module T4.PrWfFunRecUOpaqueImp where
 open import T4.Base
 
 open import T4.PrDerCode using ( dgAp1c ; dgAp2c ; dgRo ; dgRu ; dgRv ; dgRC ; dgRb ; dgRs )
-open import T4.PrFunValid using ( funValid )
-open import T4.PrFunValidCanon using ( funValidF ; funValidF_eq )
+open import T4.PrWfFunRec using ( funValid ; funValidF ; funValidF_eq )
 open import T4.PrWfFunRec
   using ( wfFunRec ; derTagIdx ; derBunIdx ; bunGidx ; bunSndIdx ; bunH1idx ; bunH2idx
         ; fvB ; fv3 ; unaryCell ; wfAdCell ; ap1cCell ; ap2cCell ; rcUnaryCell ; rcBinCell

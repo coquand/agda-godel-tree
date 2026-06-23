@@ -19,11 +19,17 @@ open import T4.PrTriShadow
 open import T4.PrWfFun
   using ( wfFun ; wfFun_cSuc ; wfFun_cZero ; wfFun_cId ; wfFun_cProj
         ; wfFun_cComp ; wfFun_cRec )
-open import T4.PrWfRedFull using ( piBothO )
+open import T4.ParEnds using ( pi_O_O )
 
 open import BRA3.Church using ( pi )
 
 ------------------------------------------------------------------------
+
+private
+  piBothO : (l r : Term) -> Deriv (eqF l O) -> Deriv (eqF r O) ->
+            Deriv (eqF (ap2 pi l r) O)
+  piBothO l r el er =
+    ruleTrans (congL pi r el) (ruleTrans (congR pi O er) pi_O_O)
 
 -- pi (wfFun g) (pi (wfFun h1) (wfFun h2)) = O  from the three validities.
 private

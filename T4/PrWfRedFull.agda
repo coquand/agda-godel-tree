@@ -24,12 +24,9 @@ open import T4.PrTriShadow
   using ( DerM ; mRefl ; mAp1c ; mAp2c ; mO ; mU ; mV ; mC ; mRb ; mRs
         ; Fun1M ; Fun2M ; f1S ; f1Zero ; f1Id ; f1Comp ; f2Proj ; f2Rec
         ; codeF1 ; codeF2 ; codeDer )
-open import T4.PrFunValid using ( funValid )
-open import T4.PrFunValidCanon
-  using ( funValid_cSuc ; funValid_cZero ; funValid_cId ; funValid_cProj
-        ; funValid_cComp ; funValid_cRec )
+open import T4.PrWfFunShadow using ( wfFun_codeF1 ; wfFun_codeF2 )
 open import T4.PrWfFunRec
-  using ( wfFunRec ; wfFunRec_reflO ; wfFunRec_ap1c ; wfFunRec_ap2c
+  using ( wfFunRec ; funValid ; wfFunRec_reflO ; wfFunRec_ap1c ; wfFunRec_ap2c
         ; wfFunRec_rO ; wfFunRec_rU ; wfFunRec_rV ; wfFunRec_rC ; wfFunRec_rRb
         ; wfFunRec_rRs )
 open import T4.PrWfRed using ( wfRed )
@@ -50,14 +47,11 @@ piBothO l r el er =
 ------------------------------------------------------------------------
 -- SECTION 1.  Every shadow funcode validates (funValid is one-level/shallow).
 
+-- funValid = ap1 wfFun (PrWfFunRec), so these are exactly the deep soundness.
 funValid_codeF1 : (fm : Fun1M) -> Deriv (eqF (funValid (codeF1 fm)) O)
 funValid_codeF2 : (fm : Fun2M) -> Deriv (eqF (funValid (codeF2 fm)) O)
-funValid_codeF1 f1S              = funValid_cSuc
-funValid_codeF1 f1Zero           = funValid_cZero
-funValid_codeF1 f1Id             = funValid_cId
-funValid_codeF1 (f1Comp g h1 h2) = funValid_cComp (codeF2 g) (codeF1 h1) (codeF1 h2)
-funValid_codeF2 f2Proj           = funValid_cProj
-funValid_codeF2 (f2Rec g h1 h2)  = funValid_cRec (codeF1 g) (codeF2 h1) (codeF2 h2)
+funValid_codeF1 fm = wfFun_codeF1 fm
+funValid_codeF2 fm = wfFun_codeF2 fm
 
 ------------------------------------------------------------------------
 -- SECTION 2.  wfFunRec (codeDer d) = O.
