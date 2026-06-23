@@ -23,7 +23,8 @@ open import T4.Base
 
 open import T4.PrCodeObj using ( cSuc ; cZero ; cId ; cProj ; cComp ; cRec )
 open import T4.PrDerCode using ( bun3 )
-open import T4.PrFunValidCanon using ( funValidF )
+open import T4.PrFunValidCanon using
+  ( funValidF ; funValidF_eq ; funValid_cSuc ; funValid_cZero ; funValid_cId ; funValid_cProj )
 open import T4.BinTree using ( binNode ; binRec ; nIdx ; lIdx ; rIdx )
 open import T4.ParsObj using ( foldOf ; test1 ; stepOf ; module NP )
 open import T4.LenR    using ( get_rc )
@@ -44,12 +45,12 @@ open import BRA3.SubT.V2NatNeq using ( NatNeqWitness ; natEqF_at_neq ; decideNat
 ------------------------------------------------------------------------
 -- SECTION 1.  Cells, the head-tag cascade and  wfFun .
 
-leafCell : Fun1
-leafCell = Z
 fv3cell : Fun1                       -- pi (wfFun g) (pi (wfFun h1) (wfFun h2))
 fv3cell = C pi (lookupAt nIdx) (C pi (lookupAt lIdx) (lookupAt rIdx))
 selfChk : Fun1                       -- shallow self-reassembly check  funValid f
 selfChk = compose1U funValidF get_newK
+leafCell : Fun1                      -- shallow self-reassembly (leaf funcode = canonical)
+leafCell = selfChk
 compCell : Fun1                      -- pi (funValid f) (pi (wfFun g)(pi (wfFun h1)(wfFun h2)))
 compCell = C pi selfChk fv3cell
 rejectCell : Fun1
@@ -97,6 +98,13 @@ module Node (kp : Nat) (b : Term) (w1 : NatNeqWitness (suc kp) 1) where
   t1_O = ruleTrans test1_val (natEqF_at_neq (suc kp) 1 w1)
   to_cellNode : Deriv (eqF (ap1 wfFun (ap2 pi (ap1 s (natCode kp)) b)) (ap1 wfFunNodeCell input_pkg))
   to_cellNode = collapse_snd t1_O
+  theNode : Term
+  theNode = ap2 pi (ap1 s (natCode kp)) b
+  newK_eq : Deriv (eqF (ap1 get_newK input_pkg) theNode)
+  newK_eq = ruleTrans (get_newK_at_pi P_outer (ap1 Snd prev))
+                      (ruleSym (pi_at_succ (natCode kp) b))
+  selfChk_val : Deriv (eqF (ap1 selfChk input_pkg) (ap1 funValidF theNode))
+  selfChk_val = ruleTrans (compose1U_eq funValidF get_newK input_pkg) (cong1 funValidF newK_eq)
 
 ------------------------------------------------------------------------
 -- SECTION 4.  Leaf funcodes  (Fst in {3,4,5,7} -> leafCell = Z -> O).
@@ -105,7 +113,8 @@ wfFun_cSuc : Deriv (eqF (ap1 wfFun cSuc) O)
 wfFun_cSuc =
   let open Node 2 O (decideNatNeq 3 1 (\ ()))
       fires = fork_true_to_fst leafCell wfn_l4 (testHd 3) input_pkg (idxTest_fire get_tag 3 input_pkg head_eq)
-  in ruleTrans to_cellNode (ruleTrans fires (axZ input_pkg))
+  in ruleTrans to_cellNode (ruleTrans fires
+       (ruleTrans selfChk_val (ruleTrans (funValidF_eq theNode) funValid_cSuc)))
 
 wfFun_cZero : Deriv (eqF (ap1 wfFun cZero) O)
 wfFun_cZero =
@@ -113,7 +122,8 @@ wfFun_cZero =
       fires =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) input_pkg (idxTest_skip get_tag 4 3 input_pkg (wn 4 3 (\ ())) head_eq))
                   (fork_true_to_fst leafCell wfn_l5 (testHd 4) input_pkg (idxTest_fire get_tag 4 input_pkg head_eq))
-  in ruleTrans to_cellNode (ruleTrans fires (axZ input_pkg))
+  in ruleTrans to_cellNode (ruleTrans fires
+       (ruleTrans selfChk_val (ruleTrans (funValidF_eq theNode) funValid_cZero)))
 
 wfFun_cId : Deriv (eqF (ap1 wfFun cId) O)
 wfFun_cId =
@@ -122,7 +132,8 @@ wfFun_cId =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) input_pkg (idxTest_skip get_tag 5 3 input_pkg (wn 5 3 (\ ())) head_eq))
           (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) input_pkg (idxTest_skip get_tag 5 4 input_pkg (wn 5 4 (\ ())) head_eq))
                      (fork_true_to_fst leafCell wfn_l6 (testHd 5) input_pkg (idxTest_fire get_tag 5 input_pkg head_eq)))
-  in ruleTrans to_cellNode (ruleTrans fires (axZ input_pkg))
+  in ruleTrans to_cellNode (ruleTrans fires
+       (ruleTrans selfChk_val (ruleTrans (funValidF_eq theNode) funValid_cId)))
 
 wfFun_cProj : Deriv (eqF (ap1 wfFun cProj) O)
 wfFun_cProj =
@@ -133,7 +144,8 @@ wfFun_cProj =
             (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) input_pkg (idxTest_skip get_tag 7 5 input_pkg (wn 7 5 (\ ())) head_eq))
               (ruleTrans (fork_false_to_snd compCell wfn_l7 (testHd 6) input_pkg (idxTest_skip get_tag 7 6 input_pkg (wn 7 6 (\ ())) head_eq))
                          (fork_true_to_fst leafCell wfn_l8 (testHd 7) input_pkg (idxTest_fire get_tag 7 input_pkg head_eq)))))
-  in ruleTrans to_cellNode (ruleTrans fires (axZ input_pkg))
+  in ruleTrans to_cellNode (ruleTrans fires
+       (ruleTrans selfChk_val (ruleTrans (funValidF_eq theNode) funValid_cProj)))
 
 ------------------------------------------------------------------------
 -- SECTION 5.  Compound funcodes  (cComp / cRec, recover 3 sub-funcodes).
@@ -176,13 +188,6 @@ module CompNode (kp : Nat) (g h1 h2 : Term) (w1 : NatNeqWitness (suc kp) 1) wher
             (ruleTrans (congL pi (ap1 (lookupAt rIdx) input_pkg) recL)
                        (congR pi (ap1 wfFun h1) recR)))))
   -- self-reassembly (shallow funValid of the whole funcode), for the S-fact.
-  theNode : Term
-  theNode = ap2 pi (ap1 s (natCode kp)) (bun3 g h1 h2)
-  newK_eq : Deriv (eqF (ap1 get_newK input_pkg) theNode)
-  newK_eq = ruleTrans (get_newK_at_pi P_outer (ap1 Snd prev))
-                      (ruleSym (pi_at_succ (natCode kp) (bun3 g h1 h2)))
-  selfChk_val : Deriv (eqF (ap1 selfChk input_pkg) (ap1 funValidF theNode))
-  selfChk_val = ruleTrans (compose1U_eq funValidF get_newK input_pkg) (cong1 funValidF newK_eq)
   compCell_val : Deriv (eqF (ap1 compCell input_pkg)
                             (ap2 pi (ap1 funValidF theNode)
                                     (ap2 pi (ap1 wfFun g) (ap2 pi (ap1 wfFun h1) (ap1 wfFun h2)))))

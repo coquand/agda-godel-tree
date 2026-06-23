@@ -167,3 +167,57 @@ wfFun_op_R p ne nl h8 =
                 (ruleTrans (fork_false_to_snd leafCell wfn_l8 (testHd 7) opk (idxTest_skip get_tag 8 7 opk (wn 8 7 (\ ())) tg))
                            (fork_true_to_fst compCell rejectCell (testHd 8) opk (idxTest_fire get_tag 8 opk tg))))))
   in ruleTrans (toCell p ne nl) (ruleTrans fires (compCell_op p ne))
+
+------------------------------------------------------------------------
+-- SECTION 3.  The leaf extraction equations (Fst f in {3,4,5,7}).
+-- leafCell = selfChk now, so wfFun p = ap1 funValidF p (shallow reassembly).
+
+wfFun_op_s : (p : Term) -> Deriv (neg (eqF p O)) ->
+  Deriv (eqF (ap2 natEqF (ap1 Fst p) (natCode 1)) O) ->
+  Deriv (eqF (ap1 Fst p) (natCode 3)) ->
+  Deriv (eqF (ap1 wfFun p) (ap1 funValidF p))
+wfFun_op_s p ne nl h3 =
+  let opk = opkg p
+      tg = ruleTrans (op_tag p ne) h3
+      fires = fork_true_to_fst leafCell wfn_l4 (testHd 3) opk (idxTest_fire get_tag 3 opk tg)
+  in ruleTrans (toCell p ne nl) (ruleTrans fires (selfChk_op p ne))
+
+wfFun_op_o : (p : Term) -> Deriv (neg (eqF p O)) ->
+  Deriv (eqF (ap2 natEqF (ap1 Fst p) (natCode 1)) O) ->
+  Deriv (eqF (ap1 Fst p) (natCode 4)) ->
+  Deriv (eqF (ap1 wfFun p) (ap1 funValidF p))
+wfFun_op_o p ne nl h4 =
+  let opk = opkg p
+      tg = ruleTrans (op_tag p ne) h4
+      fires =
+        ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) opk (idxTest_skip get_tag 4 3 opk (wn 4 3 (\ ())) tg))
+                  (fork_true_to_fst leafCell wfn_l5 (testHd 4) opk (idxTest_fire get_tag 4 opk tg))
+  in ruleTrans (toCell p ne nl) (ruleTrans fires (selfChk_op p ne))
+
+wfFun_op_u : (p : Term) -> Deriv (neg (eqF p O)) ->
+  Deriv (eqF (ap2 natEqF (ap1 Fst p) (natCode 1)) O) ->
+  Deriv (eqF (ap1 Fst p) (natCode 5)) ->
+  Deriv (eqF (ap1 wfFun p) (ap1 funValidF p))
+wfFun_op_u p ne nl h5 =
+  let opk = opkg p
+      tg = ruleTrans (op_tag p ne) h5
+      fires =
+        ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) opk (idxTest_skip get_tag 5 3 opk (wn 5 3 (\ ())) tg))
+          (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) opk (idxTest_skip get_tag 5 4 opk (wn 5 4 (\ ())) tg))
+                     (fork_true_to_fst leafCell wfn_l6 (testHd 5) opk (idxTest_fire get_tag 5 opk tg)))
+  in ruleTrans (toCell p ne nl) (ruleTrans fires (selfChk_op p ne))
+
+wfFun_op_v : (p : Term) -> Deriv (neg (eqF p O)) ->
+  Deriv (eqF (ap2 natEqF (ap1 Fst p) (natCode 1)) O) ->
+  Deriv (eqF (ap1 Fst p) (natCode 7)) ->
+  Deriv (eqF (ap1 wfFun p) (ap1 funValidF p))
+wfFun_op_v p ne nl h7 =
+  let opk = opkg p
+      tg = ruleTrans (op_tag p ne) h7
+      fires =
+        ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) opk (idxTest_skip get_tag 7 3 opk (wn 7 3 (\ ())) tg))
+          (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) opk (idxTest_skip get_tag 7 4 opk (wn 7 4 (\ ())) tg))
+            (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) opk (idxTest_skip get_tag 7 5 opk (wn 7 5 (\ ())) tg))
+              (ruleTrans (fork_false_to_snd compCell wfn_l7 (testHd 6) opk (idxTest_skip get_tag 7 6 opk (wn 7 6 (\ ())) tg))
+                         (fork_true_to_fst leafCell wfn_l8 (testHd 7) opk (idxTest_fire get_tag 7 opk tg)))))
+  in ruleTrans (toCell p ne nl) (ruleTrans fires (selfChk_op p ne))
