@@ -564,3 +564,74 @@ glue_rC =
                 tgtTriEq
                 (Gsym (ap1 devF (ap1 srcF sK)) (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) htag devSrcEq)
   in assembleConj3 htag factV factS factT
+
+------------------------------------------------------------------------
+-- glue_rRb :  R-base redex.  triF sK = ap1c g (triF (pL sK)) ; g = funP sK head.
+--   srcF sK = tmAp2 (cRec g h1 h2) (srcF d) tmO ;  tgtF sK = tmAp1 g (tgtF d).
+
+glue_rRb : Deriv (imp negLeaf (imp (eqF (ap1 Fst (dtag sK)) dgRb) (imp PA Bgoal)))
+glue_rRb =
+  let htag = eqF (ap1 Fst (dtag sK)) dgRb
+      d  = pL sK
+      X  = ap1 triF d
+      g  = gP sK
+      h1 = h1P sK
+      h2 = h2P sK
+      cr = cRec g h1 h2
+      Y  = ap1 devF (ap1 srcF d)
+      leqD = rebound d (pLValueBound sK ne_sK)
+      fv3val = ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2))
+      wfRedD : Deriv (imp negLeaf (imp htag (imp PA (eqF (ap1 wfRed d) O))))
+      wfRedD = trans3c (ap1 wfRed d) (ap1 wfRed sK) O
+                 (Gsym (ap1 wfRed sK) (ap1 wfRed d) htag (addPA htag (wfRed_op_rRb_imp sK ne_sK)))
+                 (wfRedSK_ctx htag)
+      wfFunPiO : Deriv (imp negLeaf (imp htag (imp PA (eqF (ap2 pi fv3val (ap1 wfFunRec d)) O))))
+      wfFunPiO = trans3c (ap2 pi fv3val (ap1 wfFunRec d)) (ap1 wfFunRec sK) O
+                   (Gsym (ap1 wfFunRec sK) (ap2 pi fv3val (ap1 wfFunRec d)) htag
+                     (addPA htag (wfFunRec_op_rRb_imp sK ne_sK)))
+                   (wfFunSK_ctx htag)
+      wfFunD = ap3c (lift3 negLeaf htag PA (piZeroR_imp fv3val (ap1 wfFunRec d))) wfFunPiO
+      fv3O = ap3c (lift3 negLeaf htag PA (piZeroL_imp fv3val (ap1 wfFunRec d))) wfFunPiO
+      fvg = ap3c (lift3 negLeaf htag PA (piZeroL_imp (funValid g) (ap2 pi (funValid h1) (funValid h2)))) fv3O
+      childCj = mkChildCjFull htag d leqD (mkWfRedFull htag d wfRedD wfFunD)
+      cV = ap3c (lift3 negLeaf htag PA (childV_imp d)) childCj
+      cS = ap3c (lift3 negLeaf htag PA (childS_imp d)) childCj
+      cT = ap3c (lift3 negLeaf htag PA (childT_imp d)) childCj
+      cVwfRed = splitL htag X cV
+      cVwfFun = splitR htag X cV
+      triEq = addPA htag (triF_op_Rb_imp sK ne_sK)
+      srcEqSK = addPA htag (srcF_op_rRb_imp sK ne_sK)
+      tgtEqSK = addPA htag (tgtF_op_rRb_imp sK ne_sK)
+      -- V-fact : wfRedFull (ap1c g X) = O.
+      wfRedTriSK = trans3c (ap1 wfRed (ap1 triF sK)) (ap1 wfRed (ap1c g X)) O
+                     (Gcong wfRed (ap1 triF sK) (ap1c g X) htag triEq)
+                     (trans3c (ap1 wfRed (ap1c g X)) (ap1 wfRed X) O
+                       (lift3 negLeaf htag PA (wfRed_ap1c g X)) cVwfRed)
+      wfFunTriSK = trans3c (ap1 wfFunRec (ap1 triF sK)) (ap1 wfFunRec (ap1c g X)) O
+                     (Gcong wfFunRec (ap1 triF sK) (ap1c g X) htag triEq)
+                     (trans3c (ap1 wfFunRec (ap1c g X)) (ap2 pi (funValid g) (ap1 wfFunRec X)) O
+                       (lift3 negLeaf htag PA (wfFunRec_ap1c g X))
+                       (piB htag (funValid g) (ap1 wfFunRec X) fvg cVwfFun))
+      factV = mkWfRedFull htag (ap1 triF sK) wfRedTriSK wfFunTriSK
+      -- S-fact : srcF (ap1c g X) = tmAp1 g (srcF X) = tmAp1 g (tgtF d) = tgtF sK.
+      srcTriEq = trans3c (ap1 srcF (ap1 triF sK)) (ap1 srcF (ap1c g X)) (tmAp1 g (ap1 tgtF d))
+                   (Gcong srcF (ap1 triF sK) (ap1c g X) htag triEq)
+                   (trans3c (ap1 srcF (ap1c g X)) (tmAp1 g (ap1 srcF X)) (tmAp1 g (ap1 tgtF d))
+                     (lift3 negLeaf htag PA (srcF_ap1c g X))
+                     (GcongTmAp1 g (ap1 srcF X) (ap1 tgtF d) htag cS))
+      factS = trans3c (ap1 srcF (ap1 triF sK)) (tmAp1 g (ap1 tgtF d)) (ap1 tgtF sK)
+                srcTriEq (Gsym (ap1 tgtF sK) (tmAp1 g (ap1 tgtF d)) htag tgtEqSK)
+      -- T-fact : tgtF (ap1c g X) = tmAp1 g (tgtF X) = tmAp1 g Y = devF (srcF sK).
+      tgtTriEq = trans3c (ap1 tgtF (ap1 triF sK)) (ap1 tgtF (ap1c g X)) (tmAp1 g Y)
+                   (Gcong tgtF (ap1 triF sK) (ap1c g X) htag triEq)
+                   (trans3c (ap1 tgtF (ap1c g X)) (tmAp1 g (ap1 tgtF X)) (tmAp1 g Y)
+                     (lift3 negLeaf htag PA (tgtF_ap1c g X))
+                     (GcongTmAp1 g (ap1 tgtF X) Y htag cT))
+      devSrcEq = trans3c (ap1 devF (ap1 srcF sK)) (ap1 devF (tmAp2 cr (ap1 srcF d) tmO)) (tmAp1 g Y)
+                   (Gcong devF (ap1 srcF sK) (tmAp2 cr (ap1 srcF d) tmO) htag srcEqSK)
+                   (trans3c (ap1 devF (tmAp2 cr (ap1 srcF d) tmO)) (tmAp1 (gF cr) Y) (tmAp1 g Y)
+                     (lift3 negLeaf htag PA (devF_ap2_Rb_h cr (ap1 srcF d) (hd_cRec g h1 h2)))
+                     (lift3 negLeaf htag PA (tmAp1FunCong (gF cr) g Y (recFun g h1 h2))))
+      factT = trans3c (ap1 tgtF (ap1 triF sK)) (tmAp1 g Y) (ap1 devF (ap1 srcF sK))
+                tgtTriEq (Gsym (ap1 devF (ap1 srcF sK)) (tmAp1 g Y) htag devSrcEq)
+  in assembleConj3 htag factV factS factT
