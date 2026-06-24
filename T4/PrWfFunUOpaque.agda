@@ -133,15 +133,18 @@ private
     Deriv (eqF (ap1 (compose1U Fst idx) (opkg p)) (ap1 Fst X)) ->
     Deriv (eqF (ap1 (isF2at idx) (opkg p)) (isF2 X))
   isF2at_op p idx X hd =
-    ruleTrans (ax_C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx))) (opkg p))
-      (ruleTrans (congL pi (ap1 (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx))) (opkg p)) (nH_op p 3 idx X hd))
+    ruleTrans (ax_C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx)))) (opkg p))
+      (ruleTrans (congL pi (ap1 (C pi (nH 4 idx) (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx)))) (opkg p)) (nH_op p 3 idx X hd))
         (congR pi (ap2 natEqF (ap1 Fst X) (natCode 3))
-          (ruleTrans (ax_C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx)) (opkg p))
-            (ruleTrans (congL pi (ap1 (C pi (nH 5 idx) (nH 6 idx)) (opkg p)) (nH_op p 4 idx X hd))
+          (ruleTrans (ax_C pi (nH 4 idx) (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx))) (opkg p))
+            (ruleTrans (congL pi (ap1 (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx))) (opkg p)) (nH_op p 4 idx X hd))
               (congR pi (ap2 natEqF (ap1 Fst X) (natCode 4))
-                (ruleTrans (ax_C pi (nH 5 idx) (nH 6 idx) (opkg p))
-                  (ruleTrans (congL pi (ap1 (nH 6 idx) (opkg p)) (nH_op p 5 idx X hd))
-                             (congR pi (ap2 natEqF (ap1 Fst X) (natCode 5)) (nH_op p 6 idx X hd)))))))))
+                (ruleTrans (ax_C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx)) (opkg p))
+                  (ruleTrans (congL pi (ap1 (C pi (nH 6 idx) (nH 1 idx)) (opkg p)) (nH_op p 5 idx X hd))
+                    (congR pi (ap2 natEqF (ap1 Fst X) (natCode 5))
+                      (ruleTrans (ax_C pi (nH 6 idx) (nH 1 idx) (opkg p))
+                        (ruleTrans (congL pi (ap1 (nH 1 idx) (opkg p)) (nH_op p 6 idx X hd))
+                                   (congR pi (ap2 natEqF (ap1 Fst X) (natCode 6)) (nH_op p 1 idx X hd))))))))))))
   -- shared deep fv3 value.
   fv3v_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 fv3cell (opkg p))

@@ -62,7 +62,7 @@ nH k idx = C natEqF (compose1U Fst idx) (constN k)
 isF1at : Fun1 -> Fun1                -- O iff head in {3,4,5,6}  (a Fun1 funcode)
 isF1at idx = C pi (nH 7 idx) (C pi (nH 8 idx) (nH 1 idx))
 isF2at : Fun1 -> Fun1                -- O iff head in {7,8}      (a Fun2 funcode)
-isF2at idx = C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx)))
+isF2at idx = C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx))))
 
 -- compound cells with component-arity typing:
 --   cComp (Fun1) :  g Fun2 , h1 Fun1 , h2 Fun1
@@ -95,7 +95,8 @@ isF1 f = ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 7))
 isF2 : Term -> Term
 isF2 f = ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 3))
            (ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 4))
-             (ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 5)) (ap2 natEqF (ap1 Fst f) (natCode 6))))
+             (ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 5))
+               (ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 6)) (ap2 natEqF (ap1 Fst f) (natCode 1)))))
 
 wfFun : Fun1
 wfFun = binRec rejectCell Z wfFunNodeCell
@@ -242,15 +243,18 @@ module CompNode (kp : Nat) (g h1 h2 : Term) (w1 : NatNeqWitness (suc kp) 1) wher
     Deriv (eqF (ap1 (compose1U Fst idx) input_pkg) (ap1 Fst X)) ->
     Deriv (eqF (ap1 (isF2at idx) input_pkg) (isF2 X))
   isF2at_val idx X hd =
-    ruleTrans (ax_C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx))) input_pkg)
-      (ruleTrans (congL pi (ap1 (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx))) input_pkg) (nHval 3 idx X hd))
+    ruleTrans (ax_C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx)))) input_pkg)
+      (ruleTrans (congL pi (ap1 (C pi (nH 4 idx) (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx)))) input_pkg) (nHval 3 idx X hd))
         (congR pi (ap2 natEqF (ap1 Fst X) (natCode 3))
-          (ruleTrans (ax_C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx)) input_pkg)
-            (ruleTrans (congL pi (ap1 (C pi (nH 5 idx) (nH 6 idx)) input_pkg) (nHval 4 idx X hd))
+          (ruleTrans (ax_C pi (nH 4 idx) (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx))) input_pkg)
+            (ruleTrans (congL pi (ap1 (C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx))) input_pkg) (nHval 4 idx X hd))
               (congR pi (ap2 natEqF (ap1 Fst X) (natCode 4))
-                (ruleTrans (ax_C pi (nH 5 idx) (nH 6 idx) input_pkg)
-                  (ruleTrans (congL pi (ap1 (nH 6 idx) input_pkg) (nHval 5 idx X hd))
-                             (congR pi (ap2 natEqF (ap1 Fst X) (natCode 5)) (nHval 6 idx X hd)))))))))
+                (ruleTrans (ax_C pi (nH 5 idx) (C pi (nH 6 idx) (nH 1 idx)) input_pkg)
+                  (ruleTrans (congL pi (ap1 (C pi (nH 6 idx) (nH 1 idx)) input_pkg) (nHval 5 idx X hd))
+                    (congR pi (ap2 natEqF (ap1 Fst X) (natCode 5))
+                      (ruleTrans (ax_C pi (nH 6 idx) (nH 1 idx) input_pkg)
+                        (ruleTrans (congL pi (ap1 (nH 1 idx) input_pkg) (nHval 6 idx X hd))
+                                   (congR pi (ap2 natEqF (ap1 Fst X) (natCode 6)) (nHval 1 idx X hd))))))))))))
   -- compound cell values (the funValidF self-check + 3 arity checks + 3 deep wfFun).
   compCellC_val : Deriv (eqF (ap1 compCellC input_pkg)
                             (ap2 pi (ap1 funValidF theNode)

@@ -520,10 +520,14 @@ private
         e4 = congL natEqF (natCode 4) fe
         e5 = congL natEqF (natCode 5) fe
         e6 = congL natEqF (natCode 6) fe
-        innerA = ap2 pi (ap2 natEqF (ap1 Fst a) (natCode 5)) (ap2 natEqF (ap1 Fst a) (natCode 6))
+        e1 = congL natEqF (natCode 1) fe
+        inner1A = ap2 pi (ap2 natEqF (ap1 Fst a) (natCode 6)) (ap2 natEqF (ap1 Fst a) (natCode 1))
+        inner1Eq = ruleTrans (congL pi (ap2 natEqF (ap1 Fst a) (natCode 1)) e6)
+                             (congR pi (ap2 natEqF (ap1 Fst b) (natCode 6)) e1)
+        innerA = ap2 pi (ap2 natEqF (ap1 Fst a) (natCode 5)) inner1A
+        innerEq = ruleTrans (congL pi inner1A e5)
+                            (congR pi (ap2 natEqF (ap1 Fst b) (natCode 5)) inner1Eq)
         midA   = ap2 pi (ap2 natEqF (ap1 Fst a) (natCode 4)) innerA
-        innerEq = ruleTrans (congL pi (ap2 natEqF (ap1 Fst a) (natCode 6)) e5)
-                            (congR pi (ap2 natEqF (ap1 Fst b) (natCode 5)) e6)
         midEq = ruleTrans (congL pi innerA e4) (congR pi (ap2 natEqF (ap1 Fst b) (natCode 4)) innerEq)
     in ruleTrans (congL pi midA e3) (congR pi (ap2 natEqF (ap1 Fst b) (natCode 3)) midEq)
 
@@ -898,13 +902,18 @@ glue_rRs =
       n8k k w = ruleTrans (congL natEqF (natCode k) h8) (natEqF_at_neq 8 k (decideNatNeq 8 k w))
       isF2PrawBare = piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 3))
                        (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 4))
-                         (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 5)) (ap2 natEqF (ap1 Fst Praw) (natCode 6))))
+                         (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 5))
+                           (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 6)) (ap2 natEqF (ap1 Fst Praw) (natCode 1)))))
                        (n8k 3 (\ ()))
                        (piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 4))
-                         (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 5)) (ap2 natEqF (ap1 Fst Praw) (natCode 6)))
+                         (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 5))
+                           (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 6)) (ap2 natEqF (ap1 Fst Praw) (natCode 1))))
                          (n8k 4 (\ ()))
-                         (piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 5)) (ap2 natEqF (ap1 Fst Praw) (natCode 6))
-                           (n8k 5 (\ ())) (n8k 6 (\ ()))))
+                         (piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 5))
+                           (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 6)) (ap2 natEqF (ap1 Fst Praw) (natCode 1)))
+                           (n8k 5 (\ ()))
+                           (piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 6)) (ap2 natEqF (ap1 Fst Praw) (natCode 1))
+                             (n8k 6 (\ ())) (n8k 1 (\ ())))))
       isF2Praw = lift3 negLeaf htag PA isF2PrawBare
       -- reconstruction Praw = Rrec.
       shallowO = ap3c (lift3 negLeaf htag PA

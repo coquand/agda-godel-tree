@@ -155,15 +155,18 @@ private
   arF2_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 arF2cell (opkg p)) (isF2 (funP p)))
   arF2_op p ne =
-    ruleTrans (ax_C pi (C natEqF bunGidx (constN 3)) (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)))) (opkg p))
-      (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)))) (opkg p)) (nHb_op p ne 3))
+    ruleTrans (ax_C pi (C natEqF bunGidx (constN 3)) (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C pi (C natEqF bunGidx (constN 6)) (C natEqF bunGidx (constN 1))))) (opkg p))
+      (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C pi (C natEqF bunGidx (constN 6)) (C natEqF bunGidx (constN 1))))) (opkg p)) (nHb_op p ne 3))
         (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 3))
-          (ruleTrans (ax_C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6))) (opkg p))
-            (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6))) (opkg p)) (nHb_op p ne 4))
+          (ruleTrans (ax_C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C pi (C natEqF bunGidx (constN 6)) (C natEqF bunGidx (constN 1)))) (opkg p))
+            (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 5)) (C pi (C natEqF bunGidx (constN 6)) (C natEqF bunGidx (constN 1)))) (opkg p)) (nHb_op p ne 4))
               (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 4))
-                (ruleTrans (ax_C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)) (opkg p))
-                  (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 6)) (opkg p)) (nHb_op p ne 5))
-                             (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 5)) (nHb_op p ne 6)))))))))
+                (ruleTrans (ax_C pi (C natEqF bunGidx (constN 5)) (C pi (C natEqF bunGidx (constN 6)) (C natEqF bunGidx (constN 1))) (opkg p))
+                  (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 6)) (C natEqF bunGidx (constN 1))) (opkg p)) (nHb_op p ne 5))
+                    (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 5))
+                      (ruleTrans (ax_C pi (C natEqF bunGidx (constN 6)) (C natEqF bunGidx (constN 1)) (opkg p))
+                        (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 1)) (opkg p)) (nHb_op p ne 6))
+                                   (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 6)) (nHb_op p ne 1))))))))))))
   -- the node cell values (FIX(C): arity-prefixed).
   ap1cInner_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 (C pi fvB unaryCell) (opkg p)) (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p))))
