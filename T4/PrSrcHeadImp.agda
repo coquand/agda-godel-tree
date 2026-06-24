@@ -20,11 +20,11 @@ module T4.PrSrcHeadImp where
 
 open import T4.Base
 
-open import T4.PrDerCode using ( dgAp1c )
-open import T4.PrCodeObj using ( tmAp1 )
-open import T4.PrDev using ( mkAp1 ; mkAp1_val ; tmOF )
+open import T4.PrDerCode using ( dgAp1c ; dgAp2c )
+open import T4.PrCodeObj using ( tmAp1 ; tmAp2 ; tgAp2 )
+open import T4.PrDev using ( mkAp1 ; mkAp1_val ; mkAp2 ; mkAp2_val ; tmOF )
 open import T4.PrSrc
-  using ( srcF ; cellNodeSrc ; ap1cCell ; src_l2 ; bunF ; srcL ; derTagIdx ; derBunIdx ; testTag )
+  using ( srcF ; cellNodeSrc ; ap1cCell ; ap2cCell ; src_l2 ; src_l3 ; bunF ; srcL ; srcR ; derTagIdx ; derBunIdx ; testTag )
 open import T4.PrSrcUOpaque using ( funP )
 open import T4.DerCodeS using ( dtag )
 open import T4.BinTree using ( nIdx )
@@ -35,7 +35,7 @@ open import T4.ProgParse using ( get_tag )
 open import BRA3.PairAlgebra using ( compose1U_eq )
 open import BRA3.SubT.NatEq using ( natEqF )
 open import BRA3.SubT.V2NatNeq using ( NatNeqWitness ; natEqF_at_neq ; decideNatNeq )
-open import T4.ForkImp using ( fork_true_to_fst_imp ; fork_false_to_snd_imp ; natEqFire_imp )
+open import T4.ForkImp using ( fork_true_to_fst_imp ; fork_false_to_snd_imp ; natEqFire_imp ; natEqSkip_imp )
 open import T4.Thm12.ImpHelpers using ( impLift ; impEqTrans ; impCong1 ; impCongL ; impCongR ; impMp ; impRuleSym )
 open import BRA3.Contrapositive using ( compI ; identP ; liftP )
 open import BRA3.Classical using ( axContrapos )
@@ -130,4 +130,72 @@ srcF_ap1c_himp p =
       chain = impEqTrans (ap1 srcF p) (ap1 srcStepU opk) rhs e1
                 (impEqTrans (ap1 srcStepU opk) (ap1 cellNodeSrc opk) rhs e2
                   (impEqTrans (ap1 cellNodeSrc opk) (ap1 ap1cCell opk) rhs e3 e4))
+  in cnjCurry chain
+
+------------------------------------------------------------------------
+-- srcF of an ap2c child (dtag = dgAp2c).  Both children kept opaque.
+
+srcChildArgL : Term -> Term
+srcChildArgL p = ap1 srcL (Hs.opkg p)
+srcChildArgR : Term -> Term
+srcChildArgR p = ap1 srcR (Hs.opkg p)
+
+srcF_ap2c_himp : (p : Term) ->
+  Deriv (imp (eqF (ap1 Fst p) (natCode 2))
+             (imp (eqF (ap1 Fst (dtag p)) dgAp2c)
+                  (eqF (ap1 srcF p) (tmAp2 (funP p) (srcChildArgL p) (srcChildArgR p)))))
+srcF_ap2c_himp p =
+  let Hd2 = eqF (ap1 Fst p) (natCode 2)
+      htag = eqF (ap1 Fst (dtag p)) dgAp2c
+      HH = Cnj Hd2 htag
+      opk = Hs.opkg p
+      ne : Deriv (imp HH (neg (eqF p O)))
+      ne = compI (cnjL Hd2 htag) (ne_from_head2 p)
+      rhs = tmAp2 (funP p) (ap1 srcL opk) (ap1 srcR opk)
+      rawCell = tmAp2 (ap1 bunF opk) (ap1 srcL opk) (ap1 srcR opk)
+      op_tag_ne : Deriv (imp (neg (eqF p O)) (eqF (ap1 get_tag opk) (ap1 Fst p)))
+      op_tag_ne = impEqTrans (ap1 get_tag opk) (ap1 Fst (ap1 get_newK opk)) (ap1 Fst p)
+                    (impLift (compose1U_eq Fst get_newK opk)) (impCong1 Fst (ap1 get_newK opk) p (Hs.op_newK_imp p))
+      gtag : Deriv (imp HH (eqF (ap1 get_tag opk) (natCode 2)))
+      gtag = impEqTrans (ap1 get_tag opk) (ap1 Fst p) (natCode 2) (compI ne op_tag_ne) (cnjL Hd2 htag)
+      e1 : Deriv (imp HH (eqF (ap1 srcF p) (ap1 srcStepU opk)))
+      e1 = compI ne (Hs.opUnfold_imp p)
+      t1O : Deriv (imp HH (eqF (ap1 (C natEqF get_tag (constN 1)) opk) O))
+      t1O = impEqTrans (ap1 (C natEqF get_tag (constN 1)) opk) (ap2 natEqF (ap1 get_tag opk) (natCode 1)) O
+              (impLift (ruleTrans (ax_C natEqF get_tag (constN 1) opk) (congR natEqF (ap1 get_tag opk) (constN_eq 1 opk))))
+              (impEqTrans (ap2 natEqF (ap1 get_tag opk) (natCode 1)) (ap2 natEqF (natCode 2) (natCode 1)) O
+                (impCongL natEqF (ap1 get_tag opk) (natCode 2) (natCode 1) gtag)
+                (impLift (natEqF_at_neq 2 1 (wn 2 1 (\ ())))))
+      e2 : Deriv (imp HH (eqF (ap1 srcStepU opk) (ap1 cellNodeSrc opk)))
+      e2 = fork_false_to_snd_imp HH tmOF cellNodeSrc (C natEqF get_tag (constN 1)) opk t1O
+      derTag_ne : Deriv (imp (neg (eqF p O)) (eqF (ap1 derTagIdx opk) (ap1 Fst (dtag p))))
+      derTag_ne = impEqTrans (ap1 derTagIdx opk) (ap1 Fst (ap1 nIdx opk)) (ap1 Fst (dtag p))
+                    (impLift (compose1U_eq Fst nIdx opk)) (impCong1 Fst (ap1 nIdx opk) (dtag p) (Hs.op_nIdx_imp p))
+      derTagH : Deriv (imp HH (eqF (ap1 derTagIdx opk) (natCode 2)))
+      derTagH = impEqTrans (ap1 derTagIdx opk) (ap1 Fst (dtag p)) (natCode 2) (compI ne derTag_ne) (cnjR Hd2 htag)
+      skip1 : Deriv (imp HH (eqF (ap1 cellNodeSrc opk) (ap1 src_l2 opk)))
+      skip1 = fork_false_to_snd_imp HH ap1cCell src_l2 (testTag 1) opk
+                (natEqSkip_imp HH derTagIdx 2 1 opk (wn 2 1 (\ ())) derTagH)
+      fire2 : Deriv (imp HH (eqF (ap1 src_l2 opk) (ap1 ap2cCell opk)))
+      fire2 = fork_true_to_fst_imp HH ap2cCell src_l3 (testTag 2) opk (natEqFire_imp HH derTagIdx 2 opk derTagH)
+      e3 : Deriv (imp HH (eqF (ap1 cellNodeSrc opk) (ap1 ap2cCell opk)))
+      e3 = impEqTrans (ap1 cellNodeSrc opk) (ap1 src_l2 opk) (ap1 ap2cCell opk) skip1 fire2
+      cellRaw : Deriv (eqF (ap1 ap2cCell opk) rawCell)
+      cellRaw = mkAp2_val bunF srcL srcR opk (ap1 bunF opk) (ap1 srcL opk) (ap1 srcR opk)
+                  (axRefl (ap1 bunF opk)) (axRefl (ap1 srcL opk)) (axRefl (ap1 srcR opk))
+      recBun_ne : Deriv (imp (neg (eqF p O)) (eqF (ap1 derBunIdx opk) (funP p)))
+      recBun_ne = impEqTrans (ap1 derBunIdx opk) (ap1 Snd (ap1 nIdx opk)) (funP p)
+                    (impLift (compose1U_eq Snd nIdx opk)) (impCong1 Snd (ap1 nIdx opk) (dtag p) (Hs.op_nIdx_imp p))
+      cellRewrite : Deriv (imp HH (eqF rawCell rhs))
+      cellRewrite = compI (compI ne recBun_ne)
+                      (impCongR Pair (ap2 Pair (ap1 bunF opk) (ap2 Pair (ap1 srcL opk) (ap1 srcR opk)))
+                                     (ap2 Pair (funP p) (ap2 Pair (ap1 srcL opk) (ap1 srcR opk))) tgAp2
+                        (impCongL Pair (ap1 bunF opk) (funP p) (ap2 Pair (ap1 srcL opk) (ap1 srcR opk))
+                          (identP (eqF (ap1 bunF opk) (funP p)))))
+      e4 : Deriv (imp HH (eqF (ap1 ap2cCell opk) rhs))
+      e4 = impEqTrans (ap1 ap2cCell opk) rawCell rhs (liftP HH cellRaw) cellRewrite
+      chain : Deriv (imp HH (eqF (ap1 srcF p) rhs))
+      chain = impEqTrans (ap1 srcF p) (ap1 srcStepU opk) rhs e1
+                (impEqTrans (ap1 srcStepU opk) (ap1 cellNodeSrc opk) rhs e2
+                  (impEqTrans (ap1 cellNodeSrc opk) (ap1 ap2cCell opk) rhs e3 e4))
   in cnjCurry chain
