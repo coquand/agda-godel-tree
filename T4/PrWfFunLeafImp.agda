@@ -20,13 +20,16 @@ open import T4.Base
 
 open import T4.PrWfFun
   using ( wfFun ; wfFunNodeCell ; leafCell ; selfChk ; compCellC ; rejectCell
+        ; isF1at ; isF2at ; fv3cell
         ; wfn_l4 ; wfn_l5 ; wfn_l6 ; wfn_l7 ; wfn_l8 ; testHd )
 open import T4.PrFunValidCanon using ( funValidF )
 open import T4.PrFunValid
-  using ( recon ; cSucBr ; cZeroBr ; cIdBr ; cProjBr ; cCompBr
+  using ( recon ; cSucBr ; cZeroBr ; cIdBr ; cProjBr ; cCompBr ; cCompBr_val ; cG ; cH1 ; cH2
         ; rec_l4 ; rec_l5 ; rec_l6 ; rec_l7 ; rec_l8 ; constBr_val )
   renaming ( testHd to rTestHd )
-open import T4.PrCodeObj using ( cSuc ; cZero ; cId ; cProj )
+open import T4.PrCodeObj using ( cSuc ; cZero ; cId ; cProj ; cComp )
+open import T4.BinTree using ( nIdx ; lIdx ; rIdx )
+open import BRA3.Church using ( pi )
 open import T4.EqDecO using ( eqDecO )
 open import T4.CRGlueImpU using ( eqDecO_sound_imp )
 open import T4.ProgParse using ( get_tag )
@@ -197,6 +200,40 @@ wfFun_op_v_himp f =
        toNode_h (impEqTrans (ap1 wfFunNodeCell opk) (ap1 leafCell opk) (ap1 funValidF f) fires selfChk_h)
 
 ------------------------------------------------------------------------
+-- COMPOUND C-head extraction (funhead = 6): only the FIRST conjunct
+-- (funValidF f) is exposed; the rest of the compCellC product is kept opaque
+-- (restCval f).  This is all the glue needs (funValidF f = O for reconstruction;
+-- the component validities come from the BARE wfFunRec_rC / wfFun fp = O).
+
+restCcode : Fun1
+restCcode = C pi (isF2at nIdx) (C pi (isF1at lIdx) (C pi (isF1at rIdx) fv3cell))
+
+restCval : Term -> Term
+restCval f = ap1 restCcode (opkg f)
+
+wfFun_op_C_head_himp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 6))
+             (eqF (ap1 wfFun f) (ap2 pi (ap1 funValidF f) (restCval f))))
+wfFun_op_C_head_himp f =
+  let open HeadImp f 6 (natCodeNeqO 5) (\ ())
+      fires_C =
+        impEqTrans (ap1 wfFunNodeCell opk) (ap1 wfn_l4 opk) (ap1 compCellC opk)
+          (fork_false_to_snd_imp H leafCell wfn_l4 (testHd 3) opk (natEqSkip_imp H get_tag 6 3 opk (wn 6 3 (\ ())) gtagK_h))
+          (impEqTrans (ap1 wfn_l4 opk) (ap1 wfn_l5 opk) (ap1 compCellC opk)
+            (fork_false_to_snd_imp H leafCell wfn_l5 (testHd 4) opk (natEqSkip_imp H get_tag 6 4 opk (wn 6 4 (\ ())) gtagK_h))
+            (impEqTrans (ap1 wfn_l5 opk) (ap1 wfn_l6 opk) (ap1 compCellC opk)
+              (fork_false_to_snd_imp H leafCell wfn_l6 (testHd 5) opk (natEqSkip_imp H get_tag 6 5 opk (wn 6 5 (\ ())) gtagK_h))
+              (fork_true_to_fst_imp H compCellC wfn_l7 (testHd 6) opk (natEqFire_imp H get_tag 6 opk gtagK_h))))
+      axStep = impLift (ax_C pi selfChk restCcode opk)
+      selfStep = impCongL pi (ap1 selfChk opk) (ap1 funValidF f) (restCval f) selfChk_h
+  in impEqTrans (ap1 wfFun f) (ap1 wfFunNodeCell opk) (ap2 pi (ap1 funValidF f) (restCval f))
+       toNode_h
+       (impEqTrans (ap1 wfFunNodeCell opk) (ap1 compCellC opk) (ap2 pi (ap1 funValidF f) (restCval f))
+         fires_C
+         (impEqTrans (ap1 compCellC opk) (ap2 pi (ap1 selfChk opk) (restCval f)) (ap2 pi (ap1 funValidF f) (restCval f))
+           axStep selfStep))
+
+------------------------------------------------------------------------
 -- imp-form recon equations (threading the funhead) + funValid reconstruction.
 
 private
@@ -245,6 +282,21 @@ recon_v_imp f =
                (fork_true_to_fst_imp H cProjBr rec_l8 (rTestHd 7) f (natEqFire_imp H Fst 7 f (identP H)))
                (impLift (constBr_val 7 f))))))
 
+recon_C_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 6)) (eqF (ap1 recon f) (cComp (cG f) (cH1 f) (cH2 f))))
+recon_C_imp f =
+  let H = eqF (ap1 Fst f) (natCode 6)
+      cc = cComp (cG f) (cH1 f) (cH2 f)
+  in impEqTrans (ap1 recon f) (ap1 rec_l4 f) cc
+       (fork_false_to_snd_imp H cSucBr rec_l4 (rTestHd 3) f (natEqSkip_imp H Fst 6 3 f (wnr 6 3 (\ ())) (identP H)))
+       (impEqTrans (ap1 rec_l4 f) (ap1 rec_l5 f) cc
+         (fork_false_to_snd_imp H cZeroBr rec_l5 (rTestHd 4) f (natEqSkip_imp H Fst 6 4 f (wnr 6 4 (\ ())) (identP H)))
+         (impEqTrans (ap1 rec_l5 f) (ap1 rec_l6 f) cc
+           (fork_false_to_snd_imp H cIdBr rec_l6 (rTestHd 5) f (natEqSkip_imp H Fst 6 5 f (wnr 6 5 (\ ())) (identP H)))
+           (impEqTrans (ap1 rec_l6 f) (ap1 cCompBr f) cc
+             (fork_true_to_fst_imp H cCompBr rec_l7 (rTestHd 6) f (natEqFire_imp H Fst 6 f (identP H)))
+             (impLift (cCompBr_val f)))))
+
 -- funValid (shallow) = O  +  funhead  =>  f = canonical.
 private
   mkCanon : (f canon : Term) (k : Nat) ->
@@ -271,3 +323,7 @@ funValid_u_imp f = mkCanon f cId 5 (recon_u_imp f)
 funValid_v_imp : (f : Term) ->
   Deriv (imp (eqF (ap1 Fst f) (natCode 7)) (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f cProj)))
 funValid_v_imp f = mkCanon f cProj 7 (recon_v_imp f)
+funValid_C_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 6))
+             (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f (cComp (cG f) (cH1 f) (cH2 f)))))
+funValid_C_imp f = mkCanon f (cComp (cG f) (cH1 f) (cH2 f)) 6 (recon_C_imp f)
