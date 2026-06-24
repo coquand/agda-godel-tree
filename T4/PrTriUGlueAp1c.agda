@@ -45,8 +45,20 @@ open import T4.PrSrcUOpaqueImp using ( srcF_op_ap1c_imp )
 open import T4.PrTgtUOpaqueImp using ( tgtF_op_ap1c_imp )
 open import T4.PrWfRedUOpaqueImp using ( wfRed_op_ap1c_imp )
 open import T4.PrWfFunRecUOpaqueImp using ( wfFunRec_op_ap1c_imp )
-open import T4.PrDevByHead using ( devF_ap1_o_h ; devF_ap1_u_h ; devF_ap1_s_h )
+open import T4.PrDevByHead using ( devF_ap1_o_h ; devF_ap1_u_h ; devF_ap1_s_h ; devF_ap1_C_h ; gF ; h1F ; h2F )
 open import T4.PrCodeObj using ( hd_cId ; hd_cZero ; hd_cSuc )
+
+-- C-case (funhead = 6, compound) extras.
+open import T4.PrTriUOpaqueImp using ( triF_op_ap1c_C_imp )
+open import T4.PrSrc using ( srcF_rC )
+open import T4.PrTgt using ( tgtF_rC )
+open import T4.PrWfRed using ( wfRed_rC )
+open import T4.PrWfFunRec using ( wfFunRec_rC )
+open import T4.PrDerCode using ( derC ; bun3 ; derLeaf )
+open import T4.BinTree using ( binNode )
+open import T4.PrCodeObj using ( cComp ; hd_cComp ; compFun ; compH1 ; compH2 ; tgAp2 ; tmAp2 )
+open import T4.PrFunValid using ( cG ; cH1 ; cH2 )
+open import T4.PrWfFunLeafImp using ( restCval ; wfFun_op_C_head_himp ; funValid_C_imp )
 
 open import T4.PrTgtUOpaque using ( funP )
 open import T4.PrFunValidCanon using ( funValidF ; funValidF_eq )
@@ -412,4 +424,148 @@ glue_ap1c_s =
                      (l4 fh (tgtF_ap1c cSuc X)) (G4TmAp1 cSuc (ap1 tgtF X) Y fh cT))
       factT = G4trans (ap1 tgtF (ap1 triF sK)) (tmAp1 cSuc Y) (ap1 devF (ap1 srcF sK)) fh
                 tgtTriEq (G4sym (ap1 devF (ap1 srcF sK)) (tmAp1 cSuc Y) fh devSrcEq)
+  in assembleConj34 fh factV factS factT
+
+------------------------------------------------------------------------
+-- glue_ap1c_C :  funhead = 6 (cComp).  triF sK = derC g h1 h2 (triF (pL sK)),
+-- g/h1/h2 = funP sK components (after reconstruction fp = cComp g h1 h2).
+
+private
+  tmAp1FunCong : (f gg Yv : Term) -> Deriv (eqF f gg) -> Deriv (eqF (tmAp1 f Yv) (tmAp1 gg Yv))
+  tmAp1FunCong f gg Yv e = congR Pair tgAp1 (congL Pair Yv e)
+
+  tmAp2Cong : (G G' A A' B B' : Term) ->
+    Deriv (eqF G G') -> Deriv (eqF A A') -> Deriv (eqF B B') ->
+    Deriv (eqF (tmAp2 G A B) (tmAp2 G' A' B'))
+  tmAp2Cong G G' A A' B B' eG eA eB =
+    congR Pair tgAp2
+      (ruleTrans (congL Pair (ap2 Pair A B) eG)
+                 (congR Pair G' (ruleTrans (congL Pair B eA) (congR Pair A' eB))))
+
+  congCC : (g h1 h2 Yv : Term) ->
+    Deriv (eqF (tmAp2 (gF (cComp g h1 h2)) (tmAp1 (h1F (cComp g h1 h2)) Yv) (tmAp1 (h2F (cComp g h1 h2)) Yv))
+               (tmAp2 g (tmAp1 h1 Yv) (tmAp1 h2 Yv)))
+  congCC g h1 h2 Yv =
+    tmAp2Cong (gF (cComp g h1 h2)) g
+              (tmAp1 (h1F (cComp g h1 h2)) Yv) (tmAp1 h1 Yv)
+              (tmAp1 (h2F (cComp g h1 h2)) Yv) (tmAp1 h2 Yv)
+              (compFun g h1 h2)
+              (tmAp1FunCong (h1F (cComp g h1 h2)) h1 Yv (compH1 g h1 h2))
+              (tmAp1FunCong (h2F (cComp g h1 h2)) h2 Yv (compH2 g h1 h2))
+
+  tmAp2Arg1Imp : (gg a a' b : Term) -> Deriv (imp (eqF a a') (eqF (tmAp2 gg a b) (tmAp2 gg a' b)))
+  tmAp2Arg1Imp gg a a' b =
+    impCongR Pair (ap2 Pair gg (ap2 Pair a b)) (ap2 Pair gg (ap2 Pair a' b)) tgAp2
+      (impCongR Pair (ap2 Pair a b) (ap2 Pair a' b) gg (impCongL Pair a a' b (identP (eqF a a'))))
+  tmAp2Arg2Imp : (gg a b b' : Term) -> Deriv (imp (eqF b b') (eqF (tmAp2 gg a b) (tmAp2 gg a b')))
+  tmAp2Arg2Imp gg a b b' =
+    impCongR Pair (ap2 Pair gg (ap2 Pair a b)) (ap2 Pair gg (ap2 Pair a b')) tgAp2
+      (impCongR Pair (ap2 Pair a b) (ap2 Pair a b') gg (impCongR Pair b b' a (identP (eqF b b'))))
+
+  G4Ap2R : (gg a a' b b' : Term) (fh : Formula) ->
+    Deriv (imp negLeaf (imp htagA (imp fh (imp PA (eqF a a'))))) ->
+    Deriv (imp negLeaf (imp htagA (imp fh (imp PA (eqF b b'))))) ->
+    Deriv (imp negLeaf (imp htagA (imp fh (imp PA (eqF (tmAp2 gg a b) (tmAp2 gg a' b'))))))
+  G4Ap2R gg a a' b b' fh dA dB =
+    G4trans (tmAp2 gg a b) (tmAp2 gg a' b) (tmAp2 gg a' b') fh
+      (ap4c (l4 fh (tmAp2Arg1Imp gg a a' b)) dA)
+      (ap4c (l4 fh (tmAp2Arg2Imp gg a' b b')) dB)
+
+glue_ap1c_C : Deriv (imp negLeaf (imp htagA (imp (eqF (ap1 Fst (funP sK)) (natCode 6)) (imp PA Bgoal))))
+glue_ap1c_C =
+  let fh = eqF (ap1 Fst (funP sK)) (natCode 6)
+      d  = pL sK
+      X  = ap1 triF d
+      fp = funP sK
+      g  = cG fp
+      h1 = cH1 fp
+      h2 = cH2 fp
+      cc = cComp g h1 h2
+      Y  = ap1 devF (ap1 srcF d)
+      Dc = derC g h1 h2 X
+      leqD = rebound d (pLValueBound sK ne_sK)
+      tail = ap2 pi (funValid fp) (ap1 wfFunRec d)
+      wfFunRecEq = addFunPA4 fh (wfFunRec_op_ap1c_imp sK ne_sK)
+      wfFunPiEq = G4trans (ap2 pi (isF1 fp) tail) (ap1 wfFunRec sK) O fh
+                    (G4sym (ap1 wfFunRec sK) (ap2 pi (isF1 fp) tail) fh wfFunRecEq) (wfFunSK4 fh)
+      restEq = gPiR4 fh (isF1 fp) tail wfFunPiEq
+      funValidFunPO = gPiL4 fh (funValid fp) (ap1 wfFunRec d) restEq
+      wfFunDO = gPiR4 fh (funValid fp) (ap1 wfFunRec d) restEq
+      -- funValidF fp = O (head conjunct of wfFun fp).
+      wfFunCHead = fromFh fh (wfFun_op_C_head_himp fp)
+      piFunValidO = G4trans (ap2 pi (ap1 funValidF fp) (restCval fp)) (ap1 wfFun fp) O fh
+                      (G4sym (ap1 wfFun fp) (ap2 pi (ap1 funValidF fp) (restCval fp)) fh wfFunCHead)
+                      funValidFunPO
+      funValidFfpO = gPiL4 fh (ap1 funValidF fp) (restCval fp) piFunValidO
+      -- reconstruct fp = cc.
+      eqdOEq = ap4c (l4 fh (prependEqLeft (eqDecO fp (ap1 recon fp)) (ap1 funValidF fp) O
+                              (ruleSym (funValidF_eq fp)))) funValidFfpO
+      reconEqC = ap4c (fromFh fh (funValid_C_imp fp)) eqdOEq
+      -- child validity.
+      wfRedDO = G4trans (ap1 wfRed d) (ap1 wfRed sK) O fh
+                  (G4sym (ap1 wfRed sK) (ap1 wfRed d) fh (addFunPA4 fh (wfRed_op_ap1c_imp sK ne_sK)))
+                  (wfRedSK4 fh)
+      childCj = mkChildCjFull4 fh d leqD (mkWfRedFull4 fh d wfRedDO wfFunDO)
+      cV = ap4c (l4 fh (childV_imp d)) childCj
+      cS = ap4c (l4 fh (childS_imp d)) childCj
+      cT = ap4c (l4 fh (childT_imp d)) childCj
+      cVwfRed = splitL4 fh X cV
+      cVwfFun = splitR4 fh X cV
+      -- opaque eqs.
+      triEqRaw = addPA4 fh (triF_op_ap1c_C_imp sK ne_sK)
+      srcEqSK = addFunPA4 fh (srcF_op_ap1c_imp sK ne_sK)
+      tgtEqSK = addFunPA4 fh (tgtF_op_ap1c_imp sK ne_sK)
+      -- residual binNode -> derC g h1 h2 X.
+      sndFpEq = G4trans (ap1 Snd fp) (ap1 Snd cc) (bun3 g h1 h2) fh
+                  (G4cong Snd fp cc fh reconEqC)
+                  (l4 fh (axSnd (natCode 6) (bun3 g h1 h2)))
+      BIGa = ap2 Pair (ap2 Pair (natCode 6) (ap1 Snd fp)) (ap2 Pair X derLeaf)
+      BIGb = ap2 Pair (ap2 Pair (natCode 6) (bun3 g h1 h2)) (ap2 Pair X derLeaf)
+      labConvImp = impCongR Pair BIGa BIGb (natCode 2)
+                     (impCongL Pair (ap2 Pair (natCode 6) (ap1 Snd fp)) (ap2 Pair (natCode 6) (bun3 g h1 h2)) (ap2 Pair X derLeaf)
+                       (impCongR Pair (ap1 Snd fp) (bun3 g h1 h2) (natCode 6) (identP (eqF (ap1 Snd fp) (bun3 g h1 h2)))))
+      triEqDerC = G4trans (ap1 triF sK) (binNode (ap2 Pair (natCode 6) (ap1 Snd fp)) X derLeaf) Dc fh
+                    triEqRaw (ap4c (l4 fh labConvImp) sndFpEq)
+      -- V-fact.
+      wfFunccO = G4trans (ap1 wfFun cc) (ap1 wfFun fp) O fh
+                   (G4cong wfFun cc fp fh (G4sym fp cc fh reconEqC)) funValidFunPO
+      wfRedTriSK = G4trans (ap1 wfRed (ap1 triF sK)) (ap1 wfRed Dc) O fh
+                     (G4cong wfRed (ap1 triF sK) Dc fh triEqDerC)
+                     (G4trans (ap1 wfRed Dc) (ap1 wfRed X) O fh (l4 fh (wfRed_rC g h1 h2 X)) cVwfRed)
+      wfFunTriSK = G4trans (ap1 wfFunRec (ap1 triF sK)) (ap1 wfFunRec Dc) O fh
+                     (G4cong wfFunRec (ap1 triF sK) Dc fh triEqDerC)
+                     (G4trans (ap1 wfFunRec Dc) (ap2 pi (ap1 wfFun cc) (ap1 wfFunRec X)) O fh
+                       (l4 fh (wfFunRec_rC g h1 h2 X))
+                       (piB4 fh (ap1 wfFun cc) (ap1 wfFunRec X) wfFunccO cVwfFun))
+      factV = mkWfRedFull4 fh (ap1 triF sK) wfRedTriSK wfFunTriSK
+      -- S-fact.
+      srcTriEq = G4trans (ap1 srcF (ap1 triF sK)) (ap1 srcF Dc) (tmAp1 cc (ap1 tgtF d)) fh
+                   (G4cong srcF (ap1 triF sK) Dc fh triEqDerC)
+                   (G4trans (ap1 srcF Dc) (tmAp1 cc (ap1 srcF X)) (tmAp1 cc (ap1 tgtF d)) fh
+                     (l4 fh (srcF_rC g h1 h2 X)) (G4TmAp1 cc (ap1 srcF X) (ap1 tgtF d) fh cS))
+      tgtEqSKc = G4trans (ap1 tgtF sK) (tmAp1 fp (ap1 tgtF d)) (tmAp1 cc (ap1 tgtF d)) fh
+                   tgtEqSK (G4TmAp1Head fp cc (ap1 tgtF d) fh reconEqC)
+      factS = G4trans (ap1 srcF (ap1 triF sK)) (tmAp1 cc (ap1 tgtF d)) (ap1 tgtF sK) fh
+                srcTriEq (G4sym (ap1 tgtF sK) (tmAp1 cc (ap1 tgtF d)) fh tgtEqSKc)
+      -- T-fact.
+      srcEqSKc = G4trans (ap1 srcF sK) (tmAp1 fp (ap1 srcF d)) (tmAp1 cc (ap1 srcF d)) fh
+                   srcEqSK (G4TmAp1Head fp cc (ap1 srcF d) fh reconEqC)
+      tgtTriEq = G4trans (ap1 tgtF (ap1 triF sK)) (ap1 tgtF Dc) (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) fh
+                   (G4cong tgtF (ap1 triF sK) Dc fh triEqDerC)
+                   (G4trans (ap1 tgtF Dc)
+                     (tmAp2 g (tmAp1 h1 (ap1 tgtF X)) (tmAp1 h2 (ap1 tgtF X)))
+                     (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) fh
+                     (l4 fh (tgtF_rC g h1 h2 X))
+                     (G4Ap2R g (tmAp1 h1 (ap1 tgtF X)) (tmAp1 h1 Y) (tmAp1 h2 (ap1 tgtF X)) (tmAp1 h2 Y) fh
+                       (G4TmAp1 h1 (ap1 tgtF X) Y fh cT) (G4TmAp1 h2 (ap1 tgtF X) Y fh cT)))
+      devSrcEq = G4trans (ap1 devF (ap1 srcF sK)) (ap1 devF (tmAp1 cc (ap1 srcF d)))
+                   (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) fh
+                   (G4cong devF (ap1 srcF sK) (tmAp1 cc (ap1 srcF d)) fh srcEqSKc)
+                   (G4trans (ap1 devF (tmAp1 cc (ap1 srcF d)))
+                     (tmAp2 (gF cc) (tmAp1 (h1F cc) Y) (tmAp1 (h2F cc) Y))
+                     (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) fh
+                     (l4 fh (devF_ap1_C_h cc (ap1 srcF d) (hd_cComp g h1 h2)))
+                     (l4 fh (congCC g h1 h2 Y)))
+      factT = G4trans (ap1 tgtF (ap1 triF sK)) (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) (ap1 devF (ap1 srcF sK)) fh
+                tgtTriEq (G4sym (ap1 devF (ap1 srcF sK)) (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) fh devSrcEq)
   in assembleConj34 fh factV factS factT
