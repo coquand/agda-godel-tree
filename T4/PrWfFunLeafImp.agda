@@ -22,6 +22,13 @@ open import T4.PrWfFun
   using ( wfFun ; wfFunNodeCell ; leafCell ; selfChk ; compCellC ; rejectCell
         ; wfn_l4 ; wfn_l5 ; wfn_l6 ; wfn_l7 ; wfn_l8 ; testHd )
 open import T4.PrFunValidCanon using ( funValidF )
+open import T4.PrFunValid
+  using ( recon ; cSucBr ; cZeroBr ; cIdBr ; cProjBr ; cCompBr
+        ; rec_l4 ; rec_l5 ; rec_l6 ; rec_l7 ; rec_l8 ; constBr_val )
+  renaming ( testHd to rTestHd )
+open import T4.PrCodeObj using ( cSuc ; cZero ; cId ; cProj )
+open import T4.EqDecO using ( eqDecO )
+open import T4.CRGlueImpU using ( eqDecO_sound_imp )
 open import T4.ProgParse using ( get_tag )
 open import T4.FoldRec using ( get_newK )
 open import T4.ParsObj using ( stepOf )
@@ -188,3 +195,79 @@ wfFun_op_v_himp f =
                 (fork_true_to_fst_imp H leafCell wfn_l8 (testHd 7) opk (natEqFire_imp H get_tag 7 opk gtagK_h)))))
   in impEqTrans (ap1 wfFun f) (ap1 wfFunNodeCell opk) (ap1 funValidF f)
        toNode_h (impEqTrans (ap1 wfFunNodeCell opk) (ap1 leafCell opk) (ap1 funValidF f) fires selfChk_h)
+
+------------------------------------------------------------------------
+-- imp-form recon equations (threading the funhead) + funValid reconstruction.
+
+private
+  wnr : (m kk : Nat) -> ((Eq m kk) -> Empty) -> NatNeqWitness m kk
+  wnr m kk pf = decideNatNeq m kk pf
+
+recon_s_imp : (f : Term) -> Deriv (imp (eqF (ap1 Fst f) (natCode 3)) (eqF (ap1 recon f) cSuc))
+recon_s_imp f =
+  let H = eqF (ap1 Fst f) (natCode 3)
+  in impEqTrans (ap1 recon f) (ap1 cSucBr f) cSuc
+       (fork_true_to_fst_imp H cSucBr rec_l4 (rTestHd 3) f (natEqFire_imp H Fst 3 f (identP H)))
+       (impLift (constBr_val 3 f))
+
+recon_o_imp : (f : Term) -> Deriv (imp (eqF (ap1 Fst f) (natCode 4)) (eqF (ap1 recon f) cZero))
+recon_o_imp f =
+  let H = eqF (ap1 Fst f) (natCode 4)
+  in impEqTrans (ap1 recon f) (ap1 rec_l4 f) cZero
+       (fork_false_to_snd_imp H cSucBr rec_l4 (rTestHd 3) f (natEqSkip_imp H Fst 4 3 f (wnr 4 3 (\ ())) (identP H)))
+       (impEqTrans (ap1 rec_l4 f) (ap1 cZeroBr f) cZero
+         (fork_true_to_fst_imp H cZeroBr rec_l5 (rTestHd 4) f (natEqFire_imp H Fst 4 f (identP H)))
+         (impLift (constBr_val 4 f)))
+
+recon_u_imp : (f : Term) -> Deriv (imp (eqF (ap1 Fst f) (natCode 5)) (eqF (ap1 recon f) cId))
+recon_u_imp f =
+  let H = eqF (ap1 Fst f) (natCode 5)
+  in impEqTrans (ap1 recon f) (ap1 rec_l4 f) cId
+       (fork_false_to_snd_imp H cSucBr rec_l4 (rTestHd 3) f (natEqSkip_imp H Fst 5 3 f (wnr 5 3 (\ ())) (identP H)))
+       (impEqTrans (ap1 rec_l4 f) (ap1 rec_l5 f) cId
+         (fork_false_to_snd_imp H cZeroBr rec_l5 (rTestHd 4) f (natEqSkip_imp H Fst 5 4 f (wnr 5 4 (\ ())) (identP H)))
+         (impEqTrans (ap1 rec_l5 f) (ap1 cIdBr f) cId
+           (fork_true_to_fst_imp H cIdBr rec_l6 (rTestHd 5) f (natEqFire_imp H Fst 5 f (identP H)))
+           (impLift (constBr_val 5 f))))
+
+recon_v_imp : (f : Term) -> Deriv (imp (eqF (ap1 Fst f) (natCode 7)) (eqF (ap1 recon f) cProj))
+recon_v_imp f =
+  let H = eqF (ap1 Fst f) (natCode 7)
+  in impEqTrans (ap1 recon f) (ap1 rec_l4 f) cProj
+       (fork_false_to_snd_imp H cSucBr rec_l4 (rTestHd 3) f (natEqSkip_imp H Fst 7 3 f (wnr 7 3 (\ ())) (identP H)))
+       (impEqTrans (ap1 rec_l4 f) (ap1 rec_l5 f) cProj
+         (fork_false_to_snd_imp H cZeroBr rec_l5 (rTestHd 4) f (natEqSkip_imp H Fst 7 4 f (wnr 7 4 (\ ())) (identP H)))
+         (impEqTrans (ap1 rec_l5 f) (ap1 rec_l6 f) cProj
+           (fork_false_to_snd_imp H cIdBr rec_l6 (rTestHd 5) f (natEqSkip_imp H Fst 7 5 f (wnr 7 5 (\ ())) (identP H)))
+           (impEqTrans (ap1 rec_l6 f) (ap1 rec_l7 f) cProj
+             (fork_false_to_snd_imp H cCompBr rec_l7 (rTestHd 6) f (natEqSkip_imp H Fst 7 6 f (wnr 7 6 (\ ())) (identP H)))
+             (impEqTrans (ap1 rec_l7 f) (ap1 cProjBr f) cProj
+               (fork_true_to_fst_imp H cProjBr rec_l8 (rTestHd 7) f (natEqFire_imp H Fst 7 f (identP H)))
+               (impLift (constBr_val 7 f))))))
+
+-- funValid (shallow) = O  +  funhead  =>  f = canonical.
+private
+  mkCanon : (f canon : Term) (k : Nat) ->
+    Deriv (imp (eqF (ap1 Fst f) (natCode k)) (eqF (ap1 recon f) canon)) ->
+    Deriv (imp (eqF (ap1 Fst f) (natCode k)) (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f canon)))
+  mkCanon f canon k reconImp =
+    let H = eqF (ap1 Fst f) (natCode k)
+        eqdO = eqF (eqDecO f (ap1 recon f)) O
+        leg1 : Deriv (imp H (imp eqdO (eqF f (ap1 recon f))))
+        leg1 = impLift (eqDecO_sound_imp f (ap1 recon f))
+        leg2 : Deriv (imp H (imp eqdO (eqF (ap1 recon f) canon)))
+        leg2 = compI reconImp (axK (eqF (ap1 recon f) canon) eqdO)
+    in trans2c f (ap1 recon f) canon leg1 leg2
+
+funValid_s_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 3)) (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f cSuc)))
+funValid_s_imp f = mkCanon f cSuc 3 (recon_s_imp f)
+funValid_o_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 4)) (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f cZero)))
+funValid_o_imp f = mkCanon f cZero 4 (recon_o_imp f)
+funValid_u_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 5)) (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f cId)))
+funValid_u_imp f = mkCanon f cId 5 (recon_u_imp f)
+funValid_v_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 7)) (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f cProj)))
+funValid_v_imp f = mkCanon f cProj 7 (recon_v_imp f)
