@@ -27,10 +27,12 @@ open import T4.PrDerCode using ( dgAp1c ; dgAp2c ; dgRo ; dgRu ; dgRv ; dgRC ; d
 open import T4.PrWfFunRec using ( funValid ; funValidF ; funValidF_eq )
 open import T4.PrWfFunRec
   using ( wfFunRec ; derTagIdx ; derBunIdx ; bunGidx ; bunSndIdx ; bunH1idx ; bunH2idx
-        ; fvB ; fv3 ; unaryCell ; wfAdCell ; ap1cCell ; ap2cCell ; rcUnaryCell ; rcBinCell
-        ; recRForm ; recRwf
+        ; fvB ; fv3 ; unaryCell ; wfAdCell ; arF1cell ; arF2cell
+        ; ap1cCell ; ap2cCell ; rcUnaryCell ; rcBinCell ; rcCompC ; rcCompRb
+        ; recRForm ; recRwf ; recCForm ; recCwf
         ; ff_l2 ; ff_l3 ; ff_l4 ; ff_l5 ; ff_l6 ; ff_l7 ; ff_l8 ; fnCellNode ; testTag )
-open import T4.PrWfFun using ( wfFun )
+open import T4.PrWfFun using ( wfFun ; isF1 ; isF2 )
+open import T4.PrCodeObj using ( cComp ; cRec )
 open import T4.PrSrcUOpaque using ( funP ; gP ; h1P ; h2P )
 
 open import T4.DerCodeS using ( dtag ; pL ; pR )
@@ -134,22 +136,62 @@ private
          (ruleTrans (congL pi (ap1 innerCell opk) fvG)
                     (congR pi (funValid (gP p)) inner_val))
 
-  -- the six node cell values.
-  ap1cCell_op : (p : Term) -> Deriv (neg (eqF p O)) ->
-    Deriv (eqF (ap1 ap1cCell (opkg p)) (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p))))
-  ap1cCell_op p ne =
+  -- FIX(C) arity opaque value lemmas (head of funP p = gP p = Fst (funP p)).
+  nHb_op : (p : Term) -> Deriv (neg (eqF p O)) -> (k : Nat) ->
+    Deriv (eqF (ap1 (C natEqF bunGidx (constN k)) (opkg p)) (ap2 natEqF (ap1 Fst (funP p)) (natCode k)))
+  nHb_op p ne k =
+    ruleTrans (ax_C natEqF bunGidx (constN k) (opkg p))
+      (ruleTrans (congL natEqF (ap1 (constN k) (opkg p)) (bunG_op p ne))
+                 (congR natEqF (gP p) (constN_eq k (opkg p))))
+  arF1_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 arF1cell (opkg p)) (isF1 (funP p)))
+  arF1_op p ne =
+    ruleTrans (ax_C pi (C natEqF bunGidx (constN 7)) (C natEqF bunGidx (constN 8)) (opkg p))
+      (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 8)) (opkg p)) (nHb_op p ne 7))
+                 (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 7)) (nHb_op p ne 8)))
+  arF2_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 arF2cell (opkg p)) (isF2 (funP p)))
+  arF2_op p ne =
+    ruleTrans (ax_C pi (C natEqF bunGidx (constN 3)) (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)))) (opkg p))
+      (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)))) (opkg p)) (nHb_op p ne 3))
+        (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 3))
+          (ruleTrans (ax_C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6))) (opkg p))
+            (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6))) (opkg p)) (nHb_op p ne 4))
+              (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 4))
+                (ruleTrans (ax_C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)) (opkg p))
+                  (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 6)) (opkg p)) (nHb_op p ne 5))
+                             (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 5)) (nHb_op p ne 6)))))))))
+  -- the node cell values (FIX(C): arity-prefixed).
+  ap1cInner_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 (C pi fvB unaryCell) (opkg p)) (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p))))
+  ap1cInner_op p ne =
     let opk = opkg p
     in ruleTrans (ax_C pi fvB unaryCell opk)
          (ruleTrans (congL pi (ap1 unaryCell opk) (fvB_op p ne))
                     (congR pi (funValid (funP p)) (recPL p ne)))
-  ap2cCell_op : (p : Term) -> Deriv (neg (eqF p O)) ->
-    Deriv (eqF (ap1 ap2cCell (opkg p))
+  ap1cCell_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 ap1cCell (opkg p)) (ap2 pi (isF1 (funP p)) (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p)))))
+  ap1cCell_op p ne =
+    let opk = opkg p
+    in ruleTrans (ax_C pi arF1cell (C pi fvB unaryCell) opk)
+         (ruleTrans (congL pi (ap1 (C pi fvB unaryCell) opk) (arF1_op p ne))
+                    (congR pi (isF1 (funP p)) (ap1cInner_op p ne)))
+  ap2cInner_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 (C pi fvB wfAdCell) (opkg p))
                (ap2 pi (funValid (funP p)) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))))
-  ap2cCell_op p ne =
+  ap2cInner_op p ne =
     let opk = opkg p
     in ruleTrans (ax_C pi fvB wfAdCell opk)
          (ruleTrans (congL pi (ap1 wfAdCell opk) (fvB_op p ne))
                     (congR pi (funValid (funP p)) (ad_val p ne)))
+  ap2cCell_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 ap2cCell (opkg p))
+               (ap2 pi (isF2 (funP p)) (ap2 pi (funValid (funP p)) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p))))))
+  ap2cCell_op p ne =
+    let opk = opkg p
+    in ruleTrans (ax_C pi arF2cell (C pi fvB wfAdCell) opk)
+         (ruleTrans (congL pi (ap1 (C pi fvB wfAdCell) opk) (arF2_op p ne))
+                    (congR pi (isF2 (funP p)) (ap2cInner_op p ne)))
   rcUnary_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 rcUnaryCell (opkg p)) (ap2 pi (fv3val p) (ap1 wfFunRec (pL p))))
   rcUnary_op p ne =
@@ -157,9 +199,40 @@ private
     in ruleTrans (ax_C pi fv3 unaryCell opk)
          (ruleTrans (congL pi (ap1 unaryCell opk) (fv3_op p ne))
                     (congR pi (fv3val p) (recPL p ne)))
+  -- FIX(C): reconstructed compound terms for derC (Pair 6) / derRb (Pair 8) .
+  reconCterm : Term -> Term
+  reconCterm p = ap2 Pair (natCode 6) (funP p)
+  rcCompC_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 rcCompC (opkg p))
+               (ap2 pi (ap1 wfFun (reconCterm p)) (ap1 wfFunRec (pL p))))
+  rcCompC_op p ne =
+    let opk = opkg p
+        recCForm_op : Deriv (eqF (ap1 recCForm opk) (reconCterm p))
+        recCForm_op = ruleTrans (ax_C Pair (constN 6) derBunIdx opk)
+                        (ruleTrans (congL Pair (ap1 derBunIdx opk) (constN_eq 6 opk))
+                                   (congR Pair (natCode 6) (recBun p ne)))
+        recCwf_op : Deriv (eqF (ap1 recCwf opk) (ap1 wfFun (reconCterm p)))
+        recCwf_op = ruleTrans (compose1U_eq wfFun recCForm opk) (cong1 wfFun recCForm_op)
+    in ruleTrans (ax_C pi recCwf unaryCell opk)
+         (ruleTrans (congL pi (ap1 unaryCell opk) recCwf_op)
+                    (congR pi (ap1 wfFun (reconCterm p)) (recPL p ne)))
   -- FIX(B): reconstructed R-combinator term  Pair (natCode 8) (funP p) .
   reconRterm : Term -> Term
   reconRterm p = ap2 Pair (natCode 8) (funP p)
+  rcCompRb_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 rcCompRb (opkg p))
+               (ap2 pi (ap1 wfFun (reconRterm p)) (ap1 wfFunRec (pL p))))
+  rcCompRb_op p ne =
+    let opk = opkg p
+        recRForm_op : Deriv (eqF (ap1 recRForm opk) (reconRterm p))
+        recRForm_op = ruleTrans (ax_C Pair (constN 8) derBunIdx opk)
+                        (ruleTrans (congL Pair (ap1 derBunIdx opk) (constN_eq 8 opk))
+                                   (congR Pair (natCode 8) (recBun p ne)))
+        recRwf_op : Deriv (eqF (ap1 recRwf opk) (ap1 wfFun (reconRterm p)))
+        recRwf_op = ruleTrans (compose1U_eq wfFun recRForm opk) (cong1 wfFun recRForm_op)
+    in ruleTrans (ax_C pi recRwf unaryCell opk)
+         (ruleTrans (congL pi (ap1 unaryCell opk) recRwf_op)
+                    (congR pi (ap1 wfFun (reconRterm p)) (recPL p ne)))
   rcBin_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 rcBinCell (opkg p))
                (ap2 pi (ap1 wfFun (reconRterm p))
@@ -235,17 +308,21 @@ wfFunRec_op_reflO_imp p ne =
 wfFunRec_op_ap1c_imp : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (imp (neg (eqF (ap1 Fst p) (natCode 1)))
              (imp (eqF (ap1 Fst (dtag p)) dgAp1c)
-                  (eqF (ap1 wfFunRec p) (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p))))))
+                  (eqF (ap1 wfFunRec p)
+                       (ap2 pi (isF1 (funP p)) (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p)))))))
 wfFunRec_op_ap1c_imp p ne =
   let open Node p ne dgAp1c
       node_fires = fork_true_to_fst_imp htag ap1cCell ff_l2 (testTag 1) opk
                      (natEqFire_imp htag derTagIdx 1 opk nieq_imp)
-  in mkChain p ne negLeaf htag ap1cCell (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p))) step2 node_fires (ap1cCell_op p ne)
+  in mkChain p ne negLeaf htag ap1cCell
+       (ap2 pi (isF1 (funP p)) (ap2 pi (funValid (funP p)) (ap1 wfFunRec (pL p))))
+       step2 node_fires (ap1cCell_op p ne)
 
 wfFunRec_op_ap2c_imp : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (imp (neg (eqF (ap1 Fst p) (natCode 1)))
              (imp (eqF (ap1 Fst (dtag p)) dgAp2c)
-                  (eqF (ap1 wfFunRec p) (ap2 pi (funValid (funP p)) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))))))
+                  (eqF (ap1 wfFunRec p)
+                       (ap2 pi (isF2 (funP p)) (ap2 pi (funValid (funP p)) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p))))))))
 wfFunRec_op_ap2c_imp p ne =
   let open Node p ne dgAp2c
       node_fires =
@@ -254,7 +331,9 @@ wfFunRec_op_ap2c_imp p ne =
              (natEqSkip_imp htag derTagIdx 2 1 opk (wn 2 1 (\ ())) nieq_imp))
           (fork_true_to_fst_imp htag ap2cCell ff_l3 (testTag 2) opk
              (natEqFire_imp htag derTagIdx 2 opk nieq_imp))
-  in mkChain p ne negLeaf htag ap2cCell (ap2 pi (funValid (funP p)) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))) step2 node_fires (ap2cCell_op p ne)
+  in mkChain p ne negLeaf htag ap2cCell
+       (ap2 pi (isF2 (funP p)) (ap2 pi (funValid (funP p)) (ap2 pi (ap1 wfFunRec (pL p)) (ap1 wfFunRec (pR p)))))
+       step2 node_fires (ap2cCell_op p ne)
 
 ------------------------------------------------------------------------
 -- SECTION 4.  derO / derU / derV (no funValid).
@@ -322,56 +401,62 @@ wfFunRec_op_rV_imp p ne =
 
 wfFunRec_op_rC_imp : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (imp (neg (eqF (ap1 Fst p) (natCode 1)))
-             (imp (eqF (ap1 Fst (dtag p)) dgRC) (eqF (ap1 wfFunRec p) (ap2 pi (fv3val p) (ap1 wfFunRec (pL p))))))
+             (imp (eqF (ap1 Fst (dtag p)) dgRC)
+                  (eqF (ap1 wfFunRec p) (ap2 pi (ap1 wfFun (ap2 Pair (natCode 6) (funP p))) (ap1 wfFunRec (pL p))))))
 wfFunRec_op_rC_imp p ne =
   let open Node p ne dgRC
       node_fires =
-        impEqTrans (ap1 fnCellNode opk) (ap1 ff_l2 opk) (ap1 rcUnaryCell opk)
+        impEqTrans (ap1 fnCellNode opk) (ap1 ff_l2 opk) (ap1 rcCompC opk)
           (fork_false_to_snd_imp htag ap1cCell ff_l2 (testTag 1) opk
              (natEqSkip_imp htag derTagIdx 6 1 opk (wn 6 1 (\ ())) nieq_imp))
-          (impEqTrans (ap1 ff_l2 opk) (ap1 ff_l3 opk) (ap1 rcUnaryCell opk)
+          (impEqTrans (ap1 ff_l2 opk) (ap1 ff_l3 opk) (ap1 rcCompC opk)
             (fork_false_to_snd_imp htag ap2cCell ff_l3 (testTag 2) opk
                (natEqSkip_imp htag derTagIdx 6 2 opk (wn 6 2 (\ ())) nieq_imp))
-            (impEqTrans (ap1 ff_l3 opk) (ap1 ff_l4 opk) (ap1 rcUnaryCell opk)
+            (impEqTrans (ap1 ff_l3 opk) (ap1 ff_l4 opk) (ap1 rcCompC opk)
               (fork_false_to_snd_imp htag unaryCell ff_l4 (testTag 3) opk
                  (natEqSkip_imp htag derTagIdx 6 3 opk (wn 6 3 (\ ())) nieq_imp))
-              (impEqTrans (ap1 ff_l4 opk) (ap1 ff_l5 opk) (ap1 rcUnaryCell opk)
+              (impEqTrans (ap1 ff_l4 opk) (ap1 ff_l5 opk) (ap1 rcCompC opk)
                 (fork_false_to_snd_imp htag unaryCell ff_l5 (testTag 4) opk
                    (natEqSkip_imp htag derTagIdx 6 4 opk (wn 6 4 (\ ())) nieq_imp))
-                (impEqTrans (ap1 ff_l5 opk) (ap1 ff_l6 opk) (ap1 rcUnaryCell opk)
+                (impEqTrans (ap1 ff_l5 opk) (ap1 ff_l6 opk) (ap1 rcCompC opk)
                   (fork_false_to_snd_imp htag wfAdCell ff_l6 (testTag 5) opk
                      (natEqSkip_imp htag derTagIdx 6 5 opk (wn 6 5 (\ ())) nieq_imp))
-                  (fork_true_to_fst_imp htag rcUnaryCell ff_l7 (testTag 6) opk
+                  (fork_true_to_fst_imp htag rcCompC ff_l7 (testTag 6) opk
                      (natEqFire_imp htag derTagIdx 6 opk nieq_imp))))))
-  in mkChain p ne negLeaf htag rcUnaryCell (ap2 pi (fv3val p) (ap1 wfFunRec (pL p))) step2 node_fires (rcUnary_op p ne)
+  in mkChain p ne negLeaf htag rcCompC
+       (ap2 pi (ap1 wfFun (ap2 Pair (natCode 6) (funP p))) (ap1 wfFunRec (pL p)))
+       step2 node_fires (rcCompC_op p ne)
 
 wfFunRec_op_rRb_imp : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (imp (neg (eqF (ap1 Fst p) (natCode 1)))
-             (imp (eqF (ap1 Fst (dtag p)) dgRb) (eqF (ap1 wfFunRec p) (ap2 pi (fv3val p) (ap1 wfFunRec (pL p))))))
+             (imp (eqF (ap1 Fst (dtag p)) dgRb)
+                  (eqF (ap1 wfFunRec p) (ap2 pi (ap1 wfFun (ap2 Pair (natCode 8) (funP p))) (ap1 wfFunRec (pL p))))))
 wfFunRec_op_rRb_imp p ne =
   let open Node p ne dgRb
       node_fires =
-        impEqTrans (ap1 fnCellNode opk) (ap1 ff_l2 opk) (ap1 rcUnaryCell opk)
+        impEqTrans (ap1 fnCellNode opk) (ap1 ff_l2 opk) (ap1 rcCompRb opk)
           (fork_false_to_snd_imp htag ap1cCell ff_l2 (testTag 1) opk
              (natEqSkip_imp htag derTagIdx 7 1 opk (wn 7 1 (\ ())) nieq_imp))
-          (impEqTrans (ap1 ff_l2 opk) (ap1 ff_l3 opk) (ap1 rcUnaryCell opk)
+          (impEqTrans (ap1 ff_l2 opk) (ap1 ff_l3 opk) (ap1 rcCompRb opk)
             (fork_false_to_snd_imp htag ap2cCell ff_l3 (testTag 2) opk
                (natEqSkip_imp htag derTagIdx 7 2 opk (wn 7 2 (\ ())) nieq_imp))
-            (impEqTrans (ap1 ff_l3 opk) (ap1 ff_l4 opk) (ap1 rcUnaryCell opk)
+            (impEqTrans (ap1 ff_l3 opk) (ap1 ff_l4 opk) (ap1 rcCompRb opk)
               (fork_false_to_snd_imp htag unaryCell ff_l4 (testTag 3) opk
                  (natEqSkip_imp htag derTagIdx 7 3 opk (wn 7 3 (\ ())) nieq_imp))
-              (impEqTrans (ap1 ff_l4 opk) (ap1 ff_l5 opk) (ap1 rcUnaryCell opk)
+              (impEqTrans (ap1 ff_l4 opk) (ap1 ff_l5 opk) (ap1 rcCompRb opk)
                 (fork_false_to_snd_imp htag unaryCell ff_l5 (testTag 4) opk
                    (natEqSkip_imp htag derTagIdx 7 4 opk (wn 7 4 (\ ())) nieq_imp))
-                (impEqTrans (ap1 ff_l5 opk) (ap1 ff_l6 opk) (ap1 rcUnaryCell opk)
+                (impEqTrans (ap1 ff_l5 opk) (ap1 ff_l6 opk) (ap1 rcCompRb opk)
                   (fork_false_to_snd_imp htag wfAdCell ff_l6 (testTag 5) opk
                      (natEqSkip_imp htag derTagIdx 7 5 opk (wn 7 5 (\ ())) nieq_imp))
-                  (impEqTrans (ap1 ff_l6 opk) (ap1 ff_l7 opk) (ap1 rcUnaryCell opk)
-                    (fork_false_to_snd_imp htag rcUnaryCell ff_l7 (testTag 6) opk
+                  (impEqTrans (ap1 ff_l6 opk) (ap1 ff_l7 opk) (ap1 rcCompRb opk)
+                    (fork_false_to_snd_imp htag rcCompC ff_l7 (testTag 6) opk
                        (natEqSkip_imp htag derTagIdx 7 6 opk (wn 7 6 (\ ())) nieq_imp))
-                    (fork_true_to_fst_imp htag rcUnaryCell ff_l8 (testTag 7) opk
+                    (fork_true_to_fst_imp htag rcCompRb ff_l8 (testTag 7) opk
                        (natEqFire_imp htag derTagIdx 7 opk nieq_imp)))))))
-  in mkChain p ne negLeaf htag rcUnaryCell (ap2 pi (fv3val p) (ap1 wfFunRec (pL p))) step2 node_fires (rcUnary_op p ne)
+  in mkChain p ne negLeaf htag rcCompRb
+       (ap2 pi (ap1 wfFun (ap2 Pair (natCode 8) (funP p))) (ap1 wfFunRec (pL p)))
+       step2 node_fires (rcCompRb_op p ne)
 
 wfFunRec_op_rRs_imp : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (imp (neg (eqF (ap1 Fst p) (natCode 1)))
@@ -398,10 +483,10 @@ wfFunRec_op_rRs_imp p ne =
                   (fork_false_to_snd_imp htag wfAdCell ff_l6 (testTag 5) opk
                      (natEqSkip_imp htag derTagIdx 8 5 opk (wn 8 5 (\ ())) nieq_imp))
                   (impEqTrans (ap1 ff_l6 opk) (ap1 ff_l7 opk) (ap1 rcBinCell opk)
-                    (fork_false_to_snd_imp htag rcUnaryCell ff_l7 (testTag 6) opk
+                    (fork_false_to_snd_imp htag rcCompC ff_l7 (testTag 6) opk
                        (natEqSkip_imp htag derTagIdx 8 6 opk (wn 8 6 (\ ())) nieq_imp))
                     (impEqTrans (ap1 ff_l7 opk) (ap1 ff_l8 opk) (ap1 rcBinCell opk)
-                      (fork_false_to_snd_imp htag rcUnaryCell ff_l8 (testTag 7) opk
+                      (fork_false_to_snd_imp htag rcCompRb ff_l8 (testTag 7) opk
                          (natEqSkip_imp htag derTagIdx 8 7 opk (wn 8 7 (\ ())) nieq_imp))
                       (fork_true_to_fst_imp htag rcBinCell Z (testTag 8) opk
                          (natEqFire_imp htag derTagIdx 8 opk nieq_imp))))))))

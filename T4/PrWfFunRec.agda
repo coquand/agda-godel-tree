@@ -34,8 +34,8 @@ open import T4.PrDerCode
   using ( derLeaf ; ap1c ; ap2c ; derO ; derU ; derV ; derC ; derRb ; derRs
         ; dgReflO ; dgAp1c ; dgAp2c ; dgRo ; dgRu ; dgRv ; dgRC ; dgRb ; dgRs
         ; filler ; bun3 )
-open import T4.PrWfFun using ( wfFun )
-open import T4.PrCodeObj using ( cRec )
+open import T4.PrWfFun using ( wfFun ; isF1 ; isF2 )
+open import T4.PrCodeObj using ( cRec ; cComp )
 
 -- DEEP funcode validity wired in as funValid/funValidF (replacing the shallow
 -- T4.PrFunValid.funValid that was too weak for compound-fun congruences).
@@ -87,12 +87,27 @@ unaryCell : Fun1                    -- wfFunRec l
 unaryCell = lookupAt lIdx
 wfAdCell : Fun1                     -- pi (wfFunRec l)(wfFunRec r)
 wfAdCell = C pi (lookupAt lIdx) (lookupAt rIdx)
-ap1cCell : Fun1                     -- pi (funValid f)(wfFunRec l)
-ap1cCell = C pi fvB unaryCell
-ap2cCell : Fun1                     -- pi (funValid g)(pi (wfFunRec l)(wfFunRec r))
-ap2cCell = C pi fvB wfAdCell
-rcUnaryCell : Fun1                  -- pi (fv3 g h1 h2)(wfFunRec l)
+-- FIX(C): ap1c carries a Fun1 funcode (head in {3,4,5,6}); ap2c a Fun2 (head {7,8}).
+arF1cell : Fun1                     -- isF1 funP : head in {3,4,5,6}
+arF1cell = C pi (C natEqF bunGidx (constN 7)) (C natEqF bunGidx (constN 8))
+arF2cell : Fun1                     -- isF2 funP : head in {7,8}
+arF2cell = C pi (C natEqF bunGidx (constN 3))
+             (C pi (C natEqF bunGidx (constN 4))
+               (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6))))
+ap1cCell : Fun1                     -- pi (isF1 f)(pi (funValid f)(wfFunRec l))
+ap1cCell = C pi arF1cell (C pi fvB unaryCell)
+ap2cCell : Fun1                     -- pi (isF2 g)(pi (funValid g)(pi (wfFunRec l)(wfFunRec r)))
+ap2cCell = C pi arF2cell (C pi fvB wfAdCell)
+rcUnaryCell : Fun1                  -- pi (fv3 g h1 h2)(wfFunRec l)  (unused after FIX(C))
 rcUnaryCell = C pi fv3 unaryCell
+-- FIX(C): derC (tag 6) validates the reconstructed cComp = Pair 6 bundle (arity-aware
+-- wfFun gives g Fun2, h1/h2 Fun1 -- exactly what the residual ap2c g(ap1c h1)(ap1c h2) needs).
+recCForm : Fun1                     -- Pair (natCode 6) (the bundle) = cComp g h1 h2
+recCForm = C Pair (constN 6) derBunIdx
+recCwf : Fun1
+recCwf = compose1U wfFun recCForm
+rcCompC : Fun1                      -- pi (wfFun (cComp g h1 h2))(wfFunRec l)
+rcCompC = C pi recCwf unaryCell
 -- FIX(B): the derRs (tag 8) cell validates the RECONSTRUCTED R-combinator
 -- Pair (natCode 8) bundle = cRec g h1 h2 (deep wfFun, supplying both the shallow
 -- reassembly for the src endpoint AND the deep component validities), because the
@@ -101,6 +116,8 @@ recRForm : Fun1                     -- Pair (natCode 8) (the bundle)
 recRForm = C Pair (constN 8) derBunIdx
 recRwf : Fun1                       -- wfFun (Pair 8 bundle)
 recRwf = compose1U wfFun recRForm
+rcCompRb : Fun1                     -- derRb (tag 7): pi (wfFun (cRec g h1 h2))(wfFunRec l)
+rcCompRb = C pi recRwf unaryCell
 rcBinCell : Fun1                    -- pi (wfFun (cRec g h1 h2))(pi (wfFunRec l)(wfFunRec r))
 rcBinCell = C pi recRwf wfAdCell
 
@@ -110,9 +127,9 @@ testTag k = C natEqF derTagIdx (constN k)
 ff_l8 : Fun1
 ff_l8 = C condFork (C pi rcBinCell Z) (testTag 8)
 ff_l7 : Fun1
-ff_l7 = C condFork (C pi rcUnaryCell ff_l8) (testTag 7)
+ff_l7 = C condFork (C pi rcCompRb ff_l8) (testTag 7)
 ff_l6 : Fun1
-ff_l6 = C condFork (C pi rcUnaryCell ff_l7) (testTag 6)
+ff_l6 = C condFork (C pi rcCompC ff_l7) (testTag 6)
 ff_l5 : Fun1
 ff_l5 = C condFork (C pi wfAdCell ff_l6) (testTag 5)
 ff_l4 : Fun1
@@ -190,25 +207,66 @@ module Node (lab l r : Term) where
     ruleTrans (compose1U_eq funValidF derBunIdx input_pkg)
       (ruleTrans (cong1 funValidF derBun_eq)
         (ruleTrans (cong1 funValidF e) (funValidF_eq bnd)))
+  -- FIX(C) arity value lemmas: head of the carried fun.
+  bunG_at : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+            Deriv (eqF (ap1 bunGidx input_pkg) (ap1 Fst bnd))
+  bunG_at bnd e = ruleTrans (compose1U_eq Fst derBunIdx input_pkg)
+                    (cong1 Fst (ruleTrans derBun_eq e))
+  nHb : (k : Nat) (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+        Deriv (eqF (ap1 (C natEqF bunGidx (constN k)) input_pkg) (ap2 natEqF (ap1 Fst bnd) (natCode k)))
+  nHb k bnd e =
+    ruleTrans (ax_C natEqF bunGidx (constN k) input_pkg)
+      (ruleTrans (congL natEqF (ap1 (constN k) input_pkg) (bunG_at bnd e))
+                 (congR natEqF (ap1 Fst bnd) (constN_eq k input_pkg)))
+  arF1_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+            Deriv (eqF (ap1 arF1cell input_pkg) (isF1 bnd))
+  arF1_of bnd e =
+    ruleTrans (ax_C pi (C natEqF bunGidx (constN 7)) (C natEqF bunGidx (constN 8)) input_pkg)
+      (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 8)) input_pkg) (nHb 7 bnd e))
+                 (congR pi (ap2 natEqF (ap1 Fst bnd) (natCode 7)) (nHb 8 bnd e)))
+  arF2_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+            Deriv (eqF (ap1 arF2cell input_pkg) (isF2 bnd))
+  arF2_of bnd e =
+    ruleTrans (ax_C pi (C natEqF bunGidx (constN 3)) (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)))) input_pkg)
+      (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)))) input_pkg) (nHb 3 bnd e))
+        (congR pi (ap2 natEqF (ap1 Fst bnd) (natCode 3))
+          (ruleTrans (ax_C pi (C natEqF bunGidx (constN 4)) (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6))) input_pkg)
+            (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6))) input_pkg) (nHb 4 bnd e))
+              (congR pi (ap2 natEqF (ap1 Fst bnd) (natCode 4))
+                (ruleTrans (ax_C pi (C natEqF bunGidx (constN 5)) (C natEqF bunGidx (constN 6)) input_pkg)
+                  (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 6)) input_pkg) (nHb 5 bnd e))
+                             (congR pi (ap2 natEqF (ap1 Fst bnd) (natCode 5)) (nHb 6 bnd e)))))))))
   -- ap1c / ap2c cell values (single carried fun  bnd = Snd lab).
-  ap1cCell_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
-    Deriv (eqF (ap1 ap1cCell input_pkg) (ap2 pi (funValid bnd) (ap1 wfFunRec l)))
-  ap1cCell_of bnd e =
+  ap1cInner_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+    Deriv (eqF (ap1 (C pi fvB unaryCell) input_pkg) (ap2 pi (funValid bnd) (ap1 wfFunRec l)))
+  ap1cInner_of bnd e =
     ruleTrans (ax_C pi fvB unaryCell input_pkg)
       (ruleTrans (congL pi (ap1 unaryCell input_pkg) (fvOf bnd e))
                  (congR pi (funValid bnd) recL))
-  ap2cCell_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
-    Deriv (eqF (ap1 ap2cCell input_pkg)
-               (ap2 pi (funValid bnd) (ap2 pi (ap1 wfFunRec l) (ap1 wfFunRec r))))
-  ap2cCell_of bnd e =
+  ap1cCell_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+    Deriv (eqF (ap1 ap1cCell input_pkg) (ap2 pi (isF1 bnd) (ap2 pi (funValid bnd) (ap1 wfFunRec l))))
+  ap1cCell_of bnd e =
+    ruleTrans (ax_C pi arF1cell (C pi fvB unaryCell) input_pkg)
+      (ruleTrans (congL pi (ap1 (C pi fvB unaryCell) input_pkg) (arF1_of bnd e))
+                 (congR pi (isF1 bnd) (ap1cInner_of bnd e)))
+  ap2cInner_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+    Deriv (eqF (ap1 (C pi fvB wfAdCell) input_pkg) (ap2 pi (funValid bnd) (ap2 pi (ap1 wfFunRec l) (ap1 wfFunRec r))))
+  ap2cInner_of bnd e =
     ruleTrans (ax_C pi fvB wfAdCell input_pkg)
       (ruleTrans (congL pi (ap1 wfAdCell input_pkg) (fvOf bnd e))
-                 (congR pi (funValid bnd) ad_val))
+                 (congR pi (funValid bnd) ad_val'))
     where
-      ad_val : Deriv (eqF (ap1 wfAdCell input_pkg) (ap2 pi (ap1 wfFunRec l) (ap1 wfFunRec r)))
-      ad_val = ruleTrans (ax_C pi (lookupAt lIdx) (lookupAt rIdx) input_pkg)
-                 (ruleTrans (congL pi (ap1 (lookupAt rIdx) input_pkg) recL)
-                            (congR pi (ap1 wfFunRec l) recR))
+      ad_val' : Deriv (eqF (ap1 wfAdCell input_pkg) (ap2 pi (ap1 wfFunRec l) (ap1 wfFunRec r)))
+      ad_val' = ruleTrans (ax_C pi (lookupAt lIdx) (lookupAt rIdx) input_pkg)
+                  (ruleTrans (congL pi (ap1 (lookupAt rIdx) input_pkg) recL)
+                             (congR pi (ap1 wfFunRec l) recR))
+  ap2cCell_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
+    Deriv (eqF (ap1 ap2cCell input_pkg)
+               (ap2 pi (isF2 bnd) (ap2 pi (funValid bnd) (ap2 pi (ap1 wfFunRec l) (ap1 wfFunRec r)))))
+  ap2cCell_of bnd e =
+    ruleTrans (ax_C pi arF2cell (C pi fvB wfAdCell) input_pkg)
+      (ruleTrans (congL pi (ap1 (C pi fvB wfAdCell) input_pkg) (arF2_of bnd e))
+                 (congR pi (isF2 bnd) (ap2cInner_of bnd e)))
   ad_val : Deriv (eqF (ap1 wfAdCell input_pkg) (ap2 pi (ap1 wfFunRec l) (ap1 wfFunRec r)))
   ad_val = ruleTrans (ax_C pi (lookupAt lIdx) (lookupAt rIdx) input_pkg)
              (ruleTrans (congL pi (ap1 (lookupAt rIdx) input_pkg) recL)
@@ -278,12 +336,40 @@ module Node (lab l r : Term) where
     in ruleTrans (ax_C pi recRwf wfAdCell input_pkg)
          (ruleTrans (congL pi (ap1 wfAdCell input_pkg) recRwf_eq)
                     (congR pi (ap1 wfFun (cRec g h1 h2)) ad_val))
+  -- FIX(C): derC validates wfFun (cComp g h1 h2) = Pair 6 bundle (unary child).
+  rcCompC_of : (g h1 h2 : Term) ->
+    Deriv (eqF (ap1 Snd lab) (ap2 Pair g (ap2 Pair h1 h2))) ->
+    Deriv (eqF (ap1 rcCompC input_pkg) (ap2 pi (ap1 wfFun (cComp g h1 h2)) (ap1 wfFunRec l)))
+  rcCompC_of g h1 h2 e =
+    let recCForm_eq : Deriv (eqF (ap1 recCForm input_pkg) (cComp g h1 h2))
+        recCForm_eq = ruleTrans (ax_C Pair (constN 6) derBunIdx input_pkg)
+                        (ruleTrans (congL Pair (ap1 derBunIdx input_pkg) (constN_eq 6 input_pkg))
+                                   (congR Pair (natCode 6) (ruleTrans derBun_eq e)))
+        recCwf_eq : Deriv (eqF (ap1 recCwf input_pkg) (ap1 wfFun (cComp g h1 h2)))
+        recCwf_eq = ruleTrans (compose1U_eq wfFun recCForm input_pkg) (cong1 wfFun recCForm_eq)
+    in ruleTrans (ax_C pi recCwf unaryCell input_pkg)
+         (ruleTrans (congL pi (ap1 unaryCell input_pkg) recCwf_eq)
+                    (congR pi (ap1 wfFun (cComp g h1 h2)) recL))
+  -- FIX(C): derRb validates wfFun (cRec g h1 h2) = Pair 8 bundle (unary child).
+  rcCompRb_of : (g h1 h2 : Term) ->
+    Deriv (eqF (ap1 Snd lab) (ap2 Pair g (ap2 Pair h1 h2))) ->
+    Deriv (eqF (ap1 rcCompRb input_pkg) (ap2 pi (ap1 wfFun (cRec g h1 h2)) (ap1 wfFunRec l)))
+  rcCompRb_of g h1 h2 e =
+    let recRForm_eq : Deriv (eqF (ap1 recRForm input_pkg) (cRec g h1 h2))
+        recRForm_eq = ruleTrans (ax_C Pair (constN 8) derBunIdx input_pkg)
+                        (ruleTrans (congL Pair (ap1 derBunIdx input_pkg) (constN_eq 8 input_pkg))
+                                   (congR Pair (natCode 8) (ruleTrans derBun_eq e)))
+        recRwf_eq : Deriv (eqF (ap1 recRwf input_pkg) (ap1 wfFun (cRec g h1 h2)))
+        recRwf_eq = ruleTrans (compose1U_eq wfFun recRForm input_pkg) (cong1 wfFun recRForm_eq)
+    in ruleTrans (ax_C pi recRwf unaryCell input_pkg)
+         (ruleTrans (congL pi (ap1 unaryCell input_pkg) recRwf_eq)
+                    (congR pi (ap1 wfFun (cRec g h1 h2)) recL))
 
 ------------------------------------------------------------------------
 -- SECTION 4.  Unary congruence / redex equations.
 
 wfFunRec_ap1c : (f d : Term) ->
-  Deriv (eqF (ap1 wfFunRec (ap1c f d)) (ap2 pi (funValid f) (ap1 wfFunRec d)))
+  Deriv (eqF (ap1 wfFunRec (ap1c f d)) (ap2 pi (isF1 f) (ap2 pi (funValid f) (ap1 wfFunRec d))))
 wfFunRec_ap1c f d =
   let open Node (ap2 Pair dgAp1c f) d filler
       tg = tag_eq (natCode 1) (axFst dgAp1c f)
@@ -313,7 +399,7 @@ wfFunRec_rU d =
 
 wfFunRec_rC : (g h1 h2 d : Term) ->
   Deriv (eqF (ap1 wfFunRec (derC g h1 h2 d))
-             (ap2 pi (ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2))) (ap1 wfFunRec d)))
+             (ap2 pi (ap1 wfFun (cComp g h1 h2)) (ap1 wfFunRec d)))
 wfFunRec_rC g h1 h2 d =
   let open Node (ap2 Pair dgRC (bun3 g h1 h2)) d filler
       tg = tag_eq (natCode 6) (axFst dgRC (bun3 g h1 h2))
@@ -323,12 +409,12 @@ wfFunRec_rC g h1 h2 d =
             (ruleTrans (fork_false_to_snd unaryCell ff_l4 (testTag 3) input_pkg (idxTest_skip derTagIdx 6 3 input_pkg (wn 6 3 (\ ())) tg))
               (ruleTrans (fork_false_to_snd unaryCell ff_l5 (testTag 4) input_pkg (idxTest_skip derTagIdx 6 4 input_pkg (wn 6 4 (\ ())) tg))
                 (ruleTrans (fork_false_to_snd wfAdCell ff_l6 (testTag 5) input_pkg (idxTest_skip derTagIdx 6 5 input_pkg (wn 6 5 (\ ())) tg))
-                           (fork_true_to_fst rcUnaryCell ff_l7 (testTag 6) input_pkg (idxTest_fire derTagIdx 6 input_pkg tg))))))
-  in ruleTrans to_cellNode (ruleTrans fires (rcUnary_of g h1 h2 (axSnd dgRC (bun3 g h1 h2))))
+                           (fork_true_to_fst rcCompC ff_l7 (testTag 6) input_pkg (idxTest_fire derTagIdx 6 input_pkg tg))))))
+  in ruleTrans to_cellNode (ruleTrans fires (rcCompC_of g h1 h2 (axSnd dgRC (bun3 g h1 h2))))
 
 wfFunRec_rRb : (g h1 h2 d : Term) ->
   Deriv (eqF (ap1 wfFunRec (derRb g h1 h2 d))
-             (ap2 pi (ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2))) (ap1 wfFunRec d)))
+             (ap2 pi (ap1 wfFun (cRec g h1 h2)) (ap1 wfFunRec d)))
 wfFunRec_rRb g h1 h2 d =
   let open Node (ap2 Pair dgRb (bun3 g h1 h2)) d filler
       tg = tag_eq (natCode 7) (axFst dgRb (bun3 g h1 h2))
@@ -338,16 +424,16 @@ wfFunRec_rRb g h1 h2 d =
             (ruleTrans (fork_false_to_snd unaryCell ff_l4 (testTag 3) input_pkg (idxTest_skip derTagIdx 7 3 input_pkg (wn 7 3 (\ ())) tg))
               (ruleTrans (fork_false_to_snd unaryCell ff_l5 (testTag 4) input_pkg (idxTest_skip derTagIdx 7 4 input_pkg (wn 7 4 (\ ())) tg))
                 (ruleTrans (fork_false_to_snd wfAdCell ff_l6 (testTag 5) input_pkg (idxTest_skip derTagIdx 7 5 input_pkg (wn 7 5 (\ ())) tg))
-                  (ruleTrans (fork_false_to_snd rcUnaryCell ff_l7 (testTag 6) input_pkg (idxTest_skip derTagIdx 7 6 input_pkg (wn 7 6 (\ ())) tg))
-                             (fork_true_to_fst rcUnaryCell ff_l8 (testTag 7) input_pkg (idxTest_fire derTagIdx 7 input_pkg tg)))))))
-  in ruleTrans to_cellNode (ruleTrans fires (rcUnary_of g h1 h2 (axSnd dgRb (bun3 g h1 h2))))
+                  (ruleTrans (fork_false_to_snd rcCompC ff_l7 (testTag 6) input_pkg (idxTest_skip derTagIdx 7 6 input_pkg (wn 7 6 (\ ())) tg))
+                             (fork_true_to_fst rcCompRb ff_l8 (testTag 7) input_pkg (idxTest_fire derTagIdx 7 input_pkg tg)))))))
+  in ruleTrans to_cellNode (ruleTrans fires (rcCompRb_of g h1 h2 (axSnd dgRb (bun3 g h1 h2))))
 
 ------------------------------------------------------------------------
 -- SECTION 5.  Binary congruence / redex equations.
 
 wfFunRec_ap2c : (g d1 d2 : Term) ->
   Deriv (eqF (ap1 wfFunRec (ap2c g d1 d2))
-             (ap2 pi (funValid g) (ap2 pi (ap1 wfFunRec d1) (ap1 wfFunRec d2))))
+             (ap2 pi (isF2 g) (ap2 pi (funValid g) (ap2 pi (ap1 wfFunRec d1) (ap1 wfFunRec d2)))))
 wfFunRec_ap2c g d1 d2 =
   let open Node (ap2 Pair dgAp2c g) d1 d2
       tg = tag_eq (natCode 2) (axFst dgAp2c g)
@@ -382,7 +468,7 @@ wfFunRec_rRs g h1 h2 d1 d2 =
             (ruleTrans (fork_false_to_snd unaryCell ff_l4 (testTag 3) input_pkg (idxTest_skip derTagIdx 8 3 input_pkg (wn 8 3 (\ ())) tg))
               (ruleTrans (fork_false_to_snd unaryCell ff_l5 (testTag 4) input_pkg (idxTest_skip derTagIdx 8 4 input_pkg (wn 8 4 (\ ())) tg))
                 (ruleTrans (fork_false_to_snd wfAdCell ff_l6 (testTag 5) input_pkg (idxTest_skip derTagIdx 8 5 input_pkg (wn 8 5 (\ ())) tg))
-                  (ruleTrans (fork_false_to_snd rcUnaryCell ff_l7 (testTag 6) input_pkg (idxTest_skip derTagIdx 8 6 input_pkg (wn 8 6 (\ ())) tg))
-                    (ruleTrans (fork_false_to_snd rcUnaryCell ff_l8 (testTag 7) input_pkg (idxTest_skip derTagIdx 8 7 input_pkg (wn 8 7 (\ ())) tg))
+                  (ruleTrans (fork_false_to_snd rcCompC ff_l7 (testTag 6) input_pkg (idxTest_skip derTagIdx 8 6 input_pkg (wn 8 6 (\ ())) tg))
+                    (ruleTrans (fork_false_to_snd rcCompRb ff_l8 (testTag 7) input_pkg (idxTest_skip derTagIdx 8 7 input_pkg (wn 8 7 (\ ())) tg))
                                (fork_true_to_fst rcBinCell Z (testTag 8) input_pkg (idxTest_fire derTagIdx 8 input_pkg tg))))))))
   in ruleTrans to_cellNode (ruleTrans fires (rcBin_of g h1 h2 (axSnd dgRs (bun3 g h1 h2))))

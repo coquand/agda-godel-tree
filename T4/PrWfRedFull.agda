@@ -24,9 +24,9 @@ open import T4.PrTriShadow
   using ( DerM ; mRefl ; mAp1c ; mAp2c ; mO ; mU ; mV ; mC ; mRb ; mRs
         ; Fun1M ; Fun2M ; f1S ; f1Zero ; f1Id ; f1Comp ; f2Proj ; f2Rec
         ; codeF1 ; codeF2 ; codeDer )
-open import T4.PrWfFunShadow using ( wfFun_codeF1 ; wfFun_codeF2 )
-open import T4.PrWfFun using ( wfFun )
-open import T4.PrCodeObj using ( cRec )
+open import T4.PrWfFunShadow using ( wfFun_codeF1 ; wfFun_codeF2 ; isF1_codeF1 ; isF2_codeF2 )
+open import T4.PrWfFun using ( wfFun ; isF1 ; isF2 )
+open import T4.PrCodeObj using ( cRec ; cComp )
 open import T4.PrWfFunRec
   using ( wfFunRec ; funValid ; wfFunRec_reflO ; wfFunRec_ap1c ; wfFunRec_ap2c
         ; wfFunRec_rO ; wfFunRec_rU ; wfFunRec_rV ; wfFunRec_rC ; wfFunRec_rRb
@@ -70,15 +70,21 @@ wfFunRec_shadow : (d : DerM) -> Deriv (eqF (ap1 wfFunRec (codeDer d)) O)
 wfFunRec_shadow mRefl = wfFunRec_reflO
 wfFunRec_shadow (mAp1c fm d) =
   ruleTrans (wfFunRec_ap1c (codeF1 fm) (codeDer d))
-            (piBothO (funValid (codeF1 fm)) (ap1 wfFunRec (codeDer d))
-                     (funValid_codeF1 fm) (wfFunRec_shadow d))
+            (piBothO (isF1 (codeF1 fm)) (ap2 pi (funValid (codeF1 fm)) (ap1 wfFunRec (codeDer d)))
+                     (isF1_codeF1 fm)
+                     (piBothO (funValid (codeF1 fm)) (ap1 wfFunRec (codeDer d))
+                              (funValid_codeF1 fm) (wfFunRec_shadow d)))
 wfFunRec_shadow (mAp2c fm d1 d2) =
   ruleTrans (wfFunRec_ap2c (codeF2 fm) (codeDer d1) (codeDer d2))
-            (piBothO (funValid (codeF2 fm))
-                     (ap2 pi (ap1 wfFunRec (codeDer d1)) (ap1 wfFunRec (codeDer d2)))
-                     (funValid_codeF2 fm)
-                     (piBothO (ap1 wfFunRec (codeDer d1)) (ap1 wfFunRec (codeDer d2))
-                              (wfFunRec_shadow d1) (wfFunRec_shadow d2)))
+            (piBothO (isF2 (codeF2 fm))
+                     (ap2 pi (funValid (codeF2 fm))
+                       (ap2 pi (ap1 wfFunRec (codeDer d1)) (ap1 wfFunRec (codeDer d2))))
+                     (isF2_codeF2 fm)
+                     (piBothO (funValid (codeF2 fm))
+                              (ap2 pi (ap1 wfFunRec (codeDer d1)) (ap1 wfFunRec (codeDer d2)))
+                              (funValid_codeF2 fm)
+                              (piBothO (ap1 wfFunRec (codeDer d1)) (ap1 wfFunRec (codeDer d2))
+                                       (wfFunRec_shadow d1) (wfFunRec_shadow d2))))
 wfFunRec_shadow (mO d) = ruleTrans (wfFunRec_rO (codeDer d)) (wfFunRec_shadow d)
 wfFunRec_shadow (mU d) = ruleTrans (wfFunRec_rU (codeDer d)) (wfFunRec_shadow d)
 wfFunRec_shadow (mV d1 d2) =
@@ -87,19 +93,15 @@ wfFunRec_shadow (mV d1 d2) =
                      (wfFunRec_shadow d1) (wfFunRec_shadow d2))
 wfFunRec_shadow (mC g h1 h2 d) =
   ruleTrans (wfFunRec_rC (codeF2 g) (codeF1 h1) (codeF1 h2) (codeDer d))
-            (piBothO (ap2 pi (funValid (codeF2 g))
-                             (ap2 pi (funValid (codeF1 h1)) (funValid (codeF1 h2))))
+            (piBothO (ap1 wfFun (cComp (codeF2 g) (codeF1 h1) (codeF1 h2)))
                      (ap1 wfFunRec (codeDer d))
-                     (fv3_zero (codeF2 g) (codeF1 h1) (codeF1 h2)
-                               (funValid_codeF2 g) (funValid_codeF1 h1) (funValid_codeF1 h2))
+                     (wfFun_codeF1 (f1Comp g h1 h2))
                      (wfFunRec_shadow d))
 wfFunRec_shadow (mRb g h1 h2 d) =
   ruleTrans (wfFunRec_rRb (codeF1 g) (codeF2 h1) (codeF2 h2) (codeDer d))
-            (piBothO (ap2 pi (funValid (codeF1 g))
-                             (ap2 pi (funValid (codeF2 h1)) (funValid (codeF2 h2))))
+            (piBothO (ap1 wfFun (cRec (codeF1 g) (codeF2 h1) (codeF2 h2)))
                      (ap1 wfFunRec (codeDer d))
-                     (fv3_zero (codeF1 g) (codeF2 h1) (codeF2 h2)
-                               (funValid_codeF1 g) (funValid_codeF2 h1) (funValid_codeF2 h2))
+                     (wfFun_codeF2 (f2Rec g h1 h2))
                      (wfFunRec_shadow d))
 wfFunRec_shadow (mRs g h1 h2 d1 d2) =
   ruleTrans (wfFunRec_rRs (codeF1 g) (codeF2 h1) (codeF2 h2) (codeDer d1) (codeDer d2))
