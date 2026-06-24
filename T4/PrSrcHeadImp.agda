@@ -20,12 +20,12 @@ module T4.PrSrcHeadImp where
 
 open import T4.Base
 
-open import T4.PrDerCode using ( dgAp1c ; dgAp2c ; dgRo ; dgRu ; dgRv )
-open import T4.PrCodeObj using ( tmAp1 ; tmAp2 ; tgAp2 ; cZero ; cId ; cProj )
+open import T4.PrDerCode using ( dgAp1c ; dgAp2c ; dgRo ; dgRu ; dgRv ; dgRC )
+open import T4.PrCodeObj using ( tmAp1 ; tmAp2 ; tgAp2 ; cZero ; cId ; cProj ; cComp )
 open import T4.PrDev using ( mkAp1 ; mkAp1_val ; mkAp2 ; mkAp2_val ; tmOF )
 open import T4.PrSrc
-  using ( srcF ; cellNodeSrc ; ap1cCell ; ap2cCell ; rOCell ; rUCell ; rVCell
-        ; src_l2 ; src_l3 ; src_l4 ; src_l5 ; src_l6 ; bunF ; srcL ; srcR
+  using ( srcF ; cellNodeSrc ; ap1cCell ; ap2cCell ; rOCell ; rUCell ; rVCell ; rCCell ; mkComp ; mkComp_val
+        ; src_l2 ; src_l3 ; src_l4 ; src_l5 ; src_l6 ; src_l7 ; bunF ; bunG ; bunH1 ; bunH2 ; srcL ; srcR
         ; cZeroF ; cZeroF_val ; cIdF ; cIdF_val ; cProjF ; cProjF_val ; derTagIdx ; derBunIdx ; testTag )
 open import T4.PrSrcUOpaque using ( funP )
 open import T4.DerCodeS using ( dtag )
@@ -300,4 +300,36 @@ srcF_rV_himp p =
                  (impEqTrans (ap1 src_l4 opk) (ap1 src_l5 opk) (ap1 rVCell opk) skip4 fire5)))
       cellVal = mkAp2_val cProjF srcL srcR opk cProj (ap1 srcL opk) (ap1 srcR opk) (cProjF_val opk) (axRefl (ap1 srcL opk)) (axRefl (ap1 srcR opk))
       e4 = impEqTrans (ap1 cellNodeSrc opk) (ap1 rVCell opk) rhs e3 (liftP HH cellVal)
+  in cnjCurry (impEqTrans (ap1 srcF p) (ap1 cellNodeSrc opk) rhs (toCellNode p htag) e4)
+
+-- srcF of a C-redex child:  srcF p = tmAp1 (cComp (bunG opk)(bunH1 opk)(bunH2 opk)) (srcChildArg p).
+srcF_rC_himp : (p : Term) ->
+  Deriv (imp (eqF (ap1 Fst p) (natCode 2))
+             (imp (eqF (ap1 Fst (dtag p)) dgRC)
+                  (eqF (ap1 srcF p)
+                       (tmAp1 (cComp (ap1 bunG (Hs.opkg p)) (ap1 bunH1 (Hs.opkg p)) (ap1 bunH2 (Hs.opkg p))) (srcChildArg p)))))
+srcF_rC_himp p =
+  let htag = eqF (ap1 Fst (dtag p)) dgRC
+      HH = Cnj (eqF (ap1 Fst p) (natCode 2)) htag
+      opk = Hs.opkg p
+      cmp = cComp (ap1 bunG opk) (ap1 bunH1 opk) (ap1 bunH2 opk)
+      rhs = tmAp1 cmp (ap1 srcL opk)
+      derTagH = derTagAt p 6
+      skip1 = fork_false_to_snd_imp HH ap1cCell src_l2 (testTag 1) opk (natEqSkip_imp HH derTagIdx 6 1 opk (wn 6 1 (\ ())) derTagH)
+      skip2 = fork_false_to_snd_imp HH ap2cCell src_l3 (testTag 2) opk (natEqSkip_imp HH derTagIdx 6 2 opk (wn 6 2 (\ ())) derTagH)
+      skip3 = fork_false_to_snd_imp HH rOCell src_l4 (testTag 3) opk (natEqSkip_imp HH derTagIdx 6 3 opk (wn 6 3 (\ ())) derTagH)
+      skip4 = fork_false_to_snd_imp HH rUCell src_l5 (testTag 4) opk (natEqSkip_imp HH derTagIdx 6 4 opk (wn 6 4 (\ ())) derTagH)
+      skip5 = fork_false_to_snd_imp HH rVCell src_l6 (testTag 5) opk (natEqSkip_imp HH derTagIdx 6 5 opk (wn 6 5 (\ ())) derTagH)
+      fire6 = fork_true_to_fst_imp HH rCCell src_l7 (testTag 6) opk (natEqFire_imp HH derTagIdx 6 opk derTagH)
+      e3 = impEqTrans (ap1 cellNodeSrc opk) (ap1 src_l2 opk) (ap1 rCCell opk) skip1
+             (impEqTrans (ap1 src_l2 opk) (ap1 src_l3 opk) (ap1 rCCell opk) skip2
+               (impEqTrans (ap1 src_l3 opk) (ap1 src_l4 opk) (ap1 rCCell opk) skip3
+                 (impEqTrans (ap1 src_l4 opk) (ap1 src_l5 opk) (ap1 rCCell opk) skip4
+                   (impEqTrans (ap1 src_l5 opk) (ap1 src_l6 opk) (ap1 rCCell opk) skip5 fire6))))
+      cellRaw = mkAp1_val (mkComp bunG bunH1 bunH2) srcL opk (ap1 (mkComp bunG bunH1 bunH2) opk) (ap1 srcL opk)
+                  (axRefl (ap1 (mkComp bunG bunH1 bunH2) opk)) (axRefl (ap1 srcL opk))
+      funEq = mkComp_val bunG bunH1 bunH2 opk (ap1 bunG opk) (ap1 bunH1 opk) (ap1 bunH2 opk)
+                (axRefl (ap1 bunG opk)) (axRefl (ap1 bunH1 opk)) (axRefl (ap1 bunH2 opk))
+      cellVal = ruleTrans cellRaw (congR Pair tgAp1 (congL Pair (ap1 srcL opk) funEq))
+      e4 = impEqTrans (ap1 cellNodeSrc opk) (ap1 rCCell opk) rhs e3 (liftP HH cellVal)
   in cnjCurry (impEqTrans (ap1 srcF p) (ap1 cellNodeSrc opk) rhs (toCellNode p htag) e4)
