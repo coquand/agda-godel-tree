@@ -20,11 +20,12 @@ module T4.PrSrcHeadImp where
 
 open import T4.Base
 
-open import T4.PrDerCode using ( dgAp1c ; dgAp2c )
-open import T4.PrCodeObj using ( tmAp1 ; tmAp2 ; tgAp2 )
+open import T4.PrDerCode using ( dgAp1c ; dgAp2c ; dgRo )
+open import T4.PrCodeObj using ( tmAp1 ; tmAp2 ; tgAp2 ; cZero )
 open import T4.PrDev using ( mkAp1 ; mkAp1_val ; mkAp2 ; mkAp2_val ; tmOF )
 open import T4.PrSrc
-  using ( srcF ; cellNodeSrc ; ap1cCell ; ap2cCell ; src_l2 ; src_l3 ; bunF ; srcL ; srcR ; derTagIdx ; derBunIdx ; testTag )
+  using ( srcF ; cellNodeSrc ; ap1cCell ; ap2cCell ; rOCell ; src_l2 ; src_l3 ; src_l4 ; bunF ; srcL ; srcR
+        ; cZeroF ; cZeroF_val ; derTagIdx ; derBunIdx ; testTag )
 open import T4.PrSrcUOpaque using ( funP )
 open import T4.DerCodeS using ( dtag )
 open import T4.BinTree using ( nIdx )
@@ -199,3 +200,59 @@ srcF_ap2c_himp p =
                 (impEqTrans (ap1 srcStepU opk) (ap1 cellNodeSrc opk) rhs e2
                   (impEqTrans (ap1 cellNodeSrc opk) (ap1 ap2cCell opk) rhs e3 e4))
   in cnjCurry chain
+
+------------------------------------------------------------------------
+-- Shared cores for the redex src-head lifts (factor the prefix).
+
+private
+  -- srcF p = cellNodeSrc opk  over  HH = Cnj (Fst p=2) htag  (opUnfold + leaf-skip).
+  toCellNode : (p : Term) (htag : Formula) ->
+    Deriv (imp (Cnj (eqF (ap1 Fst p) (natCode 2)) htag) (eqF (ap1 srcF p) (ap1 cellNodeSrc (Hs.opkg p))))
+  toCellNode p htag =
+    let Hd2 = eqF (ap1 Fst p) (natCode 2)
+        HH = Cnj Hd2 htag
+        opk = Hs.opkg p
+        ne = compI (cnjL Hd2 htag) (ne_from_head2 p)
+        op_tag_ne = impEqTrans (ap1 get_tag opk) (ap1 Fst (ap1 get_newK opk)) (ap1 Fst p)
+                      (impLift (compose1U_eq Fst get_newK opk)) (impCong1 Fst (ap1 get_newK opk) p (Hs.op_newK_imp p))
+        gtag = impEqTrans (ap1 get_tag opk) (ap1 Fst p) (natCode 2) (compI ne op_tag_ne) (cnjL Hd2 htag)
+        e1 = compI ne (Hs.opUnfold_imp p)
+        t1O = impEqTrans (ap1 (C natEqF get_tag (constN 1)) opk) (ap2 natEqF (ap1 get_tag opk) (natCode 1)) O
+                (impLift (ruleTrans (ax_C natEqF get_tag (constN 1) opk) (congR natEqF (ap1 get_tag opk) (constN_eq 1 opk))))
+                (impEqTrans (ap2 natEqF (ap1 get_tag opk) (natCode 1)) (ap2 natEqF (natCode 2) (natCode 1)) O
+                  (impCongL natEqF (ap1 get_tag opk) (natCode 2) (natCode 1) gtag)
+                  (impLift (natEqF_at_neq 2 1 (wn 2 1 (\ ())))))
+        e2 = fork_false_to_snd_imp HH tmOF cellNodeSrc (C natEqF get_tag (constN 1)) opk t1O
+    in impEqTrans (ap1 srcF p) (ap1 srcStepU opk) (ap1 cellNodeSrc opk) e1 e2
+
+  -- derTagIdx opk = natCode k  over  HH = Cnj (Fst p=2) (Fst(dtag p)=natCode k).
+  derTagAt : (p : Term) (k : Nat) ->
+    Deriv (imp (Cnj (eqF (ap1 Fst p) (natCode 2)) (eqF (ap1 Fst (dtag p)) (natCode k)))
+               (eqF (ap1 derTagIdx (Hs.opkg p)) (natCode k)))
+  derTagAt p k =
+    let Hd2 = eqF (ap1 Fst p) (natCode 2)
+        htag = eqF (ap1 Fst (dtag p)) (natCode k)
+        opk = Hs.opkg p
+        ne = compI (cnjL Hd2 htag) (ne_from_head2 p)
+        derTag_ne = impEqTrans (ap1 derTagIdx opk) (ap1 Fst (ap1 nIdx opk)) (ap1 Fst (dtag p))
+                      (impLift (compose1U_eq Fst nIdx opk)) (impCong1 Fst (ap1 nIdx opk) (dtag p) (Hs.op_nIdx_imp p))
+    in impEqTrans (ap1 derTagIdx opk) (ap1 Fst (dtag p)) (natCode k) (compI ne derTag_ne) (cnjR Hd2 htag)
+
+-- srcF of an rO (o-redex) child:  srcF p = tmAp1 cZero (srcChildArg p)  (cZero concrete).
+srcF_rO_himp : (p : Term) ->
+  Deriv (imp (eqF (ap1 Fst p) (natCode 2))
+             (imp (eqF (ap1 Fst (dtag p)) dgRo) (eqF (ap1 srcF p) (tmAp1 cZero (srcChildArg p)))))
+srcF_rO_himp p =
+  let htag = eqF (ap1 Fst (dtag p)) dgRo
+      HH = Cnj (eqF (ap1 Fst p) (natCode 2)) htag
+      opk = Hs.opkg p
+      rhs = tmAp1 cZero (ap1 srcL opk)
+      derTagH = derTagAt p 3
+      skip1 = fork_false_to_snd_imp HH ap1cCell src_l2 (testTag 1) opk (natEqSkip_imp HH derTagIdx 3 1 opk (wn 3 1 (\ ())) derTagH)
+      skip2 = fork_false_to_snd_imp HH ap2cCell src_l3 (testTag 2) opk (natEqSkip_imp HH derTagIdx 3 2 opk (wn 3 2 (\ ())) derTagH)
+      fire3 = fork_true_to_fst_imp HH rOCell src_l4 (testTag 3) opk (natEqFire_imp HH derTagIdx 3 opk derTagH)
+      e3 = impEqTrans (ap1 cellNodeSrc opk) (ap1 src_l2 opk) (ap1 rOCell opk) skip1
+             (impEqTrans (ap1 src_l2 opk) (ap1 src_l3 opk) (ap1 rOCell opk) skip2 fire3)
+      cellVal = mkAp1_val cZeroF srcL opk cZero (ap1 srcL opk) (cZeroF_val opk) (axRefl (ap1 srcL opk))
+      e4 = impEqTrans (ap1 cellNodeSrc opk) (ap1 rOCell opk) rhs e3 (liftP HH cellVal)
+  in cnjCurry (impEqTrans (ap1 srcF p) (ap1 cellNodeSrc opk) rhs (toCellNode p htag) e4)
