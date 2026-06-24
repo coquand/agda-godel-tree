@@ -146,9 +146,12 @@ private
   arF1_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 arF1cell (opkg p)) (isF1 (funP p)))
   arF1_op p ne =
-    ruleTrans (ax_C pi (C natEqF bunGidx (constN 7)) (C natEqF bunGidx (constN 8)) (opkg p))
-      (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 8)) (opkg p)) (nHb_op p ne 7))
-                 (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 7)) (nHb_op p ne 8)))
+    ruleTrans (ax_C pi (C natEqF bunGidx (constN 7)) (C pi (C natEqF bunGidx (constN 8)) (C natEqF bunGidx (constN 1))) (opkg p))
+      (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 8)) (C natEqF bunGidx (constN 1))) (opkg p)) (nHb_op p ne 7))
+        (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 7))
+          (ruleTrans (ax_C pi (C natEqF bunGidx (constN 8)) (C natEqF bunGidx (constN 1)) (opkg p))
+            (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 1)) (opkg p)) (nHb_op p ne 8))
+                       (congR pi (ap2 natEqF (ap1 Fst (funP p)) (natCode 8)) (nHb_op p ne 1))))))
   arF2_op : (p : Term) -> Deriv (neg (eqF p O)) ->
     Deriv (eqF (ap1 arF2cell (opkg p)) (isF2 (funP p)))
   arF2_op p ne =

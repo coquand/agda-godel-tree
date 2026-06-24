@@ -52,10 +52,13 @@ private
         Deriv (eqF (ap2 natEqF (ap1 Fst f) (natCode k)) O)
   nHO f m k hd w = ruleTrans (congL natEqF (natCode k) hd) (natEqF_at_neq m k (decideNatNeq m k w))
   isF1O : (f : Term) (m : Nat) -> Deriv (eqF (ap1 Fst f) (natCode m)) ->
-          ((Eq m 7) -> Empty) -> ((Eq m 8) -> Empty) -> Deriv (eqF (isF1 f) O)
-  isF1O f m hd w7 w8 =
-    piBothO (ap2 natEqF (ap1 Fst f) (natCode 7)) (ap2 natEqF (ap1 Fst f) (natCode 8))
-      (nHO f m 7 hd w7) (nHO f m 8 hd w8)
+          ((Eq m 7) -> Empty) -> ((Eq m 8) -> Empty) -> ((Eq m 1) -> Empty) -> Deriv (eqF (isF1 f) O)
+  isF1O f m hd w7 w8 w1 =
+    piBothO (ap2 natEqF (ap1 Fst f) (natCode 7))
+      (ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 8)) (ap2 natEqF (ap1 Fst f) (natCode 1)))
+      (nHO f m 7 hd w7)
+      (piBothO (ap2 natEqF (ap1 Fst f) (natCode 8)) (ap2 natEqF (ap1 Fst f) (natCode 1))
+        (nHO f m 8 hd w8) (nHO f m 1 hd w1))
   isF2O : (f : Term) (m : Nat) -> Deriv (eqF (ap1 Fst f) (natCode m)) ->
           ((Eq m 3) -> Empty) -> ((Eq m 4) -> Empty) -> ((Eq m 5) -> Empty) -> ((Eq m 6) -> Empty) ->
           Deriv (eqF (isF2 f) O)
@@ -72,10 +75,10 @@ private
 
 isF1_codeF1 : (fm : Fun1M) -> Deriv (eqF (isF1 (codeF1 fm)) O)
 isF2_codeF2 : (fm : Fun2M) -> Deriv (eqF (isF2 (codeF2 fm)) O)
-isF1_codeF1 f1S    = isF1O cSuc  3 hd_cSuc  (\ ()) (\ ())
-isF1_codeF1 f1Zero = isF1O cZero 4 hd_cZero (\ ()) (\ ())
-isF1_codeF1 f1Id   = isF1O cId   5 hd_cId   (\ ()) (\ ())
-isF1_codeF1 (f1Comp g h1 h2) = isF1O (cComp (codeF2 g) (codeF1 h1) (codeF1 h2)) 6 (hd_cComp (codeF2 g) (codeF1 h1) (codeF1 h2)) (\ ()) (\ ())
+isF1_codeF1 f1S    = isF1O cSuc  3 hd_cSuc  (\ ()) (\ ()) (\ ())
+isF1_codeF1 f1Zero = isF1O cZero 4 hd_cZero (\ ()) (\ ()) (\ ())
+isF1_codeF1 f1Id   = isF1O cId   5 hd_cId   (\ ()) (\ ()) (\ ())
+isF1_codeF1 (f1Comp g h1 h2) = isF1O (cComp (codeF2 g) (codeF1 h1) (codeF1 h2)) 6 (hd_cComp (codeF2 g) (codeF1 h1) (codeF1 h2)) (\ ()) (\ ()) (\ ())
 isF2_codeF2 f2Proj = isF2O cProj 7 hd_cProj (\ ()) (\ ()) (\ ()) (\ ())
 isF2_codeF2 (f2Rec g h1 h2) = isF2O (cRec (codeF1 g) (codeF2 h1) (codeF2 h2)) 8 (hd_cRec (codeF1 g) (codeF2 h1) (codeF2 h2)) (\ ()) (\ ()) (\ ()) (\ ())
 

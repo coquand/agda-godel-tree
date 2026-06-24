@@ -89,7 +89,8 @@ wfAdCell : Fun1                     -- pi (wfFunRec l)(wfFunRec r)
 wfAdCell = C pi (lookupAt lIdx) (lookupAt rIdx)
 -- FIX(C): ap1c carries a Fun1 funcode (head in {3,4,5,6}); ap2c a Fun2 (head {7,8}).
 arF1cell : Fun1                     -- isF1 funP : head in {3,4,5,6}
-arF1cell = C pi (C natEqF bunGidx (constN 7)) (C natEqF bunGidx (constN 8))
+arF1cell = C pi (C natEqF bunGidx (constN 7))
+             (C pi (C natEqF bunGidx (constN 8)) (C natEqF bunGidx (constN 1)))
 arF2cell : Fun1                     -- isF2 funP : head in {7,8}
 arF2cell = C pi (C natEqF bunGidx (constN 3))
              (C pi (C natEqF bunGidx (constN 4))
@@ -221,9 +222,12 @@ module Node (lab l r : Term) where
   arF1_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
             Deriv (eqF (ap1 arF1cell input_pkg) (isF1 bnd))
   arF1_of bnd e =
-    ruleTrans (ax_C pi (C natEqF bunGidx (constN 7)) (C natEqF bunGidx (constN 8)) input_pkg)
-      (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 8)) input_pkg) (nHb 7 bnd e))
-                 (congR pi (ap2 natEqF (ap1 Fst bnd) (natCode 7)) (nHb 8 bnd e)))
+    ruleTrans (ax_C pi (C natEqF bunGidx (constN 7)) (C pi (C natEqF bunGidx (constN 8)) (C natEqF bunGidx (constN 1))) input_pkg)
+      (ruleTrans (congL pi (ap1 (C pi (C natEqF bunGidx (constN 8)) (C natEqF bunGidx (constN 1))) input_pkg) (nHb 7 bnd e))
+        (congR pi (ap2 natEqF (ap1 Fst bnd) (natCode 7))
+          (ruleTrans (ax_C pi (C natEqF bunGidx (constN 8)) (C natEqF bunGidx (constN 1)) input_pkg)
+            (ruleTrans (congL pi (ap1 (C natEqF bunGidx (constN 1)) input_pkg) (nHb 8 bnd e))
+                       (congR pi (ap2 natEqF (ap1 Fst bnd) (natCode 8)) (nHb 1 bnd e))))))
   arF2_of : (bnd : Term) -> Deriv (eqF (ap1 Snd lab) bnd) ->
             Deriv (eqF (ap1 arF2cell input_pkg) (isF2 bnd))
   arF2_of bnd e =

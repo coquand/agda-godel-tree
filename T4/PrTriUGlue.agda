@@ -505,8 +505,14 @@ private
   isF1cong : (a b : Term) -> Deriv (eqF a b) -> Deriv (eqF (isF1 a) (isF1 b))
   isF1cong a b e =
     let fe = cong1 Fst e
-    in ruleTrans (congL pi (ap2 natEqF (ap1 Fst a) (natCode 8)) (congL natEqF (natCode 7) fe))
-                 (congR pi (ap2 natEqF (ap1 Fst b) (natCode 7)) (congL natEqF (natCode 8) fe))
+        e7 = congL natEqF (natCode 7) fe
+        e8 = congL natEqF (natCode 8) fe
+        e1 = congL natEqF (natCode 1) fe
+        innerA = ap2 pi (ap2 natEqF (ap1 Fst a) (natCode 8)) (ap2 natEqF (ap1 Fst a) (natCode 1))
+        innerEq = ruleTrans (congL pi (ap2 natEqF (ap1 Fst a) (natCode 1)) e8)
+                            (congR pi (ap2 natEqF (ap1 Fst b) (natCode 8)) e1)
+    in ruleTrans (congL pi innerA e7)
+                 (congR pi (ap2 natEqF (ap1 Fst b) (natCode 7)) innerEq)
   isF2cong : (a b : Term) -> Deriv (eqF a b) -> Deriv (eqF (isF2 a) (isF2 b))
   isF2cong a b e =
     let fe = cong1 Fst e

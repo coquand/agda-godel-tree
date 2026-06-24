@@ -123,9 +123,12 @@ private
     Deriv (eqF (ap1 (compose1U Fst idx) (opkg p)) (ap1 Fst X)) ->
     Deriv (eqF (ap1 (isF1at idx) (opkg p)) (isF1 X))
   isF1at_op p idx X hd =
-    ruleTrans (ax_C pi (nH 7 idx) (nH 8 idx) (opkg p))
-      (ruleTrans (congL pi (ap1 (nH 8 idx) (opkg p)) (nH_op p 7 idx X hd))
-                 (congR pi (ap2 natEqF (ap1 Fst X) (natCode 7)) (nH_op p 8 idx X hd)))
+    ruleTrans (ax_C pi (nH 7 idx) (C pi (nH 8 idx) (nH 1 idx)) (opkg p))
+      (ruleTrans (congL pi (ap1 (C pi (nH 8 idx) (nH 1 idx)) (opkg p)) (nH_op p 7 idx X hd))
+        (congR pi (ap2 natEqF (ap1 Fst X) (natCode 7))
+          (ruleTrans (ax_C pi (nH 8 idx) (nH 1 idx) (opkg p))
+            (ruleTrans (congL pi (ap1 (nH 1 idx) (opkg p)) (nH_op p 8 idx X hd))
+                       (congR pi (ap2 natEqF (ap1 Fst X) (natCode 8)) (nH_op p 1 idx X hd))))))
   isF2at_op : (p : Term) (idx : Fun1) (X : Term) ->
     Deriv (eqF (ap1 (compose1U Fst idx) (opkg p)) (ap1 Fst X)) ->
     Deriv (eqF (ap1 (isF2at idx) (opkg p)) (isF2 X))

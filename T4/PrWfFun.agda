@@ -60,7 +60,7 @@ rejectCell = constN 1
 nH : Nat -> Fun1 -> Fun1             -- O iff Fst (idx) != natCode k
 nH k idx = C natEqF (compose1U Fst idx) (constN k)
 isF1at : Fun1 -> Fun1                -- O iff head in {3,4,5,6}  (a Fun1 funcode)
-isF1at idx = C pi (nH 7 idx) (nH 8 idx)
+isF1at idx = C pi (nH 7 idx) (C pi (nH 8 idx) (nH 1 idx))
 isF2at : Fun1 -> Fun1                -- O iff head in {7,8}      (a Fun2 funcode)
 isF2at idx = C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx)))
 
@@ -90,7 +90,8 @@ wfFunNodeCell = C condFork (C pi leafCell wfn_l4) (testHd 3)
 
 -- bare arity predicates (the cell values).
 isF1 : Term -> Term
-isF1 f = ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 7)) (ap2 natEqF (ap1 Fst f) (natCode 8))
+isF1 f = ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 7))
+           (ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 8)) (ap2 natEqF (ap1 Fst f) (natCode 1)))
 isF2 : Term -> Term
 isF2 f = ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 3))
            (ap2 pi (ap2 natEqF (ap1 Fst f) (natCode 4))
@@ -231,9 +232,12 @@ module CompNode (kp : Nat) (g h1 h2 : Term) (w1 : NatNeqWitness (suc kp) 1) wher
     Deriv (eqF (ap1 (compose1U Fst idx) input_pkg) (ap1 Fst X)) ->
     Deriv (eqF (ap1 (isF1at idx) input_pkg) (isF1 X))
   isF1at_val idx X hd =
-    ruleTrans (ax_C pi (nH 7 idx) (nH 8 idx) input_pkg)
-      (ruleTrans (congL pi (ap1 (nH 8 idx) input_pkg) (nHval 7 idx X hd))
-                 (congR pi (ap2 natEqF (ap1 Fst X) (natCode 7)) (nHval 8 idx X hd)))
+    ruleTrans (ax_C pi (nH 7 idx) (C pi (nH 8 idx) (nH 1 idx)) input_pkg)
+      (ruleTrans (congL pi (ap1 (C pi (nH 8 idx) (nH 1 idx)) input_pkg) (nHval 7 idx X hd))
+        (congR pi (ap2 natEqF (ap1 Fst X) (natCode 7))
+          (ruleTrans (ax_C pi (nH 8 idx) (nH 1 idx) input_pkg)
+            (ruleTrans (congL pi (ap1 (nH 1 idx) input_pkg) (nHval 8 idx X hd))
+                       (congR pi (ap2 natEqF (ap1 Fst X) (natCode 8)) (nHval 1 idx X hd))))))
   isF2at_val : (idx : Fun1) (X : Term) ->
     Deriv (eqF (ap1 (compose1U Fst idx) input_pkg) (ap1 Fst X)) ->
     Deriv (eqF (ap1 (isF2at idx) input_pkg) (isF2 X))
