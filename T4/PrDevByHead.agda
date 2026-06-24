@@ -28,6 +28,9 @@ open import T4.PrCodeObj using ( tmO ; tmAp1 ; tmAp2 ; cSuc ; cRec ; tgO ; tgAp1
 open import T4.PrDev
 
 open import T4.DerSrc using ( fork_true_to_fst ; fork_false_to_snd )
+open import T4.ForkImp using ( fork_false_to_snd_imp ; natEqSkip_imp )
+open import T4.Thm12.ImpHelpers using ( impLift ; impEqTrans )
+open import BRA3.Contrapositive using ( identP )
 
 open import BRA3.Church       using ( pi )
 open import BRA3.PairAlgebra  using ( compose1U ; compose1U_eq )
@@ -202,3 +205,40 @@ devF_ap2_Rcong_h g a b hg mb mf hb mb0 hbf mf3 =
       recFun = mkRec_val bG0 bH1 bH2 input_pkg (gF g) (h1F g) (h2F g) bG0_eq bH1_eq bH2_eq
       val = mkAp2_val (mkRec bG0 bH1 bH2) devA devB input_pkg (cRec (gF g) (h1F g) (h2F g)) (ap1 devF a) (ap1 devF b) recFun recA recB
   in ruleTrans to_ap2Cell (ruleTrans to_R_disp (ruleTrans fires val))
+
+-- IMP-FORM:  the head-2 condition  Fst(Fst(Snd b)) = natCode mf  threaded as the
+-- antecedent (g concrete via reconstruction so hg/hb are bare; only the inner-fun
+-- head mf is ctx-only in the glue).  Used by the ap2c cRec Rcong sub-glue.
+devF_ap2_Rcong_imp : (g a b : Term) -> Deriv (eqF (ap1 Fst g) (natCode 8)) ->
+  (mb mf : Nat) -> Deriv (eqF (ap1 Fst b) (natCode mb)) -> ((Eq mb 0) -> Empty) -> ((Eq mf 3) -> Empty) ->
+  Deriv (imp (eqF (ap1 Fst (ap1 Fst (ap1 Snd b))) (natCode mf))
+             (eqF (ap1 devF (tmAp2 g a b)) (tmAp2 (cRec (gF g) (h1F g) (h2F g)) (ap1 devF a) (ap1 devF b))))
+devF_ap2_Rcong_imp g a b hg mb mf hb mb0 mf3 =
+  let open RH g a b hg
+      Hbf : Formula
+      Hbf = eqF (ap1 Fst (ap1 Fst (ap1 Snd b))) (natCode mf)
+      res : Term
+      res = tmAp2 (cRec (gF g) (h1F g) (h2F g)) (ap1 devF a) (ap1 devF b)
+      headB_v : Deriv (eqF (ap1 headB input_pkg) (natCode mb))
+      headB_v = ruleTrans (compose1U_eq Fst apB input_pkg) (ruleTrans (cong1 Fst apB_eq) hb)
+      fstSndB : Deriv (eqF (ap1 (compose1U Fst bSnd) input_pkg) (ap1 Fst (ap1 Snd b)))
+      fstSndB = ruleTrans (compose1U_eq Fst bSnd input_pkg)
+                  (cong1 Fst (ruleTrans (compose1U_eq Snd apB input_pkg) (cong1 Snd apB_eq)))
+      headBFun_v_imp : Deriv (imp Hbf (eqF (ap1 headBFun input_pkg) (natCode mf)))
+      headBFun_v_imp = impEqTrans (ap1 headBFun input_pkg) (ap1 Fst (ap1 Fst (ap1 Snd b))) (natCode mf)
+                         (impLift (ruleTrans (compose1U_eq Fst (compose1U Fst bSnd) input_pkg) (cong1 Fst fstSndB)))
+                         (identP Hbf)
+      firstFork : Deriv (eqF (ap1 R_disp input_pkg) (ap1 R_lvl2 input_pkg))
+      firstFork = fork_false_to_snd br_Rb R_lvl2 (testB 0) input_pkg (idxTest_skip headB mb 0 input_pkg (wn mb 0 mb0) headB_v)
+      secondFork : Deriv (imp Hbf (eqF (ap1 R_lvl2 input_pkg) (ap1 br_Rcong input_pkg)))
+      secondFork = fork_false_to_snd_imp Hbf br_Rs br_Rcong (testBF 3) input_pkg
+                     (natEqSkip_imp Hbf headBFun mf 3 input_pkg (wn mf 3 mf3) headBFun_v_imp)
+      fires_imp : Deriv (imp Hbf (eqF (ap1 R_disp input_pkg) (ap1 br_Rcong input_pkg)))
+      fires_imp = impEqTrans (ap1 R_disp input_pkg) (ap1 R_lvl2 input_pkg) (ap1 br_Rcong input_pkg)
+                    (impLift firstFork) secondFork
+      recFun = mkRec_val bG0 bH1 bH2 input_pkg (gF g) (h1F g) (h2F g) bG0_eq bH1_eq bH2_eq
+      val : Deriv (eqF (ap1 br_Rcong input_pkg) res)
+      val = mkAp2_val (mkRec bG0 bH1 bH2) devA devB input_pkg (cRec (gF g) (h1F g) (h2F g)) (ap1 devF a) (ap1 devF b) recFun recA recB
+  in impEqTrans (ap1 devF (tmAp2 g a b)) (ap1 R_disp input_pkg) res
+       (impLift (ruleTrans to_ap2Cell to_R_disp))
+       (impEqTrans (ap1 R_disp input_pkg) (ap1 br_Rcong input_pkg) res fires_imp (impLift val))
