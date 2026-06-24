@@ -84,8 +84,8 @@ open import T4.PrWfFunRecUOpaqueImp using
   ; wfFunRec_op_ap1c_imp ; wfFunRec_op_ap2c_imp )
 
 -- reconstruction extras (rRs / ap1c-C / ap2c-cRec): deep wfFun extraction + funValid_R/C.
-open import T4.PrWfFun using ( wfFun )
-open import T4.PrWfFunUOpaque using ( wfFun_op_R )
+open import T4.PrWfFun using ( wfFun ; isF1 ; isF2 )
+open import T4.PrWfFunUOpaque using ( wfFun_op_C ; wfFun_op_R )
 open import T4.PrFunValidCanon using ( funValidF ; funValidF_eq )
 open import T4.PrFunValid using ( recon ; recon_R ; cG ; cH1 ; cH2 )
 open import T4.PrCRGlueImpU using ( eqDecO_sound_imp )
@@ -468,6 +468,59 @@ private
           (lift3 negLeaf htag PA (wfRedFull_eq t)))
         d)
 
+  -- FIX(C) arity/nonzero/projection helpers (shared by the compound redex glues).
+  natCode8NeqO : Deriv (neg (eqF (natCode 8) O))
+  natCode8NeqO = posNeqO (natCode 8) (mp (ruleInst2 0 O 1 (natCode 7) refl T78) (ruleInst 0 (natCode 7) T76))
+  natCode6NeqO : Deriv (neg (eqF (natCode 6) O))
+  natCode6NeqO = posNeqO (natCode 6) (mp (ruleInst2 0 O 1 (natCode 5) refl T78) (ruleInst 0 (natCode 5) T76))
+
+  gPiL : (htag : Formula) (X Y : Term) ->
+    Deriv (imp negLeaf (imp htag (imp PA (eqF (ap2 pi X Y) O)))) ->
+    Deriv (imp negLeaf (imp htag (imp PA (eqF X O))))
+  gPiL htag X Y d = ap3c (lift3 negLeaf htag PA (piZeroL_imp X Y)) d
+  gPiR : (htag : Formula) (X Y : Term) ->
+    Deriv (imp negLeaf (imp htag (imp PA (eqF (ap2 pi X Y) O)))) ->
+    Deriv (imp negLeaf (imp htag (imp PA (eqF Y O))))
+  gPiR htag X Y d = ap3c (lift3 negLeaf htag PA (piZeroR_imp X Y)) d
+
+  pairKNeqO : (k : Nat) -> Deriv (neg (eqF (natCode k) O)) -> (y : Term) ->
+              Deriv (neg (eqF (ap2 Pair (natCode k) y) O))
+  pairKNeqO k nek y =
+    let P8 : Formula
+        P8 = eqF (ap2 Pair (natCode k) y) O
+        impB : Deriv (imp P8 (eqF (ap1 Fst (ap2 Pair (natCode k) y)) (ap1 Fst O)))
+        impB = impCong1 Fst (ap2 Pair (natCode k) y) O (identP P8)
+        impBO : Deriv (imp P8 (eqF (ap1 Fst (ap2 Pair (natCode k) y)) O))
+        impBO = impEqTrans (ap1 Fst (ap2 Pair (natCode k) y)) (ap1 Fst O) O impB (impLift FstO)
+        imp8O : Deriv (imp P8 (eqF (natCode k) O))
+        imp8O = compI impBO
+                  (prependEqLeft (natCode k) (ap1 Fst (ap2 Pair (natCode k) y)) O
+                     (ruleSym (axFst (natCode k) y)))
+    in mp (mp (axContrapos P8 (eqF (natCode k) O)) imp8O) nek
+  pair8NeqO : (y : Term) -> Deriv (neg (eqF (ap2 Pair (natCode 8) y) O))
+  pair8NeqO = pairKNeqO 8 natCode8NeqO
+  pair6NeqO : (y : Term) -> Deriv (neg (eqF (ap2 Pair (natCode 6) y) O))
+  pair6NeqO = pairKNeqO 6 natCode6NeqO
+
+  isF1cong : (a b : Term) -> Deriv (eqF a b) -> Deriv (eqF (isF1 a) (isF1 b))
+  isF1cong a b e =
+    let fe = cong1 Fst e
+    in ruleTrans (congL pi (ap2 natEqF (ap1 Fst a) (natCode 8)) (congL natEqF (natCode 7) fe))
+                 (congR pi (ap2 natEqF (ap1 Fst b) (natCode 7)) (congL natEqF (natCode 8) fe))
+  isF2cong : (a b : Term) -> Deriv (eqF a b) -> Deriv (eqF (isF2 a) (isF2 b))
+  isF2cong a b e =
+    let fe = cong1 Fst e
+        e3 = congL natEqF (natCode 3) fe
+        e4 = congL natEqF (natCode 4) fe
+        e5 = congL natEqF (natCode 5) fe
+        e6 = congL natEqF (natCode 6) fe
+        innerA = ap2 pi (ap2 natEqF (ap1 Fst a) (natCode 5)) (ap2 natEqF (ap1 Fst a) (natCode 6))
+        midA   = ap2 pi (ap2 natEqF (ap1 Fst a) (natCode 4)) innerA
+        innerEq = ruleTrans (congL pi (ap2 natEqF (ap1 Fst a) (natCode 6)) e5)
+                            (congR pi (ap2 natEqF (ap1 Fst b) (natCode 5)) e6)
+        midEq = ruleTrans (congL pi innerA e4) (congR pi (ap2 natEqF (ap1 Fst b) (natCode 4)) innerEq)
+    in ruleTrans (congL pi midA e3) (congR pi (ap2 natEqF (ap1 Fst b) (natCode 3)) midEq)
+
 ------------------------------------------------------------------------
 -- glue_rC :  C-redex contraction.  triF sK = ap2c g (ap1c h1 X) (ap1c h2 X),
 -- X = triF (pL sK), g/h1/h2 = funP sK components.  No reconstruction.
@@ -485,23 +538,54 @@ glue_rC =
       cc = cComp g h1 h2
       Y  = ap1 devF (ap1 srcF d)
       leqD = rebound d (pLValueBound sK ne_sK)
-      fv3val = ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2))
-      -- child validity at d.
+      Pcc = ap2 Pair (natCode 6) (funP sK)
+      -- child wfRed at d.
       wfRedD : Deriv (imp negLeaf (imp htag (imp PA (eqF (ap1 wfRed d) O))))
       wfRedD = trans3c (ap1 wfRed d) (ap1 wfRed sK) O
                  (Gsym (ap1 wfRed sK) (ap1 wfRed d) htag (addPA htag (wfRed_op_rC_imp sK ne_sK)))
                  (wfRedSK_ctx htag)
-      wfFunPiO : Deriv (imp negLeaf (imp htag (imp PA (eqF (ap2 pi fv3val (ap1 wfFunRec d)) O))))
-      wfFunPiO = trans3c (ap2 pi fv3val (ap1 wfFunRec d)) (ap1 wfFunRec sK) O
-                   (Gsym (ap1 wfFunRec sK) (ap2 pi fv3val (ap1 wfFunRec d)) htag
+      -- extract  ap1 wfFun Pcc = O  and  wfFunRec d = O  from wfFunRec sK = O.
+      wfFunPiO = trans3c (ap2 pi (ap1 wfFun Pcc) (ap1 wfFunRec d)) (ap1 wfFunRec sK) O
+                   (Gsym (ap1 wfFunRec sK) (ap2 pi (ap1 wfFun Pcc) (ap1 wfFunRec d)) htag
                      (addPA htag (wfFunRec_op_rC_imp sK ne_sK)))
                    (wfFunSK_ctx htag)
-      wfFunD = ap3c (lift3 negLeaf htag PA (piZeroR_imp fv3val (ap1 wfFunRec d))) wfFunPiO
-      fv3O = ap3c (lift3 negLeaf htag PA (piZeroL_imp fv3val (ap1 wfFunRec d))) wfFunPiO
-      fvg = ap3c (lift3 negLeaf htag PA (piZeroL_imp (funValid g) (ap2 pi (funValid h1) (funValid h2)))) fv3O
-      fvrest = ap3c (lift3 negLeaf htag PA (piZeroR_imp (funValid g) (ap2 pi (funValid h1) (funValid h2)))) fv3O
-      fvh1 = ap3c (lift3 negLeaf htag PA (piZeroL_imp (funValid h1) (funValid h2))) fvrest
-      fvh2 = ap3c (lift3 negLeaf htag PA (piZeroR_imp (funValid h1) (funValid h2))) fvrest
+      wfPccO = gPiL htag (ap1 wfFun Pcc) (ap1 wfFunRec d) wfFunPiO
+      wfFunD = gPiR htag (ap1 wfFun Pcc) (ap1 wfFunRec d) wfFunPiO
+      -- deep arity+validity components via wfFun_op_C.
+      h6 = axFst (natCode 6) (funP sK)
+      ne6 = pair6NeqO (funP sK)
+      nl6 = ruleTrans (congL natEqF (natCode 1) h6) (natEqF_at_neq 6 1 (decideNatNeq 6 1 (\ ())))
+      wfCOp = wfFun_op_C Pcc ne6 nl6 h6
+      tail2C = ap2 pi (ap1 wfFun (pL Pcc)) (ap1 wfFun (pR Pcc))
+      tail3C = ap2 pi (ap1 wfFun (dtag Pcc)) tail2C
+      tail4C = ap2 pi (isF1 (pR Pcc)) tail3C
+      tail5C = ap2 pi (isF1 (pL Pcc)) tail4C
+      tail6C = ap2 pi (isF2 (dtag Pcc)) tail5C
+      pi7C = ap2 pi (ap1 funValidF Pcc) tail6C
+      pi7CO = trans3c pi7C (ap1 wfFun Pcc) O
+                (Gsym (ap1 wfFun Pcc) pi7C htag (lift3 negLeaf htag PA wfCOp)) wfPccO
+      rest6 = gPiR htag (ap1 funValidF Pcc) tail6C pi7CO
+      isF2dtagO = gPiL htag (isF2 (dtag Pcc)) tail5C rest6
+      rest5 = gPiR htag (isF2 (dtag Pcc)) tail5C rest6
+      isF1pLO = gPiL htag (isF1 (pL Pcc)) tail4C rest5
+      rest4 = gPiR htag (isF1 (pL Pcc)) tail4C rest5
+      isF1pRO = gPiL htag (isF1 (pR Pcc)) tail3C rest4
+      rest3 = gPiR htag (isF1 (pR Pcc)) tail3C rest4
+      wfdtagO = gPiL htag (ap1 wfFun (dtag Pcc)) tail2C rest3
+      rest2 = gPiR htag (ap1 wfFun (dtag Pcc)) tail2C rest3
+      wfpLO = gPiL htag (ap1 wfFun (pL Pcc)) (ap1 wfFun (pR Pcc)) rest2
+      wfpRO = gPiR htag (ap1 wfFun (pL Pcc)) (ap1 wfFun (pR Pcc)) rest2
+      -- rewrite dtag/pL/pR Pcc -> g/h1/h2.
+      sndPcc = axSnd (natCode 6) (funP sK)
+      dtagPcc_eq = cong1 Fst sndPcc
+      pLPcc_eq = cong1 Fst (cong1 Snd sndPcc)
+      pRPcc_eq = cong1 Snd (cong1 Snd sndPcc)
+      isF2g = ap3c (lift3 negLeaf htag PA (prependEqLeft (isF2 g) (isF2 (dtag Pcc)) O (isF2cong g (dtag Pcc) (ruleSym dtagPcc_eq)))) isF2dtagO
+      isF1h1 = ap3c (lift3 negLeaf htag PA (prependEqLeft (isF1 h1) (isF1 (pL Pcc)) O (isF1cong h1 (pL Pcc) (ruleSym pLPcc_eq)))) isF1pLO
+      isF1h2 = ap3c (lift3 negLeaf htag PA (prependEqLeft (isF1 h2) (isF1 (pR Pcc)) O (isF1cong h2 (pR Pcc) (ruleSym pRPcc_eq)))) isF1pRO
+      fvg = ap3c (lift3 negLeaf htag PA (prependEqLeft (ap1 wfFun g) (ap1 wfFun (dtag Pcc)) O (cong1 wfFun (ruleSym dtagPcc_eq)))) wfdtagO
+      fvh1 = ap3c (lift3 negLeaf htag PA (prependEqLeft (ap1 wfFun h1) (ap1 wfFun (pL Pcc)) O (cong1 wfFun (ruleSym pLPcc_eq)))) wfpLO
+      fvh2 = ap3c (lift3 negLeaf htag PA (prependEqLeft (ap1 wfFun h2) (ap1 wfFun (pR Pcc)) O (cong1 wfFun (ruleSym pRPcc_eq)))) wfpRO
       childCj = mkChildCjFull htag d leqD (mkWfRedFull htag d wfRedD wfFunD)
       cV = ap3c (lift3 negLeaf htag PA (childV_imp d)) childCj
       cS = ap3c (lift3 negLeaf htag PA (childS_imp d)) childCj
@@ -520,17 +604,20 @@ glue_rC =
                      (piB htag (ap1 wfRed A) (ap1 wfRed B) wfRedAO wfRedBO)
       wfRedTriSK = trans3c (ap1 wfRed (ap1 triF sK)) (ap1 wfRed (dAp2c g A B)) O
                      (Gcong wfRed (ap1 triF sK) (dAp2c g A B) htag triEq) wfRedAp2cO
-      wfFunAO = trans3c (ap1 wfFunRec A) (ap2 pi (funValid h1) (ap1 wfFunRec X)) O
+      wfFunAO = trans3c (ap1 wfFunRec A) (ap2 pi (isF1 h1) (ap2 pi (funValid h1) (ap1 wfFunRec X))) O
                   (lift3 negLeaf htag PA (wfFunRec_ap1c h1 X))
-                  (piB htag (funValid h1) (ap1 wfFunRec X) fvh1 cVwfFun)
-      wfFunBO = trans3c (ap1 wfFunRec B) (ap2 pi (funValid h2) (ap1 wfFunRec X)) O
+                  (piB htag (isF1 h1) (ap2 pi (funValid h1) (ap1 wfFunRec X)) isF1h1
+                    (piB htag (funValid h1) (ap1 wfFunRec X) fvh1 cVwfFun))
+      wfFunBO = trans3c (ap1 wfFunRec B) (ap2 pi (isF1 h2) (ap2 pi (funValid h2) (ap1 wfFunRec X))) O
                   (lift3 negLeaf htag PA (wfFunRec_ap1c h2 X))
-                  (piB htag (funValid h2) (ap1 wfFunRec X) fvh2 cVwfFun)
+                  (piB htag (isF1 h2) (ap2 pi (funValid h2) (ap1 wfFunRec X)) isF1h2
+                    (piB htag (funValid h2) (ap1 wfFunRec X) fvh2 cVwfFun))
       wfFunAp2cO = trans3c (ap1 wfFunRec (dAp2c g A B))
-                     (ap2 pi (funValid g) (ap2 pi (ap1 wfFunRec A) (ap1 wfFunRec B))) O
+                     (ap2 pi (isF2 g) (ap2 pi (funValid g) (ap2 pi (ap1 wfFunRec A) (ap1 wfFunRec B)))) O
                      (lift3 negLeaf htag PA (wfFunRec_ap2c g A B))
-                     (piB htag (funValid g) (ap2 pi (ap1 wfFunRec A) (ap1 wfFunRec B)) fvg
-                       (piB htag (ap1 wfFunRec A) (ap1 wfFunRec B) wfFunAO wfFunBO))
+                     (piB htag (isF2 g) (ap2 pi (funValid g) (ap2 pi (ap1 wfFunRec A) (ap1 wfFunRec B))) isF2g
+                       (piB htag (funValid g) (ap2 pi (ap1 wfFunRec A) (ap1 wfFunRec B)) fvg
+                         (piB htag (ap1 wfFunRec A) (ap1 wfFunRec B) wfFunAO wfFunBO)))
       wfFunTriSK = trans3c (ap1 wfFunRec (ap1 triF sK)) (ap1 wfFunRec (dAp2c g A B)) O
                      (Gcong wfFunRec (ap1 triF sK) (dAp2c g A B) htag triEq) wfFunAp2cO
       factV = mkWfRedFull htag (ap1 triF sK) wfRedTriSK wfFunTriSK
@@ -596,19 +683,39 @@ glue_rRb =
       cr = cRec g h1 h2
       Y  = ap1 devF (ap1 srcF d)
       leqD = rebound d (pLValueBound sK ne_sK)
-      fv3val = ap2 pi (funValid g) (ap2 pi (funValid h1) (funValid h2))
+      Prr = ap2 Pair (natCode 8) (funP sK)
       wfRedD : Deriv (imp negLeaf (imp htag (imp PA (eqF (ap1 wfRed d) O))))
       wfRedD = trans3c (ap1 wfRed d) (ap1 wfRed sK) O
                  (Gsym (ap1 wfRed sK) (ap1 wfRed d) htag (addPA htag (wfRed_op_rRb_imp sK ne_sK)))
                  (wfRedSK_ctx htag)
-      wfFunPiO : Deriv (imp negLeaf (imp htag (imp PA (eqF (ap2 pi fv3val (ap1 wfFunRec d)) O))))
-      wfFunPiO = trans3c (ap2 pi fv3val (ap1 wfFunRec d)) (ap1 wfFunRec sK) O
-                   (Gsym (ap1 wfFunRec sK) (ap2 pi fv3val (ap1 wfFunRec d)) htag
+      wfFunPiO = trans3c (ap2 pi (ap1 wfFun Prr) (ap1 wfFunRec d)) (ap1 wfFunRec sK) O
+                   (Gsym (ap1 wfFunRec sK) (ap2 pi (ap1 wfFun Prr) (ap1 wfFunRec d)) htag
                      (addPA htag (wfFunRec_op_rRb_imp sK ne_sK)))
                    (wfFunSK_ctx htag)
-      wfFunD = ap3c (lift3 negLeaf htag PA (piZeroR_imp fv3val (ap1 wfFunRec d))) wfFunPiO
-      fv3O = ap3c (lift3 negLeaf htag PA (piZeroL_imp fv3val (ap1 wfFunRec d))) wfFunPiO
-      fvg = ap3c (lift3 negLeaf htag PA (piZeroL_imp (funValid g) (ap2 pi (funValid h1) (funValid h2)))) fv3O
+      wfPrrO = gPiL htag (ap1 wfFun Prr) (ap1 wfFunRec d) wfFunPiO
+      wfFunD = gPiR htag (ap1 wfFun Prr) (ap1 wfFunRec d) wfFunPiO
+      h8 = axFst (natCode 8) (funP sK)
+      ne8 = pair8NeqO (funP sK)
+      nl8 = ruleTrans (congL natEqF (natCode 1) h8) (natEqF_at_neq 8 1 (decideNatNeq 8 1 (\ ())))
+      wfROp = wfFun_op_R Prr ne8 nl8 h8
+      tail2R = ap2 pi (ap1 wfFun (pL Prr)) (ap1 wfFun (pR Prr))
+      tail3R = ap2 pi (ap1 wfFun (dtag Prr)) tail2R
+      tail4R = ap2 pi (isF2 (pR Prr)) tail3R
+      tail5R = ap2 pi (isF2 (pL Prr)) tail4R
+      tail6R = ap2 pi (isF1 (dtag Prr)) tail5R
+      pi7R = ap2 pi (ap1 funValidF Prr) tail6R
+      pi7RO = trans3c pi7R (ap1 wfFun Prr) O
+                (Gsym (ap1 wfFun Prr) pi7R htag (lift3 negLeaf htag PA wfROp)) wfPrrO
+      rest6 = gPiR htag (ap1 funValidF Prr) tail6R pi7RO
+      isF1dtagO = gPiL htag (isF1 (dtag Prr)) tail5R rest6
+      rest5 = gPiR htag (isF1 (dtag Prr)) tail5R rest6
+      rest4 = gPiR htag (isF2 (pL Prr)) tail4R rest5
+      rest3 = gPiR htag (isF2 (pR Prr)) tail3R rest4
+      wfdtagO = gPiL htag (ap1 wfFun (dtag Prr)) tail2R rest3
+      sndPrr = axSnd (natCode 8) (funP sK)
+      dtagPrr_eq = cong1 Fst sndPrr
+      isF1g = ap3c (lift3 negLeaf htag PA (prependEqLeft (isF1 g) (isF1 (dtag Prr)) O (isF1cong g (dtag Prr) (ruleSym dtagPrr_eq)))) isF1dtagO
+      fvg = ap3c (lift3 negLeaf htag PA (prependEqLeft (ap1 wfFun g) (ap1 wfFun (dtag Prr)) O (cong1 wfFun (ruleSym dtagPrr_eq)))) wfdtagO
       childCj = mkChildCjFull htag d leqD (mkWfRedFull htag d wfRedD wfFunD)
       cV = ap3c (lift3 negLeaf htag PA (childV_imp d)) childCj
       cS = ap3c (lift3 negLeaf htag PA (childS_imp d)) childCj
@@ -625,9 +732,10 @@ glue_rRb =
                        (lift3 negLeaf htag PA (wfRed_ap1c g X)) cVwfRed)
       wfFunTriSK = trans3c (ap1 wfFunRec (ap1 triF sK)) (ap1 wfFunRec (ap1c g X)) O
                      (Gcong wfFunRec (ap1 triF sK) (ap1c g X) htag triEq)
-                     (trans3c (ap1 wfFunRec (ap1c g X)) (ap2 pi (funValid g) (ap1 wfFunRec X)) O
+                     (trans3c (ap1 wfFunRec (ap1c g X)) (ap2 pi (isF1 g) (ap2 pi (funValid g) (ap1 wfFunRec X))) O
                        (lift3 negLeaf htag PA (wfFunRec_ap1c g X))
-                       (piB htag (funValid g) (ap1 wfFunRec X) fvg cVwfFun))
+                       (piB htag (isF1 g) (ap2 pi (funValid g) (ap1 wfFunRec X)) isF1g
+                         (piB htag (funValid g) (ap1 wfFunRec X) fvg cVwfFun)))
       factV = mkWfRedFull htag (ap1 triF sK) wfRedTriSK wfFunTriSK
       -- S-fact : srcF (ap1c g X) = tmAp1 g (srcF X) = tmAp1 g (tgtF d) = tgtF sK.
       srcTriEq = trans3c (ap1 srcF (ap1 triF sK)) (ap1 srcF (ap1c g X)) (tmAp1 g (ap1 tgtF d))
@@ -664,24 +772,6 @@ private
     impEqTrans f (ap1 recon f) (cRec (cG f) (cH1 f) (cH2 f))
       (eqDecO_sound_imp f (ap1 recon f))
       (impLift (recon_R f h8))
-
-  natCode8NeqO : Deriv (neg (eqF (natCode 8) O))
-  natCode8NeqO = posNeqO (natCode 8) (mp (ruleInst2 0 O 1 (natCode 7) refl T78) (ruleInst 0 (natCode 7) T76))
-
-  -- Pair (natCode 8) y  is nonzero.
-  pair8NeqO : (y : Term) -> Deriv (neg (eqF (ap2 Pair (natCode 8) y) O))
-  pair8NeqO y =
-    let P8 : Formula
-        P8 = eqF (ap2 Pair (natCode 8) y) O
-        impB : Deriv (imp P8 (eqF (ap1 Fst (ap2 Pair (natCode 8) y)) (ap1 Fst O)))
-        impB = impCong1 Fst (ap2 Pair (natCode 8) y) O (identP P8)
-        impBO : Deriv (imp P8 (eqF (ap1 Fst (ap2 Pair (natCode 8) y)) O))
-        impBO = impEqTrans (ap1 Fst (ap2 Pair (natCode 8) y)) (ap1 Fst O) O impB (impLift FstO)
-        imp8O : Deriv (imp P8 (eqF (natCode 8) O))
-        imp8O = compI impBO
-                  (prependEqLeft (natCode 8) (ap1 Fst (ap2 Pair (natCode 8) y)) O
-                     (ruleSym (axFst (natCode 8) y)))
-    in mp (mp (axContrapos P8 (eqF (natCode 8) O)) imp8O) natCode8NeqO
 
   -- bare head-congruence on tmAp2 (rewrite the function head).
   tmAp2HeadImp : (Gh Gh' a b : Term) ->
@@ -770,27 +860,46 @@ glue_rRs =
       ne8 = pair8NeqO (funP sK)
       nl8 = ruleTrans (congL natEqF (natCode 1) h8) (natEqF_at_neq 8 1 (decideNatNeq 8 1 (\ ())))
       wfROp = wfFun_op_R Praw ne8 nl8 h8
-      pi4 = ap2 pi (ap1 funValidF Praw)
-              (ap2 pi (ap1 wfFun (dtag Praw)) (ap2 pi (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw))))
-      pi4O = trans3c pi4 (ap1 wfFun Praw) O
-               (Gsym (ap1 wfFun Praw) pi4 htag (lift3 negLeaf htag PA wfROp)) wfPrawO
-      fvfPrawO = ap3c (lift3 negLeaf htag PA
-                   (piZeroL_imp (ap1 funValidF Praw)
-                      (ap2 pi (ap1 wfFun (dtag Praw)) (ap2 pi (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw)))))) pi4O
-      restO = ap3c (lift3 negLeaf htag PA
-                (piZeroR_imp (ap1 funValidF Praw)
-                   (ap2 pi (ap1 wfFun (dtag Praw)) (ap2 pi (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw)))))) pi4O
-      hlrO = ap3c (lift3 negLeaf htag PA
-               (piZeroR_imp (ap1 wfFun (dtag Praw)) (ap2 pi (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw))))) restO
-      wfFunPLO = ap3c (lift3 negLeaf htag PA (piZeroL_imp (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw)))) hlrO
-      wfFunPRO = ap3c (lift3 negLeaf htag PA (piZeroR_imp (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw)))) hlrO
+      tail2 = ap2 pi (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw))
+      tail3 = ap2 pi (ap1 wfFun (dtag Praw)) tail2
+      tail4 = ap2 pi (isF2 (pR Praw)) tail3
+      tail5 = ap2 pi (isF2 (pL Praw)) tail4
+      tail6 = ap2 pi (isF1 (dtag Praw)) tail5
+      pi7 = ap2 pi (ap1 funValidF Praw) tail6
+      pi7O = trans3c pi7 (ap1 wfFun Praw) O
+               (Gsym (ap1 wfFun Praw) pi7 htag (lift3 negLeaf htag PA wfROp)) wfPrawO
+      fvfPrawO = gPiL htag (ap1 funValidF Praw) tail6 pi7O
+      rest6 = gPiR htag (ap1 funValidF Praw) tail6 pi7O
+      rest5 = gPiR htag (isF1 (dtag Praw)) tail5 rest6
+      isF2pLO = gPiL htag (isF2 (pL Praw)) tail4 rest5
+      rest4 = gPiR htag (isF2 (pL Praw)) tail4 rest5
+      isF2pRO = gPiL htag (isF2 (pR Praw)) tail3 rest4
+      rest3 = gPiR htag (isF2 (pR Praw)) tail3 rest4
+      rest2 = gPiR htag (ap1 wfFun (dtag Praw)) tail2 rest3
+      wfFunPLO = gPiL htag (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw)) rest2
+      wfFunPRO = gPiR htag (ap1 wfFun (pL Praw)) (ap1 wfFun (pR Praw)) rest2
       sndPraw = axSnd (natCode 8) (funP sK)
       pLPraw_eq = cong1 Fst (cong1 Snd sndPraw)
       pRPraw_eq = cong1 Snd (cong1 Snd sndPraw)
+      isF2h1 = ap3c (lift3 negLeaf htag PA (prependEqLeft (isF2 h1) (isF2 (pL Praw)) O (isF2cong h1 (pL Praw) (ruleSym pLPraw_eq)))) isF2pLO
+      isF2h2 = ap3c (lift3 negLeaf htag PA (prependEqLeft (isF2 h2) (isF2 (pR Praw)) O (isF2cong h2 (pR Praw) (ruleSym pRPraw_eq)))) isF2pRO
       fvh1 = ap3c (lift3 negLeaf htag PA
                (prependEqLeft (ap1 wfFun h1) (ap1 wfFun (pL Praw)) O (cong1 wfFun (ruleSym pLPraw_eq)))) wfFunPLO
       fvh2 = ap3c (lift3 negLeaf htag PA
                (prependEqLeft (ap1 wfFun h2) (ap1 wfFun (pR Praw)) O (cong1 wfFun (ruleSym pRPraw_eq)))) wfFunPRO
+      -- isF2 Praw = O  (Praw = Pair 8 funP, a Fun2 head).
+      n8k : (k : Nat) -> ((Eq 8 k) -> Empty) -> Deriv (eqF (ap2 natEqF (ap1 Fst Praw) (natCode k)) O)
+      n8k k w = ruleTrans (congL natEqF (natCode k) h8) (natEqF_at_neq 8 k (decideNatNeq 8 k w))
+      isF2PrawBare = piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 3))
+                       (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 4))
+                         (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 5)) (ap2 natEqF (ap1 Fst Praw) (natCode 6))))
+                       (n8k 3 (\ ()))
+                       (piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 4))
+                         (ap2 pi (ap2 natEqF (ap1 Fst Praw) (natCode 5)) (ap2 natEqF (ap1 Fst Praw) (natCode 6)))
+                         (n8k 4 (\ ()))
+                         (piBothO (ap2 natEqF (ap1 Fst Praw) (natCode 5)) (ap2 natEqF (ap1 Fst Praw) (natCode 6))
+                           (n8k 5 (\ ())) (n8k 6 (\ ()))))
+      isF2Praw = lift3 negLeaf htag PA isF2PrawBare
       -- reconstruction Praw = Rrec.
       shallowO = ap3c (lift3 negLeaf htag PA
                    (prependEqLeft (eqDecO Praw (ap1 recon Praw)) (ap1 funValidF Praw) O
@@ -822,22 +931,25 @@ glue_rRs =
                         (lift3 negLeaf htag PA (wfRed_ap2c h1 M N))
                         (piB htag (ap1 wfRed M) (ap1 wfRed N) wfRedM wfRedN))
       wfFunM = trans3c (ap1 wfFunRec M)
-                 (ap2 pi (funValid h2) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2))) O
+                 (ap2 pi (isF2 h2) (ap2 pi (funValid h2) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2)))) O
                  (lift3 negLeaf htag PA (wfFunRec_ap2c h2 X1 X2))
-                 (piB htag (funValid h2) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2)) fvh2
-                    (piB htag (ap1 wfFunRec X1) (ap1 wfFunRec X2) cVLwfFun cVRwfFun))
+                 (piB htag (isF2 h2) (ap2 pi (funValid h2) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2))) isF2h2
+                   (piB htag (funValid h2) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2)) fvh2
+                      (piB htag (ap1 wfFunRec X1) (ap1 wfFunRec X2) cVLwfFun cVRwfFun)))
       wfFunN = trans3c (ap1 wfFunRec N)
-                 (ap2 pi (funValid Praw) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2))) O
+                 (ap2 pi (isF2 Praw) (ap2 pi (funValid Praw) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2)))) O
                  (lift3 negLeaf htag PA (wfFunRec_ap2c Praw X1 X2))
-                 (piB htag (funValid Praw) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2)) wfPrawO
-                    (piB htag (ap1 wfFunRec X1) (ap1 wfFunRec X2) cVLwfFun cVRwfFun))
+                 (piB htag (isF2 Praw) (ap2 pi (funValid Praw) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2))) isF2Praw
+                   (piB htag (funValid Praw) (ap2 pi (ap1 wfFunRec X1) (ap1 wfFunRec X2)) wfPrawO
+                      (piB htag (ap1 wfFunRec X1) (ap1 wfFunRec X2) cVLwfFun cVRwfFun)))
       wfFunTriSK = trans3c (ap1 wfFunRec (ap1 triF sK)) (ap1 wfFunRec (dAp2c h1 M N)) O
                      (Gcong wfFunRec (ap1 triF sK) (dAp2c h1 M N) htag triEq)
                      (trans3c (ap1 wfFunRec (dAp2c h1 M N))
-                        (ap2 pi (funValid h1) (ap2 pi (ap1 wfFunRec M) (ap1 wfFunRec N))) O
+                        (ap2 pi (isF2 h1) (ap2 pi (funValid h1) (ap2 pi (ap1 wfFunRec M) (ap1 wfFunRec N)))) O
                         (lift3 negLeaf htag PA (wfFunRec_ap2c h1 M N))
-                        (piB htag (funValid h1) (ap2 pi (ap1 wfFunRec M) (ap1 wfFunRec N)) fvh1
-                           (piB htag (ap1 wfFunRec M) (ap1 wfFunRec N) wfFunM wfFunN)))
+                        (piB htag (isF2 h1) (ap2 pi (funValid h1) (ap2 pi (ap1 wfFunRec M) (ap1 wfFunRec N))) isF2h1
+                          (piB htag (funValid h1) (ap2 pi (ap1 wfFunRec M) (ap1 wfFunRec N)) fvh1
+                             (piB htag (ap1 wfFunRec M) (ap1 wfFunRec N) wfFunM wfFunN))))
       factV = mkWfRedFull htag (ap1 triF sK) wfRedTriSK wfFunTriSK
       -- S-fact.
       srcMeq = trans3c (ap1 srcF M) (tmAp2 h2 (ap1 srcF X1) (ap1 srcF X2)) (tmAp2 h2 (ap1 tgtF chL) (ap1 tgtF chR))
