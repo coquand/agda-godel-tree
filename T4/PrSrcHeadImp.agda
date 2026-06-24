@@ -71,10 +71,14 @@ private
 
 ------------------------------------------------------------------------
 
+-- the (opaque, un-evaluated) left-child argument of the ap1c source.
+srcChildArg : Term -> Term
+srcChildArg p = ap1 srcL (Hs.opkg p)
+
 srcF_ap1c_himp : (p : Term) ->
   Deriv (imp (eqF (ap1 Fst p) (natCode 2))
              (imp (eqF (ap1 Fst (dtag p)) dgAp1c)
-                  (eqF (ap1 srcF p) (tmAp1 (funP p) (ap1 srcL (Hs.opkg p))))))
+                  (eqF (ap1 srcF p) (tmAp1 (funP p) (srcChildArg p)))))
 srcF_ap1c_himp p =
   let Hd2 = eqF (ap1 Fst p) (natCode 2)
       htag = eqF (ap1 Fst (dtag p)) dgAp1c
