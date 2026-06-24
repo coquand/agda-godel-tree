@@ -40,7 +40,8 @@ open import T4.PrDevByHead using ( devF_ap2_v_h ; devF_ap2_Rb_h ; devF_ap2_Rcong
 open import T4.PrLeafReflOImp using ( srcF_reflO_himp ; tgtF_reflO_himp )
 open import T4.PrSrcHeadImp
   using ( srcF_ap1c_himp ; srcChildArg ; srcChildArgL ; srcChildArgR
-        ; srcF_rO_himp ; srcF_rU_himp ; srcF_rV_himp )
+        ; srcF_rO_himp ; srcF_rU_himp ; srcF_rV_himp ; srcF_rC_himp ; srcF_rRb_himp ; srcF_rRs_himp
+        ; bR_rC ; bR_rRb ; bR_rRs ; bridge_rC ; bridge_rRb ; bridge_rRs ; mbHead_rC ; mbHead_rRb ; mbHead_rRs )
 open import T4.PrTriUOpaque2Imp using ( triF_op_ap2c_Rcong_notAp1c_imp )
 open import T4.PrCodeObj using ( cZero ; cId ; hd_tmAp2 )
 open import T4.PrSrc using ( srcF_ap2c ; srcL )
@@ -562,4 +563,73 @@ glue_ap2c_Rcong_rV =
       bridge = ruleTrans (cong1 Fst (ruleTrans (cong1 Fst (axSnd tgAp2 (ap2 Pair cProj (ap2 Pair (srcChildArgL dR) (srcChildArgR dR))))) (axFst cProj (ap2 Pair (srcChildArgL dR) (srcChildArgR dR))))) (axFst (natCode 7) O)
       devRcong = l4 fh (mp (devF_ap2_Rcong_imp ccA (ap1 srcF dL) bR (hd_cRec (cG fp) (cH1 fp) (cH2 fp)) 2 7
                             (hd_tmAp2 cProj (srcChildArgL dR) (srcChildArgR dR)) (\ ()) (\ ())) bridge)
+  in ap2cCongGlue fh bR triEq srcFdR reconEqR devRcong
+
+-- glue_ap2c_Rcong_rC :  C-redex (dtag=dgRC).  fun cComp, mf=6, mb=1.
+glue_ap2c_Rcong_rC :
+  Deriv (Ctx (Cnj (Cnj (eqF (ap1 Fst (funP sK)) (natCode 8)) (eqF (ap1 Fst (pR sK)) (natCode 2)))
+                  (eqF (ap1 Fst (ap1 Fst (ap1 Snd (pR sK)))) (natCode 6))) Bgoal)
+glue_ap2c_Rcong_rC =
+  let funhead8 = eqF (ap1 Fst fp) (natCode 8)
+      condPR2 = eqF (ap1 Fst dR) (natCode 2)
+      condDtag = eqF (ap1 Fst (ap1 Fst (ap1 Snd dR))) (natCode 6)
+      L1 = Cnj funhead8 condPR2
+      fh = Cnj L1 condDtag
+      eqR = eqF (ap1 triF sK) (dAp2c fp (ap1 triF dL) (ap1 triF dR))
+      fold_a = fold2 funhead8 condPR2 (imp condDtag eqR) (triF_op_ap2c_Rcong_notAp1c_imp sK ne_sK 6 (\ ()))
+      triEq = addPA4 fh (fold2 L1 condDtag eqR fold_a)
+      fhF8 = compI (cnjL L1 condDtag) (cnjL funhead8 condPR2)
+      fhPR2 = compI (cnjL L1 condDtag) (cnjR funhead8 condPR2)
+      fhDtag = cnjR L1 condDtag
+      bR = bR_rC dR
+      srcFdR = fromFh fh (gMp (compI fhPR2 (srcF_rC_himp dR)) fhDtag)
+      reconEqR = reconA fh fhF8
+      devRcong = l4 fh (mp (devF_ap2_Rcong_imp ccA (ap1 srcF dL) bR (hd_cRec (cG fp) (cH1 fp) (cH2 fp)) 1 6
+                            (mbHead_rC dR) (\ ()) (\ ())) (bridge_rC dR))
+  in ap2cCongGlue fh bR triEq srcFdR reconEqR devRcong
+
+-- glue_ap2c_Rcong_rRb :  Rb-redex (dtag=dgRb).  fun cRec, mf=8, mb=2.
+glue_ap2c_Rcong_rRb :
+  Deriv (Ctx (Cnj (Cnj (eqF (ap1 Fst (funP sK)) (natCode 8)) (eqF (ap1 Fst (pR sK)) (natCode 2)))
+                  (eqF (ap1 Fst (ap1 Fst (ap1 Snd (pR sK)))) (natCode 7))) Bgoal)
+glue_ap2c_Rcong_rRb =
+  let funhead8 = eqF (ap1 Fst fp) (natCode 8)
+      condPR2 = eqF (ap1 Fst dR) (natCode 2)
+      condDtag = eqF (ap1 Fst (ap1 Fst (ap1 Snd dR))) (natCode 7)
+      L1 = Cnj funhead8 condPR2
+      fh = Cnj L1 condDtag
+      eqR = eqF (ap1 triF sK) (dAp2c fp (ap1 triF dL) (ap1 triF dR))
+      fold_a = fold2 funhead8 condPR2 (imp condDtag eqR) (triF_op_ap2c_Rcong_notAp1c_imp sK ne_sK 7 (\ ()))
+      triEq = addPA4 fh (fold2 L1 condDtag eqR fold_a)
+      fhF8 = compI (cnjL L1 condDtag) (cnjL funhead8 condPR2)
+      fhPR2 = compI (cnjL L1 condDtag) (cnjR funhead8 condPR2)
+      fhDtag = cnjR L1 condDtag
+      bR = bR_rRb dR
+      srcFdR = fromFh fh (gMp (compI fhPR2 (srcF_rRb_himp dR)) fhDtag)
+      reconEqR = reconA fh fhF8
+      devRcong = l4 fh (mp (devF_ap2_Rcong_imp ccA (ap1 srcF dL) bR (hd_cRec (cG fp) (cH1 fp) (cH2 fp)) 2 8
+                            (mbHead_rRb dR) (\ ()) (\ ())) (bridge_rRb dR))
+  in ap2cCongGlue fh bR triEq srcFdR reconEqR devRcong
+
+-- glue_ap2c_Rcong_rRs :  Rs-redex (dtag=dgRs).  fun cRec, mf=8, mb=2.
+glue_ap2c_Rcong_rRs :
+  Deriv (Ctx (Cnj (Cnj (eqF (ap1 Fst (funP sK)) (natCode 8)) (eqF (ap1 Fst (pR sK)) (natCode 2)))
+                  (eqF (ap1 Fst (ap1 Fst (ap1 Snd (pR sK)))) (natCode 8))) Bgoal)
+glue_ap2c_Rcong_rRs =
+  let funhead8 = eqF (ap1 Fst fp) (natCode 8)
+      condPR2 = eqF (ap1 Fst dR) (natCode 2)
+      condDtag = eqF (ap1 Fst (ap1 Fst (ap1 Snd dR))) (natCode 8)
+      L1 = Cnj funhead8 condPR2
+      fh = Cnj L1 condDtag
+      eqR = eqF (ap1 triF sK) (dAp2c fp (ap1 triF dL) (ap1 triF dR))
+      fold_a = fold2 funhead8 condPR2 (imp condDtag eqR) (triF_op_ap2c_Rcong_notAp1c_imp sK ne_sK 8 (\ ()))
+      triEq = addPA4 fh (fold2 L1 condDtag eqR fold_a)
+      fhF8 = compI (cnjL L1 condDtag) (cnjL funhead8 condPR2)
+      fhPR2 = compI (cnjL L1 condDtag) (cnjR funhead8 condPR2)
+      fhDtag = cnjR L1 condDtag
+      bR = bR_rRs dR
+      srcFdR = fromFh fh (gMp (compI fhPR2 (srcF_rRs_himp dR)) fhDtag)
+      reconEqR = reconA fh fhF8
+      devRcong = l4 fh (mp (devF_ap2_Rcong_imp ccA (ap1 srcF dL) bR (hd_cRec (cG fp) (cH1 fp) (cH2 fp)) 2 8
+                            (mbHead_rRs dR) (\ ()) (\ ())) (bridge_rRs dR))
   in ap2cCongGlue fh bR triEq srcFdR reconEqR devRcong
