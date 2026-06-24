@@ -58,7 +58,19 @@ open import T4.PrDerCode using ( derC ; bun3 ; derLeaf )
 open import T4.BinTree using ( binNode )
 open import T4.PrCodeObj using ( cComp ; hd_cComp ; compFun ; compH1 ; compH2 ; tgAp2 ; tmAp2 )
 open import T4.PrFunValid using ( cG ; cH1 ; cH2 )
-open import T4.PrWfFunLeafImp using ( restCval ; wfFun_op_C_head_himp ; funValid_C_imp )
+open import T4.PrWfFunLeafImp using ( restCval ; wfFun_op_C_head_himp ; funValid_C_imp ; wfFun_op_reject_gam )
+open import T4.PrWfFun using () renaming ( wfFun_O to wfFunO_eq )
+
+-- funhead dispatch assembly (caseElim 3/4/5/6 + reject).
+open import T4.GammaCtx
+  using ( Cnj ; cnjL ; cnjR ; cnjPair ; cnjCurry ; gWeak ; gMp ; gApply ; gTrans )
+open import BRA3.ChurchCM using ( caseElim )
+open import T4.CountingObj using ( swapImp )
+open import BRA3.Classical using ( axContrapos )
+open import BRA3.Contrapositive using ( axExFalso )
+open import T4.DescSndImp using ( neSucc )
+open import T4.NatEqReflect using ( natEqF_complete )
+open import BRA3.SubT.NatEq using ( natEqF )
 
 open import T4.PrTgtUOpaque using ( funP )
 open import T4.PrFunValidCanon using ( funValidF ; funValidF_eq )
@@ -70,7 +82,7 @@ open import T4.PrWfFunLeafImp
 open import T4.WfRedExtract using ( pLValueBound )
 open import BRA3.Logic using ( prependEqLeft ; eqSymImp )
 open import BRA3.Contrapositive using ( compI ; liftP ; identP )
-open import T4.Thm12.ImpHelpers using ( impCong1 ; impCongR ; impCongL )
+open import T4.Thm12.ImpHelpers using ( impCong1 ; impCongR ; impCongL ; impEqTrans ; impLift )
 open import T4.PrCodeObj using ( tgAp1 )
 open import T4.CtxKit
   using ( lift2 ; ap2c ; lift3 ; ap3c ; trans3c
@@ -569,3 +581,161 @@ glue_ap1c_C =
       factT = G4trans (ap1 tgtF (ap1 triF sK)) (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) (ap1 devF (ap1 srcF sK)) fh
                 tgtTriEq (G4sym (ap1 devF (ap1 srcF sK)) (tmAp2 g (tmAp1 h1 Y) (tmAp1 h2 Y)) fh devSrcEq)
   in assembleConj34 fh factV factS factT
+
+------------------------------------------------------------------------
+-- glue_ap1c :  the funhead caseElim (3=s / 4=o / 5=u / 6=C / else reject).
+
+private
+  d1 : Term
+  d1 = pL sK
+  fpK : Term
+  fpK = funP sK
+  h3 h4 h5 h6 : Formula
+  h3 = eqF (ap1 Fst fpK) (natCode 3)
+  h4 = eqF (ap1 Fst fpK) (natCode 4)
+  h5 = eqF (ap1 Fst fpK) (natCode 5)
+  h6 = eqF (ap1 Fst fpK) (natCode 6)
+
+  G3 : Formula
+  G3 = Cnj (Cnj negLeaf htagA) PA
+  gNegLeaf3 : Deriv (imp G3 negLeaf)
+  gNegLeaf3 = compI (cnjL (Cnj negLeaf htagA) PA) (cnjL negLeaf htagA)
+  gHtagA3 : Deriv (imp G3 htagA)
+  gHtagA3 = compI (cnjL (Cnj negLeaf htagA) PA) (cnjR negLeaf htagA)
+  gPA3 : Deriv (imp G3 PA)
+  gPA3 = cnjR (Cnj negLeaf htagA) PA
+
+  -- per-funhead core over Cnj G3 fh.
+  tagCore : (fh : Formula) ->
+    Deriv (imp negLeaf (imp htagA (imp fh (imp PA Bgoal)))) -> Deriv (imp (Cnj G3 fh) Bgoal)
+  tagCore fh glueX =
+    let K = Cnj G3 fh
+        gNL = compI (cnjL G3 fh) gNegLeaf3
+        gHA = compI (cnjL G3 fh) gHtagA3
+        gPAk = compI (cnjL G3 fh) gPA3
+        gFH = cnjR G3 fh
+    in gMp (gMp (gMp (gMp (gWeak K glueX) gNL) gHA) gFH) gPAk
+
+  reassocTo : (BigCtx TA : Formula) -> Deriv (imp BigCtx G3) ->
+    Deriv (imp (Cnj G3 TA) Bgoal) -> Deriv (imp (Cnj BigCtx TA) Bgoal)
+  reassocTo BigCtx TA projG3 core =
+    compI (gMp (gApply (cnjPair G3 TA) (compI (cnjL BigCtx TA) projG3)) (cnjR BigCtx TA)) core
+
+  -- validity extraction (under G3).
+  tailV : Term
+  tailV = ap2 pi (funValid fpK) (ap1 wfFunRec d1)
+  rhsWFR : Term
+  rhsWFR = ap2 pi (isF1 fpK) tailV
+  gWfFunRecEq3 : Deriv (imp G3 (eqF (ap1 wfFunRec sK) rhsWFR))
+  gWfFunRecEq3 = gMp (gMp (gWeak G3 (wfFunRec_op_ap1c_imp sK ne_sK)) gNegLeaf3) gHtagA3
+  gWfFunRecSKO3 : Deriv (imp G3 (eqF (ap1 wfFunRec sK) O))
+  gWfFunRecSKO3 = compI gPA3 (compI pa2a afToWfFun)
+  gPiEqO3 : Deriv (imp G3 (eqF rhsWFR O))
+  gPiEqO3 = gTrans rhsWFR (ap1 wfFunRec sK) O
+              (gApply (eqSymImp (ap1 wfFunRec sK) rhsWFR) gWfFunRecEq3) gWfFunRecSKO3
+  gIsF1O3 : Deriv (imp G3 (eqF (isF1 fpK) O))
+  gIsF1O3 = compI gPiEqO3 (piZeroL_imp (isF1 fpK) tailV)
+  gWfFunO3 : Deriv (imp G3 (eqF (funValid fpK) O))
+  gWfFunO3 = compI (compI gPiEqO3 (piZeroR_imp (isF1 fpK) tailV))
+                   (piZeroL_imp (funValid fpK) (ap1 wfFunRec d1))
+  n7 n8 n1 : Term
+  n7 = ap2 natEqF (ap1 Fst fpK) (natCode 7)
+  n8 = ap2 natEqF (ap1 Fst fpK) (natCode 8)
+  n1 = ap2 natEqF (ap1 Fst fpK) (natCode 1)
+  gn7g : Deriv (imp G3 (eqF n7 O))
+  gn7g = compI gIsF1O3 (piZeroL_imp n7 (ap2 pi n8 n1))
+  gRestF1g : Deriv (imp G3 (eqF (ap2 pi n8 n1) O))
+  gRestF1g = compI gIsF1O3 (piZeroR_imp n7 (ap2 pi n8 n1))
+  gn8g : Deriv (imp G3 (eqF n8 O))
+  gn8g = compI gRestF1g (piZeroL_imp n8 n1)
+  gn1g : Deriv (imp G3 (eqF n1 O))
+  gn1g = compI gRestF1g (piZeroR_imp n8 n1)
+
+  -- reject context and core.
+  nh3 nh4 nh5 nh6 : Formula
+  nh3 = neg h3
+  nh4 = neg h4
+  nh5 = neg h5
+  nh6 = neg h6
+  K4 : Formula
+  K4 = Cnj (Cnj (Cnj (Cnj G3 nh3) nh4) nh5) nh6
+  c4L : Deriv (imp K4 (Cnj (Cnj (Cnj G3 nh3) nh4) nh5))
+  c4L = cnjL (Cnj (Cnj (Cnj G3 nh3) nh4) nh5) nh6
+  c3L : Deriv (imp K4 (Cnj (Cnj G3 nh3) nh4))
+  c3L = compI c4L (cnjL (Cnj (Cnj G3 nh3) nh4) nh5)
+  c2L : Deriv (imp K4 (Cnj G3 nh3))
+  c2L = compI c3L (cnjL (Cnj G3 nh3) nh4)
+  gG3 : Deriv (imp K4 G3)
+  gG3 = compI c2L (cnjL G3 nh3)
+  gNh3 : Deriv (imp K4 nh3)
+  gNh3 = compI c2L (cnjR G3 nh3)
+  gNh4 : Deriv (imp K4 nh4)
+  gNh4 = compI c3L (cnjR (Cnj G3 nh3) nh4)
+  gNh5 : Deriv (imp K4 nh5)
+  gNh5 = compI c4L (cnjR (Cnj (Cnj G3 nh3) nh4) nh5)
+  gNh6 : Deriv (imp K4 nh6)
+  gNh6 = cnjR (Cnj (Cnj (Cnj G3 nh3) nh4) nh5) nh6
+  gn3_K : Deriv (imp K4 (eqF (ap2 natEqF (ap1 Fst fpK) (natCode 3)) O))
+  gn3_K = compI gNh3 (natEqF_complete (ap1 Fst fpK) (natCode 3))
+  gn4_K : Deriv (imp K4 (eqF (ap2 natEqF (ap1 Fst fpK) (natCode 4)) O))
+  gn4_K = compI gNh4 (natEqF_complete (ap1 Fst fpK) (natCode 4))
+  gn5_K : Deriv (imp K4 (eqF (ap2 natEqF (ap1 Fst fpK) (natCode 5)) O))
+  gn5_K = compI gNh5 (natEqF_complete (ap1 Fst fpK) (natCode 5))
+  gn6_K : Deriv (imp K4 (eqF (ap2 natEqF (ap1 Fst fpK) (natCode 6)) O))
+  gn6_K = compI gNh6 (natEqF_complete (ap1 Fst fpK) (natCode 6))
+  gWfFunO_K : Deriv (imp K4 (eqF (funValid fpK) O))
+  gWfFunO_K = compI gG3 gWfFunO3
+  gNe_K : Deriv (imp K4 (neg (eqF fpK O)))
+  gNe_K =
+    let legA : Deriv (imp (eqF fpK O) (eqF (ap1 wfFun fpK) (ap1 s O)))
+        legA = impEqTrans (ap1 wfFun fpK) (ap1 wfFun O) (ap1 s O)
+                 (impCong1 wfFun fpK O (identP (eqF fpK O))) (impLift wfFunO_eq)
+        g1 : Deriv (imp (Cnj K4 (eqF fpK O)) (eqF (ap1 wfFun fpK) (ap1 s O)))
+        g1 = compI (cnjR K4 (eqF fpK O)) legA
+        g2 : Deriv (imp (Cnj K4 (eqF fpK O)) (eqF (ap1 wfFun fpK) O))
+        g2 = compI (cnjL K4 (eqF fpK O)) gWfFunO_K
+        g3 : Deriv (imp (Cnj K4 (eqF fpK O)) (eqF (ap1 s O) O))
+        g3 = gTrans (ap1 s O) (ap1 wfFun fpK) O
+               (gApply (eqSymImp (ap1 wfFun fpK) (ap1 s O)) g1) g2
+        impHQ_K : Deriv (imp K4 (imp (eqF fpK O) (eqF (ap1 s O) O)))
+        impHQ_K = cnjCurry g3
+    in gMp (gApply (axContrapos (eqF fpK O) (eqF (ap1 s O) O)) impHQ_K)
+           (gWeak K4 (neSucc O))
+  rejCore : Deriv (imp K4 Bgoal)
+  rejCore =
+    let rejWfFunSO : Deriv (imp K4 (eqF (ap1 wfFun fpK) (ap1 s O)))
+        rejWfFunSO = wfFun_op_reject_gam K4 fpK gNe_K (compI gG3 gn1g) gn3_K gn4_K gn5_K gn6_K
+                       (compI gG3 gn7g) (compI gG3 gn8g)
+        soO : Deriv (imp K4 (eqF (ap1 s O) O))
+        soO = gTrans (ap1 s O) (ap1 wfFun fpK) O
+                (gApply (eqSymImp (ap1 wfFun fpK) (ap1 s O)) rejWfFunSO) gWfFunO_K
+    in gMp (gApply (axExFalso (eqF (ap1 s O) O) Bgoal) soO) (gWeak K4 (neSucc O))
+
+  -- the caseElim cascade.
+  e3 : Deriv (imp (Cnj (Cnj (Cnj G3 nh3) nh4) nh5) Bgoal)
+  e3 = caseElim {X = h6} {Y = nh6} {Rf = imp (Cnj (Cnj (Cnj G3 nh3) nh4) nh5) Bgoal}
+         (identP nh6)
+         (swapImp (cnjCurry (reassocTo (Cnj (Cnj (Cnj G3 nh3) nh4) nh5) h6
+                    (compI (cnjL (Cnj (Cnj G3 nh3) nh4) nh5) (compI (cnjL (Cnj G3 nh3) nh4) (cnjL G3 nh3)))
+                    (tagCore h6 glue_ap1c_C))))
+         (swapImp (cnjCurry rejCore))
+  e2 : Deriv (imp (Cnj (Cnj G3 nh3) nh4) Bgoal)
+  e2 = caseElim {X = h5} {Y = nh5} {Rf = imp (Cnj (Cnj G3 nh3) nh4) Bgoal}
+         (identP nh5)
+         (swapImp (cnjCurry (reassocTo (Cnj (Cnj G3 nh3) nh4) h5
+                    (compI (cnjL (Cnj G3 nh3) nh4) (cnjL G3 nh3))
+                    (tagCore h5 glue_ap1c_u))))
+         (swapImp (cnjCurry e3))
+  e1 : Deriv (imp (Cnj G3 nh3) Bgoal)
+  e1 = caseElim {X = h4} {Y = nh4} {Rf = imp (Cnj G3 nh3) Bgoal}
+         (identP nh4)
+         (swapImp (cnjCurry (reassocTo (Cnj G3 nh3) h4 (cnjL G3 nh3) (tagCore h4 glue_ap1c_o))))
+         (swapImp (cnjCurry e2))
+  coreN : Deriv (imp G3 Bgoal)
+  coreN = caseElim {X = h3} {Y = nh3} {Rf = imp G3 Bgoal}
+            (identP nh3)
+            (swapImp (cnjCurry (tagCore h3 glue_ap1c_s)))
+            (swapImp (cnjCurry e1))
+
+glue_ap1c : Deriv (imp negLeaf (imp htagA (imp PA Bgoal)))
+glue_ap1c = cnjCurry (cnjCurry coreN)
