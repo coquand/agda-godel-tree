@@ -24,10 +24,10 @@ open import T4.PrWfFun
         ; wfn_l4 ; wfn_l5 ; wfn_l6 ; wfn_l7 ; wfn_l8 ; testHd )
 open import T4.PrFunValidCanon using ( funValidF )
 open import T4.PrFunValid
-  using ( recon ; cSucBr ; cZeroBr ; cIdBr ; cProjBr ; cCompBr ; cCompBr_val ; cG ; cH1 ; cH2
+  using ( recon ; cSucBr ; cZeroBr ; cIdBr ; cProjBr ; cCompBr ; cCompBr_val ; cRecBr ; cRecBr_val ; junkBr ; cG ; cH1 ; cH2
         ; rec_l4 ; rec_l5 ; rec_l6 ; rec_l7 ; rec_l8 ; constBr_val )
   renaming ( testHd to rTestHd )
-open import T4.PrCodeObj using ( cSuc ; cZero ; cId ; cProj ; cComp )
+open import T4.PrCodeObj using ( cSuc ; cZero ; cId ; cProj ; cComp ; cRec )
 open import T4.BinTree using ( nIdx ; lIdx ; rIdx )
 open import BRA3.Church using ( pi )
 open import T4.EqDecO using ( eqDecO )
@@ -233,6 +233,39 @@ wfFun_op_C_head_himp f =
          (impEqTrans (ap1 compCellC opk) (ap2 pi (ap1 selfChk opk) (restCval f)) (ap2 pi (ap1 funValidF f) (restCval f))
            axStep selfStep))
 
+-- Compound R-head extraction (funhead = 8): same shape as C, compCellR.
+restRcode : Fun1
+restRcode = C pi (isF1at nIdx) (C pi (isF2at lIdx) (C pi (isF2at rIdx) fv3cell))
+
+restRval : Term -> Term
+restRval f = ap1 restRcode (opkg f)
+
+wfFun_op_R_head_himp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 8))
+             (eqF (ap1 wfFun f) (ap2 pi (ap1 funValidF f) (restRval f))))
+wfFun_op_R_head_himp f =
+  let open HeadImp f 8 (natCodeNeqO 7) (\ ())
+      fires_R =
+        impEqTrans (ap1 wfFunNodeCell opk) (ap1 wfn_l4 opk) (ap1 compCellR opk)
+          (fork_false_to_snd_imp H leafCell wfn_l4 (testHd 3) opk (natEqSkip_imp H get_tag 8 3 opk (wn 8 3 (\ ())) gtagK_h))
+          (impEqTrans (ap1 wfn_l4 opk) (ap1 wfn_l5 opk) (ap1 compCellR opk)
+            (fork_false_to_snd_imp H leafCell wfn_l5 (testHd 4) opk (natEqSkip_imp H get_tag 8 4 opk (wn 8 4 (\ ())) gtagK_h))
+            (impEqTrans (ap1 wfn_l5 opk) (ap1 wfn_l6 opk) (ap1 compCellR opk)
+              (fork_false_to_snd_imp H leafCell wfn_l6 (testHd 5) opk (natEqSkip_imp H get_tag 8 5 opk (wn 8 5 (\ ())) gtagK_h))
+              (impEqTrans (ap1 wfn_l6 opk) (ap1 wfn_l7 opk) (ap1 compCellR opk)
+                (fork_false_to_snd_imp H compCellC wfn_l7 (testHd 6) opk (natEqSkip_imp H get_tag 8 6 opk (wn 8 6 (\ ())) gtagK_h))
+                (impEqTrans (ap1 wfn_l7 opk) (ap1 wfn_l8 opk) (ap1 compCellR opk)
+                  (fork_false_to_snd_imp H leafCell wfn_l8 (testHd 7) opk (natEqSkip_imp H get_tag 8 7 opk (wn 8 7 (\ ())) gtagK_h))
+                  (fork_true_to_fst_imp H compCellR rejectCell (testHd 8) opk (natEqFire_imp H get_tag 8 opk gtagK_h))))))
+      axStep = impLift (ax_C pi selfChk restRcode opk)
+      selfStep = impCongL pi (ap1 selfChk opk) (ap1 funValidF f) (restRval f) selfChk_h
+  in impEqTrans (ap1 wfFun f) (ap1 wfFunNodeCell opk) (ap2 pi (ap1 funValidF f) (restRval f))
+       toNode_h
+       (impEqTrans (ap1 wfFunNodeCell opk) (ap1 compCellR opk) (ap2 pi (ap1 funValidF f) (restRval f))
+         fires_R
+         (impEqTrans (ap1 compCellR opk) (ap2 pi (ap1 selfChk opk) (restRval f)) (ap2 pi (ap1 funValidF f) (restRval f))
+           axStep selfStep))
+
 ------------------------------------------------------------------------
 -- imp-form recon equations (threading the funhead) + funValid reconstruction.
 
@@ -297,6 +330,25 @@ recon_C_imp f =
              (fork_true_to_fst_imp H cCompBr rec_l7 (rTestHd 6) f (natEqFire_imp H Fst 6 f (identP H)))
              (impLift (cCompBr_val f)))))
 
+recon_R_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 8)) (eqF (ap1 recon f) (cRec (cG f) (cH1 f) (cH2 f))))
+recon_R_imp f =
+  let H = eqF (ap1 Fst f) (natCode 8)
+      cr = cRec (cG f) (cH1 f) (cH2 f)
+  in impEqTrans (ap1 recon f) (ap1 rec_l4 f) cr
+       (fork_false_to_snd_imp H cSucBr rec_l4 (rTestHd 3) f (natEqSkip_imp H Fst 8 3 f (wnr 8 3 (\ ())) (identP H)))
+       (impEqTrans (ap1 rec_l4 f) (ap1 rec_l5 f) cr
+         (fork_false_to_snd_imp H cZeroBr rec_l5 (rTestHd 4) f (natEqSkip_imp H Fst 8 4 f (wnr 8 4 (\ ())) (identP H)))
+         (impEqTrans (ap1 rec_l5 f) (ap1 rec_l6 f) cr
+           (fork_false_to_snd_imp H cIdBr rec_l6 (rTestHd 5) f (natEqSkip_imp H Fst 8 5 f (wnr 8 5 (\ ())) (identP H)))
+           (impEqTrans (ap1 rec_l6 f) (ap1 rec_l7 f) cr
+             (fork_false_to_snd_imp H cCompBr rec_l7 (rTestHd 6) f (natEqSkip_imp H Fst 8 6 f (wnr 8 6 (\ ())) (identP H)))
+             (impEqTrans (ap1 rec_l7 f) (ap1 rec_l8 f) cr
+               (fork_false_to_snd_imp H cProjBr rec_l8 (rTestHd 7) f (natEqSkip_imp H Fst 8 7 f (wnr 8 7 (\ ())) (identP H)))
+               (impEqTrans (ap1 rec_l8 f) (ap1 cRecBr f) cr
+                 (fork_true_to_fst_imp H cRecBr junkBr (rTestHd 8) f (natEqFire_imp H Fst 8 f (identP H)))
+                 (impLift (cRecBr_val f)))))))
+
 -- funValid (shallow) = O  +  funhead  =>  f = canonical.
 private
   mkCanon : (f canon : Term) (k : Nat) ->
@@ -327,6 +379,10 @@ funValid_C_imp : (f : Term) ->
   Deriv (imp (eqF (ap1 Fst f) (natCode 6))
              (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f (cComp (cG f) (cH1 f) (cH2 f)))))
 funValid_C_imp f = mkCanon f (cComp (cG f) (cH1 f) (cH2 f)) 6 (recon_C_imp f)
+funValid_R_imp : (f : Term) ->
+  Deriv (imp (eqF (ap1 Fst f) (natCode 8))
+             (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f (cRec (cG f) (cH1 f) (cH2 f)))))
+funValid_R_imp f = mkCanon f (cRec (cG f) (cH1 f) (cH2 f)) 8 (recon_R_imp f)
 
 ------------------------------------------------------------------------
 -- REJECT cascade (funhead not in {1,3,4,5,6,7,8}):  wfFun c = s O.
