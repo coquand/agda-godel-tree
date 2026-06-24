@@ -214,6 +214,17 @@ fold2 : (A B : Formula) (X : Formula) ->
   Deriv (imp negLeaf (imp htag (imp (Cnj A B) X)))
 fold2 A B X d = ap2c (lift2 negLeaf htag (uncurryImp A B X)) d
 
+-- precompose-by-cnjL:  (A -> X)  ->  (Cnj A B -> X)  (ignore the extra B).
+preCnjL : (A B Cf : Formula) -> Deriv (imp (imp A Cf) (imp (Cnj A B) Cf))
+preCnjL A B Cf = ap2c (axK (imp A Cf) (Cnj A B)) (liftP (imp A Cf) (cnjL A B))
+
+-- add an IGNORED antecedent B (Cnj-weakening):
+--   imp negLeaf (imp htag (imp A X))  ->  imp negLeaf (imp htag (imp (Cnj A B) X)) .
+dropAnt2 : (A B : Formula) (X : Formula) ->
+  Deriv (imp negLeaf (imp htag (imp A X))) ->
+  Deriv (imp negLeaf (imp htag (imp (Cnj A B) X)))
+dropAnt2 A B X d = ap2c (lift2 negLeaf htag (preCnjL A B X)) d
+
 ------------------------------------------------------------------------
 -- assembly:  the four endpoint facts  =>  Bgoal .
 
