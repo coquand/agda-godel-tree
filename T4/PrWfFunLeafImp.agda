@@ -19,7 +19,7 @@ module T4.PrWfFunLeafImp where
 open import T4.Base
 
 open import T4.PrWfFun
-  using ( wfFun ; wfFunNodeCell ; leafCell ; selfChk ; compCellC ; rejectCell
+  using ( wfFun ; wfFunNodeCell ; leafCell ; selfChk ; compCellC ; compCellR ; rejectCell
         ; isF1at ; isF2at ; fv3cell
         ; wfn_l4 ; wfn_l5 ; wfn_l6 ; wfn_l7 ; wfn_l8 ; testHd )
 open import T4.PrFunValidCanon using ( funValidF )
@@ -327,3 +327,60 @@ funValid_C_imp : (f : Term) ->
   Deriv (imp (eqF (ap1 Fst f) (natCode 6))
              (imp (eqF (eqDecO f (ap1 recon f)) O) (eqF f (cComp (cG f) (cH1 f) (cH2 f)))))
 funValid_C_imp f = mkCanon f (cComp (cG f) (cH1 f) (cH2 f)) 6 (recon_C_imp f)
+
+------------------------------------------------------------------------
+-- REJECT cascade (funhead not in {1,3,4,5,6,7,8}):  wfFun c = s O.
+-- Used by the ap1c/ap2c funhead dispatch to close the else (junk-head)
+-- branch under validity (wfFun c = O contradicts s O = O).  Mirrors the
+-- toy T4.DerUOpaqueGam.wfRed_op_reject_gam.
+
+private
+  gtagNe : (c : Term) -> Deriv (imp (neg (eqF c O)) (eqF (ap1 get_tag (opkg c)) (ap1 Fst c)))
+  gtagNe c =
+    impEqTrans (ap1 get_tag (opkg c)) (ap1 Fst (ap1 get_newK (opkg c))) (ap1 Fst c)
+      (impLift (compose1U_eq Fst get_newK (opkg c)))
+      (impCong1 Fst (ap1 get_newK (opkg c)) c (op_newK_imp c))
+
+wfFun_op_reject_gam : (Gam : Formula) (c : Term) ->
+  Deriv (imp Gam (neg (eqF c O))) ->
+  Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode 1)) O)) ->
+  Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode 3)) O)) ->
+  Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode 4)) O)) ->
+  Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode 5)) O)) ->
+  Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode 6)) O)) ->
+  Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode 7)) O)) ->
+  Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode 8)) O)) ->
+  Deriv (imp Gam (eqF (ap1 wfFun c) (ap1 s O)))
+wfFun_op_reject_gam Gam c gNe gn1 gn3 gn4 gn5 gn6 gn7 gn8 =
+  let opk = opkg c
+      gtag_gam : Deriv (imp Gam (eqF (ap1 get_tag opk) (ap1 Fst c)))
+      gtag_gam = compI gNe (gtagNe c)
+      gSkip : (k : Nat) -> Deriv (imp Gam (eqF (ap2 natEqF (ap1 Fst c) (natCode k)) O)) ->
+        Deriv (imp Gam (eqF (ap1 (testHd k) opk) O))
+      gSkip k gnk =
+        impEqTrans (ap1 (testHd k) opk) (ap2 natEqF (ap1 Fst c) (natCode k)) O
+          (impEqTrans (ap1 (testHd k) opk) (ap2 natEqF (ap1 get_tag opk) (natCode k)) (ap2 natEqF (ap1 Fst c) (natCode k))
+             (impLift (ruleTrans (ax_C natEqF get_tag (constN k) opk) (congR natEqF (ap1 get_tag opk) (constN_eq k opk))))
+             (impCongL natEqF (ap1 get_tag opk) (ap1 Fst c) (natCode k) gtag_gam))
+          gnk
+      cell_fires : Deriv (imp Gam (eqF (ap1 wfFunNodeCell opk) (ap1 rejectCell opk)))
+      cell_fires =
+        impEqTrans (ap1 wfFunNodeCell opk) (ap1 wfn_l4 opk) (ap1 rejectCell opk)
+          (fork_false_to_snd_imp Gam leafCell wfn_l4 (testHd 3) opk (gSkip 3 gn3))
+          (impEqTrans (ap1 wfn_l4 opk) (ap1 wfn_l5 opk) (ap1 rejectCell opk)
+            (fork_false_to_snd_imp Gam leafCell wfn_l5 (testHd 4) opk (gSkip 4 gn4))
+            (impEqTrans (ap1 wfn_l5 opk) (ap1 wfn_l6 opk) (ap1 rejectCell opk)
+              (fork_false_to_snd_imp Gam leafCell wfn_l6 (testHd 5) opk (gSkip 5 gn5))
+              (impEqTrans (ap1 wfn_l6 opk) (ap1 wfn_l7 opk) (ap1 rejectCell opk)
+                (fork_false_to_snd_imp Gam compCellC wfn_l7 (testHd 6) opk (gSkip 6 gn6))
+                (impEqTrans (ap1 wfn_l7 opk) (ap1 wfn_l8 opk) (ap1 rejectCell opk)
+                  (fork_false_to_snd_imp Gam leafCell wfn_l8 (testHd 7) opk (gSkip 7 gn7))
+                  (fork_false_to_snd_imp Gam compCellR rejectCell (testHd 8) opk (gSkip 8 gn8))))))
+      toNodeStep : Deriv (imp Gam (eqF (ap1 wfFunStepU opk) (ap1 wfFunNodeCell opk)))
+      toNodeStep = fork_false_to_snd_imp Gam Z wfFunNodeCell (testHd 1) opk (gSkip 1 gn1)
+  in impEqTrans (ap1 wfFun c) (ap1 wfFunStepU opk) (ap1 s O)
+       (compI gNe (opUnfold_imp c))
+       (impEqTrans (ap1 wfFunStepU opk) (ap1 wfFunNodeCell opk) (ap1 s O)
+          toNodeStep
+          (impEqTrans (ap1 wfFunNodeCell opk) (ap1 rejectCell opk) (ap1 s O)
+             cell_fires (impLift (constN_eq 1 opk))))
