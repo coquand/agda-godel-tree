@@ -40,6 +40,9 @@ open import T4.PrCRGlueImpU
         ; piBothO_imp ; piZeroL_imp ; piZeroR_imp )
 open import T4.EqDecO using ( eqDecO )
 open import T4.PrCodeObj using ( tmAp1 ; tmAp2 ; tgAp1 ; tgAp2 )
+open import T4.PrFunValidCanon using ( funValidF ; funValidF_eq )
+open import T4.PrFunValid using ( recon )
+open import T4.PrWfFun using ( wfFun )
 
 open import BRA3.Logic using ( prependEqLeft ; eqSymImp )
 open import BRA3.Contrapositive using ( compI ; identP ; liftP )
@@ -228,6 +231,31 @@ assembleConj34 fh factV factS factT =
       outer = ap4c (ap4c (l4 fh (sigmaBothO_imp (ap1 wfRedFull (ap1 triF sK)) (ap2 sigma eqS eqT))) factV) inner
   in G4trans (ap1 conj3 sK) (ap2 sigma (ap1 wfRedFull (ap1 triF sK)) (ap2 sigma eqS eqT)) O fh
        (l4 fh (conj3_unfold sK)) outer
+
+------------------------------------------------------------------------
+-- Reconstruction:  funValidF fp = O  +  funValid_X_imp  =>  fp = canon .
+-- (funValidF fp = O comes from the node's funcode-validity conjunct; the second
+-- argument is the head-threaded reconstruction  T4.PrWfFunLeafImp.funValid_X_imp.)
+
+reconstruct : (fh : Formula) (fp canon : Term) ->
+  Deriv (Ctx fh (eqF (ap1 funValidF fp) O)) ->
+  Deriv (imp fh (imp (eqF (eqDecO fp (ap1 recon fp)) O) (eqF fp canon))) ->
+  Deriv (Ctx fh (eqF fp canon))
+reconstruct fh fp canon fvfO funValidImp =
+  let eqdOEq = ap4c (l4 fh (prependEqLeft (eqDecO fp (ap1 recon fp)) (ap1 funValidF fp) O
+                              (ruleSym (funValidF_eq fp)))) fvfO
+  in ap4c (fromFh fh funValidImp) eqdOEq
+
+-- funValidF fp = O  from  wfFun fp = O  and a head-extraction
+--   wfFun fp = pi (funValidF fp) rest   (leaf: rest=trivial; compound: rest=opaque).
+funValidFfromWfFun : (fh : Formula) (fp rest : Term) ->
+  Deriv (imp fh (eqF (ap1 wfFun fp) (ap2 pi (ap1 funValidF fp) rest))) ->
+  Deriv (Ctx fh (eqF (ap1 wfFun fp) O)) ->
+  Deriv (Ctx fh (eqF (ap1 funValidF fp) O))
+funValidFfromWfFun fh fp rest headEq wfFunO =
+  gPiL4 fh (ap1 funValidF fp) rest
+    (G4trans (ap2 pi (ap1 funValidF fp) rest) (ap1 wfFun fp) O fh
+      (G4sym (ap1 wfFun fp) (ap2 pi (ap1 funValidF fp) rest) fh (fromFh fh headEq)) wfFunO)
 
 ------------------------------------------------------------------------
 -- THE GENERIC NODE GLUE.
