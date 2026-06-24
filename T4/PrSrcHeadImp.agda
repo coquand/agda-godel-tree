@@ -46,7 +46,7 @@ open import T4.GammaCtx using ( Cnj ; cnjL ; cnjR ; cnjCurry )
 open import T4.AdDispatchAux using ( FstO )
 open import T4.CtxKit using ( trans2c )
 open import T4.DescSndImp using ( neSucc )
-open import T4.PrCodeObj using ( tgAp1 )
+open import T4.PrCodeObj using ( tgAp1 ; hd_cComp ; hd_cRec ; hd_tmAp1 ; hd_tmAp2 )
 
 import T4.OpaqueHarnessImp
 
@@ -77,6 +77,42 @@ private
 -- the (opaque, un-evaluated) left-child argument of the ap1c source.
 srcChildArg : Term -> Term
 srcChildArg p = ap1 srcL (Hs.opkg p)
+
+-- the (raw, un-reconstructed) carried funs of rC / rRb / rRs children.
+srcChildFunC : Term -> Term
+srcChildFunC p = cComp (ap1 bunG (Hs.opkg p)) (ap1 bunH1 (Hs.opkg p)) (ap1 bunH2 (Hs.opkg p))
+srcChildFunR : Term -> Term
+srcChildFunR p = cRec (ap1 bunG (Hs.opkg p)) (ap1 bunH1 (Hs.opkg p)) (ap1 bunH2 (Hs.opkg p))
+
+-- the rewritten child-source terms (= srcF dR) for rC / rRb / rRs.
+bR_rC : Term -> Term
+bR_rC p = tmAp1 (srcChildFunC p) (srcChildArg p)
+bR_rRb : Term -> Term
+bR_rRb p = tmAp2 (srcChildFunR p) (srcChildArg p) (ap1 tmOF (Hs.opkg p))
+bR_rRs : Term -> Term
+bR_rRs p = tmAp2 (srcChildFunR p) (srcChildArg p) (tmAp1 cSuc (ap1 srcR (Hs.opkg p)))
+
+-- the inner-fun-head facts (= Fst(Fst(Snd bR)) = natCode k) for the devF Hbf bridge.
+bridge_rC : (p : Term) -> Deriv (eqF (ap1 Fst (ap1 Fst (ap1 Snd (bR_rC p)))) (natCode 6))
+bridge_rC p = ruleTrans (cong1 Fst (ruleTrans (cong1 Fst (axSnd tgAp1 (ap2 Pair (srcChildFunC p) (srcChildArg p))))
+                                              (axFst (srcChildFunC p) (srcChildArg p))))
+                        (hd_cComp (ap1 bunG (Hs.opkg p)) (ap1 bunH1 (Hs.opkg p)) (ap1 bunH2 (Hs.opkg p)))
+bridge_rRb : (p : Term) -> Deriv (eqF (ap1 Fst (ap1 Fst (ap1 Snd (bR_rRb p)))) (natCode 8))
+bridge_rRb p = ruleTrans (cong1 Fst (ruleTrans (cong1 Fst (axSnd tgAp2 (ap2 Pair (srcChildFunR p) (ap2 Pair (srcChildArg p) (ap1 tmOF (Hs.opkg p))))))
+                                               (axFst (srcChildFunR p) (ap2 Pair (srcChildArg p) (ap1 tmOF (Hs.opkg p))))))
+                         (hd_cRec (ap1 bunG (Hs.opkg p)) (ap1 bunH1 (Hs.opkg p)) (ap1 bunH2 (Hs.opkg p)))
+bridge_rRs : (p : Term) -> Deriv (eqF (ap1 Fst (ap1 Fst (ap1 Snd (bR_rRs p)))) (natCode 8))
+bridge_rRs p = ruleTrans (cong1 Fst (ruleTrans (cong1 Fst (axSnd tgAp2 (ap2 Pair (srcChildFunR p) (ap2 Pair (srcChildArg p) (tmAp1 cSuc (ap1 srcR (Hs.opkg p)))))))
+                                               (axFst (srcChildFunR p) (ap2 Pair (srcChildArg p) (tmAp1 cSuc (ap1 srcR (Hs.opkg p)))))))
+                         (hd_cRec (ap1 bunG (Hs.opkg p)) (ap1 bunH1 (Hs.opkg p)) (ap1 bunH2 (Hs.opkg p)))
+
+-- the outer-head facts (= Fst bR = natCode mb) for the devF mb argument.
+mbHead_rC : (p : Term) -> Deriv (eqF (ap1 Fst (bR_rC p)) (natCode 1))
+mbHead_rC p = hd_tmAp1 (srcChildFunC p) (srcChildArg p)
+mbHead_rRb : (p : Term) -> Deriv (eqF (ap1 Fst (bR_rRb p)) (natCode 2))
+mbHead_rRb p = hd_tmAp2 (srcChildFunR p) (srcChildArg p) (ap1 tmOF (Hs.opkg p))
+mbHead_rRs : (p : Term) -> Deriv (eqF (ap1 Fst (bR_rRs p)) (natCode 2))
+mbHead_rRs p = hd_tmAp2 (srcChildFunR p) (srcChildArg p) (tmAp1 cSuc (ap1 srcR (Hs.opkg p)))
 
 srcF_ap1c_himp : (p : Term) ->
   Deriv (imp (eqF (ap1 Fst p) (natCode 2))
