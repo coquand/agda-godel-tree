@@ -19,7 +19,8 @@ open import T4.Base
 
 open import T4.PrFunValidCanon using ( funValidF )
 open import T4.PrWfFun
-  using ( wfFun ; wfFunNodeCell ; leafCell ; fv3cell ; selfChk ; compCell ; rejectCell
+  using ( wfFun ; wfFunNodeCell ; leafCell ; fv3cell ; selfChk ; compCellC ; compCellR ; rejectCell
+        ; nH ; isF1at ; isF2at ; isF1 ; isF2
         ; wfn_l4 ; wfn_l5 ; wfn_l6 ; wfn_l7 ; wfn_l8 ; testHd )
 
 open import T4.DerCodeS using ( dtag ; pL ; pR )
@@ -101,24 +102,95 @@ private
     Deriv (eqF (ap1 (lookupAt rIdx) (opkg p)) (ap1 wfFun (pR p)))
   recR p ne = lookup_op rejectCell wfFunStepU rIdx (ap1 predecessor p) (pR p) (op_pR p ne) (pRValueBound p ne)
 
-  -- compCell value, opaque.
-  compCell_op : (p : Term) -> Deriv (neg (eqF p O)) ->
-    Deriv (eqF (ap1 compCell (opkg p))
-               (ap2 pi (ap1 funValidF p)
-                       (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p))))))
-  compCell_op p ne =
+  -- opaque head recovery and arity-cell values (FIX(C)).
+  hdN_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 (compose1U Fst nIdx) (opkg p)) (ap1 Fst (dtag p)))
+  hdN_op p ne = ruleTrans (compose1U_eq Fst nIdx (opkg p)) (cong1 Fst (op_nIdx p ne))
+  hdL_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 (compose1U Fst lIdx) (opkg p)) (ap1 Fst (pL p)))
+  hdL_op p ne = ruleTrans (compose1U_eq Fst lIdx (opkg p)) (cong1 Fst (op_pL p ne))
+  hdR_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 (compose1U Fst rIdx) (opkg p)) (ap1 Fst (pR p)))
+  hdR_op p ne = ruleTrans (compose1U_eq Fst rIdx (opkg p)) (cong1 Fst (op_pR p ne))
+  nH_op : (p : Term) (k : Nat) (idx : Fun1) (X : Term) ->
+    Deriv (eqF (ap1 (compose1U Fst idx) (opkg p)) (ap1 Fst X)) ->
+    Deriv (eqF (ap1 (nH k idx) (opkg p)) (ap2 natEqF (ap1 Fst X) (natCode k)))
+  nH_op p k idx X hd =
+    ruleTrans (ax_C natEqF (compose1U Fst idx) (constN k) (opkg p))
+      (ruleTrans (congL natEqF (ap1 (constN k) (opkg p)) hd)
+                 (congR natEqF (ap1 Fst X) (constN_eq k (opkg p))))
+  isF1at_op : (p : Term) (idx : Fun1) (X : Term) ->
+    Deriv (eqF (ap1 (compose1U Fst idx) (opkg p)) (ap1 Fst X)) ->
+    Deriv (eqF (ap1 (isF1at idx) (opkg p)) (isF1 X))
+  isF1at_op p idx X hd =
+    ruleTrans (ax_C pi (nH 7 idx) (nH 8 idx) (opkg p))
+      (ruleTrans (congL pi (ap1 (nH 8 idx) (opkg p)) (nH_op p 7 idx X hd))
+                 (congR pi (ap2 natEqF (ap1 Fst X) (natCode 7)) (nH_op p 8 idx X hd)))
+  isF2at_op : (p : Term) (idx : Fun1) (X : Term) ->
+    Deriv (eqF (ap1 (compose1U Fst idx) (opkg p)) (ap1 Fst X)) ->
+    Deriv (eqF (ap1 (isF2at idx) (opkg p)) (isF2 X))
+  isF2at_op p idx X hd =
+    ruleTrans (ax_C pi (nH 3 idx) (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx))) (opkg p))
+      (ruleTrans (congL pi (ap1 (C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx))) (opkg p)) (nH_op p 3 idx X hd))
+        (congR pi (ap2 natEqF (ap1 Fst X) (natCode 3))
+          (ruleTrans (ax_C pi (nH 4 idx) (C pi (nH 5 idx) (nH 6 idx)) (opkg p))
+            (ruleTrans (congL pi (ap1 (C pi (nH 5 idx) (nH 6 idx)) (opkg p)) (nH_op p 4 idx X hd))
+              (congR pi (ap2 natEqF (ap1 Fst X) (natCode 4))
+                (ruleTrans (ax_C pi (nH 5 idx) (nH 6 idx) (opkg p))
+                  (ruleTrans (congL pi (ap1 (nH 6 idx) (opkg p)) (nH_op p 5 idx X hd))
+                             (congR pi (ap2 natEqF (ap1 Fst X) (natCode 5)) (nH_op p 6 idx X hd)))))))))
+  -- shared deep fv3 value.
+  fv3v_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 fv3cell (opkg p))
+               (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p)))))
+  fv3v_op p ne =
     let opk = opkg p
-        fv3v : Deriv (eqF (ap1 fv3cell opk)
-                          (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p)))))
-        fv3v = ruleTrans (ax_C pi (lookupAt nIdx) (C pi (lookupAt lIdx) (lookupAt rIdx)) opk)
-                 (ruleTrans (congL pi (ap1 (C pi (lookupAt lIdx) (lookupAt rIdx)) opk) (recN p ne))
-                   (congR pi (ap1 wfFun (dtag p))
-                     (ruleTrans (ax_C pi (lookupAt lIdx) (lookupAt rIdx) opk)
-                       (ruleTrans (congL pi (ap1 (lookupAt rIdx) opk) (recL p ne))
-                                  (congR pi (ap1 wfFun (pL p)) (recR p ne))))))
-    in ruleTrans (ax_C pi selfChk fv3cell opk)
-         (ruleTrans (congL pi (ap1 fv3cell opk) (selfChk_op p ne))
-                    (congR pi (ap1 funValidF p) fv3v))
+    in ruleTrans (ax_C pi (lookupAt nIdx) (C pi (lookupAt lIdx) (lookupAt rIdx)) opk)
+         (ruleTrans (congL pi (ap1 (C pi (lookupAt lIdx) (lookupAt rIdx)) opk) (recN p ne))
+           (congR pi (ap1 wfFun (dtag p))
+             (ruleTrans (ax_C pi (lookupAt lIdx) (lookupAt rIdx) opk)
+               (ruleTrans (congL pi (ap1 (lookupAt rIdx) opk) (recL p ne))
+                          (congR pi (ap1 wfFun (pL p)) (recR p ne))))))
+  -- compCellC value (cComp arity: g Fun2, h1/h2 Fun1).
+  compCellC_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 compCellC (opkg p))
+               (ap2 pi (ap1 funValidF p)
+                 (ap2 pi (isF2 (dtag p)) (ap2 pi (isF1 (pL p)) (ap2 pi (isF1 (pR p))
+                   (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p)))))))))
+  compCellC_op p ne =
+    let opk = opkg p
+    in ruleTrans (ax_C pi selfChk (C pi (isF2at nIdx) (C pi (isF1at lIdx) (C pi (isF1at rIdx) fv3cell))) opk)
+         (ruleTrans (congL pi (ap1 (C pi (isF2at nIdx) (C pi (isF1at lIdx) (C pi (isF1at rIdx) fv3cell))) opk) (selfChk_op p ne))
+           (congR pi (ap1 funValidF p)
+             (ruleTrans (ax_C pi (isF2at nIdx) (C pi (isF1at lIdx) (C pi (isF1at rIdx) fv3cell)) opk)
+               (ruleTrans (congL pi (ap1 (C pi (isF1at lIdx) (C pi (isF1at rIdx) fv3cell)) opk) (isF2at_op p nIdx (dtag p) (hdN_op p ne)))
+                 (congR pi (isF2 (dtag p))
+                   (ruleTrans (ax_C pi (isF1at lIdx) (C pi (isF1at rIdx) fv3cell) opk)
+                     (ruleTrans (congL pi (ap1 (C pi (isF1at rIdx) fv3cell) opk) (isF1at_op p lIdx (pL p) (hdL_op p ne)))
+                       (congR pi (isF1 (pL p))
+                         (ruleTrans (ax_C pi (isF1at rIdx) fv3cell opk)
+                           (ruleTrans (congL pi (ap1 fv3cell opk) (isF1at_op p rIdx (pR p) (hdR_op p ne)))
+                             (congR pi (isF1 (pR p)) (fv3v_op p ne))))))))))))
+  -- compCellR value (cRec arity: g Fun1, h1/h2 Fun2).
+  compCellR_op : (p : Term) -> Deriv (neg (eqF p O)) ->
+    Deriv (eqF (ap1 compCellR (opkg p))
+               (ap2 pi (ap1 funValidF p)
+                 (ap2 pi (isF1 (dtag p)) (ap2 pi (isF2 (pL p)) (ap2 pi (isF2 (pR p))
+                   (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p)))))))))
+  compCellR_op p ne =
+    let opk = opkg p
+    in ruleTrans (ax_C pi selfChk (C pi (isF1at nIdx) (C pi (isF2at lIdx) (C pi (isF2at rIdx) fv3cell))) opk)
+         (ruleTrans (congL pi (ap1 (C pi (isF1at nIdx) (C pi (isF2at lIdx) (C pi (isF2at rIdx) fv3cell))) opk) (selfChk_op p ne))
+           (congR pi (ap1 funValidF p)
+             (ruleTrans (ax_C pi (isF1at nIdx) (C pi (isF2at lIdx) (C pi (isF2at rIdx) fv3cell)) opk)
+               (ruleTrans (congL pi (ap1 (C pi (isF2at lIdx) (C pi (isF2at rIdx) fv3cell)) opk) (isF1at_op p nIdx (dtag p) (hdN_op p ne)))
+                 (congR pi (isF1 (dtag p))
+                   (ruleTrans (ax_C pi (isF2at lIdx) (C pi (isF2at rIdx) fv3cell) opk)
+                     (ruleTrans (congL pi (ap1 (C pi (isF2at rIdx) fv3cell) opk) (isF2at_op p lIdx (pL p) (hdL_op p ne)))
+                       (congR pi (isF2 (pL p))
+                         (ruleTrans (ax_C pi (isF2at rIdx) fv3cell opk)
+                           (ruleTrans (congL pi (ap1 fv3cell opk) (isF2at_op p rIdx (pR p) (hdR_op p ne)))
+                             (congR pi (isF2 (pR p)) (fv3v_op p ne))))))))))))
 
   -- to the node cell: wfFun p = wfFunNodeCell (opkg p)  (test1 skips for Fst p in 3..8).
   toCell : (p : Term) -> Deriv (neg (eqF p O)) ->
@@ -137,7 +209,8 @@ wfFun_op_C : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (eqF (ap1 Fst p) (natCode 6)) ->
   Deriv (eqF (ap1 wfFun p)
              (ap2 pi (ap1 funValidF p)
-                     (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p))))))
+               (ap2 pi (isF2 (dtag p)) (ap2 pi (isF1 (pL p)) (ap2 pi (isF1 (pR p))
+                 (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p)))))))))
 wfFun_op_C p ne nl h6 =
   let opk = opkg p
       tg : Deriv (eqF (ap1 get_tag opk) (natCode 6))
@@ -146,15 +219,16 @@ wfFun_op_C p ne nl h6 =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) opk (idxTest_skip get_tag 6 3 opk (wn 6 3 (\ ())) tg))
           (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) opk (idxTest_skip get_tag 6 4 opk (wn 6 4 (\ ())) tg))
             (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) opk (idxTest_skip get_tag 6 5 opk (wn 6 5 (\ ())) tg))
-                       (fork_true_to_fst compCell wfn_l7 (testHd 6) opk (idxTest_fire get_tag 6 opk tg))))
-  in ruleTrans (toCell p ne nl) (ruleTrans fires (compCell_op p ne))
+                       (fork_true_to_fst compCellC wfn_l7 (testHd 6) opk (idxTest_fire get_tag 6 opk tg))))
+  in ruleTrans (toCell p ne nl) (ruleTrans fires (compCellC_op p ne))
 
 wfFun_op_R : (p : Term) -> Deriv (neg (eqF p O)) ->
   Deriv (eqF (ap2 natEqF (ap1 Fst p) (natCode 1)) O) ->
   Deriv (eqF (ap1 Fst p) (natCode 8)) ->
   Deriv (eqF (ap1 wfFun p)
              (ap2 pi (ap1 funValidF p)
-                     (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p))))))
+               (ap2 pi (isF1 (dtag p)) (ap2 pi (isF2 (pL p)) (ap2 pi (isF2 (pR p))
+                 (ap2 pi (ap1 wfFun (dtag p)) (ap2 pi (ap1 wfFun (pL p)) (ap1 wfFun (pR p)))))))))
 wfFun_op_R p ne nl h8 =
   let opk = opkg p
       tg : Deriv (eqF (ap1 get_tag opk) (natCode 8))
@@ -163,10 +237,10 @@ wfFun_op_R p ne nl h8 =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) opk (idxTest_skip get_tag 8 3 opk (wn 8 3 (\ ())) tg))
           (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) opk (idxTest_skip get_tag 8 4 opk (wn 8 4 (\ ())) tg))
             (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) opk (idxTest_skip get_tag 8 5 opk (wn 8 5 (\ ())) tg))
-              (ruleTrans (fork_false_to_snd compCell wfn_l7 (testHd 6) opk (idxTest_skip get_tag 8 6 opk (wn 8 6 (\ ())) tg))
+              (ruleTrans (fork_false_to_snd compCellC wfn_l7 (testHd 6) opk (idxTest_skip get_tag 8 6 opk (wn 8 6 (\ ())) tg))
                 (ruleTrans (fork_false_to_snd leafCell wfn_l8 (testHd 7) opk (idxTest_skip get_tag 8 7 opk (wn 8 7 (\ ())) tg))
-                           (fork_true_to_fst compCell rejectCell (testHd 8) opk (idxTest_fire get_tag 8 opk tg))))))
-  in ruleTrans (toCell p ne nl) (ruleTrans fires (compCell_op p ne))
+                           (fork_true_to_fst compCellR rejectCell (testHd 8) opk (idxTest_fire get_tag 8 opk tg))))))
+  in ruleTrans (toCell p ne nl) (ruleTrans fires (compCellR_op p ne))
 
 ------------------------------------------------------------------------
 -- SECTION 3.  The leaf extraction equations (Fst f in {3,4,5,7}).
@@ -218,6 +292,6 @@ wfFun_op_v p ne nl h7 =
         ruleTrans (fork_false_to_snd leafCell wfn_l4 (testHd 3) opk (idxTest_skip get_tag 7 3 opk (wn 7 3 (\ ())) tg))
           (ruleTrans (fork_false_to_snd leafCell wfn_l5 (testHd 4) opk (idxTest_skip get_tag 7 4 opk (wn 7 4 (\ ())) tg))
             (ruleTrans (fork_false_to_snd leafCell wfn_l6 (testHd 5) opk (idxTest_skip get_tag 7 5 opk (wn 7 5 (\ ())) tg))
-              (ruleTrans (fork_false_to_snd compCell wfn_l7 (testHd 6) opk (idxTest_skip get_tag 7 6 opk (wn 7 6 (\ ())) tg))
+              (ruleTrans (fork_false_to_snd compCellC wfn_l7 (testHd 6) opk (idxTest_skip get_tag 7 6 opk (wn 7 6 (\ ())) tg))
                          (fork_true_to_fst leafCell wfn_l8 (testHd 7) opk (idxTest_fire get_tag 7 opk tg)))))
   in ruleTrans (toCell p ne nl) (ruleTrans fires (selfChk_op p ne))
