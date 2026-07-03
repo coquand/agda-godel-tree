@@ -27,7 +27,7 @@ open import T4.FnResidual
         ; rB ; tst ; fork ; funhead ; mbhead ; mbfunhead )
 open import T4.FnResidualOpaque
   using ( residual_unfold ; op_tag ; mc_fl_op ; funhead_op )
-open import T4.FnResidualOpaque2 using ( fireVal ; congNVal ; rB_op ; mbhead_op ; bRbVal )
+open import T4.FnResidualOpaque2 using ( fireVal ; congNVal ; rB_op ; mbhead_op ; mbfunhead_op ; bRbVal )
 
 open import BRA3.SubT.V2NatNeq using ( NatNeqWitness ; decideNatNeq )
 open import T4.ForkImp
@@ -39,7 +39,8 @@ open import BRA3.Classical using ( axContrapos )
 open import BRA3.Contrapositive using ( compI ; identP )
 open import T4.CtxKit
   using ( lift3 ; get3a ; get3b ; get3c ; ap3c ; trans3c
-        ; lift4 ; get4a ; get4b ; get4c ; get4d ; ap4c ; trans4c )
+        ; lift4 ; get4a ; get4b ; get4c ; get4d ; ap4c ; trans4c
+        ; lift5 ; get5a ; get5b ; get5c ; get5d ; get5e ; ap5c ; trans5c )
 
 private
   nq : (m k : Nat) -> ((Eq m k) -> Empty) -> NatNeqWitness m k
@@ -74,6 +75,28 @@ private
                        (eqF (ap1 Fst (mFun d)) (natCode k)))
           (prependEqLeft (ap1 Fst (mFun d)) (ap1 funhead (opkg d)) (natCode k)
              (ruleSym (funhead_op d ne))))
+
+  -- neg-form mbhead transport: neg (Fst (mMb d) = k) => neg (mbhead (opkg d) = k).
+  mbhNegImp : (H : Formula) (d : Term) (k : Nat) -> Deriv (neg (eqF d O)) ->
+    Deriv (imp H (neg (eqF (ap1 Fst (mMb d)) (natCode k)))) ->
+    Deriv (imp H (neg (eqF (ap1 mbhead (opkg d)) (natCode k))))
+  mbhNegImp H d k ne nk =
+    compI nk
+      (mp (axContrapos (eqF (ap1 mbhead (opkg d)) (natCode k))
+                       (eqF (ap1 Fst (mMb d)) (natCode k)))
+          (prependEqLeft (ap1 Fst (mMb d)) (ap1 mbhead (opkg d)) (natCode k)
+             (ruleSym (mbhead_op d ne))))
+
+  -- neg-form mbfunhead transport.
+  mbfhNegImp : (H : Formula) (d : Term) (k : Nat) -> Deriv (neg (eqF d O)) ->
+    Deriv (imp H (neg (eqF (ap1 Fst (ap1 Fst (ap1 Snd (ap1 Snd (mMb d))))) (natCode k)))) ->
+    Deriv (imp H (neg (eqF (ap1 mbfunhead (opkg d)) (natCode k))))
+  mbfhNegImp H d k ne nk =
+    compI nk
+      (mp (axContrapos (eqF (ap1 mbfunhead (opkg d)) (natCode k))
+                       (eqF (ap1 Fst (ap1 Fst (ap1 Snd (ap1 Snd (mMb d))))) (natCode k)))
+          (prependEqLeft (ap1 Fst (ap1 Fst (ap1 Snd (ap1 Snd (mMb d))))) (ap1 mbfunhead (opkg d))
+             (natCode k) (ruleSym (mbfunhead_op d ne))))
 
 ------------------------------------------------------------------------
 -- ap2 flN v, order [funhead(=7), flag, tag].  Tag SKIPS to the ap2 cell, flag
@@ -387,3 +410,138 @@ residual_op_ap2_flC_Rb_chain d ne =
              (trans4c (ap1 rR_flC (opkg d)) (ap1 b_Rb (opkg d)) rhsRes
                 (ap4c (lift4 Ga Gb Gc Gd smb0) (get4d Ga Gb Gc Gd))
                 (lift4 Ga Gb Gc Gd (bRbVal d ne)))))
+
+------------------------------------------------------------------------
+-- SECTION Rcong.  the neg-form Rcong chains (fun-head 8 fires, but BOTH mb tests
+-- are negated: neg mbhead-0, neg mbfunhead-3 -> stuck R = pure congruence, node
+-- stays flN, folds to mAp2 flN g (res ma)(res mb)).
+
+-- flN Rcong, order [neg-mbfunh3, neg-mbhead0, funhead(=8), flag, tag].
+residual_op_ap2_flN_Rcong_neg_ctx5f : (d : Term) -> Deriv (neg (eqF d O)) ->
+  Deriv (imp (neg (eqF (ap1 Fst (ap1 Fst (ap1 Snd (ap1 Snd (mMb d))))) (natCode 3)))
+        (imp (neg (eqF (ap1 Fst (mMb d)) (natCode 0)))
+        (imp (eqF (ap1 Fst (mFun d)) (natCode 8))
+        (imp (eqF (ap1 Fst (ap1 Snd d)) flN)
+        (imp (eqF (ap1 Fst d) (natCode 2))
+             (eqF (ap1 residual d)
+                  (mAp2 flN (mFun d) (ap1 residual (mMa d)) (ap1 residual (mMb d)))))))))
+residual_op_ap2_flN_Rcong_neg_ctx5f d ne =
+  let Ga : Formula                                     -- neg mbfunhead 3
+      Ga = neg (eqF (ap1 Fst (ap1 Fst (ap1 Snd (ap1 Snd (mMb d))))) (natCode 3))
+      Gb : Formula                                     -- neg mbhead 0
+      Gb = neg (eqF (ap1 Fst (mMb d)) (natCode 0))
+      Gc : Formula                                     -- funhead 8
+      Gc = eqF (ap1 Fst (mFun d)) (natCode 8)
+      Gd : Formula                                     -- flag flN
+      Gd = eqF (ap1 Fst (ap1 Snd d)) flN
+      Ge : Formula                                     -- tag 2
+      Ge = eqF (ap1 Fst d) (natCode 2)
+      m8N : Fun1
+      m8N = fork rR_flN b_cong2 (tst funhead 8)
+      rRfk : Fun1
+      rRfk = fork b_Rfire b_cong2 (tst mbfunhead 3)
+      rhsRes : Term
+      rhsRes = mAp2 flN (mFun d) (ap1 residual (mMa d)) (ap1 residual (mMb d))
+      sTag : Deriv (imp Ge (eqF (ap1 residual d) (ap1 residualAp2Cell (opkg d))))
+      sTag = impEqTrans (ap1 residual d)
+               (ap1 (stepOf residualAp1Cell residualAp2Cell) (opkg d))
+               (ap1 residualAp2Cell (opkg d))
+               (impLift {Ge} (residual_unfold d ne))
+               (fork_false_to_snd_imp Ge residualAp1Cell residualAp2Cell test1 (opkg d)
+                  (natEqSkip_imp Ge get_tag 2 1 (opkg d) (nq 2 1 (\ ()))
+                     (impEqTrans (ap1 get_tag (opkg d)) (ap1 Fst d) (natCode 2)
+                        (impLift {Ge} (op_tag d ne)) (identP Ge))))
+      sFlag : Deriv (imp Gd (eqF (ap1 residualAp2Cell (opkg d)) (ap1 rAp2_flN (opkg d))))
+      sFlag = fork_false_to_snd_imp Gd rAp2_flC rAp2_flN mc_fl (opkg d)
+                (impEqTrans (ap1 mc_fl (opkg d)) (ap1 Fst (ap1 Snd d)) O
+                   (impLift {Gd} (mc_fl_op d ne)) (identP Gd))
+      s7 : Deriv (imp Gc (eqF (ap1 rAp2_flN (opkg d)) (ap1 m8N (opkg d))))
+      s7 = fork_false_to_snd_imp Gc b_v_N m8N (tst funhead 7) (opkg d)
+             (natEqSkip_imp Gc funhead 8 7 (opkg d) (nq 8 7 (\ ())) (fhImp Gc d 8 ne (identP Gc)))
+      s8 : Deriv (imp Gc (eqF (ap1 m8N (opkg d)) (ap1 rR_flN (opkg d))))
+      s8 = fork_true_to_fst_imp Gc rR_flN b_cong2 (tst funhead 8) (opkg d)
+             (natEqFire_imp Gc funhead 8 (opkg d) (fhImp Gc d 8 ne (identP Gc)))
+      smbh : Deriv (imp Gb (eqF (ap1 rR_flN (opkg d)) (ap1 rRfk (opkg d))))
+      smbh = fork_false_to_snd_imp Gb b_Rfire rRfk (tst mbhead 0) (opkg d)
+               (natEqSkipNeg_imp Gb mbhead 0 (opkg d) (mbhNegImp Gb d 0 ne (identP Gb)))
+      smbf : Deriv (imp Ga (eqF (ap1 rRfk (opkg d)) (ap1 b_cong2 (opkg d))))
+      smbf = fork_false_to_snd_imp Ga b_Rfire b_cong2 (tst mbfunhead 3) (opkg d)
+               (natEqSkipNeg_imp Ga mbfunhead 3 (opkg d) (mbfhNegImp Ga d 3 ne (identP Ga)))
+  in trans5c (ap1 residual d) (ap1 residualAp2Cell (opkg d)) rhsRes
+       (ap5c (lift5 Ga Gb Gc Gd Ge sTag) (get5e Ga Gb Gc Gd Ge))
+       (trans5c (ap1 residualAp2Cell (opkg d)) (ap1 rAp2_flN (opkg d)) rhsRes
+          (ap5c (lift5 Ga Gb Gc Gd Ge sFlag) (get5d Ga Gb Gc Gd Ge))
+          (trans5c (ap1 rAp2_flN (opkg d)) (ap1 rR_flN (opkg d)) rhsRes
+             (trans5c (ap1 rAp2_flN (opkg d)) (ap1 m8N (opkg d)) (ap1 rR_flN (opkg d))
+                (ap5c (lift5 Ga Gb Gc Gd Ge s7) (get5c Ga Gb Gc Gd Ge))
+                (ap5c (lift5 Ga Gb Gc Gd Ge s8) (get5c Ga Gb Gc Gd Ge)))
+             (trans5c (ap1 rR_flN (opkg d)) (ap1 b_cong2 (opkg d)) rhsRes
+                (trans5c (ap1 rR_flN (opkg d)) (ap1 rRfk (opkg d)) (ap1 b_cong2 (opkg d))
+                   (ap5c (lift5 Ga Gb Gc Gd Ge smbh) (get5b Ga Gb Gc Gd Ge))
+                   (ap5c (lift5 Ga Gb Gc Gd Ge smbf) (get5a Ga Gb Gc Gd Ge)))
+                (lift5 Ga Gb Gc Gd Ge (congNVal d ne)))))
+
+-- flC Rcong, order [tag, flC, funhead(=8), neg-mbhead0, neg-mbfunh3].
+residual_op_ap2_flC_Rcong_neg_chain : (d : Term) -> Deriv (neg (eqF d O)) ->
+  Deriv (imp (eqF (ap1 Fst d) (natCode 2))
+        (imp (eqF (ap1 Fst (ap1 Snd d)) flC)
+        (imp (eqF (ap1 Fst (mFun d)) (natCode 8))
+        (imp (neg (eqF (ap1 Fst (mMb d)) (natCode 0)))
+        (imp (neg (eqF (ap1 Fst (ap1 Fst (ap1 Snd (ap1 Snd (mMb d))))) (natCode 3)))
+             (eqF (ap1 residual d)
+                  (mAp2 flN (mFun d) (ap1 residual (mMa d)) (ap1 residual (mMb d)))))))))
+residual_op_ap2_flC_Rcong_neg_chain d ne =
+  let Ga : Formula                                     -- tag 2
+      Ga = eqF (ap1 Fst d) (natCode 2)
+      Gb : Formula                                     -- flC flag
+      Gb = eqF (ap1 Fst (ap1 Snd d)) flC
+      Gc : Formula                                     -- funhead 8
+      Gc = eqF (ap1 Fst (mFun d)) (natCode 8)
+      Gd : Formula                                     -- neg mbhead 0
+      Gd = neg (eqF (ap1 Fst (mMb d)) (natCode 0))
+      Ge : Formula                                     -- neg mbfunhead 3
+      Ge = neg (eqF (ap1 Fst (ap1 Fst (ap1 Snd (ap1 Snd (mMb d))))) (natCode 3))
+      m8C : Fun1
+      m8C = fork rR_flC b_Rcong (tst funhead 8)
+      rRfk : Fun1
+      rRfk = fork b_Rs b_Rcong (tst mbfunhead 3)
+      rhsRes : Term
+      rhsRes = mAp2 flN (mFun d) (ap1 residual (mMa d)) (ap1 residual (mMb d))
+      sTag : Deriv (imp Ga (eqF (ap1 residual d) (ap1 residualAp2Cell (opkg d))))
+      sTag = impEqTrans (ap1 residual d)
+               (ap1 (stepOf residualAp1Cell residualAp2Cell) (opkg d))
+               (ap1 residualAp2Cell (opkg d))
+               (impLift {Ga} (residual_unfold d ne))
+               (fork_false_to_snd_imp Ga residualAp1Cell residualAp2Cell test1 (opkg d)
+                  (natEqSkip_imp Ga get_tag 2 1 (opkg d) (nq 2 1 (\ ()))
+                     (impEqTrans (ap1 get_tag (opkg d)) (ap1 Fst d) (natCode 2)
+                        (impLift {Ga} (op_tag d ne)) (identP Ga))))
+      sFlag : Deriv (imp Gb (eqF (ap1 residualAp2Cell (opkg d)) (ap1 rAp2_flC (opkg d))))
+      sFlag = fork_true_to_fst_imp Gb rAp2_flC rAp2_flN mc_fl (opkg d)
+                (impEqTrans (ap1 mc_fl (opkg d)) (ap1 Fst (ap1 Snd d)) (ap1 s O)
+                   (impLift {Gb} (mc_fl_op d ne)) (identP Gb))
+      s7 : Deriv (imp Gc (eqF (ap1 rAp2_flC (opkg d)) (ap1 m8C (opkg d))))
+      s7 = fork_false_to_snd_imp Gc b_v_C m8C (tst funhead 7) (opkg d)
+             (natEqSkip_imp Gc funhead 8 7 (opkg d) (nq 8 7 (\ ())) (fhImp Gc d 8 ne (identP Gc)))
+      s8 : Deriv (imp Gc (eqF (ap1 m8C (opkg d)) (ap1 rR_flC (opkg d))))
+      s8 = fork_true_to_fst_imp Gc rR_flC b_Rcong (tst funhead 8) (opkg d)
+             (natEqFire_imp Gc funhead 8 (opkg d) (fhImp Gc d 8 ne (identP Gc)))
+      smbh : Deriv (imp Gd (eqF (ap1 rR_flC (opkg d)) (ap1 rRfk (opkg d))))
+      smbh = fork_false_to_snd_imp Gd b_Rb rRfk (tst mbhead 0) (opkg d)
+               (natEqSkipNeg_imp Gd mbhead 0 (opkg d) (mbhNegImp Gd d 0 ne (identP Gd)))
+      smbf : Deriv (imp Ge (eqF (ap1 rRfk (opkg d)) (ap1 b_Rcong (opkg d))))
+      smbf = fork_false_to_snd_imp Ge b_Rs b_Rcong (tst mbfunhead 3) (opkg d)
+               (natEqSkipNeg_imp Ge mbfunhead 3 (opkg d) (mbfhNegImp Ge d 3 ne (identP Ge)))
+  in trans5c (ap1 residual d) (ap1 residualAp2Cell (opkg d)) rhsRes
+       (ap5c (lift5 Ga Gb Gc Gd Ge sTag) (get5a Ga Gb Gc Gd Ge))
+       (trans5c (ap1 residualAp2Cell (opkg d)) (ap1 rAp2_flC (opkg d)) rhsRes
+          (ap5c (lift5 Ga Gb Gc Gd Ge sFlag) (get5b Ga Gb Gc Gd Ge))
+          (trans5c (ap1 rAp2_flC (opkg d)) (ap1 rR_flC (opkg d)) rhsRes
+             (trans5c (ap1 rAp2_flC (opkg d)) (ap1 m8C (opkg d)) (ap1 rR_flC (opkg d))
+                (ap5c (lift5 Ga Gb Gc Gd Ge s7) (get5c Ga Gb Gc Gd Ge))
+                (ap5c (lift5 Ga Gb Gc Gd Ge s8) (get5c Ga Gb Gc Gd Ge)))
+             (trans5c (ap1 rR_flC (opkg d)) (ap1 b_Rcong (opkg d)) rhsRes
+                (trans5c (ap1 rR_flC (opkg d)) (ap1 rRfk (opkg d)) (ap1 b_Rcong (opkg d))
+                   (ap5c (lift5 Ga Gb Gc Gd Ge smbh) (get5d Ga Gb Gc Gd Ge))
+                   (ap5c (lift5 Ga Gb Gc Gd Ge smbf) (get5e Ga Gb Gc Gd Ge)))
+                (lift5 Ga Gb Gc Gd Ge (congNVal d ne)))))
