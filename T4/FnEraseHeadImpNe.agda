@@ -39,12 +39,15 @@ open import BRA3.PairAlgebra using ( compose1U ; compose1U_eq )
 open import BRA3.SubT.V2NatNeq using ( decideNatNeq )
 open import BRA3.Classical using ( axContrapos )
 open import BRA3.Logic using ( eqSymImp )
-open import BRA3.Contrapositive using ( compI )
+open import BRA3.Contrapositive using ( compI ; identP )
 open import T4.Thm12.ImpHelpers using ( impLift ; impEqTrans ; impCong1 ; impCongR )
 open import T4.ImpEq using ( impMp )
 open import T4.ForkImp
-  using ( natEqFire_imp ; natEqSkip_imp ; fork_true_to_fst_imp ; fork_false_to_snd_imp )
+  using ( natEqFire_imp ; natEqSkip_imp ; natEqSkipNeg_imp
+        ; fork_true_to_fst_imp ; fork_false_to_snd_imp )
 open import T4.DescSndImp using ( neSucc )
+open import BRA3.SubT.NatEq using ( natEqF )
+open import BRA3.Dispatch using ( constN )
 open import T4.CtxKit using ( lift2 ; get2a ; get2b ; ap2c ; trans2c )
 
 open HimpBase Z (stepOf eraseAp1Cell eraseAp2Cell)
@@ -234,3 +237,146 @@ erasedBfunh_ap2_imp H d g a neI h2I =
           (ap1 Fst (ap1 mc_f (opkg d))) (ap1 Fst (mFun d))
           (impLift (b2funh g a (ap1 mc_f (opkg d)) cA cB))
           (impCong1 Fst (ap1 mc_f (opkg d)) (mFun d) (viaNe d neI (mc_f_imp d))))
+
+------------------------------------------------------------------------
+-- SECTION 4.  OBJECT-implication forms (for lift+ap into a leaf context).
+
+open import T4.PrLeafReflOImp using ( ne_from_head1 )
+open import BRA3.Logic using ( prependEqLeft )
+
+-- neg-equality transport:  a = b , neg (b = k)  =>  neg (a = k) .
+negEqTransport : (a b : Term) (k : Nat) ->
+  Deriv (imp (eqF a b) (imp (neg (eqF b (natCode k))) (neg (eqF a (natCode k)))))
+negEqTransport a b k =
+  let A : Formula
+      A = eqF a b
+      Bk : Formula
+      Bk = eqF a (natCode k)
+      prepMap : Deriv (imp A (imp Bk (eqF b (natCode k))))
+      prepMap = trans2c b a (natCode k)
+                  (ap2c (lift2 A Bk (eqSymImp a b)) (get2a A Bk))
+                  (get2b A Bk)
+  in impMp {A} (impLift {A} (axContrapos (eqF a (natCode k)) (eqF b (natCode k)))) prepMap
+
+-- ap1-shape object bridges (ne derived from the head-1 fact itself).
+erasedHeadNe0_ap1_obj : (d : Term) ->
+  Deriv (imp (eqF (ap1 Fst d) (natCode 1)) (neg (eqF (ap1 Fst (ap1 erase d)) (natCode 0))))
+erasedHeadNe0_ap1_obj d =
+  erasedHeadNe0_ap1_imp (eqF (ap1 Fst d) (natCode 1)) d (ne_from_head1 d)
+    (identP (eqF (ap1 Fst d) (natCode 1)))
+  where open import BRA3.Contrapositive using ( identP )
+
+erasedBfunh_ap1_obj : (d g a : Term) ->
+  Deriv (imp (eqF (ap1 Fst d) (natCode 1))
+             (eqF (ap1 bfunhF (tmAp2 g a (ap1 erase d))) (ap1 Fst (mFun d))))
+erasedBfunh_ap1_obj d g a =
+  erasedBfunh_ap1_imp (eqF (ap1 Fst d) (natCode 1)) d g a (ne_from_head1 d)
+    (identP (eqF (ap1 Fst d) (natCode 1)))
+  where open import BRA3.Contrapositive using ( identP )
+
+------------------------------------------------------------------------
+-- SECTION 5.  ap2 neg-shape object bridges.  erase forks ONLY on head = 1, so
+-- neg (Fst d = 1) suffices to reach the ap2 cell (no need for Fst d = 2).  Built
+-- directly in the 2-context [neg (d = O), neg (Fst d = 1)].
+
+private
+  GNE : Term -> Formula
+  GNE d = neg (eqF d O)
+  GNH : Term -> Formula
+  GNH d = neg (eqF (ap1 Fst d) (natCode 1))
+
+  -- erase d = tmAp2 (mc_f (opkg d)) (maSlot) (mbSlot) , in [GNE d, GNH d].
+  eraseCell2 : (d : Term) ->
+    Deriv (imp (GNE d) (imp (GNH d)
+             (eqF (ap1 erase d)
+                  (tmAp2 (ap1 mc_f (opkg d)) (ap1 (lookupAt mc_maIdx) (opkg d))
+                         (ap1 (lookupAt mc_mbIdx) (opkg d))))))
+  eraseCell2 d =
+    let gne = GNE d
+        gnh = GNH d
+        stepF : Term
+        stepF = ap1 (stepOf eraseAp1Cell eraseAp2Cell) (opkg d)
+        cellRHS : Term
+        cellRHS = tmAp2 (ap1 mc_f (opkg d)) (ap1 (lookupAt mc_maIdx) (opkg d))
+                        (ap1 (lookupAt mc_mbIdx) (opkg d))
+        opTag2 : Deriv (imp gne (imp gnh (eqF (ap1 get_tag (opkg d)) (ap1 Fst d))))
+        opTag2 = ap2c (lift2 gne gnh (op_tag_imp d)) (get2a gne gnh)
+        negGetTag1 : Deriv (imp gne (imp gnh (neg (eqF (ap1 get_tag (opkg d)) (natCode 1)))))
+        negGetTag1 =
+          ap2c (ap2c (lift2 gne gnh (negEqTransport (ap1 get_tag (opkg d)) (ap1 Fst d) 1)) opTag2)
+               (get2b gne gnh)
+        unfold2 : Deriv (imp gne (imp gnh (eqF (ap1 erase d) stepF)))
+        unfold2 = ap2c (lift2 gne gnh (opUnfold_imp d)) (get2a gne gnh)
+        negGT1 : Formula
+        negGT1 = neg (eqF (ap1 get_tag (opkg d)) (natCode 1))
+        testFO : Formula
+        testFO = eqF (ap1 (C natEqF get_tag (constN 1)) (opkg d)) O
+        testO2 : Deriv (imp gne (imp gnh testFO))
+        testO2 = ap2c (lift2 gne gnh
+                        (natEqSkipNeg_imp negGT1 get_tag 1 (opkg d) (identP negGT1)))
+                      negGetTag1
+        skipFork2 : Deriv (imp gne (imp gnh (eqF stepF (ap1 eraseAp2Cell (opkg d)))))
+        skipFork2 = ap2c (lift2 gne gnh
+                          (fork_false_to_snd_imp testFO
+                             eraseAp1Cell eraseAp2Cell test1 (opkg d) (identP testFO)))
+                        testO2
+        cellval : Deriv (eqF (ap1 eraseAp2Cell (opkg d)) cellRHS)
+        cellval = mkAp2_val mc_f (lookupAt mc_maIdx) (lookupAt mc_mbIdx) (opkg d)
+                    (ap1 mc_f (opkg d)) (ap1 (lookupAt mc_maIdx) (opkg d)) (ap1 (lookupAt mc_mbIdx) (opkg d))
+                    (axRefl (ap1 mc_f (opkg d))) (axRefl (ap1 (lookupAt mc_maIdx) (opkg d)))
+                    (axRefl (ap1 (lookupAt mc_mbIdx) (opkg d)))
+    in trans2c (ap1 erase d) stepF cellRHS unfold2
+         (trans2c stepF (ap1 eraseAp2Cell (opkg d)) cellRHS skipFork2 (lift2 gne gnh cellval))
+
+  c2Fst : (d : Term) {a b : Term} ->
+    Deriv (imp (GNE d) (imp (GNH d) (eqF a b))) ->
+    Deriv (imp (GNE d) (imp (GNH d) (eqF (ap1 Fst a) (ap1 Fst b))))
+  c2Fst d {a} {b} e = ap2c (lift2 (GNE d) (GNH d) (ax_eqCong1 Fst a b)) e
+
+erasedHeadNe0_ap2_neg_obj : (d : Term) ->
+  Deriv (imp (neg (eqF d O)) (imp (neg (eqF (ap1 Fst d) (natCode 1)))
+             (neg (eqF (ap1 Fst (ap1 erase d)) (natCode 0)))))
+erasedHeadNe0_ap2_neg_obj d =
+  let cA = ap1 (lookupAt mc_maIdx) (opkg d)
+      cB = ap1 (lookupAt mc_mbIdx) (opkg d)
+      headI : Deriv (imp (GNE d) (imp (GNH d) (eqF (ap1 Fst (ap1 erase d)) (ap1 s (ap1 s O)))))
+      headI = trans2c (ap1 Fst (ap1 erase d)) (ap1 Fst (tmAp2 (ap1 mc_f (opkg d)) cA cB)) (ap1 s (ap1 s O))
+                (c2Fst d (eraseCell2 d))
+                (lift2 (GNE d) (GNH d) (hd_tmAp2 (ap1 mc_f (opkg d)) cA cB))
+  in ap2c (lift2 (GNE d) (GNH d) (neValSucc (ap1 Fst (ap1 erase d)) (ap1 s O))) headI
+
+erasedBfunh_ap2_neg_obj : (d g a : Term) ->
+  Deriv (imp (neg (eqF d O)) (imp (neg (eqF (ap1 Fst d) (natCode 1)))
+             (eqF (ap1 bfunhF (tmAp2 g a (ap1 erase d))) (ap1 Fst (mFun d)))))
+erasedBfunh_ap2_neg_obj d g a =
+  let cA = ap1 (lookupAt mc_maIdx) (opkg d)
+      cB = ap1 (lookupAt mc_mbIdx) (opkg d)
+      gne = GNE d
+      gnh = GNH d
+      bslot : Deriv (imp gne (imp gnh
+                (eqF (tmAp2 g a (ap1 erase d)) (tmAp2 g a (tmAp2 (ap1 mc_f (opkg d)) cA cB)))))
+      bslot = ap2c (lift2 gne gnh
+                (ax_eqCongR Pair (ap2 Pair g (ap2 Pair a (ap1 erase d)))
+                                 (ap2 Pair g (ap2 Pair a (tmAp2 (ap1 mc_f (opkg d)) cA cB))) tgAp2))
+                (ap2c (lift2 gne gnh
+                   (ax_eqCongR Pair (ap2 Pair a (ap1 erase d))
+                                    (ap2 Pair a (tmAp2 (ap1 mc_f (opkg d)) cA cB)) g))
+                   (ap2c (lift2 gne gnh
+                      (ax_eqCongR Pair (ap1 erase d) (tmAp2 (ap1 mc_f (opkg d)) cA cB) a))
+                      (eraseCell2 d)))
+      bcong : Deriv (imp gne (imp gnh
+                (eqF (ap1 bfunhF (tmAp2 g a (ap1 erase d)))
+                     (ap1 bfunhF (tmAp2 g a (tmAp2 (ap1 mc_f (opkg d)) cA cB))))))
+      bcong = ap2c (lift2 gne gnh
+                (ax_eqCong1 bfunhF (tmAp2 g a (ap1 erase d))
+                            (tmAp2 g a (tmAp2 (ap1 mc_f (opkg d)) cA cB)))) bslot
+      mcfEq : Deriv (imp gne (imp gnh (eqF (ap1 Fst (ap1 mc_f (opkg d))) (ap1 Fst (mFun d)))))
+      mcfEq = ap2c (lift2 gne gnh (ax_eqCong1 Fst (ap1 mc_f (opkg d)) (mFun d)))
+                (ap2c (lift2 gne gnh (mc_f_imp d)) (get2a gne gnh))
+  in trans2c (ap1 bfunhF (tmAp2 g a (ap1 erase d)))
+       (ap1 bfunhF (tmAp2 g a (tmAp2 (ap1 mc_f (opkg d)) cA cB))) (ap1 Fst (mFun d))
+       bcong
+       (trans2c (ap1 bfunhF (tmAp2 g a (tmAp2 (ap1 mc_f (opkg d)) cA cB)))
+          (ap1 Fst (ap1 mc_f (opkg d))) (ap1 Fst (mFun d))
+          (lift2 gne gnh (b2funh g a (ap1 mc_f (opkg d)) cA cB))
+          mcfEq)
