@@ -44,8 +44,49 @@ corollary fixes `Lstar := 0` and `ConOpenInt` is the only input.  Build
 it with `agda --safe T4/SurpriseGIIClosed.agda` — no postulates, holes,
 or extra hypotheses.
 
+## Löb's theorem via a closed existential provability predicate
+
+The `add-E-formula` branch adds a single **closed existential former** to
+the syntax,
+
+```agda
+E : Fun1 -> Formula          -- E f  is the closed sentence  "exists x. f x = O"
+```
+
+together with its Hilbert-style rules (`E_intro`, `eIntroAx`, `E_elim` in
+`BRA3/Deriv.agda`).  Because a `Fun1` carries no term variable, every `E f`
+is a **closed** Σ₁ sentence, so this is a conservative existential layer on
+top of the quantifier-free calculus.  On it we build an object-level
+provability predicate
+
+```agda
+provFun  : Formula -> Fun1        -- x |-> sub (s O) (natEqF (thmT x) (code A))
+Provable : Formula -> Formula
+Provable A = E (provFun A)        -- "exists x. thmT x = code A"
+```
+
+and prove **Löb's theorem in the clean, unconditional form** — no freshness
+side condition, because `Provable A` is closed (`T4/LobProvable.agda`):
+
+```agda
+lobProvable : (A : Formula) -> Deriv (imp (Provable A) A) -> Deriv A
+```
+
+From a proof of `Provable(A) -> A` it produces a proof of `A`.  The raw
+box form (with the box exposed as `thmT(var 1) = code A`) is `lob` in
+`T4/Lob.agda`, whose only side condition is the minimal freshness that the
+diagonal slot and proof variable are not free in `A`; `lobProvable`
+discharges even that by taking the proof variable fresh.  Both files check
+under `agda --safe` with no postulates or holes.  Taking `A := falseF`
+recovers the shipped diagonal Gödel II.
+
 ## Papers
 
+- [**An existential layer for Basic Recursive Arithmetic** — object
+  provability, Löb's theorem, generalised Chaitin, and the short-tower
+  obstruction](E-provable-lob.pdf) (source: `T4/E-provable-lob.tex`).  The
+  `E(f)` existential former, the `Provable` predicate, the unconditional
+  Löb theorem above, and a generalised Chaitin theorem.
 - [**Gödel II** — A formalisation of Gödel's Second Incompleteness
   Theorem for the Basic Recursive Arithmetic of Church and
   Guard](goedelII-summary.pdf) (source: `T4/goedelII-summary.tex`).
